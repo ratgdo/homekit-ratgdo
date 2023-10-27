@@ -18,6 +18,7 @@ void setup_pins();
 
 void setup() {
     Serial.begin(115200);
+    Serial.print("\nRATGDO setup begin\n");
 
     wifi_connect();
 
@@ -26,19 +27,25 @@ void setup() {
     setup_pins();
 
     setup_comms();
+
+    Serial.print("\nRATGDO setup end\n");
 }
 
 void loop() {
-
     homekit_loop();
+
+    delay(10);
 
 }
 
 /*********************************** HELPER FUNCTIONS **************************************/
 
 void setup_pins() {
-    pinMode(UART_TX_PIN, OUTPUT);
-    pinMode(UART_RX_PIN, INPUT_PULLUP);
+    Serial.print("\nSetting up pins\n");
+
+    // TODO uncomment this when ready to set up comms
+    // pinMode(UART_TX_PIN, OUTPUT);
+    // pinMode(UART_RX_PIN, INPUT_PULLUP);
 
     /* TODO add support for pin-based obstruction detection
      *

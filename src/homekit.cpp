@@ -36,14 +36,29 @@ void setup_homekit() {
 /******************************** GETTERS AND SETTERS ***************************************/
 
 homekit_value_t current_door_state_get() {
+    INFO("get current door state: %d", garage_door.current_state);
+
     return HOMEKIT_UINT8_CPP(garage_door.current_state);
 }
 
 homekit_value_t target_door_state_get() {
+    INFO("get target door state: %d", garage_door.target_state);
+
     return HOMEKIT_UINT8_CPP(garage_door.target_state);
 }
 
 void target_door_state_set(const homekit_value_t value) {
+    INFO("set door state: %d", value.uint8_value);
+
+    // TODO this should be gated on successful xmit of the command below (on
+    // ACK if possible). It's out-of-order at the moment pending comms, in
+    // order to fake the functionality.
+    garage_door.target_state = (GarageDoorTargetState)value.uint8_value;
+    homekit_characteristic_notify(
+        &target_door_state,
+        value
+    );
+
     switch (value.uint8_value) {
         case TGT_OPEN:
             open_door();
@@ -52,11 +67,13 @@ void target_door_state_set(const homekit_value_t value) {
             close_door();
             break;
         default:
-            // ?
+            ERROR("invalid target door state set requested: %d", value.uint8_value);
             break;
     }
+
 }
 
 homekit_value_t obstruction_detected_get() {
+    INFO("get obstruction: %d", garage_door.obstructed);
     return HOMEKIT_BOOL_CPP(garage_door.obstructed);
 }
