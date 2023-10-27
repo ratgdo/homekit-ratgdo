@@ -6,7 +6,7 @@ This is a work-in-progress implementation.
 
 ## Current task list
 
-- [ ] stub support for garage door HAP service
+- [x] stub support for garage door HAP service
 - [ ] working security+ 2.0 communications
 - [ ] wire up comms and homekit
 - [ ] enable Improv and esp web tools-based configuration
