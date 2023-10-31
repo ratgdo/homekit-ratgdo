@@ -8,8 +8,8 @@ This is a work-in-progress implementation.
 
 - [x] stub support for garage door HAP service
 - [ ] working security+ 2.0 communications
-- [ ] wire up comms and homekit
-- [ ] enable Improv and esp web tools-based configuration
+- [x] wire up comms and homekit
+- [x] enable Improv and esp web tools-based configuration
 - [ ] add support for light HAP service
 - [ ] add support for motion detection HAP service
 - [ ] extend/generalize in order to support ESP32-based devices

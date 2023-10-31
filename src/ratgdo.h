@@ -3,6 +3,12 @@
 
 #include "homekit_decl.h"
 
+#define DEVICE_NAME "Garage Door"
+#define MANUF_NAME "ratCloud llc"
+#define SERIAL_NUMBER "0P3ND00R"
+#define MODEL_NAME "ratgdo"
+#define FIRMWARE_VERSION "0.1"
+
 /********************************** PIN DEFINITIONS *****************************************/
 
 #define UART_TX_PIN             D1  // red control terminal / GarageDoorOpener (UART1 TX)
