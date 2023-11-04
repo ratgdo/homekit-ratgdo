@@ -43,9 +43,13 @@ void loop() {
 void setup_pins() {
     Serial.print("\nSetting up pins\n");
 
-    // TODO uncomment this when ready to set up comms
-    // pinMode(UART_TX_PIN, OUTPUT);
-    // pinMode(UART_RX_PIN, INPUT_PULLUP);
+    if (UART_TX_PIN != LED_BUILTIN) {
+        pinMode(LED_BUILTIN, OUTPUT);
+        digitalWrite(LED_BUILTIN, LOW);
+    }
+
+    pinMode(UART_TX_PIN, OUTPUT);
+    pinMode(UART_RX_PIN, INPUT_PULLUP);
 
     /* TODO add support for pin-based obstruction detection
      *

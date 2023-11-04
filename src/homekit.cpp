@@ -77,3 +77,10 @@ homekit_value_t obstruction_detected_get() {
     INFO("get obstruction: %d", garage_door.obstructed);
     return HOMEKIT_BOOL_CPP(garage_door.obstructed);
 }
+
+void notify_homekit_current_door_state_change() {
+    homekit_characteristic_notify(
+        &current_door_state,
+        HOMEKIT_UINT8_CPP(garage_door.current_state)
+    );
+}
