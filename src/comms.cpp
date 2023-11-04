@@ -83,7 +83,6 @@ SecPlus2DoorStatus SecPlus2DoorStatus::from_byte(uint8_t raw) {
     return SecPlus2DoorStatus::Unknown;
 }
 
-typedef void (*secplus_packet_cb)(uint8_t packet[SECPLUS2_CODE_LEN]);
 typedef void (*secplus_door_status_cb)(SecPlus2DoorStatus door_status);
 
 class PacketDecoder {
