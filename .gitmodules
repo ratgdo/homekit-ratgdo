@@ -1,0 +1,3 @@
+[submodule "secplus"]
+	path = lib/secplus
+	url = https://github.com/argilo/secplus.git
