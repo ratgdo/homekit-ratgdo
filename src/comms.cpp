@@ -5,200 +5,20 @@
 #include "secplus.h"
 #include "homekit.h"
 
-const uint8_t SECPLUS2_CODE_LEN = 19;
-const uint32_t SECPLUS2_PREAMBLE = 0x00550100;
+#include "Decoder.h"
+#include "Reader.h"
+#include "secplus2.h"
 
 /*************************** FORWARD DECLARATIONS ******************************/
 void sync();
 void write_counter_to_flash(const char *filename, uint32_t* counter);
 uint32_t read_counter_from_flash(const char* filename);
 
-class SecPlus2Command;
-class SecPlus2DoorStatus;
-class SecPlus2Reader;
-class SecPlus2Writer;
-class PacketDecoder;
-
-class SecPlus2Command {
-    public:
-        enum Command : uint16_t {
-            Unknown = 0x00,
-            StatusMsg = 0x81,
-            LightToggle = 0x281,
-            ObstructionMsg = 0x84,
-            MotionToggle = 0x285,
-        };
-
-        SecPlus2Command() = default;
-        constexpr SecPlus2Command(Command command) : m_command(command) {};
-
-        constexpr operator Command() const { return m_command; };
-        explicit operator bool() const = delete;
-
-        static SecPlus2Command from_byte(uint16_t raw);
-
-    private:
-        Command m_command;
-};
-
-SecPlus2Command SecPlus2Command::from_byte(uint16_t raw) {
-    if (raw == StatusMsg) {
-        return SecPlus2Command::StatusMsg;
-    } else if (raw == LightToggle) {
-        return SecPlus2Command::LightToggle;
-    } else if (raw == ObstructionMsg) {
-        return SecPlus2Command::ObstructionMsg;
-    } else if (raw == MotionToggle) {
-        return SecPlus2Command::MotionToggle;
-    } else {
-        return SecPlus2Command::Unknown;
-    }
-}
-
-class SecPlus2DoorStatus {
-    public:
-        enum Status : uint8_t {
-            Unknown,
-            Open,
-            Closed,
-            Stopped,
-            Opening,
-            Closing,
-            Syncing
-        };
-
-        SecPlus2DoorStatus() = default;
-        constexpr SecPlus2DoorStatus(Status status) : m_status(status) {};
-
-        constexpr operator Status() const { return m_status; };
-        explicit operator bool() const = delete;
-
-        static SecPlus2DoorStatus from_byte(uint8_t raw);
-
-    private:
-        Status m_status;
-};
-
-SecPlus2DoorStatus SecPlus2DoorStatus::from_byte(uint8_t raw) {
-    return SecPlus2DoorStatus::Unknown;
-}
-
-typedef void (*secplus_door_status_cb)(SecPlus2DoorStatus door_status);
-
-class PacketDecoder {
-    private:
-        secplus_door_status_cb m_door_status_cb;
-
-    public:
-        PacketDecoder() = default;
-
-        void set_door_status_cb(secplus_door_status_cb cb);
-        void handle_code(uint8_t packet[SECPLUS2_CODE_LEN]);
-};
-
-void PacketDecoder::set_door_status_cb(secplus_door_status_cb cb) {
-    m_door_status_cb = cb;
-}
-
-void PacketDecoder::handle_code(uint8_t packet[SECPLUS2_CODE_LEN]) {
-	uint32_t rolling = 0;
-	uint64_t fixed = 0;
-	uint32_t data = 0;
-
-	uint8_t nibble = 0;
-    /* TODO add support for lights, obstruction, etc
-	uint8_t byte1 = 0;
-	uint8_t byte2 = 0;
-     */
-
-	decode_wireline(packet, &rolling, &fixed, &data);
-
-    SecPlus2Command cmd = SecPlus2Command::from_byte(((fixed >> 24) & 0xf00) | (data & 0xff));
-
-	nibble = (data >> 8) & 0xf;
-    /* TODO add support for lights, obstruction, etc
-	byte1 = (data >> 16) & 0xff;
-	byte2 = (data >> 24) & 0xff;
-     */
-
-    switch (cmd) {
-        case SecPlus2Command::StatusMsg:
-            this->m_door_status_cb(SecPlus2DoorStatus::from_byte(nibble));
-            break;
-        case SecPlus2Command::LightToggle:
-            break;
-        case SecPlus2Command::ObstructionMsg:
-            break;
-        case SecPlus2Command::MotionToggle:
-            break;
-        case SecPlus2Command::Unknown:
-            break;
-    }
-
-}
-
-enum SecPlus2ReaderMode : uint8_t {
-    SCANNING,
-    RECEIVING,
-};
-
-class SecPlus2Reader {
-    private:
-        bool m_is_reading = false;
-        uint32_t m_msg_start = 0;
-        size_t m_byte_count = 0;
-        uint8_t m_rx_buf[SECPLUS2_CODE_LEN] = {0x55, 0x01, 0x00};
-        SecPlus2ReaderMode m_mode = SCANNING;
-
-        PacketDecoder* m_decoder;
-
-    public:
-        SecPlus2Reader() = default;
-
-        void push_byte(uint8_t inp);
-        void set_packet_decoder(PacketDecoder* decoder);
-
-};
-
-void SecPlus2Reader::push_byte(uint8_t inp) {
-    bool msg_ready = false;
-
-    switch (m_mode) {
-        case SCANNING:
-            m_msg_start <<= 8;
-            m_msg_start |= inp;
-            m_msg_start &= 0x00FFFFFF;
-
-            if (m_msg_start == SECPLUS2_PREAMBLE) {
-                m_byte_count = 3;
-                m_mode = RECEIVING;
-            }
-            break;
-
-        case RECEIVING:
-            m_rx_buf[m_byte_count] = inp;
-            m_byte_count += 1;
-
-            if (m_byte_count == SECPLUS2_CODE_LEN) {
-                m_mode = SCANNING;
-                m_msg_start = 0;
-                msg_ready = true;
-            }
-            break;
-    }
-
-    if (msg_ready && m_decoder) {
-        m_decoder->handle_code(m_rx_buf);
-    }
-}
-
-void SecPlus2Reader::set_packet_decoder(PacketDecoder* decoder) {
-    m_decoder = decoder;
-}
-
+/* TODO add support for tx
 struct SecPlus2Writer {
     uint8_t tx_buf[SECPLUS2_CODE_LEN];
 };
+ */
 
 /********************************** LOCAL STORAGE *****************************************/
 
