@@ -5,6 +5,10 @@ do
     case "$1" in
         -v) VERBOSE="-vvv"
             ;;
+        upload) pio run -t upload
+            ;;
+        monitor) pio device monitor
+            ;;
         run) pio run -e leftovers $VERBOSE
             ;;
         test) pio test -e native $VERBOSE

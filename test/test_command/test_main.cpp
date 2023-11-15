@@ -1,7 +1,7 @@
 
 #include <unity.h>
 #include <stdint.h>
-#include <Command.h>
+#include <Update.h>
 
 void setUp(void) {
     // set stuff up here
@@ -12,11 +12,11 @@ void tearDown(void) {
 }
 
 void test_command_decode(void) {
-    TEST_ASSERT_EQUAL(SecPlus2Command::from_byte(0x81), SecPlus2Command::StatusMsg);
+    TEST_ASSERT_EQUAL(SecPlus2Update::from_byte(0x81), SecPlus2Update::StatusMsg);
 }
 
 void test_command_decode_unknown(void) {
-    TEST_ASSERT_EQUAL(SecPlus2Command::from_byte(0x82), SecPlus2Command::Unknown);
+    TEST_ASSERT_EQUAL(SecPlus2Update::from_byte(0x82), SecPlus2Update::Unknown);
 }
 
 int main(int argc, char **argv) {

@@ -4,7 +4,7 @@
 #include <secplus.h>
 #include <secplus2.h>
 #include <Status.h>
-#include <Command.h>
+#include <Update.h>
 
 class PacketDecoder {
     private:
@@ -29,7 +29,7 @@ class PacketDecoder {
 
             decode_wireline(packet, &rolling, &fixed, &data);
 
-            SecPlus2Command cmd = SecPlus2Command::from_byte(((fixed >> 24) & 0xf00) | (data & 0xff));
+            SecPlus2Update cmd = SecPlus2Update::from_byte(((fixed >> 24) & 0xf00) | (data & 0xff));
 
             nibble = (data >> 8) & 0xf;
             /* TODO add support for lights, obstruction, etc
@@ -38,16 +38,16 @@ class PacketDecoder {
                */
 
             switch (cmd) {
-                case SecPlus2Command::StatusMsg:
+                case SecPlus2Update::StatusMsg:
                     this->m_door_status_cb(SecPlus2DoorStatus::from_byte(nibble));
                     break;
-                case SecPlus2Command::LightToggle:
+                case SecPlus2Update::LightToggle:
                     break;
-                case SecPlus2Command::ObstructionMsg:
+                case SecPlus2Update::ObstructionMsg:
                     break;
-                case SecPlus2Command::MotionToggle:
+                case SecPlus2Update::MotionToggle:
                     break;
-                case SecPlus2Command::Unknown:
+                case SecPlus2Update::Unknown:
                     break;
             }
 
