@@ -11,8 +11,12 @@
 
 /********************************** PIN DEFINITIONS *****************************************/
 
-#define UART_TX_PIN             D1  // red control terminal / GarageDoorOpener (UART1 TX)
-#define UART_RX_PIN             D2  // red control terminal / GarageDoorOpener (UART1 RX)
+// #define uart_tx_pin             d1  // red control terminal / garagedooropener (uart1 tx)
+// #define UART_RX_PIN             D2  // red control terminal / GarageDoorOpener (UART1 RX)
+
+// TODO set for leftovers
+#define UART_TX_PIN             1  // red control terminal / GarageDoorOpener (UART1 TX)
+#define UART_RX_PIN             3  // red control terminal / GarageDoorOpener (UART1 RX)
 
 /*
  * TODO add support for pin-based obstruction detection

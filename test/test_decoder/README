@@ -1,0 +1,2 @@
+I don't know how to get platformio to build libraries along with tests, but this test requires the
+decode_wireline function, so secplus.c is copied here.
