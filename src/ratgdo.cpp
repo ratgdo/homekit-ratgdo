@@ -2,7 +2,7 @@
 #include <Arduino.h>
 
 #include "ratgdo.h"
-#include "wifi_info.h"
+#include "wifi.h"
 #include "homekit.h"
 #include "comms.h"
 
@@ -32,9 +32,10 @@ void setup() {
 }
 
 void loop() {
-    homekit_loop();
 
-    delay(10);
+    improv_loop();
+
+    homekit_loop();
 
 }
 
