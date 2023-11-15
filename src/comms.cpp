@@ -2,7 +2,7 @@
 #include "ratgdo.h"
 #include "homekit_debug.h"
 #include "LittleFS.h"
-#include "secplus.h"
+// #include "secplus.h"
 #include "homekit.h"
 
 #include "Decoder.h"

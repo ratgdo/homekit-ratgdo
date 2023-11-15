@@ -1,9 +1,10 @@
 #ifndef _DECODER_H
 #define _DECODER_H
 
-#include "secplus2.h"
-#include "Status.h"
-#include "Command.h"
+#include <secplus.h>
+#include <secplus2.h>
+#include <Status.h>
+#include <Command.h>
 
 class PacketDecoder {
     private:

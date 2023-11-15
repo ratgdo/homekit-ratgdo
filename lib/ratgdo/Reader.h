@@ -1,8 +1,8 @@
 #ifndef _READER_H
 #define _READER_H
 
-#include "secplus2.h"
-#include "Decoder.h"
+#include <secplus2.h>
+#include <Decoder.h>
 
 enum SecPlus2ReaderMode : uint8_t {
     SCANNING,

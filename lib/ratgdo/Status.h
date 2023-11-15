@@ -20,7 +20,22 @@ class SecPlus2DoorStatus {
         explicit operator bool() const = delete;
 
         static SecPlus2DoorStatus from_byte(uint8_t raw) {
-            return SecPlus2DoorStatus::Unknown;
+            switch (raw) {
+                case Open:
+                    return SecPlus2DoorStatus::Open;
+                case Closed:
+                    return SecPlus2DoorStatus::Closed;
+                case Stopped:
+                    return SecPlus2DoorStatus::Stopped;
+                case Opening:
+                    return SecPlus2DoorStatus::Opening;
+                case Closing:
+                    return SecPlus2DoorStatus::Closing;
+                case Syncing:
+                    return SecPlus2DoorStatus::Syncing;
+                default:
+                    return SecPlus2DoorStatus::Unknown;
+            }
         };
 
     private:
