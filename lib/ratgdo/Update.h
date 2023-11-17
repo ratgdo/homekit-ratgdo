@@ -1,9 +1,9 @@
-#ifndef _COMMAND_H
-#define _COMMAND_H
+#ifndef _UPDATE_H
+#define _UPDATE_H
 
 class SecPlus2Update {
     public:
-        enum Command : uint16_t {
+        enum Update : uint16_t {
             Unknown = 0x00,
             StatusMsg = 0x81,
             LightToggle = 0x281,
@@ -12,9 +12,9 @@ class SecPlus2Update {
         };
 
         SecPlus2Update() = default;
-        constexpr SecPlus2Update(Command command) : m_command(command) {};
+        constexpr SecPlus2Update(Update command) : m_update(command) {};
 
-        constexpr operator Command() const { return m_command; };
+        constexpr operator Update() const { return m_update; };
         explicit operator bool() const = delete;
 
         static SecPlus2Update from_byte(uint16_t raw) {
@@ -32,7 +32,7 @@ class SecPlus2Update {
         };
 
     private:
-        Command m_command;
+        Update m_update;
 };
 
-#endif
+#endif // _UPDATE_H

@@ -8,17 +8,13 @@
 #include "Decoder.h"
 #include "Reader.h"
 #include "secplus2.h"
+#include "Command.h"
 
 /*************************** FORWARD DECLARATIONS ******************************/
 void sync();
 void write_counter_to_flash(const char *filename, uint32_t* counter);
 uint32_t read_counter_from_flash(const char* filename);
-
-/* TODO add support for tx
-struct SecPlus2Writer {
-    uint8_t tx_buf[SECPLUS2_CODE_LEN];
-};
- */
+void transmit_command(SecPlus2Command cmd);
 
 /********************************** LOCAL STORAGE *****************************************/
 
@@ -70,6 +66,22 @@ void handle_door_status(SecPlus2DoorStatus status) {
     notify_homekit_current_door_state_change();
 }
 
+void transmit_command(SecPlus2Command cmd) {
+    cmd.prepare(id_code, &rolling_code, [&](uint8_t pkt[SECPLUS2_CODE_LEN]) {
+            // TODO add collision detection and backoff/retry/yield
+            //
+            // one possible approach is to store the state of the transmission in the cmd object,
+            // and invoke prepare repeatedly while it, e.g. returns true, or something
+
+            digitalWrite(UART_TX_PIN, HIGH);
+            delayMicroseconds(1300);
+            digitalWrite(UART_TX_PIN, LOW);
+            delayMicroseconds(130);
+
+            sw_serial.write(pkt, SECPLUS2_CODE_LEN);
+            delayMicroseconds(100);
+    });
+}
 
 /********************************** MAIN LOOP CODE *****************************************/
 
@@ -98,17 +110,6 @@ void setup_comms() {
 }
 
 void comms_loop() {
-    // TODO read from sw_serial and notify the characteristic
-    //
-    // NOTE I'm still not entirely clear on what messages are sent by the GDO, but this should probably be something like:
-    // * target state characteristic is set in homekit
-    // * motor starts moving, which causes current state to be set
-    //   * if target = OPEN, motor start causes current state OPENING
-    //   * if target = CLOSED, motor start causes current state CLOSING
-    // * motor stops or open/close message is received
-    //   * causes current state OPEN or CLOSED
-    // what happens then the door is stopped partway?
-
     if (!sw_serial.available()) {
         return;
     }
@@ -120,13 +121,23 @@ void comms_loop() {
 /********************************** CONTROLLER CODE *****************************************/
 
 void open_door() {
-    INFO("TODO: open door\n");
-    // TODO xmit open door cmd
+    INFO("open door req\n");
+    if (garage_door.current_state == CURR_OPEN || garage_door.current_state == CURR_OPENING) {
+        INFO("open door ignored\n");
+        return;
+    }
+
+    transmit_command(SecPlus2Command::Door);
 }
 
 void close_door() {
-    INFO("TODO: close door\n");
-    // TODO xmit close door command
+    INFO("close door req\n");
+    if (garage_door.current_state == CURR_CLOSED || garage_door.current_state == CURR_CLOSING) {
+        INFO("close door ignored\n");
+        return;
+    }
+
+    transmit_command(SecPlus2Command::Door);
 }
 
 /********************************** UTIL CODE *****************************************/
@@ -159,6 +170,6 @@ void write_counter_to_flash(const char *filename, uint32_t* counter) {
 }
 
 void sync() {
-    // TODO
+    transmit_command(SecPlus2Command::Sync);
     Serial.println("synced");
 }
