@@ -5,6 +5,7 @@
 #include "wifi.h"
 #include "homekit.h"
 #include "comms.h"
+#include "log.h"
 
 /********************************* FWD DECLARATIONS *****************************************/
 
@@ -18,7 +19,7 @@ void setup_pins();
 
 void setup() {
     Serial.begin(115200);
-    Serial.print("\nRATGDO setup begin\n");
+    RINFO("RATGDO setup begin");
 
     wifi_connect();
 
@@ -28,7 +29,7 @@ void setup() {
 
     setup_comms();
 
-    Serial.print("\nRATGDO setup end\n");
+    RINFO("RATGDO setup end");
 }
 
 void loop() {
@@ -37,14 +38,17 @@ void loop() {
 
     homekit_loop();
 
+    comms_loop();
+
 }
 
 /*********************************** HELPER FUNCTIONS **************************************/
 
 void setup_pins() {
-    Serial.print("\nSetting up pins\n");
+    RINFO("Setting up pins");
 
     if (UART_TX_PIN != LED_BUILTIN) {
+        RINFO("enabling built-in LED");
         pinMode(LED_BUILTIN, OUTPUT);
         digitalWrite(LED_BUILTIN, LOW);
     }

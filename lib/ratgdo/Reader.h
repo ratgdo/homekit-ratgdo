@@ -3,6 +3,7 @@
 
 #include <secplus2.h>
 #include <Decoder.h>
+#include "log.h"
 
 enum SecPlus2ReaderMode : uint8_t {
     SCANNING,
@@ -50,6 +51,7 @@ class SecPlus2Reader {
             }
 
             if (msg_ready && m_decoder) {
+                print_packet(m_rx_buf);
                 m_decoder->handle_code(m_rx_buf);
             }
         };
