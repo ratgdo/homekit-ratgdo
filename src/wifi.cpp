@@ -19,6 +19,7 @@
 #include "improv.h"
 #include <Arduino.h>
 #include "ratgdo.h"
+#include "log.h"
 
 #define MAX_ATTEMPTS_WIFI_CONNECTION 10
 uint8_t x_buffer[16];
@@ -35,7 +36,7 @@ void wifi_connect() {
     WiFi.persistent(true);       // enable connection by default after future boots if improv has succeeded
     WiFi.mode(WIFI_STA);
     WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
-    Serial.println("Starting WiFi connecting in background");
+    RINFO("Starting WiFi connecting in background");
     WiFi.begin();                // use credentials stored in flash
 
 }
@@ -81,9 +82,7 @@ std::vector<std::string> get_local_url() {
 }
 
 void on_error_callback(improv::Error err) {
-    Serial.print("improv error: ");
-    Serial.print(err);
-    Serial.print("\n");
+    RERROR("improv error: %02X", err);
 }
 
 bool on_command_callback(improv::ImprovCommand cmd) {

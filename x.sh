@@ -5,15 +5,15 @@ do
     case "$1" in
         -v) VERBOSE="-vvv"
             ;;
-        upload) pio run -t upload
+        upload) pio run -t upload -e ratgdo_esp8266_hV25
             ;;
-        monitor) pio device monitor
+        monitor) pio device monitor -e ratgdo_esp8266_hV25
             ;;
-        run) pio run -e leftovers $VERBOSE
+        run) pio run -e ratgdo_esp8266_hV25 $VERBOSE
             ;;
         test) pio test -e native $VERBOSE
             ;;
-        *) echo "bad option $1, either --run or --test"
+        *) echo "usage: x.sh [-v] <upload|monitor|run|test>"
             exit 1
             ;;
     esac

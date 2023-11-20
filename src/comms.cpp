@@ -4,6 +4,7 @@
 #include "LittleFS.h"
 // #include "secplus.h"
 #include "homekit.h"
+#include "log.h"
 
 #include "Decoder.h"
 #include "Reader.h"
@@ -32,31 +33,36 @@ void handle_door_status(SecPlus2DoorStatus status) {
     GarageDoorCurrentState val = CURR_OPEN;
     switch (status) {
         case SecPlus2DoorStatus::Unknown:
-            Serial.println("got unknown door status wtf");
+            RINFO("got unknown door status wtf");
             break;
 
         case SecPlus2DoorStatus::Open:
+            RINFO("got door open status");
             val = CURR_OPEN;
             break;
 
         case SecPlus2DoorStatus::Closed:
+            RINFO("got door closed status");
             val = CURR_CLOSED;
             break;
 
         case SecPlus2DoorStatus::Stopped:
+            RINFO("got door stopped status");
             val = CURR_STOPPED;
             break;
 
         case SecPlus2DoorStatus::Opening:
+            RINFO("got door opening status");
             val = CURR_OPENING;
             break;
 
         case SecPlus2DoorStatus::Closing:
+            RINFO("got door closing status");
             val = CURR_CLOSING;
             break;
 
         case SecPlus2DoorStatus::Syncing:
-            Serial.println("got syncing door status wtf");
+            RINFO("got syncing door status wtf");
             break;
 
     };
@@ -72,6 +78,7 @@ void transmit_command(SecPlus2Command cmd) {
             //
             // one possible approach is to store the state of the transmission in the cmd object,
             // and invoke prepare repeatedly while it, e.g. returns true, or something
+            print_packet(pkt);
 
             digitalWrite(UART_TX_PIN, HIGH);
             delayMicroseconds(1300);
@@ -86,7 +93,7 @@ void transmit_command(SecPlus2Command cmd) {
 /********************************** MAIN LOOP CODE *****************************************/
 
 void setup_comms() {
-    INFO("Setting up comms for secplus2.0 protocol");
+    RINFO("Setting up comms for secplus2.0 protocol");
 
     reader.set_packet_decoder(&decoder);
     decoder.set_door_status_cb(handle_door_status);
@@ -101,10 +108,12 @@ void setup_comms() {
         id_code = random(0x1, 0xFFFF);
         write_counter_to_flash("id_code", &id_code);
     }
+    RINFO("id code %02X", id_code);
 
     rolling_code = read_counter_from_flash("rolling");
+    RINFO("rolling code %02X", rolling_code);
 
-    Serial.println("Syncing rolling code counter after reboot...");
+    RINFO("Syncing rolling code counter after reboot...");
     sync();
 
 }
@@ -121,9 +130,9 @@ void comms_loop() {
 /********************************** CONTROLLER CODE *****************************************/
 
 void open_door() {
-    INFO("open door req\n");
+    RINFO("open door req\n");
     if (garage_door.current_state == CURR_OPEN || garage_door.current_state == CURR_OPENING) {
-        INFO("open door ignored\n");
+        RINFO("open door ignored\n");
         return;
     }
 
@@ -131,9 +140,9 @@ void open_door() {
 }
 
 void close_door() {
-    INFO("close door req\n");
+    RINFO("close door req\n");
     if (garage_door.current_state == CURR_CLOSED || garage_door.current_state == CURR_CLOSING) {
-        INFO("close door ignored\n");
+        RINFO("close door ignored\n");
         return;
     }
 
@@ -147,8 +156,7 @@ uint32_t read_counter_from_flash(const char* filename) {
     File file = LittleFS.open(filename, "r");
 
     if (!file) {
-        Serial.print(filename);
-        Serial.println(" doesn't exist. creating...");
+        RINFO("%s doesn't exist. creating...", filename);
 
         write_counter_to_flash(filename, 0);
         return 0;
@@ -171,5 +179,5 @@ void write_counter_to_flash(const char *filename, uint32_t* counter) {
 
 void sync() {
     transmit_command(SecPlus2Command::Sync);
-    Serial.println("synced");
+    RINFO("synced");
 }

@@ -3,6 +3,7 @@
 
 #include <secplus2.h>
 #include <secplus.h>
+#include "log.h"
 
 class SecPlus2Command {
 
@@ -24,6 +25,8 @@ class SecPlus2Command {
         explicit operator bool() const = delete;
 
         void prepare(const uint64_t id, uint32_t* rolling, auto xmit) {
+            RINFO("preparing command %02X", m_command);
+
             uint8_t n;
             SecPlus2CommandDatum* data;
 
@@ -31,15 +34,19 @@ class SecPlus2Command {
                 case Sync:
                     n = m_sync_sz;
                     data = m_sync;
+                    RINFO("sync");
                     break;
                 case Reboot:
                     n = m_reboot_sz;
                     data = m_reboot;
+                    RINFO("reboot");
                     break;
                 case Door:
                     n = m_door_sz;
                     data = m_door;
+                    RINFO("door");
                 default:
+                    RINFO("unknown cmd");
                     return;
             }
 
