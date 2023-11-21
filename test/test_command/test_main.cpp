@@ -30,7 +30,7 @@ void test_door_noincr(void) {
     cmd.prepare(id, &rolling, [&](uint8_t pkt[SECPLUS2_CODE_LEN]) {
             TEST_ASSERT_EQUAL(pkt[0], 0x55);
     });
-    TEST_ASSERT_EQUAL(0, rolling);
+    TEST_ASSERT_EQUAL(1, rolling);
 }
 
 int main(int argc, char **argv) {

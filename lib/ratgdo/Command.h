@@ -45,6 +45,7 @@ class SecPlus2Command {
                     n = m_door_sz;
                     data = m_door;
                     RINFO("door");
+                    break;
                 default:
                     RINFO("unknown cmd");
                     return;
