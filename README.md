@@ -10,6 +10,7 @@ This is a work-in-progress implementation.
 - [ ] working security+ 2.0 communications
 - [x] wire up comms and homekit
 - [x] enable Improv and esp web tools-based configuration
+- [ ] add web configuration endpoint, incl homekit reset
 - [ ] add support for light HAP service
 - [ ] add support for motion detection HAP service
 - [ ] extend/generalize in order to support ESP32-based devices
