@@ -8,6 +8,9 @@ SecPlus2DoorStatus door_status;
 PacketDecoder p;
 SecPlus2Reader r;
 
+// print_packet stub
+void print_packet(uint8_t* pkt) {}
+
 // handler to store the argument passed to the callback used by p
 void cb(SecPlus2DoorStatus s) {
     door_status = s;
