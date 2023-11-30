@@ -11,7 +11,7 @@
 
 /********************************** PIN DEFINITIONS *****************************************/
 
-#define UART_TX_PIN             D4  // red control terminal / GarageDoorOpener (UART1 TX)
+#define UART_TX_PIN             D1  // red control terminal / GarageDoorOpener (UART1 TX)
 #define UART_RX_PIN             D2  // red control terminal / GarageDoorOpener (UART1 RX)
 
 /*

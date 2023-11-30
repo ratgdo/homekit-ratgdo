@@ -1,6 +1,7 @@
 #include <arduino_homekit_server.h>
 #include "ratgdo.h"
 #include "comms.h"
+#include "log.h"
 
 // Bring in config and characteristics defined in homekit_decl.c
 extern "C" homekit_server_config_t config;
@@ -25,6 +26,12 @@ void homekit_loop() {
 
 void setup_homekit() {
 
+    /*
+    homekit_storage_reset();
+    RINFO("hanging");
+    while (true) { yield(); }
+    */
+
     current_door_state.getter = current_door_state_get;
     target_door_state.getter = target_door_state_get;
     target_door_state.setter = target_door_state_set;
@@ -36,19 +43,19 @@ void setup_homekit() {
 /******************************** GETTERS AND SETTERS ***************************************/
 
 homekit_value_t current_door_state_get() {
-    INFO("get current door state: %d", garage_door.current_state);
+    RINFO("get current door state: %d", garage_door.current_state);
 
     return HOMEKIT_UINT8_CPP(garage_door.current_state);
 }
 
 homekit_value_t target_door_state_get() {
-    INFO("get target door state: %d", garage_door.target_state);
+    RINFO("get target door state: %d", garage_door.target_state);
 
     return HOMEKIT_UINT8_CPP(garage_door.target_state);
 }
 
 void target_door_state_set(const homekit_value_t value) {
-    INFO("set door state: %d", value.uint8_value);
+    RINFO("set door state: %d", value.uint8_value);
 
     // TODO this should be gated on successful xmit of the command below (on
     // ACK if possible). It's out-of-order at the moment pending comms, in
@@ -74,7 +81,7 @@ void target_door_state_set(const homekit_value_t value) {
 }
 
 homekit_value_t obstruction_detected_get() {
-    INFO("get obstruction: %d", garage_door.obstructed);
+    RINFO("get obstruction: %d", garage_door.obstructed);
     return HOMEKIT_BOOL_CPP(garage_door.obstructed);
 }
 

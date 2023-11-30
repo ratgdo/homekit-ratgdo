@@ -2,7 +2,6 @@
 #define _READER_H
 
 #include <secplus2.h>
-#include <Decoder.h>
 #include "log.h"
 
 enum SecPlus2ReaderMode : uint8_t {
@@ -18,12 +17,10 @@ class SecPlus2Reader {
         uint8_t m_rx_buf[SECPLUS2_CODE_LEN] = {0x55, 0x01, 0x00};
         SecPlus2ReaderMode m_mode = SCANNING;
 
-        PacketDecoder* m_decoder;
-
     public:
         SecPlus2Reader() = default;
 
-        void push_byte(uint8_t inp) {
+        bool push_byte(uint8_t inp) {
             bool msg_ready = false;
 
             switch (m_mode) {
@@ -50,16 +47,15 @@ class SecPlus2Reader {
                     break;
             }
 
-            if (msg_ready && m_decoder) {
-                print_packet(m_rx_buf);
-                m_decoder->handle_code(m_rx_buf);
+            if (msg_ready) {
+                RINFO("reader completed packet");
             }
+            return msg_ready;
         };
 
-        void set_packet_decoder(PacketDecoder* decoder) {
-            m_decoder = decoder;
-        };
-
+        uint8_t const * const fetch_buf(void) {
+            return m_rx_buf;
+        }
 };
 
 #endif // _READER_H

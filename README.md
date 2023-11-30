@@ -7,10 +7,10 @@ This is a work-in-progress implementation.
 ## Current task list
 
 - [x] stub support for garage door HAP service
-- [ ] working security+ 2.0 communications
 - [x] wire up comms and homekit
 - [x] enable Improv and esp web tools-based configuration
-- [ ] add web configuration endpoint, incl homekit reset
+- [x] working security+ 2.0 communications
+- [ ] add web configuration endpoint, incl homekit reset and homekit QR code display
 - [ ] add support for light HAP service
 - [ ] add support for motion detection HAP service
 - [ ] extend/generalize in order to support ESP32-based devices
@@ -19,7 +19,7 @@ This is a work-in-progress implementation.
 
 Support for the following devices is implemented, or underway:
 
-- [ ] v2.5 RATGDO with D1 Mini Lite (default ratgdo configuration)
+- [x] v2.5 RATGDO with D1 Mini Lite (default ratgdo configuration)
 
 Support for the following devices is planned:
 
