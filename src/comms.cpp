@@ -144,6 +144,8 @@ bool transmit(PacketAction& pkt_ac) {
 
         if (pkt_ac.inc_counter) {
             rolling_code += 1;
+            // TODO slow this rate down to save eeprom wear
+            write_counter_to_flash("rolling", &rolling_code);
         }
     }
 
