@@ -117,36 +117,6 @@ void comms_loop() {
             }
         }
     }
-
-    if (Serial.available() > 0) {
-        switch (Serial.read()) {
-            case 'o':
-                RINFO("manual OPEN command");
-                door_command(DoorAction::Open);
-                break;
-            case 'c':
-                RINFO("manual CLOSE command");
-                door_command(DoorAction::Close);
-                break;
-            case 's':
-                RINFO("manual STOP command");
-                door_command(DoorAction::Stop);
-                break;
-            case 'g':
-                {
-                    RINFO("manul GET STATUS command");
-                    PacketData d;
-                    d.type = PacketDataType::NoData;
-                    d.value.no_data = NoData();
-                    Packet pkt = Packet(PacketCommand::GetStatus, d, id_code);
-                    PacketAction pkt_ac = {pkt, true};
-                    q_push(&pkt_q, &pkt_ac);
-                    break;
-                }
-            default:
-                RINFO("unknown manual command");
-        }
-    }
 }
 
 /********************************** CONTROLLER CODE *****************************************/

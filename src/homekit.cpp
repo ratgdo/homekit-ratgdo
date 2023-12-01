@@ -57,15 +57,6 @@ homekit_value_t target_door_state_get() {
 void target_door_state_set(const homekit_value_t value) {
     RINFO("set door state: %d", value.uint8_value);
 
-    // TODO this should be gated on successful xmit of the command below (on
-    // ACK if possible). It's out-of-order at the moment pending comms, in
-    // order to fake the functionality.
-    garage_door.target_state = (GarageDoorTargetState)value.uint8_value;
-    homekit_characteristic_notify(
-        &target_door_state,
-        value
-    );
-
     switch (value.uint8_value) {
         case TGT_OPEN:
             open_door();
