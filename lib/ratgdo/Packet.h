@@ -720,7 +720,7 @@ struct Packet {
 
         PacketCommand m_pkt_cmd;
         PacketData m_data;
-        uint32_t m_remote_id; // 6 bytes
+        uint32_t m_remote_id; // 3 bytes
         uint32_t m_rolling;
 };
 
