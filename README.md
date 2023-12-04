@@ -1,8 +1,11 @@
 # homekit-ratgdo
 
-A native HomeKit implementation for the ratgdo device.
+A native HomeKit implementation for the ratgdo device that requires no other supporting
+infrastructure (e.g. Home Assistant, Homebridge, MQTT, etc).
 
-This is a work-in-progress implementation.
+> [!IMPORTANT]
+> This is a work-in-progress implementation that is ready for early-alpha testing only. I am pretty
+> sure it won't leave your garage open to thieves and light your cat on fire.
 
 ## Current task list
 
@@ -31,9 +34,10 @@ Support for the following devices is planned:
 
 The following features are implemented, or underway:
 
-- [ ] Garage door support (open/close/stopped)
+- [x] Garage door support (open/close/stopped)
 
 The following features are planned:
 
 - [ ] Light support
 - [ ] Motion detection support
+- [ ] Obstruction support
