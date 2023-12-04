@@ -1,15 +1,19 @@
 # homekit-ratgdo
 
-A native HomeKit implementation for the ratgdo device.
+A native HomeKit implementation for the ratgdo device that requires no other supporting
+infrastructure (e.g. Home Assistant, Homebridge, MQTT, etc).
 
-This is a work-in-progress implementation.
+> [!IMPORTANT]
+> This is a work-in-progress implementation that is ready for early-alpha testing only. I am pretty
+> sure it won't leave your garage open to thieves and light your cat on fire.
 
 ## Current task list
 
 - [x] stub support for garage door HAP service
-- [ ] working security+ 2.0 communications
 - [x] wire up comms and homekit
 - [x] enable Improv and esp web tools-based configuration
+- [x] working security+ 2.0 communications
+- [ ] add web configuration endpoint, incl homekit reset and homekit QR code display
 - [ ] add support for light HAP service
 - [ ] add support for motion detection HAP service
 - [ ] extend/generalize in order to support ESP32-based devices
@@ -18,7 +22,7 @@ This is a work-in-progress implementation.
 
 Support for the following devices is implemented, or underway:
 
-- [ ] v2.5 RATGDO with D1 Mini Lite (default ratgdo configuration)
+- [x] v2.5 RATGDO with D1 Mini Lite (default ratgdo configuration)
 
 Support for the following devices is planned:
 
@@ -30,9 +34,10 @@ Support for the following devices is planned:
 
 The following features are implemented, or underway:
 
-- [ ] Garage door support (open/close/stopped)
+- [x] Garage door support (open/close/stopped)
 
 The following features are planned:
 
 - [ ] Light support
 - [ ] Motion detection support
+- [ ] Obstruction support

@@ -6,97 +6,39 @@
 #include "homekit.h"
 #include "log.h"
 
-#include "Decoder.h"
 #include "Reader.h"
 #include "secplus2.h"
-#include "Command.h"
-
-/*************************** FORWARD DECLARATIONS ******************************/
-void sync();
-void write_counter_to_flash(const char *filename, uint32_t* counter);
-uint32_t read_counter_from_flash(const char* filename);
-void transmit_command(SecPlus2Command cmd);
+#include "Packet.h"
+#include "cQueue.h"
 
 /********************************** LOCAL STORAGE *****************************************/
 
+struct PacketAction {
+    Packet pkt;
+    bool inc_counter;
+};
+
+Queue_t pkt_q;
 SoftwareSerial sw_serial;
 extern struct GarageDoor garage_door;
 
 SecPlus2Reader reader;
-PacketDecoder decoder;
 
 uint32_t id_code = 0;
 uint32_t rolling_code = 0;
 
-void handle_door_status(SecPlus2DoorStatus status) {
+/*************************** FORWARD DECLARATIONS ******************************/
 
-    GarageDoorCurrentState val = CURR_OPEN;
-    switch (status) {
-        case SecPlus2DoorStatus::Unknown:
-            RINFO("got unknown door status wtf");
-            break;
-
-        case SecPlus2DoorStatus::Open:
-            RINFO("got door open status");
-            val = CURR_OPEN;
-            break;
-
-        case SecPlus2DoorStatus::Closed:
-            RINFO("got door closed status");
-            val = CURR_CLOSED;
-            break;
-
-        case SecPlus2DoorStatus::Stopped:
-            RINFO("got door stopped status");
-            val = CURR_STOPPED;
-            break;
-
-        case SecPlus2DoorStatus::Opening:
-            RINFO("got door opening status");
-            val = CURR_OPENING;
-            break;
-
-        case SecPlus2DoorStatus::Closing:
-            RINFO("got door closing status");
-            val = CURR_CLOSING;
-            break;
-
-        case SecPlus2DoorStatus::Syncing:
-            RINFO("got syncing door status wtf");
-            break;
-
-    };
-
-    garage_door.current_state = val;
-
-    notify_homekit_current_door_state_change();
-}
-
-void transmit_command(SecPlus2Command cmd) {
-    cmd.prepare(id_code, &rolling_code, [&](uint8_t pkt[SECPLUS2_CODE_LEN]) {
-            // TODO add collision detection and backoff/retry/yield
-            //
-            // one possible approach is to store the state of the transmission in the cmd object,
-            // and invoke prepare repeatedly while it, e.g. returns true, or something
-            print_packet(pkt);
-
-            digitalWrite(UART_TX_PIN, HIGH);
-            delayMicroseconds(1300);
-            digitalWrite(UART_TX_PIN, LOW);
-            delayMicroseconds(130);
-
-            sw_serial.write(pkt, SECPLUS2_CODE_LEN);
-            delayMicroseconds(100);
-    });
-}
+void sync();
+void write_counter_to_flash(const char *filename, uint32_t* counter);
+uint32_t read_counter_from_flash(const char* filename);
+bool transmit(PacketAction& pkt_ac);
+void door_command(DoorAction action);
 
 /********************************** MAIN LOOP CODE *****************************************/
 
 void setup_comms() {
     RINFO("Setting up comms for secplus2.0 protocol");
-
-    reader.set_packet_decoder(&decoder);
-    decoder.set_door_status_cb(handle_door_status);
 
     sw_serial.begin(9600, SWSERIAL_8N1, UART_RX_PIN, UART_TX_PIN, true);
     sw_serial.enableIntTx(false);
@@ -105,7 +47,8 @@ void setup_comms() {
     LittleFS.begin();
     id_code = read_counter_from_flash("id_code");
     if (!id_code) {
-        id_code = random(0x1, 0xFFFF);
+        RINFO("id code not found");
+        id_code = (random(0x1, 0xFFF) << 12) | 0x539;
         write_counter_to_flash("id_code", &id_code);
     }
     RINFO("id code %02X", id_code);
@@ -113,40 +56,182 @@ void setup_comms() {
     rolling_code = read_counter_from_flash("rolling");
     RINFO("rolling code %02X", rolling_code);
 
+    q_init(&pkt_q, sizeof(PacketAction), 5, FIFO,  false);
+
     RINFO("Syncing rolling code counter after reboot...");
     sync();
 
 }
 
 void comms_loop() {
-    if (!sw_serial.available()) {
-        return;
-    }
+    if (sw_serial.available()) {
+        // spin on receiving data until the whole packet has arrived
 
-    uint8_t ser_data = sw_serial.read();
-    reader.push_byte(ser_data);
+        uint8_t ser_data = sw_serial.read();
+        if (reader.push_byte(ser_data)) {
+            Packet pkt = Packet(reader.fetch_buf());
+            pkt.print();
+
+            switch (pkt.m_pkt_cmd) {
+                case PacketCommand::Status:
+                    {
+                        switch (pkt.m_data.value.status.door) {
+                            case DoorState::Open:
+                                garage_door.current_state = CURR_OPEN;
+                                garage_door.target_state = TGT_OPEN;
+                                break;
+                            case DoorState::Closed:
+                                garage_door.current_state = CURR_CLOSED;
+                                garage_door.target_state = TGT_CLOSED;
+                                break;
+                            case DoorState::Stopped:
+                                garage_door.current_state = CURR_STOPPED;
+                                garage_door.target_state = TGT_OPEN;
+                                break;
+                            case DoorState::Opening:
+                                garage_door.current_state = CURR_OPENING;
+                                garage_door.target_state = TGT_OPEN;
+                                break;
+                            case DoorState::Closing:
+                                garage_door.current_state = CURR_CLOSING;
+                                garage_door.target_state = TGT_CLOSED;
+                                break;
+                            case DoorState::Unknown:
+                                RERROR("Got door state unknown");
+                                break;
+                        }
+                        notify_homekit_target_door_state_change();
+                        notify_homekit_current_door_state_change();
+
+                        if (!garage_door.active) {
+                            notify_homekit_active();
+                            if (garage_door.current_state == CURR_OPENING || garage_door.current_state == CURR_OPEN) {
+                                garage_door.target_state = TGT_OPEN;
+                            } else {
+                                garage_door.target_state = TGT_CLOSED;
+                            }
+                        }
+
+                        break;
+                    }
+                default:
+                    RINFO("Support for %s packet unimplemented. Ignoring.", PacketCommand::to_string(pkt.m_pkt_cmd));
+                    break;
+            }
+        }
+
+    } else {
+        // no incoming data waiting, so we can start transmitting
+
+        PacketAction pkt_ac;
+
+        if (q_peek(&pkt_q, &pkt_ac)) {
+            if (transmit(pkt_ac)) {
+                q_drop(&pkt_q);
+            } else {
+                RERROR("transmit failed, will retry");
+            }
+        }
+    }
 }
 
 /********************************** CONTROLLER CODE *****************************************/
 
+bool transmit(PacketAction& pkt_ac) {
+    // inverted logic, so this pulls the bus low to assert it
+    digitalWrite(UART_TX_PIN, HIGH);
+    delayMicroseconds(1300);
+    digitalWrite(UART_TX_PIN, LOW);
+    delayMicroseconds(130);
+
+    // check to see if anyone else is continuing to assert the bus after we have released it
+    if (digitalRead(UART_RX_PIN)) {
+        RINFO("Collision detected, waiting to send packet");
+        return false;
+    } else {
+        uint8_t buf[SECPLUS2_CODE_LEN];
+        if (pkt_ac.pkt.encode(rolling_code, buf) != 0) {
+            RERROR("Could not encode packet");
+            pkt_ac.pkt.print();
+        } else {
+            sw_serial.write(buf, SECPLUS2_CODE_LEN);
+            delayMicroseconds(100);
+        }
+
+        if (pkt_ac.inc_counter) {
+            rolling_code += 1;
+            // TODO slow this rate down to save eeprom wear
+            write_counter_to_flash("rolling", &rolling_code);
+        }
+    }
+
+    return true;
+}
+
+void sync() {
+    PacketData d;
+    d.type = PacketDataType::NoData;
+    d.value.no_data = NoData();
+    Packet pkt = Packet(PacketCommand::GetStatus, d, id_code);
+    PacketAction pkt_ac = {pkt, true};
+    transmit(pkt_ac);
+
+    delay(500);
+
+    pkt = Packet(PacketCommand::GetOpenings, d, id_code);
+    pkt_ac.pkt = pkt;
+    transmit(pkt_ac);
+
+    delay(500);
+
+}
+
+void door_command(DoorAction action) {
+
+    PacketData data;
+    data.type = PacketDataType::DoorAction;
+    data.value.door_action.action = action;
+    data.value.door_action.pressed = true;
+    data.value.door_action.id = 1;
+
+    Packet pkt = Packet(PacketCommand::DoorAction, data, id_code);
+    PacketAction pkt_ac = {pkt, false};
+
+    q_push(&pkt_q, &pkt_ac);
+
+    pkt_ac.pkt.m_data.value.door_action.pressed = false;
+    pkt_ac.inc_counter = true;
+
+    q_push(&pkt_q, &pkt_ac);
+}
+
 void open_door() {
     RINFO("open door req\n");
-    if (garage_door.current_state == CURR_OPEN || garage_door.current_state == CURR_OPENING) {
-        RINFO("open door ignored\n");
+
+    if (garage_door.current_state == CURR_OPENING) {
+        RINFO("door already opening; ignored req");
         return;
     }
 
-    transmit_command(SecPlus2Command::Door);
+    door_command(DoorAction::Open);
 }
 
 void close_door() {
     RINFO("close door req\n");
-    if (garage_door.current_state == CURR_CLOSED || garage_door.current_state == CURR_CLOSING) {
-        RINFO("close door ignored\n");
+
+    if (garage_door.current_state == CURR_CLOSING) {
+        RINFO("door already closing; ignored req");
         return;
     }
 
-    transmit_command(SecPlus2Command::Door);
+    if (garage_door.current_state == CURR_OPENING) {
+        door_command(DoorAction::Stop);
+        // TODO? delay here and await the door having stopped, pending
+        // implementation of a richer method of building conditions?
+        // delay(1000);
+    }
+
+    door_command(DoorAction::Close);
 }
 
 /********************************** UTIL CODE *****************************************/
@@ -171,13 +256,9 @@ uint32_t read_counter_from_flash(const char* filename) {
 
 void write_counter_to_flash(const char *filename, uint32_t* counter) {
     File file = LittleFS.open(filename, "w");
+    RINFO("writing %02X to file %s", *counter, filename);
 
     file.print(*counter);
 
     file.close();
-}
-
-void sync() {
-    transmit_command(SecPlus2Command::Sync);
-    RINFO("synced");
 }

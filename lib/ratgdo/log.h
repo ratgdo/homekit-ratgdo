@@ -14,8 +14,10 @@ void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]);
 
 #else  // UNIT_TEST
 
-#define RINFO(...) do {} while (0);
-#define RERROR(...) do {} while (0);
+#include <stdio.h>
+
+#define RINFO(message, ...) printf(">>> RATGDO: " message "\n", ##__VA_ARGS__)
+#define RERROR(message, ...) printf("!!! RATGDO: " message "\n", ##__VA_ARGS__)
 
 #endif // UNIT_TEST
 
