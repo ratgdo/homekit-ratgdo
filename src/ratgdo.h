@@ -44,6 +44,7 @@ enum GarageDoorTargetState : uint8_t {
 };
 
 struct GarageDoor {
+    bool active;
     GarageDoorCurrentState current_state;
     GarageDoorTargetState target_state;
     bool obstructed;

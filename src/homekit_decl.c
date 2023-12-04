@@ -21,6 +21,11 @@ void identify(homekit_value_t _value) {
 	printf("accessory identify\n");
 }
 
+homekit_characteristic_t active_state = HOMEKIT_CHARACTERISTIC_(
+        STATUS_ACTIVE, false,
+        );
+
+
 homekit_characteristic_t current_door_state = HOMEKIT_CHARACTERISTIC_(
         CURRENT_DOOR_STATE, HOMEKIT_CHARACTERISTIC_CURRENT_DOOR_STATE_CLOSED,
         //.getter=current_door_state_get,
@@ -53,6 +58,7 @@ homekit_accessory_t *accessories[] = {
                     }),
             HOMEKIT_SERVICE(GARAGE_DOOR_OPENER, .primary=true, .characteristics=(homekit_characteristic_t*[]){
                     HOMEKIT_CHARACTERISTIC(NAME, "ratgdo"),
+                    &active_state,
                     &current_door_state,
                     &target_door_state,
                     &obstruction_detected,

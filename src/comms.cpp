@@ -78,24 +78,40 @@ void comms_loop() {
                         switch (pkt.m_data.value.status.door) {
                             case DoorState::Open:
                                 garage_door.current_state = CURR_OPEN;
+                                garage_door.target_state = TGT_OPEN;
                                 break;
                             case DoorState::Closed:
                                 garage_door.current_state = CURR_CLOSED;
+                                garage_door.target_state = TGT_CLOSED;
                                 break;
                             case DoorState::Stopped:
                                 garage_door.current_state = CURR_STOPPED;
+                                garage_door.target_state = TGT_OPEN;
                                 break;
                             case DoorState::Opening:
                                 garage_door.current_state = CURR_OPENING;
+                                garage_door.target_state = TGT_OPEN;
                                 break;
                             case DoorState::Closing:
                                 garage_door.current_state = CURR_CLOSING;
+                                garage_door.target_state = TGT_CLOSED;
                                 break;
                             case DoorState::Unknown:
                                 RERROR("Got door state unknown");
                                 break;
                         }
+                        notify_homekit_target_door_state_change();
                         notify_homekit_current_door_state_change();
+
+                        if (!garage_door.active) {
+                            notify_homekit_active();
+                            if (garage_door.current_state == CURR_OPENING || garage_door.current_state == CURR_OPEN) {
+                                garage_door.target_state = TGT_OPEN;
+                            } else {
+                                garage_door.target_state = TGT_CLOSED;
+                            }
+                        }
+
                         break;
                     }
                 default:
