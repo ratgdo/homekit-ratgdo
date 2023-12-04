@@ -19,7 +19,7 @@ void setup_pins();
 
 void setup() {
     Serial.begin(115200);
-    RINFO("RATGDO setup begin");
+    RINFO("Starting RATGDO Homekit version %s", AUTO_VERSION);
 
     wifi_connect();
 
@@ -29,12 +29,12 @@ void setup() {
 
     setup_comms();
 
-    RINFO("RATGDO setup end");
+    RINFO("RATGDO setup completed");
 }
 
 void loop() {
 
-    //improv_loop();
+    improv_loop();
 
     homekit_loop();
 
@@ -71,8 +71,7 @@ void setup_pins() {
     pinMode(DRY_CONTACT_LIGHT_PIN, INPUT_PULLUP);
     */
 
-    /*
-     * TODO add support for pin-based obstruction detection
+    /* TODO add support for pin-based obstruction detection
     // FALLING from https://github.com/ratgdo/esphome-ratgdo/blob/e248c705c5342e99201de272cb3e6dc0607a0f84/components/ratgdo/ratgdo.cpp#L54C14-L54C14
     attachInterrupt(INPUT_OBST_PIN, isr_obstruction, FALLING);
      */
