@@ -3,11 +3,11 @@
 
 #include "homekit_decl.h"
 
-#define DEVICE_NAME "Garage Door"
+#define DEVICE_NAME "homekit-ratgdo"
 #define MANUF_NAME "ratCloud llc"
 #define SERIAL_NUMBER "0P3ND00R"
-#define MODEL_NAME "ratgdo"
-#define FIRMWARE_VERSION "0.1"
+#define MODEL_NAME "ratgdo_v2.5"
+#define CHIP_FAMILY "ESP8266"
 
 /********************************** PIN DEFINITIONS *****************************************/
 
