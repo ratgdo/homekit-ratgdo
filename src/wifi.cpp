@@ -128,9 +128,9 @@ bool on_command_callback(improv::ImprovCommand cmd) {
             {
                 std::vector<std::string> infos = {
                     DEVICE_NAME,
-                    FIRMWARE_VERSION,
-                    MODEL_NAME,
-                    DEVICE_NAME
+                    AUTO_VERSION,
+                    CHIP_FAMILY,
+                    MODEL_NAME
                 };
                 std::vector<uint8_t> data = improv::build_rpc_response(improv::GET_DEVICE_INFO, infos, false);
                 send_response(data);
