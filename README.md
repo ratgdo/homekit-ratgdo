@@ -1,7 +1,7 @@
 # What is HomeKit-RATGDO?
 
 HomeKit-RATGDO is an alternative firmware for the RATGDO v2.5 and v2.5i WiFi control boards that
-works over your _local network_ using HomeKit, or over the internet using iCloud, to control your
+works over your _local network_ using HomeKit, or over the internet using your Home Hubs, to control your
 garage door opener. It requires no supporting infrastructure such as Home Assistant, Homebridge,
 MQTT, etc, and connects to your garage door opener with three wires.
 
