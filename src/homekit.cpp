@@ -28,12 +28,6 @@ void homekit_loop() {
 
 void setup_homekit() {
 
-    /*
-    homekit_storage_reset();
-    RINFO("hanging");
-    while (true) { yield(); }
-    */
-
     current_door_state.getter = current_door_state_get;
     target_door_state.getter = target_door_state_get;
     target_door_state.setter = target_door_state_set;
