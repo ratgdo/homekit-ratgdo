@@ -6,6 +6,7 @@
 #include "homekit.h"
 #include "comms.h"
 #include "log.h"
+#include "web.h"
 
 /********************************* FWD DECLARATIONS *****************************************/
 
@@ -29,6 +30,8 @@ void setup() {
 
     setup_comms();
 
+    setup_web();
+
     RINFO("RATGDO setup completed");
 }
 
@@ -40,6 +43,7 @@ void loop() {
 
     comms_loop();
 
+    web_loop();
 }
 
 /*********************************** HELPER FUNCTIONS **************************************/

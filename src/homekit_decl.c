@@ -18,7 +18,7 @@
 // Called when paired successfully or after clicking the "Identify Accessory"
 // button in Home app.
 void identify(homekit_value_t _value) {
-	printf("accessory identify\n");
+    printf("accessory identify\n");
 }
 
 homekit_characteristic_t active_state = HOMEKIT_CHARACTERISTIC_(
@@ -52,7 +52,7 @@ homekit_accessory_t *accessories[] = {
                     HOMEKIT_CHARACTERISTIC(MANUFACTURER, "ratCloud llc"),
                     HOMEKIT_CHARACTERISTIC(SERIAL_NUMBER, "123456"),
                     HOMEKIT_CHARACTERISTIC(MODEL, "ratgdo"),
-                    HOMEKIT_CHARACTERISTIC(FIRMWARE_REVISION, "0.1"),
+                    HOMEKIT_CHARACTERISTIC(FIRMWARE_REVISION, AUTO_VERSION),
                     HOMEKIT_CHARACTERISTIC(IDENTIFY, identify),
                     NULL
                     }),
@@ -71,6 +71,8 @@ homekit_accessory_t *accessories[] = {
 
 // Overall HomeKit server config
 homekit_server_config_t config = {
-		.accessories = accessories,
-		.password = "111-11-111"
+    .accessories = accessories,
+    .password = "251-02-023",  // On Oct 25, 2023, Chamberlain announced they were disabling API
+                               // access for "unauthorized" third parties.
+    .setupId = "RTGO",
 };
