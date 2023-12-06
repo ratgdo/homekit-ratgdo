@@ -11,17 +11,17 @@
  *   https://github.com/jnthas/improv-wifi-demo
  */
 
-#if defined(ESP8266)
+// #if defined(ESP8266)
 #include <ESP8266WiFi.h>
-#elif defined(ESP32)
-#include <WiFi.h>
-#endif
+// #elif defined(ESP32)
+// #include <WiFi.h>
+// #endif
 #include "improv.h"
 #include <Arduino.h>
 #include "ratgdo.h"
 #include "log.h"
 
-#define MAX_ATTEMPTS_WIFI_CONNECTION 10
+#define MAX_ATTEMPTS_WIFI_CONNECTION 20
 uint8_t x_buffer[16];
 uint8_t x_position = 0;
 
@@ -59,7 +59,7 @@ bool connect_wifi(std::string ssid, std::string password) {
     WiFi.begin(ssid.c_str(), password.c_str());
 
     while (WiFi.status() != WL_CONNECTED) {
-        delay(200);
+        delay(500);
         yield();
 
         if (count > MAX_ATTEMPTS_WIFI_CONNECTION) {
