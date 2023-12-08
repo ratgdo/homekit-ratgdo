@@ -100,10 +100,10 @@ void comms_loop() {
                                 RERROR("Got door state unknown");
                                 break;
                         }
-                        notify_homekit_target_door_state_change();
-                        notify_homekit_current_door_state_change();
 
                         if (!garage_door.active) {
+                            RINFO("activating door");
+                            garage_door.active = true;
                             notify_homekit_active();
                             if (garage_door.current_state == CURR_OPENING || garage_door.current_state == CURR_OPEN) {
                                 garage_door.target_state = TGT_OPEN;
@@ -111,6 +111,10 @@ void comms_loop() {
                                 garage_door.target_state = TGT_CLOSED;
                             }
                         }
+
+                        RINFO("tgt %d curr %d", garage_door.target_state, garage_door.current_state);
+                        notify_homekit_target_door_state_change();
+                        notify_homekit_current_door_state_change();
 
                         break;
                     }
