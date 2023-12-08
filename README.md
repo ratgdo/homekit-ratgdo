@@ -1,72 +1,86 @@
 # What is HomeKit-RATGDO?
 
-HomeKit-RATGDO is an alternative firmware for the RATGDO v2.5 and v2.5i WiFi control boards that
-works over your _local network_ using HomeKit, or over the internet using your Apple HomeKit home
-hubs, to control your garage door opener. It requires no supporting infrastructure such as Home
-Assistant, Homebridge, MQTT, etc, and connects to your garage door opener with three wires.
+HomeKit-RATGDO is an alternative firmware for the RATGDO v2.5-series WiFi control boards that works
+over your _local network_ using HomeKit, or over the internet using your Apple HomeKit home hubs, to
+control your garage door opener. It requires no supporting infrastructure such as Home Assistant,
+Homebridge, MQTT, etc, and connects to your garage door opener with as few as three wires.
 
-This firmware supports only Security+ 2.0-enabled garage door openers.
+This firmware supports only Security+ 2.0-enabled garage door openers and RATGDO v2.5-series
+ESP8266-based hardware.
 
 > [!IMPORTANT]
-> This is a work-in-progress implementation that is ready for early-alpha testing only. I am pretty
+> This is a work-in-progress implementation that is ready for beta testing only. I am pretty
 > sure it won't leave your garage open to thieves and light your cat on fire, but it might.
 
-If you're willing to help test, use [the flasher tool](https://ratgdo.github.io/homekit-ratgdo) to
-flash the HomeKit-RATGDO firmware and connect your device to wifi. The HomeKit setup code is
-`2510-2023`.
+## What does this firmware support?
 
-## Help that didn't work
+* Opening and closing a garage door.
 
-Given this firmware's early-alpha status, we can provide only very limited support. If you had
-trouble following the (intentionally very limited) instructions above, please wait for future
-iterations and know that we appreciate your eagerness to help test. If you didn't have any problems
-understanding the instructions but encountered a bug, please review the GitHub Issues and open a new
-report if you don't see your concern listed.
+That's it, for now. Check the [GitHub Issues](https://github.com/ratgdo/homekit-ratgdo/issues) for
+planned features, or to suggest your own.
 
-## Where can I discuss this project?
+## How do I install it?
 
-The best place to report problems and seek support is in GitHub Issues, above. You can also join the
-Discord chat:
+> [!NOTE]
+> The installation process is still being improved. You may need to reload the flasher tool page
+> after each of the following steps in order to proceed.
 
-> [![the Discord logo](docs/discord-logo.png)](https://discord.com/channels/432663330281226270/1181953146549968986).
+For each of the following steps, use the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo):
+
+* Install the HomeKit-RATGDO firmware, and then *wait 20 seconds*.
+* Connect the RATGDO to WiFi.
+* Click "Visit Device", and then begin the process of adding a device to HomeKit. Scan the QR code,
+  or manually enter the setup code `2510-2023`.
+
+That's it!
 
 ## How do I upgrade?
 
-The flash in the default RATGDO hardware is too small to permit over-the-air updates, so you'll need
-to use the web flasher, above, to update the firmware. You don't need to do anything to prepare for
-the upgrade.  Simply flash it, and pairing and wifi configuration will be retained.
+The flash in the default ESP8266-based RATGDO hardware is too small to permit over-the-air updates,
+so you'll need to use the web flasher, above, to update the firmware. You don't need to do anything
+to prepare for the upgrade.  Simply flash it, and pairing and wifi configuration will be retained.
 
-## Current task list
+Automatic updates are not supported (and probably will never be), so set a reminder to check back
+again in the future.
 
-- [x] stub support for garage door HAP service
-- [x] wire up comms and homekit
-- [x] enable Improv and esp web tools-based configuration
-- [x] working security+ 2.0 communications
-- [ ] add web configuration endpoint, incl homekit reset and homekit QR code display
-- [ ] add support for light HAP service
-- [ ] add support for motion detection HAP service
-- [ ] extend/generalize in order to support ESP32-based devices
+## Help! aka the FAQs
 
-## Hardware Support
+### How can I tell if the ratgdo is paired to HomeKit?
 
-Support for the following devices is implemented, or underway:
+Use the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo), and follow the
+"Visit Device" link. If you see a big QR code, the ratgdo is *not* paired.
 
-- [x] v2.5 RATGDO with D1 Mini Lite (default ratgdo configuration)
+### I added my garage door in the Home app but can't find it
 
-Support for the following devices is planned:
+This is a common problem. Be sure to check all of the "rooms" in the Home app. If you really can't
+find it, you can try un-pairing and re-pairing the device, paying close attention to the room you
+select after adding it.
 
-- [ ] v2.5 RATGDO with ESP32 D1 Mini
-- [ ] v2.0 RATGDO with D1 Mini Lite (legacy configuration)
-- [ ] v2.0 RATGDO with ESP32 D1 Mini
+### How to do I re-pair my ratgdo?
 
-## Features
+Use the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo), and follow the
+"Visit Device" link. If you see a big QR code, the ratgdo is *not* paired. Click the "Un-pair
+HomeKit" button, and then delete the garage door from within the HomeKit app (or vice versa, order
+does not matter). You can then re-pair the device by adding it again as normal.
 
-The following features are implemented, or underway:
+### Where can I get help?
 
-- [x] Garage door support (open/close/stopped)
+If your question has not been answered here, you can try the Discord chat:
 
-The following features are planned:
+[![the Discord logo](docs/discord-logo.png)](https://discord.com/channels/432663330281226270/1181953146549968986).
 
-- [ ] Light support
-- [ ] Motion detection support
-- [ ] Obstruction support
+Please also feel free to open a [GitHub Issue](https://github.com/ratgdo/homekit-ratgdo/issues) if
+you don't already see your concern listed. Don't forget to check the [closed
+issues](https://github.com/ratgdo/homekit-ratgdo/issues?q=is%3Aissue+is%3Aclosed) to see if someone
+has already found a fix.
+
+## Who wrote this?
+
+This firmware was written by [Brandon Matthews](https://github.com/thenewwazoo), with lots of
+inspiration from the [esphome-ratgdo](https://github.com/ratgdo/esphome-ratgdo) project and critical
+dependence on the [secplus decoder library](https://github.com/argilo/secplus).
+
+Special credit goes to the Chamberlain Group, without whose irredeemably stupid decision to [close
+their API to third
+parties](https://chamberlaingroup.com/press/a-message-about-our-decision-to-prevent-unauthorized-usage-of-myq),
+this firmware would never have been necessary.
