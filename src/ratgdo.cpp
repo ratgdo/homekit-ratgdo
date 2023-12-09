@@ -20,7 +20,6 @@ void setup_pins();
 
 void setup() {
     Serial.begin(115200);
-    RINFO("Starting RATGDO Homekit version %s", AUTO_VERSION);
 
     wifi_connect();
 
@@ -33,6 +32,8 @@ void setup() {
     setup_web();
 
     RINFO("RATGDO setup completed");
+    RINFO("Starting RATGDO Homekit version %s", AUTO_VERSION);
+    RINFO("%s", ESP.getFullVersion());
 }
 
 void loop() {

@@ -35,6 +35,7 @@ void on_error_callback(improv::Error err);
 void wifi_connect() {
     WiFi.persistent(true);       // enable connection by default after future boots if improv has succeeded
     WiFi.mode(WIFI_STA);
+    WiFi.setSleepMode(WIFI_NONE_SLEEP);
     WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
     RINFO("Starting WiFi connecting in background");
     WiFi.begin();                // use credentials stored in flash

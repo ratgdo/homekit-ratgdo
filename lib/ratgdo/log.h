@@ -9,8 +9,8 @@ void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]);
 
 #include <esp_xpgm.h>
 
-#define RINFO(message, ...) XPGM_PRINTF(">>> [%7d] RATGDO: " message "\n", millis(), ##__VA_ARGS__)
-#define RERROR(message, ...) XPGM_PRINTF("!!! [%7d] RATGDO: " message "\n", millis(), ##__VA_ARGS__)
+#define RINFO(message, ...) XPGM_PRINTF(">>> [%7d] RATGDO: " message "\r\n", millis(), ##__VA_ARGS__)
+#define RERROR(message, ...) XPGM_PRINTF("!!! [%7d] RATGDO: " message "\r\n", millis(), ##__VA_ARGS__)
 
 #else  // UNIT_TEST
 
