@@ -1,3 +1,6 @@
+// Copyright 2023 Brandon Matthews <thenewwazoo@optimaltour.us>
+// All rights reserved. GPLv3 License
+
 #include <arduino_homekit_server.h>
 #include <ESP8266WebServer.h>
 #include "log.h"

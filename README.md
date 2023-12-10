@@ -9,8 +9,14 @@ This firmware supports only Security+ 2.0-enabled garage door openers and RATGDO
 ESP8266-based hardware.
 
 > [!IMPORTANT]
-> This is a work-in-progress implementation that is ready for beta testing only. I am pretty
+> This is a work-in-progress implementation that is ready for *beta testing only*. I am pretty
 > sure it won't leave your garage open to thieves and light your cat on fire, but it might.
+>
+> Stability is a top priority, but you should expect to need to update your device from time to time
+> while this firmware is improved. This currently requires being able to physically connect a USB
+> wire to the RATGDO to flash new firmware. If that's not practical (or possible) for you, you may
+> want to wait for [over-the-air (OTA) updates](https://github.com/ratgdo/homekit-ratgdo/issues/20)
+> to be supported, or wait until better stability is promised.
 
 ## What does this firmware support?
 
@@ -73,6 +79,29 @@ Please also feel free to open a [GitHub Issue](https://github.com/ratgdo/homekit
 you don't already see your concern listed. Don't forget to check the [closed
 issues](https://github.com/ratgdo/homekit-ratgdo/issues?q=is%3Aissue+is%3Aclosed) to see if someone
 has already found a fix.
+
+## How can I contribute?
+
+HomeKit-RATGDO uses [PlatformIO](https://platformio.org/platformio-ide) for builds. You'll want to
+install PlatformIO first.
+
+After you've checked out this repo:
+
+```
+git clone git@github.com:ratgdo/homekit-ratgdo.git
+```
+
+Initialize the submodules from the root of the repo:
+
+```
+cd homekit-ratgdo
+git submodule init lib/secplus/
+git submodule update
+```
+
+The [`x.sh`](https://github.com/ratgdo/homekit-ratgdo/blob/main/x.sh) script is my lazy way of not
+having to remember PlatformIO-specific `pio` commands. The important ones are `run`, `upload`, and
+`monitor`.
 
 ## Who wrote this?
 

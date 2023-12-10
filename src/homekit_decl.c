@@ -1,3 +1,6 @@
+// Copyright 2023 Brandon Matthews <thenewwazoo@optimaltour.us>
+// All rights reserved. GPLv3 License
+
 /*
  * HomeKit accessory, service, and characteristic declarations and definitions.
  *

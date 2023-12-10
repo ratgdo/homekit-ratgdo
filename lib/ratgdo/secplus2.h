@@ -1,3 +1,6 @@
+// Copyright 2023 Brandon Matthews <thenewwazoo@optimaltour.us>
+// All rights reserved. GPLv3 License
+
 #ifndef _SECPLUS2_H
 #define _SECPLUS2_H
 

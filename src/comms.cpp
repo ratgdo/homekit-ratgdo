@@ -1,3 +1,6 @@
+// Copyright 2023 Brandon Matthews <thenewwazoo@optimaltour.us>
+// All rights reserved. GPLv3 License
+
 #include "SoftwareSerial.h"
 #include "ratgdo.h"
 #include "homekit_debug.h"

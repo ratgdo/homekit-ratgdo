@@ -1,3 +1,6 @@
+// Copyright 2023 Brandon Matthews <thenewwazoo@optimaltour.us>
+// All rights reserved. GPLv3 License
+
 /* WiFi configuration and setup
  *
  * This approach relies on the ESP8266 Arduino WiFi class storing credentials

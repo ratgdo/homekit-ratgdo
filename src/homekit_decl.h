@@ -1,3 +1,6 @@
+// Copyright 2023 Brandon Matthews <thenewwazoo@optimaltour.us>
+// All rights reserved. GPLv3 License
+
 #ifndef _HOMEKIT_DECL_H
 #define _HOMEKIT_DECL_H
 
