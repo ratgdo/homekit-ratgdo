@@ -121,6 +121,17 @@ void comms_loop() {
 
                         break;
                     }
+                case PacketCommand::Motion:
+                    {
+                        RINFO("Motion Detected");
+                        /* When we get the motion detect message, notify HomeKit. Motion sensor
+                           will continue to send motion messages every 5s until motion stops.
+                           set a timer for 5 seconds to disable motion after the last message */
+                        garage_door.motion_timer = millis() + 5000;
+                        garage_door.motion = true;
+                        notify_homekit_motion();
+                        break;
+                    }
                 default:
                     RINFO("Support for %s packet unimplemented. Ignoring.", PacketCommand::to_string(pkt.m_pkt_cmd));
                     break;
@@ -129,6 +140,11 @@ void comms_loop() {
 
     } else {
         // no incoming data waiting, so we can start transmitting
+        if (garage_door.motion && (millis() > garage_door.motion_timer)) {
+            RINFO("Motion Cleared");
+            garage_door.motion = false;
+            notify_homekit_motion();
+        }
 
         PacketAction pkt_ac;
 

@@ -47,6 +47,10 @@ homekit_characteristic_t obstruction_detected = HOMEKIT_CHARACTERISTIC_(
         //.setter=NULL
         );
 
+homekit_characteristic_t motion_detected = HOMEKIT_CHARACTERISTIC_(
+        MOTION_DETECTED, false,
+        );
+
 // Declare and define the accessory
 homekit_accessory_t *accessories[] = {
     HOMEKIT_ACCESSORY(.id=1, .category=homekit_accessory_category_garage, .services=(homekit_service_t*[]){
@@ -65,6 +69,11 @@ homekit_accessory_t *accessories[] = {
                     &current_door_state,
                     &target_door_state,
                     &obstruction_detected,
+                    NULL
+                    }),
+            HOMEKIT_SERVICE(MOTION_SENSOR, .primary=false, .characteristics=(homekit_characteristic_t*[]){
+                    HOMEKIT_CHARACTERISTIC(NAME, "ratgdo-sensor"),
+                    &motion_detected,
                     NULL
                     }),
             NULL
