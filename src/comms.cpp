@@ -128,8 +128,10 @@ void comms_loop() {
                            will continue to send motion messages every 5s until motion stops.
                            set a timer for 5 seconds to disable motion after the last message */
                         garage_door.motion_timer = millis() + 5000;
-                        garage_door.motion = true;
-                        notify_homekit_motion();
+                        if (!garage_door.motion) {
+                            garage_door.motion = true;
+                            notify_homekit_motion();
+                        }
                         break;
                     }
                 default:

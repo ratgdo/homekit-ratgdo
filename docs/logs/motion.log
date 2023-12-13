@@ -1,0 +1,75 @@
+This log illustrates how the motion sensor will send a Motion packet every ~5s
+---
+
+>>> [  14704] HomeKit: [Client 1073687572] Verification successful, secure session established
+>>> [  14713] HomeKit: Free heap: 34464
+>>> [  14753] HomeKit: [Client 1073687572] Get Accessories
+>>> [  14790] RATGDO: get active: 1
+>>> [  14795] RATGDO: get current door state: 1
+>>> [  14800] RATGDO: get target door state: 1
+>>> [  14808] RATGDO: get obstruction: 0
+>>> [  14864] HomeKit: [Client 1073687572] Get Characteristics
+>>> [  14892] HomeKit: [Client 1073687572] Get Characteristics
+>>> [  14913] HomeKit: [Client 1073687572] Update Characteristics
+>>> [  14950] HomeKit: [Client 1073687572] Get Characteristics
+>>> [  14969] HomeKit: [Client 1073687572] Get Characteristics
+>>> [  26034] RATGDO: reader completed packet
+>>> [  26038] RATGDO: DECODED  000022D7 000000C27594B914 0000F085
+>>> [  26045] RATGDO: PACKET(0x94B914 @ 0x22D7) Motion - NoData: [Zero: 0x00000000, Parity: 0xF]
+>>> [  26053] RATGDO: Motion Detected
+>>> [  26057] HomeKit: [Client 1073687572] Got characteristic 1.16 change event
+>>> [  30945] RATGDO: reader completed packet
+>>> [  30950] RATGDO: DECODED  000022D7 000000C27594B914 0000F085
+>>> [  30956] RATGDO: PACKET(0x94B914 @ 0x22D7) Motion - NoData: [Zero: 0x00000000, Parity: 0xF]
+>>> [  30964] RATGDO: Motion Detected
+>>> [  30968] HomeKit: [Client 1073687572] Got characteristic 1.16 change event
+>>> [  35969] RATGDO: Motion Cleared
+>>> [  35972] HomeKit: [Client 1073687572] Got characteristic 1.16 change event
+>>> [  40385] RATGDO: reader completed packet
+>>> [  40389] RATGDO: DECODED  000022D7 000000C27594B914 0000F085
+>>> [  40395] RATGDO: PACKET(0x94B914 @ 0x22D7) Motion - NoData: [Zero: 0x00000000, Parity: 0xF]
+>>> [  40404] RATGDO: Motion Detected
+>>> [  40408] HomeKit: [Client 1073687572] Got characteristic 1.16 change event
+>>> [  45295] RATGDO: reader completed packet
+>>> [  45299] RATGDO: DECODED  000022D7 000000C27594B914 0000F085
+>>> [  45305] RATGDO: PACKET(0x94B914 @ 0x22D7) Motion - NoData: [Zero: 0x00000000, Parity: 0xF]
+>>> [  45314] RATGDO: Motion Detected
+>>> [  45317] HomeKit: [Client 1073687572] Got characteristic 1.16 change event
+>>> [  50203] RATGDO: reader completed packet
+>>> [  50207] RATGDO: DECODED  000022D7 000000C27594B914 0000F085
+>>> [  50214] RATGDO: PACKET(0x94B914 @ 0x22D7) Motion - NoData: [Zero: 0x00000000, Parity: 0xF]
+>>> [  50222] RATGDO: Motion Detected
+>>> [  50226] HomeKit: [Client 1073687572] Got characteristic 1.16 change event
+>>> [  55114] RATGDO: reader completed packet
+>>> [  55118] RATGDO: DECODED  000022D7 000000C27594B914 0000F085
+>>> [  55125] RATGDO: PACKET(0x94B914 @ 0x22D7) Motion - NoData: [Zero: 0x00000000, Parity: 0xF]
+>>> [  55133] RATGDO: Motion Detected
+>>> [  55137] HomeKit: [Client 1073687572] Got characteristic 1.16 change event
+>>> [  60022] RATGDO: reader completed packet
+>>> [  60026] RATGDO: DECODED  000022D7 000000C27594B914 0000F085
+>>> [  60032] RATGDO: PACKET(0x94B914 @ 0x22D7) Motion - NoData: [Zero: 0x00000000, Parity: 0xF]
+>>> [  60041] RATGDO: Motion Detected
+>>> [  60045] HomeKit: [Client 1073687572] Got characteristic 1.16 change event
+>>> [  64972] RATGDO: reader completed packet
+>>> [  64977] RATGDO: DECODED  000022D7 000000C27594B914 0000F085
+>>> [  64983] RATGDO: PACKET(0x94B914 @ 0x22D7) Motion - NoData: [Zero: 0x00000000, Parity: 0xF]
+>>> [  64992] RATGDO: Motion Detected
+>>> [  64995] HomeKit: [Client 1073687572] Got characteristic 1.16 change event
+>>> [  69996] RATGDO: Motion Cleared
+>>> [  69999] HomeKit: [Client 1073687572] Got characteristic 1.16 change event
+>>> [  72359] RATGDO: reader completed packet
+>>> [  72364] RATGDO: DECODED  000022D7 000000C27594B914 0000F085
+>>> [  72370] RATGDO: PACKET(0x94B914 @ 0x22D7) Motion - NoData: [Zero: 0x00000000, Parity: 0xF]
+>>> [  72379] RATGDO: Motion Detected
+>>> [  72382] HomeKit: [Client 1073687572] Got characteristic 1.16 change event
+>>> [  75367] HomeKit: [Client 1073687572] Get Characteristics
+>>> [  77268] RATGDO: reader completed packet
+>>> [  77273] RATGDO: DECODED  000022D7 000000C27594B914 0000F085
+>>> [  77279] RATGDO: PACKET(0x94B914 @ 0x22D7) Motion - NoData: [Zero: 0x00000000, Parity: 0xF]
+>>> [  77288] RATGDO: Motion Detected
+>>> [  77291] HomeKit: [Client 1073687572] Got characteristic 1.16 change event
+>>> [  82176] RATGDO: reader completed packet
+>>> [  82180] RATGDO: DECODED  000022D7 000000C27594B914 0000F085
+>>> [  82187] RATGDO: PACKET(0x94B914 @ 0x22D7) Motion - NoData: [Zero: 0x00000000, Parity: 0xF]
+>>> [  82195] RATGDO: Motion Detected
+>>> [  82199] HomeKit: [Client 1073687572] Got characteristic 1.16 change event
