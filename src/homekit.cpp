@@ -5,6 +5,7 @@
 #include "ratgdo.h"
 #include "comms.h"
 #include "log.h"
+#include <ESP8266WiFi.h>
 
 // Bring in config and characteristics defined in homekit_decl.c
 extern "C" homekit_server_config_t config;
@@ -24,6 +25,11 @@ void target_door_state_set(const homekit_value_t new_value);
 homekit_value_t obstruction_detected_get();
 homekit_value_t active_state_get();
 
+// Make device_name available
+ extern "C" char device_name[19];
+ // Make serial_number available
+ extern "C" char serial_number[18];
+
 /********************************** MAIN LOOP CODE *****************************************/
 
 void homekit_loop() {
@@ -31,6 +37,9 @@ void homekit_loop() {
 }
 
 void setup_homekit() {
+    snprintf(device_name, 19, "Garage Door %06X", ESP.getChipId());
+    String macAddress = WiFi.macAddress();
+    snprintf(serial_number, 18, "%s", macAddress.c_str());
 
     current_door_state.getter = current_door_state_get;
     target_door_state.getter = target_door_state_get;
