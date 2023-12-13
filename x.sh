@@ -13,6 +13,16 @@ do
             ;;
         test) pio test -e native $VERBOSE
             ;;
+        release)
+            git tag $2
+            ./x.sh run
+            cp .pio/build/ratgdo_esp8266_hV25/firmware.bin docs/firmware/homekit-ratgdo-$(git describe --tag).bin
+            vi docs/manifest.sh
+            git push
+            git push --tag
+            git add docs
+            git commit -m "Release $2"
+            ;;
         *) echo "usage: x.sh [-v] <upload|monitor|run|test>"
             exit 1
             ;;
