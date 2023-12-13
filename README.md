@@ -20,7 +20,8 @@ ESP8266-based hardware.
 
 ## What does this firmware support?
 
-* Opening and closing a garage door.
+* Opening and closing multiple garage doors independently in the same HomeKit home.
+* Motion sensor reporting, if you have a "smart" wall-mounted control panel.
 
 That's it, for now. Check the [GitHub Issues](https://github.com/ratgdo/homekit-ratgdo/issues) for
 planned features, or to suggest your own.
