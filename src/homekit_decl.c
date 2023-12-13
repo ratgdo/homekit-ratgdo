@@ -24,6 +24,9 @@ void identify(homekit_value_t _value) {
     printf("accessory identify\n");
 }
 
+char device_name[19];
+char serial_number[18];
+
 homekit_characteristic_t active_state = HOMEKIT_CHARACTERISTIC_(
         STATUS_ACTIVE, false,
         );
@@ -51,9 +54,9 @@ homekit_characteristic_t obstruction_detected = HOMEKIT_CHARACTERISTIC_(
 homekit_accessory_t *accessories[] = {
     HOMEKIT_ACCESSORY(.id=1, .category=homekit_accessory_category_garage, .services=(homekit_service_t*[]){
             HOMEKIT_SERVICE(ACCESSORY_INFORMATION, .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "Garage Door"),
+                    HOMEKIT_CHARACTERISTIC(NAME, device_name),
                     HOMEKIT_CHARACTERISTIC(MANUFACTURER, "ratCloud llc"),
-                    HOMEKIT_CHARACTERISTIC(SERIAL_NUMBER, "123456"),
+                    HOMEKIT_CHARACTERISTIC(SERIAL_NUMBER, serial_number),
                     HOMEKIT_CHARACTERISTIC(MODEL, "ratgdo"),
                     HOMEKIT_CHARACTERISTIC(FIRMWARE_REVISION, AUTO_VERSION),
                     HOMEKIT_CHARACTERISTIC(IDENTIFY, identify),
