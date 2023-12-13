@@ -8,3 +8,4 @@ void homekit_loop();
 void notify_homekit_target_door_state_change();
 void notify_homekit_current_door_state_change();
 void notify_homekit_active();
+void notify_homekit_motion();
