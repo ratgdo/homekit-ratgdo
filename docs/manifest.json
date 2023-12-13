@@ -1,13 +1,13 @@
 {
   "name": "homekit-ratgdo",
-  "version": "v0.3.0",
+  "version": "v0.3.1",
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 60,
   "builds": [
     {
       "chipFamily": "ESP8266",
       "parts": [
-        { "path": "firmware/homekit-ratgdo-v0.3.0.bin", "offset": 0 }
+        { "path": "firmware/homekit-ratgdo-v0.3.1.bin", "offset": 0 }
       ]
     }
   ]
