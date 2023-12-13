@@ -12,6 +12,7 @@ extern "C" homekit_characteristic_t current_door_state;
 extern "C" homekit_characteristic_t target_door_state;
 extern "C" homekit_characteristic_t obstruction_detected;
 extern "C" homekit_characteristic_t active_state;
+extern "C" homekit_characteristic_t motion_detected;
 
 // Bring in the garage door state storage in ratgdo.c
 extern struct GarageDoor garage_door;
@@ -99,5 +100,12 @@ void notify_homekit_active() {
     homekit_characteristic_notify(
         &active_state,
         HOMEKIT_BOOL_CPP(true)
+    );
+}
+
+void notify_homekit_motion() {
+    homekit_characteristic_notify(
+        &motion_detected,
+        HOMEKIT_BOOL_CPP(garage_door.motion)
     );
 }
