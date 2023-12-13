@@ -16,6 +16,7 @@ extern "C" homekit_characteristic_t current_door_state;
 extern "C" homekit_characteristic_t target_door_state;
 extern "C" homekit_characteristic_t obstruction_detected;
 extern "C" homekit_characteristic_t active_state;
+extern "C" homekit_characteristic_t light_state;
 extern "C" homekit_characteristic_t motion_detected;
 
 // Bring in the garage door state storage in ratgdo.c
@@ -27,6 +28,8 @@ homekit_value_t target_door_state_get();
 void target_door_state_set(const homekit_value_t new_value);
 homekit_value_t obstruction_detected_get();
 homekit_value_t active_state_get();
+homekit_value_t light_state_get();
+void light_state_set(const homekit_value_t value);
 
 // Make device_name available
 extern "C" char device_name[DEVICE_NAME_SIZE];
@@ -50,6 +53,8 @@ void setup_homekit() {
     target_door_state.setter = target_door_state_set;
     obstruction_detected.getter = obstruction_detected_get;
     active_state.getter = active_state_get;
+    light_state.getter = light_state_get;
+    light_state.setter = light_state_set;
 
     arduino_homekit_setup(&config);
 }
@@ -113,6 +118,25 @@ void notify_homekit_active() {
     homekit_characteristic_notify(
         &active_state,
         HOMEKIT_BOOL_CPP(true)
+    );
+}
+
+homekit_value_t light_state_get() {
+    RINFO("get light state: %s", garage_door.light ? "On" : "Off");
+
+    return HOMEKIT_BOOL_CPP(garage_door.light);
+}
+
+void light_state_set(const homekit_value_t value) {
+    RINFO("set light: %s", value.bool_value ? "On": "Off");
+
+    set_light(value.bool_value);
+}
+
+void notify_homekit_light() {
+    homekit_characteristic_notify(
+        &light_state,
+        HOMEKIT_BOOL_CPP(garage_door.light)
     );
 }
 

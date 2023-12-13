@@ -50,6 +50,7 @@ struct GarageDoor {
     bool obstructed;
     unsigned long motion_timer;
     bool motion;
+    bool light;
 };
 
 
