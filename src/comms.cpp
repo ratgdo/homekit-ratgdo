@@ -37,6 +37,7 @@ void write_counter_to_flash(const char *filename, uint32_t* counter);
 uint32_t read_counter_from_flash(const char* filename);
 bool transmit(PacketAction& pkt_ac);
 void door_command(DoorAction action);
+void send_get_status();
 
 /********************************** MAIN LOOP CODE *****************************************/
 
@@ -118,7 +119,38 @@ void comms_loop() {
                         RINFO("tgt %d curr %d", garage_door.target_state, garage_door.current_state);
                         notify_homekit_target_door_state_change();
                         notify_homekit_current_door_state_change();
-
+                        
+                        if (pkt.m_data.value.status.light != garage_door.light) {
+                            RINFO("Light Status %s", pkt.m_data.value.status.light ? "On" : "Off");
+                            garage_door.light = pkt.m_data.value.status.light;
+                            notify_homekit_light();
+                        }
+                        break;
+                    }
+                case PacketCommand::Light:
+                    {
+                        bool l = garage_door.light;
+                        switch (pkt.m_data.value.light.light) {
+                            case LightState::Off:
+                                l = false;
+                                break;
+                            case LightState::On:
+                                l = true;
+                                break;
+                            case LightState::Toggle:
+                            case LightState::Toggle2:
+                                l = !garage_door.light;
+                                break;
+                        }
+                        if (l != garage_door.light) {
+                            RINFO("Light Cmd %s", l ? "On" : "Off");
+                            garage_door.light = l;
+                            notify_homekit_light();
+                        }
+                        // Send a get status to make sure we are in sync
+                        // Should really only need to do this on a toggle,
+                        // But safer to do it always
+                        send_get_status();
                         break;
                     }
                 case PacketCommand::Motion:
@@ -132,6 +164,8 @@ void comms_loop() {
                             garage_door.motion = true;
                             notify_homekit_motion();
                         }
+                        // Update status because things like light may have changed states
+                        send_get_status();
                         break;
                     }
                 default:
@@ -258,6 +292,31 @@ void close_door() {
 
     door_command(DoorAction::Close);
 }
+
+void send_get_status() {
+    PacketData d;
+    d.type = PacketDataType::NoData;
+    d.value.no_data = NoData();
+    Packet pkt = Packet(PacketCommand::GetStatus, d, id_code);
+    PacketAction pkt_ac = {pkt, true};
+    q_push(&pkt_q, &pkt_ac);
+}
+
+void set_light(bool value) {
+    PacketData data;
+    data.type = PacketDataType::Light;
+    if (value) {
+        data.value.light.light = LightState::On;
+    } else {
+        data.value.light.light = LightState::Off;
+    }
+
+    Packet pkt = Packet(PacketCommand::Light, data, id_code);
+    PacketAction pkt_ac = {pkt, true};
+
+    q_push(&pkt_q, &pkt_ac);
+}
+
 
 /********************************** UTIL CODE *****************************************/
 

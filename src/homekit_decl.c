@@ -50,6 +50,10 @@ homekit_characteristic_t obstruction_detected = HOMEKIT_CHARACTERISTIC_(
         //.setter=NULL
         );
 
+homekit_characteristic_t light_state = HOMEKIT_CHARACTERISTIC_(
+        ON, false,
+        );
+
 homekit_characteristic_t motion_detected = HOMEKIT_CHARACTERISTIC_(
         MOTION_DETECTED, false,
         );
@@ -75,8 +79,13 @@ homekit_accessory_t *accessories[] = {
                     NULL
                     }),
             HOMEKIT_SERVICE(MOTION_SENSOR, .primary=false, .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "ratgdo-sensor"),
+                    HOMEKIT_CHARACTERISTIC(NAME, "ratgdo"),
                     &motion_detected,
+                    NULL
+                    }),
+            HOMEKIT_SERVICE(LIGHTBULB, .primary=false, .characteristics=(homekit_characteristic_t*[]){
+                    HOMEKIT_CHARACTERISTIC(NAME, "ratgdo"),
+                    &light_state,
                     NULL
                     }),
             NULL
