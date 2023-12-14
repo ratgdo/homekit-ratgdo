@@ -160,6 +160,13 @@ void light_state_set(const homekit_value_t value) {
     set_light(value.bool_value);
 }
 
+void notify_homekit_obstruction() {
+    homekit_characteristic_notify(
+        &obstruction_detected,
+        HOMEKIT_BOOL_CPP(garage_door.obstructed)
+    );
+}
+
 void notify_homekit_current_lock() {
     homekit_characteristic_notify(
         &current_lock_state,

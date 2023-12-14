@@ -10,5 +10,6 @@ void notify_homekit_current_door_state_change();
 void notify_homekit_active();
 void notify_homekit_target_lock();
 void notify_homekit_current_lock();
+void notify_homekit_obstruction();
 void notify_homekit_light();
 void notify_homekit_motion();

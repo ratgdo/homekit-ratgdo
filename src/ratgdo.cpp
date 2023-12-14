@@ -11,10 +11,17 @@
 /********************************* FWD DECLARATIONS *****************************************/
 
 void setup_pins();
+void obstructionLoop();
+void IRAM_ATTR isr_obstruction();
 
 /********************************* RUNTIME STORAGE *****************************************/
 
-// nothing yet
+struct obstruction_sensor_t {
+    unsigned int low_count = 0;  // count obstruction low pulses
+    bool detected = false;
+    unsigned long last_high = 0;  // count time between high pulses from the obst ISR
+} obstruction_sensor;
+
 
 /********************************** MAIN LOOP CODE *****************************************/
 
@@ -45,6 +52,8 @@ void loop() {
     comms_loop();
 
     web_loop();
+
+    obstructionLoop();
 }
 
 /*********************************** HELPER FUNCTIONS **************************************/
@@ -61,27 +70,78 @@ void setup_pins() {
     pinMode(UART_TX_PIN, OUTPUT);
     pinMode(UART_RX_PIN, INPUT_PULLUP);
 
-    /* TODO add support for pin-based obstruction detection
-     *
-     * until then, only report obstruction based on status
     pinMode(INPUT_OBST_PIN, INPUT);
-     */
 
     /*
      * TODO add support for dry contact switches
     pinMode(STATUS_DOOR_PIN, OUTPUT);
-    pinMode(STATUS_OBSTRUCTION_PIN, OUTPUT);
+    */
+    pinMode(STATUS_OBST_PIN, OUTPUT);
+    /*
     pinMode(DRY_CONTACT_OPEN_PIN, INPUT_PULLUP);
     pinMode(DRY_CONTACT_CLOSE_PIN, INPUT_PULLUP);
     pinMode(DRY_CONTACT_LIGHT_PIN, INPUT_PULLUP);
     */
 
-    /* TODO add support for pin-based obstruction detection
+    /* pin-based obstruction detection
     // FALLING from https://github.com/ratgdo/esphome-ratgdo/blob/e248c705c5342e99201de272cb3e6dc0607a0f84/components/ratgdo/ratgdo.cpp#L54C14-L54C14
-    attachInterrupt(INPUT_OBST_PIN, isr_obstruction, FALLING);
      */
+    attachInterrupt(INPUT_OBST_PIN, isr_obstruction, FALLING);
 }
 
 /*********************************** MODEL **************************************/
 
 struct GarageDoor garage_door;
+
+/*************************** OBSTRUCTION DETECTION ***************************/
+void IRAM_ATTR isr_obstruction() {
+    if (digitalRead(INPUT_OBST_PIN)) {
+        obstruction_sensor.last_high = millis();
+    } else {
+        obstruction_sensor.detected = true;
+        obstruction_sensor.low_count++;
+    }
+}
+
+void obstructionLoop() {
+    if (!obstruction_sensor.detected)
+        return;
+    long current_millis = millis();
+    static unsigned long last_millis = 0;
+
+    // the obstruction sensor has 3 states: clear (HIGH with LOW pulse every 7ms), obstructed (HIGH), asleep (LOW)
+    // the transitions between awake and asleep are tricky because the voltage drops slowly when falling asleep
+    // and is high without pulses when waking up
+
+    // If at least 3 low pulses are counted within 50ms, the door is awake, not obstructed and we don't have to check anything else
+
+    // Every 50ms
+    if (current_millis - last_millis > 50) {
+        // check to see if we got between 3 and 8 low pulses on the line
+        if (obstruction_sensor.low_count >= 3 && obstruction_sensor.low_count <= 8) {
+            // Only update if we are changing state
+            if (garage_door.obstructed) {
+                RINFO("Obstruction Clear");
+                garage_door.obstructed = false;
+                notify_homekit_obstruction();
+                digitalWrite(STATUS_OBST_PIN,garage_door.obstructed);
+            }
+
+            // if there have been no pulses the line is steady high or low
+        } else if (obstruction_sensor.low_count == 0) {
+            // if the line is high and the last high pulse was more than 70ms ago, then there is an obstruction present
+            if (digitalRead(INPUT_OBST_PIN) && current_millis - obstruction_sensor.last_high > 70) {
+                // Only update if we are changing state
+                if (!garage_door.obstructed) {
+                    RINFO("Obstruction Detected");
+                    garage_door.obstructed = true;
+                    notify_homekit_obstruction();
+                    digitalWrite(STATUS_OBST_PIN,garage_door.obstructed);
+                }
+            }
+        }
+
+        last_millis = current_millis;
+        obstruction_sensor.low_count = 0;
+    }
+}
