@@ -383,7 +383,8 @@ uint32_t read_counter_from_flash(const char* filename) {
     if (!file) {
         RINFO("%s doesn't exist. creating...", filename);
 
-        write_counter_to_flash(filename, 0);
+        uint32_t count = 0;
+        write_counter_to_flash(filename, &count);
         return 0;
     }
 
