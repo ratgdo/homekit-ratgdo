@@ -705,12 +705,10 @@ struct Packet {
                     break;
 
                 case PacketCommand::Lock:
-                    /*
                     {
                         pkt_data = m_data.value.lock.to_data();
                         break;
                     }
-                    */
                     break;
 
                 case PacketCommand::DoorAction:
