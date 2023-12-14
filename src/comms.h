@@ -10,5 +10,6 @@ void comms_loop();
 void open_door();
 void close_door();
 
+void set_lock(uint8_t value);
 void set_light(bool value);
 #endif // _COMMS_H

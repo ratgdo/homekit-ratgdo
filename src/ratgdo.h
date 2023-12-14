@@ -43,6 +43,18 @@ enum GarageDoorTargetState : uint8_t {
     TGT_CLOSED = HOMEKIT_CHARACTERISTIC_TARGET_DOOR_STATE_CLOSED,
 };
 
+enum LockCurrentState : uint8_t {
+    CURR_UNLOCKED = HOMEKIT_CHARACTERISTIC_CURRENT_LOCK_STATE_UNSECURED,
+    CURR_LOCKED = HOMEKIT_CHARACTERISTIC_CURRENT_LOCK_STATE_SECURED,
+    CURR_JAMMED = HOMEKIT_CHARACTERISTIC_CURRENT_LOCK_STATE_JAMMED,
+    CURR_UNKNOWN = HOMEKIT_CHARACTERISTIC_CURRENT_LOCK_STATE_UNKNOWN,
+};
+
+enum LockTargetState : uint8_t {
+    TGT_UNLOCKED = HOMEKIT_CHARACTERISTIC_TARGET_LOCK_STATE_UNSECURED,
+    TGT_LOCKED = HOMEKIT_CHARACTERISTIC_TARGET_LOCK_STATE_SECURED,
+};
+
 struct GarageDoor {
     bool active;
     GarageDoorCurrentState current_state;
@@ -51,6 +63,8 @@ struct GarageDoor {
     unsigned long motion_timer;
     bool motion;
     bool light;
+    LockCurrentState current_lock;
+    LockTargetState target_lock;
 };
 
 
