@@ -16,6 +16,8 @@ extern "C" homekit_characteristic_t current_door_state;
 extern "C" homekit_characteristic_t target_door_state;
 extern "C" homekit_characteristic_t obstruction_detected;
 extern "C" homekit_characteristic_t active_state;
+extern "C" homekit_characteristic_t current_lock_state;
+extern "C" homekit_characteristic_t target_lock_state;
 extern "C" homekit_characteristic_t light_state;
 extern "C" homekit_characteristic_t motion_detected;
 
@@ -28,6 +30,9 @@ homekit_value_t target_door_state_get();
 void target_door_state_set(const homekit_value_t new_value);
 homekit_value_t obstruction_detected_get();
 homekit_value_t active_state_get();
+homekit_value_t current_lock_state_get();
+homekit_value_t target_lock_state_get();
+void target_lock_state_set(const homekit_value_t new_value);
 homekit_value_t light_state_get();
 void light_state_set(const homekit_value_t value);
 
@@ -53,6 +58,9 @@ void setup_homekit() {
     target_door_state.setter = target_door_state_set;
     obstruction_detected.getter = obstruction_detected_get;
     active_state.getter = active_state_get;
+    current_lock_state.getter = current_lock_state_get;
+    target_lock_state.getter = target_lock_state_get;
+    target_lock_state.setter = target_lock_state_set;
     light_state.getter = light_state_get;
     light_state.setter = light_state_set;
 
@@ -100,6 +108,25 @@ homekit_value_t active_state_get() {
     return HOMEKIT_BOOL_CPP(garage_door.active);
 }
 
+homekit_value_t current_lock_state_get() {
+    RINFO("get current door state: %d", garage_door.current_lock);
+
+    return HOMEKIT_UINT8_CPP(garage_door.current_lock);
+}
+
+homekit_value_t target_lock_state_get() {
+    RINFO("get target door state: %d", garage_door.target_lock);
+
+    return HOMEKIT_UINT8_CPP(garage_door.target_lock);
+}
+
+void target_lock_state_set(const homekit_value_t value) {
+    RINFO("set lock state: %d", value.uint8_value);
+
+    set_lock(value.uint8_value);
+}
+
+
 void notify_homekit_target_door_state_change() {
     homekit_characteristic_notify(
         &target_door_state,
@@ -131,6 +158,20 @@ void light_state_set(const homekit_value_t value) {
     RINFO("set light: %s", value.bool_value ? "On": "Off");
 
     set_light(value.bool_value);
+}
+
+void notify_homekit_current_lock() {
+    homekit_characteristic_notify(
+        &current_lock_state,
+        HOMEKIT_UINT8_CPP(garage_door.current_lock)
+    );
+}
+
+void notify_homekit_target_lock() {
+    homekit_characteristic_notify(
+        &target_lock_state,
+        HOMEKIT_UINT8_CPP(garage_door.target_lock)
+    );
 }
 
 void notify_homekit_light() {

@@ -73,6 +73,7 @@ enum class PacketDataType {
     NoData,
     Status,
     Light,
+    Lock,
     DoorAction,
     Openings,
     Unknown,
@@ -81,20 +82,6 @@ enum class PacketDataType {
 // Parity is applicable to all incoming packets; outgoing packets leave this unset
 const uint8_t COMMAND_PARITY_MASK = 0b1111;
 const uint8_t COMMAND_PARITY_SHIFT = 12;
-
-/*
-const uint8_t LOCK_DATA_MASK   = 0b11;
-const uint8_t LOCK_DATA_SHIFT  = ?;
-const uint8_t LOCK_DATA_OFF    = 0b00;
-const uint8_t LOCK_DATA_ON     = 0b01;
-const uint8_t LOCK_DATA_TOGGLE = 0b10;
-// valid values for LockCommandData (not yet implemented)
-enum class LockData : uint8_t {
-    Off = 0,
-    On = 1,
-    Toggle = 2
-};
-*/
 
 const uint8_t DOOR_ACTION_MASK = 0b11;
 const uint8_t DOOR_ACTION_SHIFT = 8;
@@ -152,6 +139,54 @@ struct DoorActionCommandData {
         }
         snprintf(buf, buflen, "DoorAction %s, Pressed %d, Id %02X", d, pressed, id);
     };
+};
+
+const uint8_t LOCK_DATA_MASK   = 0b11;
+const uint8_t LOCK_DATA_SHIFT  = 8;
+//const uint8_t LOCK_DATA_OFF    = 0b00;
+//const uint8_t LOCK_DATA_ON     = 0b01;
+//const uint8_t LOCK_DATA_TOGGLE = 0b10;
+// valid values for LockCommandData
+enum class LockState : uint8_t {
+    Off = 0,
+    On = 1,
+    Toggle = 2
+};
+
+// data attached to PacketCommand::Lock
+struct LockCommandData {
+    LockState lock;
+    uint8_t parity;
+
+    LockCommandData() = default;
+    LockCommandData(uint32_t pkt_data) {
+        lock = static_cast<LockState>((pkt_data >> LOCK_DATA_SHIFT) & LOCK_DATA_MASK);
+        parity = ((pkt_data >> COMMAND_PARITY_SHIFT) & COMMAND_PARITY_MASK);
+    };
+
+    uint32_t to_data(void) {
+        uint32_t pkt_data = 0;
+        pkt_data |= static_cast<uint32_t>(lock) << LOCK_DATA_SHIFT;
+        pkt_data |= parity << COMMAND_PARITY_SHIFT;
+        return pkt_data;
+    };
+
+    void to_string(char* buf, size_t buflen) {
+        const char* l = "invalid lock command";
+        switch (lock) {
+            case LockState::Off:
+                l = "Off";
+                break;
+            case LockState::On:
+                l = "On";
+                break;
+            case LockState::Toggle:
+                l = "Toggle";
+                break;
+        }
+        snprintf(buf, buflen, "LockState %s", l);
+    };
+
 };
 
 const uint8_t LIGHT_DATA_MASK   = 0b11;
@@ -350,6 +385,7 @@ struct PacketData {
     union {
         NoData no_data;
         StatusCommandData status;
+        LockCommandData lock;
         LightCommandData light;
         DoorActionCommandData door_action;
         OpeningsCommandData openings;
@@ -367,6 +403,10 @@ struct PacketData {
             case PacketDataType::Status:
                 value.status.to_string(subbuf, subbuflen);
                 snprintf(buf, buflen, "Status: [%s]", subbuf);
+                break;
+            case PacketDataType::Lock:
+                value.lock.to_string(subbuf, subbuflen);
+                snprintf(buf, buflen, "Lock: [%s]", subbuf);
                 break;
             case PacketDataType::Light:
                 value.light.to_string(subbuf, subbuflen);
@@ -578,11 +618,17 @@ struct Packet {
                 case PacketCommand::Pair3:
                 case PacketCommand::Pair3Resp:
                 case PacketCommand::Learn2:
-                case PacketCommand::Lock:
                     // no data or unimplemented
                     {
                         m_data.type = PacketDataType::NoData;
                         m_data.value.no_data = NoData(pkt_data);
+                        break;
+                    }
+
+                case PacketCommand::Lock:
+                    {
+                        m_data.type = PacketDataType::Lock;
+                        m_data.value.lock = LockCommandData(pkt_data);
                         break;
                     }
 

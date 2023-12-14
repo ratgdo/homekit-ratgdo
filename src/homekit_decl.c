@@ -50,6 +50,14 @@ homekit_characteristic_t obstruction_detected = HOMEKIT_CHARACTERISTIC_(
         //.setter=NULL
         );
 
+homekit_characteristic_t current_lock_state = HOMEKIT_CHARACTERISTIC_(
+        LOCK_CURRENT_STATE, HOMEKIT_CHARACTERISTIC_CURRENT_LOCK_STATE_UNSECURED,
+        );
+
+homekit_characteristic_t target_lock_state = HOMEKIT_CHARACTERISTIC_(
+        LOCK_TARGET_STATE, HOMEKIT_CHARACTERISTIC_TARGET_LOCK_STATE_UNSECURED,
+        );
+
 homekit_characteristic_t light_state = HOMEKIT_CHARACTERISTIC_(
         ON, false,
         );
@@ -76,6 +84,8 @@ homekit_accessory_t *accessories[] = {
                     &current_door_state,
                     &target_door_state,
                     &obstruction_detected,
+                    &current_lock_state,
+                    &target_lock_state,
                     NULL
                     }),
             HOMEKIT_SERVICE(MOTION_SENSOR, .primary=false, .characteristics=(homekit_characteristic_t*[]){

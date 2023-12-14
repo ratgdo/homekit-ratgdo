@@ -125,6 +125,44 @@ void comms_loop() {
                             garage_door.light = pkt.m_data.value.status.light;
                             notify_homekit_light();
                         }
+
+                        if (pkt.m_data.value.status.lock) {
+                            garage_door.current_lock = CURR_LOCKED;
+                            garage_door.target_lock = TGT_LOCKED;
+                        } else {
+                            garage_door.current_lock = CURR_UNLOCKED;
+                            garage_door.target_lock = TGT_UNLOCKED;
+                        }
+                        notify_homekit_target_lock();
+                        notify_homekit_current_lock();
+
+                        break;
+                    }
+                case PacketCommand::Lock:
+                    {
+                        LockTargetState lock = garage_door.target_lock;
+                        switch (pkt.m_data.value.lock.lock) {
+                            case LockState::Off:
+                                lock = TGT_UNLOCKED;
+                                break;
+                            case LockState::On:
+                                lock = TGT_LOCKED;
+                                break;
+                            case LockState::Toggle:
+                                if (lock == TGT_LOCKED) {
+                                    lock = TGT_UNLOCKED;
+                                } else {
+                                    lock = TGT_LOCKED;
+                                }
+                                break;
+                        }
+                        if (lock != garage_door.target_lock) {
+                            RINFO("Lock Cmd %d", lock);
+                            garage_door.target_lock = lock;
+                            notify_homekit_target_lock();
+                        }
+                        // Send a get status to make sure we are in sync
+                        send_get_status();
                         break;
                     }
                 case PacketCommand::Light:
@@ -300,6 +338,24 @@ void send_get_status() {
     Packet pkt = Packet(PacketCommand::GetStatus, d, id_code);
     PacketAction pkt_ac = {pkt, true};
     q_push(&pkt_q, &pkt_ac);
+}
+
+void set_lock(uint8_t value) {
+    PacketData data;
+    data.type = PacketDataType::Lock;
+    if (value) {
+        data.value.lock.lock = LockState::On;
+        garage_door.target_lock = TGT_LOCKED;
+    } else {
+        data.value.lock.lock = LockState::Off;
+        garage_door.target_lock = TGT_UNLOCKED;
+    }
+
+    Packet pkt = Packet(PacketCommand::Lock, data, id_code);
+    PacketAction pkt_ac = {pkt, true};
+
+    q_push(&pkt_q, &pkt_ac);
+    send_get_status();
 }
 
 void set_light(bool value) {
