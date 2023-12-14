@@ -74,7 +74,7 @@ does not matter). You can then re-pair the device by adding it again as normal.
 
 If your question has not been answered here, you can try the Discord chat:
 
-[![the Discord logo](docs/discord-logo.png)](https://discord.com/channels/432663330281226270/1181953146549968986).
+[![the Discord logo](docs/discord-logo.png)](https://discord.com/channels/432663330281226270/1184710180563329115).
 
 Please also feel free to open a [GitHub Issue](https://github.com/ratgdo/homekit-ratgdo/issues) if
 you don't already see your concern listed. Don't forget to check the [closed
