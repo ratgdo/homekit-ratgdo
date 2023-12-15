@@ -13,15 +13,18 @@
 void setup_pins();
 void obstructionLoop();
 void IRAM_ATTR isr_obstruction();
+void led_loop();
 
 /********************************* RUNTIME STORAGE *****************************************/
 
 struct obstruction_sensor_t {
-    unsigned int low_count = 0;  // count obstruction low pulses
+    unsigned int low_count = 0;        // count obstruction low pulses
     bool detected = false;
-    unsigned long last_high = 0;  // count time between high pulses from the obst ISR
+    unsigned long last_high = 0;       // count time between high pulses from the obst ISR
 } obstruction_sensor;
 
+
+long unsigned int led_on_time = 0;     // Stores time when LED should turn back on
 
 /********************************** MAIN LOOP CODE *****************************************/
 
@@ -54,6 +57,8 @@ void loop() {
     web_loop();
 
     obstructionLoop();
+
+    led_loop();
 }
 
 /*********************************** HELPER FUNCTIONS **************************************/
@@ -87,6 +92,13 @@ void setup_pins() {
     // FALLING from https://github.com/ratgdo/esphome-ratgdo/blob/e248c705c5342e99201de272cb3e6dc0607a0f84/components/ratgdo/ratgdo.cpp#L54C14-L54C14
      */
     attachInterrupt(INPUT_OBST_PIN, isr_obstruction, FALLING);
+}
+
+// Check if it's been long enough to turn the LED back on
+void led_loop() {
+    if (digitalRead(LED_BUILTIN) && millis() > led_on_time) {
+        digitalWrite(LED_BUILTIN, LOW);
+    }
 }
 
 /*********************************** MODEL **************************************/
