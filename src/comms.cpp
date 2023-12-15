@@ -30,6 +30,8 @@ SecPlus2Reader reader;
 uint32_t id_code = 0;
 uint32_t rolling_code = 0;
 
+extern long unsigned int led_on_time;
+
 /*************************** FORWARD DECLARATIONS ******************************/
 
 void sync();
@@ -235,6 +237,10 @@ void comms_loop() {
 /********************************** CONTROLLER CODE *****************************************/
 
 bool transmit(PacketAction& pkt_ac) {
+    // Turn off LED
+    digitalWrite(LED_BUILTIN, HIGH);
+    led_on_time = millis() + 500;
+
     // inverted logic, so this pulls the bus low to assert it
     digitalWrite(UART_TX_PIN, HIGH);
     delayMicroseconds(1300);
