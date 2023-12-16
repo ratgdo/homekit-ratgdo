@@ -11,9 +11,8 @@
 /********************************* FWD DECLARATIONS *****************************************/
 
 void setup_pins();
-void obstruction_loop();
 void IRAM_ATTR isr_obstruction();
-void led_loop();
+void service_timer_loop();
 
 /********************************* RUNTIME STORAGE *****************************************/
 
@@ -43,7 +42,7 @@ void setup() {
 
     RINFO("RATGDO setup completed");
     RINFO("Starting RATGDO Homekit version %s", AUTO_VERSION);
-    RINFO("%s", ESP.getFullVersion());
+    RINFO("%s", ESP.getFullVersion().c_str());
 }
 
 void loop() {
@@ -56,9 +55,7 @@ void loop() {
 
     web_loop();
 
-    obstruction_loop();
-
-    led_loop();
+    service_timer_loop();
 }
 
 /*********************************** HELPER FUNCTIONS **************************************/
@@ -94,13 +91,6 @@ void setup_pins() {
     attachInterrupt(INPUT_OBST_PIN, isr_obstruction, FALLING);
 }
 
-// Check if it's been long enough to turn the LED back on
-void led_loop() {
-    if (digitalRead(LED_BUILTIN) && millis() > led_on_time) {
-        digitalWrite(LED_BUILTIN, LOW);
-    }
-}
-
 /*********************************** MODEL **************************************/
 
 struct GarageDoor garage_door;
@@ -115,7 +105,7 @@ void IRAM_ATTR isr_obstruction() {
     }
 }
 
-void obstruction_loop() {
+void obstruction_timer() {
     if (!obstruction_sensor.detected)
         return;
     long current_millis = millis();
@@ -155,5 +145,24 @@ void obstruction_loop() {
 
         last_millis = current_millis;
         obstruction_sensor.low_count = 0;
+    }
+}
+
+void service_timer_loop() {
+    // Service the Obstruction Timer
+    obstruction_timer();
+
+    long current_millis = millis();
+
+    // LED Timer
+    if (digitalRead(LED_BUILTIN) && (current_millis > led_on_time)) {
+        digitalWrite(LED_BUILTIN, LOW);
+    }
+
+    // Motion Clear Timer
+    if (garage_door.motion && (current_millis > garage_door.motion_timer)) {
+        RINFO("Motion Cleared");
+        garage_door.motion = false;
+        notify_homekit_motion();
     }
 }

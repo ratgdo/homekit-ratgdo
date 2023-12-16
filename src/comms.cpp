@@ -219,13 +219,6 @@ void comms_loop() {
         }
 
     } else {
-        // no incoming data waiting, so we can start transmitting
-        if (garage_door.motion && (millis() > garage_door.motion_timer)) {
-            RINFO("Motion Cleared");
-            garage_door.motion = false;
-            notify_homekit_motion();
-        }
-
         PacketAction pkt_ac;
 
         if (q_peek(&pkt_q, &pkt_ac)) {
