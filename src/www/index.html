@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <!--  Copyright (c) 2023-24 David Kerr, https://github.com/dkerr64 -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=1">
+  <meta name="apple-mobile-web-app-title" content="RATDGO">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>HomeKit Garage Door Opener</title>
+  <link rel="stylesheet" href="./style.css">
+  <link rel="icon" href="./favicon.png" type="image/png">
+  <!-- <link rel="apple-touch-icon" sizes="512x512" href="TBD.png"> -->
+</head>
+
+<body>
+  <div class="fullpage">
+    <main>
+
+      <div class="fullwidth">
+        <div class="logo">
+          <pre class="logo">
+ _____ _____ _____ _____ ____  _____
+| __  |  _  |_   _|   __|    \|     |
+|    -|     | | | |  |  |  |  |  |  |
+|__|__|__|__| |_| |_____|____/|_____|
+          </pre>
+          <p class="logo"> for HomeKit</p>
+        </div>
+        <div class="name">
+          <p id="devicename" style="margin:0px;">Garage Door</p>
+        </div>
+      </div>
+      <div class="serverstatus">
+        <table>
+          <tr>
+            <td style="text-align: right; width: 40%">Firmware:</td>
+            <td id="firmware"></td>
+          </tr>
+          <tr>
+            <td style="text-align: right; white-space: pre;">Up Time:<br><sup>(dd:hh:mm:ss)</sup> </td>
+            <td id="uptime"></td>
+          </tr>
+          <tr style="height: 10px">
+            <td colspan="2"></td>
+          </tr>
+          <tr>
+            <td style="text-align: right;">WiFi SSID:</td>
+            <td id="ssid"></td>
+          </tr>
+          <tr>
+            <td style="text-align: right;">MAC Address:</td>
+            <td id="macaddress"></td>
+          </tr>
+          <tr>
+            <td style="text-align: right;">IPAddress:</td>
+            <td id="ipaddress"></td>
+          </tr>
+          <tr>
+            <td style="text-align: right;">Netmask:</td>
+            <td id="netmask"></td>
+          </tr>
+          <tr>
+            <td style="text-align: right;">Gatweway IP:</td>
+            <td id="gateway"></td>
+          </tr>
+          <tr style="height: 10px">
+            <td colspan="2"></td>
+          </tr>
+          <tr>
+            <td style="text-align: right;">HomeKit ID:</td>
+            <td id="accessoryid"></td>
+          </tr>
+        </table>
+      </div>
+      <div class="qrcode">
+        <img id="qrcode" src="./qrcode.svg" alt="QR Code" style="display:none;" />
+        <p id="re-pair-info" style="display:none; font-size: 10px;">If you wish to pair to another HomeKit home, you
+          must first un-pair from exiting home.
+        </p>
+      </div>
+      <div class="fullwidth" style="padding: 0px;">
+        <div class="serverstatus" style="padding: 0px; padding-bottom: 5px;">
+          <form action="./reboot" method="POST" style="display: inline-block;">
+            <input type="submit" value="Reboot RATGDO" onclick="return confirm('Reboot RATGDO, are you sure?')">
+          </form>
+          <input type="button" value="Firmware Update" onclick="location.href='./update';">
+        </div>
+        <div class="qrcode center">
+          <form action="./reset" method="POST">
+            <input id="unpair" type="submit" value="Un-pair HomeKit"
+              onclick="return confirm('Pair to new HomeKit, are you sure?')">
+          </form>
+        </div>
+      </div>
+      <div class="fullwidth">
+        <table>
+          <tr>
+            <td style="width: 25%; text-align: right;">Door State:</td>
+            <td style="width: 15%;" id="doorstate"></td>
+            <td style="width: 40%; text-align: right;">Light On:</td>
+            <td style="width: 20%;" id="lighton"></td>
+          </tr>
+          <tr>
+            <td style="text-align: right;">Lock State:</td>
+            <td id="lockstate"></td>
+            <td style="text-align: right;">Obstruction:</td>
+            <td id="obstruction"></td>
+          </tr>
+          <tr>
+            <td style="text-align: right;"></td>
+            <td id="unused"></td>
+            <td style="text-align: right;">Motion:</td>
+            <td id="motion"></td>
+          </tr>
+        </table>
+      </div>
+    </main>
+    <footer>
+      <div class="footer">
+        <p>For documentation, help and support see the <a href="https://github.com/ratgdo/homekit-ratgdo">homekit-ratgo
+            page</a> on GitHub.<br>Copyright (c) 2023-24 <a
+            href="https://github.com/ratgdo/homekit-ratgdo/graphs/contributors">homekit-ratgdo contributors,</a> All
+          Rights Reserved.<br>Licensed under terms of the <a href="https://www.gnu.org/licenses/gpl-3.0.en.html">GPL-3.0
+            License.</a></p>
+      </div>
+    </footer>
+  </div>
+  <script>
+    function msToTime(duration) {
+      var milliseconds = Math.floor((duration % 1000) / 100),
+        seconds = Math.floor((duration / 1000) % 60),
+        minutes = Math.floor((duration / (1000 * 60)) % 60),
+        hours = Math.floor((duration / (1000 * 60 * 60)) % 24),
+        days = Math.floor((duration / (1000 * 60 * 60 * 24)));
+
+      hours = (hours < 10) ? "0" + hours : hours;
+      minutes = (minutes < 10) ? "0" + minutes : minutes;
+      seconds = (seconds < 10) ? "0" + seconds : seconds;
+
+      return days + ":" + hours + ":" + minutes + ":" + seconds;
+    }
+
+    fetch("./status.json")
+      .then(response => response.text())
+      .then(json => {
+        const status = JSON.parse(json);
+        document.getElementById("devicename").innerHTML = status.deviceName;
+        if (status.paired) {
+          document.getElementById("unpair").value = "Un-pair HomeKit";
+          document.getElementById("qrcode").style.display = "none";
+          document.getElementById("re-pair-info").style.display = "inline-block";
+        } else {
+          document.getElementById("unpair").value = "Pair to HomeKit";
+          document.getElementById("re-pair-info").style.display = "none";
+          document.getElementById("qrcode").style.display = "inline-block";
+        }
+        document.getElementById("uptime").innerHTML = msToTime(status.upTime);
+        document.getElementById("firmware").innerHTML = status.firmwareVersion;
+        document.getElementById("ssid").innerHTML = status.wifiSSID;
+        document.getElementById("macaddress").innerHTML = status.macAddress;
+        document.getElementById("ipaddress").innerHTML = status.localIP;
+        document.getElementById("netmask").innerHTML = status.subnetMask;
+        document.getElementById("gateway").innerHTML = status.gatewayIP;
+        document.getElementById("accessoryid").innerHTML = status.accessoryID;
+
+        document.getElementById("doorstate").innerHTML = status.garageDoorState;
+        document.getElementById("lockstate").innerHTML = status.garageLockState;
+        document.getElementById("lighton").innerHTML = status.garageLightOn;
+        document.getElementById("obstruction").innerHTML = status.garageObstructed;
+        document.getElementById("motion").innerHTML = status.garageMotion;
+
+        // Refresh the data every 10 seconds.
+        setInterval(async () => {
+          const response = await fetch("./status.json?uptime&doorstate&doorstate&lockstate&lighton&obstruction&motion");
+          const status = await response.json();
+          document.getElementById("uptime").innerHTML = msToTime(status.upTime);
+          document.getElementById("doorstate").innerHTML = status.garageDoorState;
+          document.getElementById("lockstate").innerHTML = status.garageLockState;
+          document.getElementById("lighton").innerHTML = status.garageLightOn;
+          document.getElementById("obstruction").innerHTML = status.garageObstructed;
+          document.getElementById("motion").innerHTML = status.garageMotion;
+        }, 10000);
+      });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,164 @@
+/*************************************************************
+ * Stylesheet for RATDGO web status page
+ * 
+ * Copyright (c) 2023-24 David Kerr, https://github.com/dkerr64
+ *
+ *************************************************************/
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    background-color: #a6a6a6;
+    overflow-x: hidden;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size: 3vw
+}
+
+input {
+    background-color: rgb(180, 117, 23);
+    color: white;
+    border-style: solid;
+    border-color: white;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+    border-bottom-left-radius: 5px;
+    font-weight: bold;
+    font-size: 2vw;
+    padding: 5px;
+}
+
+@media (prefers-color-scheme: light) {
+
+    html,
+    body {
+        background-color: #e6e6e6;
+        border-color: #e6e6e6;
+        color: black;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+
+    html,
+    body {
+        background-color: #333333;
+        border-color: #333333;
+        color: white;
+    }
+}
+
+div {
+    position: static;
+    float: left;
+    border-color: #808080;
+    padding: 10px;
+}
+
+div.serverstatus {
+    width: 75%;
+    overflow: hidden;
+    position: relative;
+}
+
+div.qrcode {
+    width: 25%;
+    max-width: 200px;
+    overflow: hidden;
+    position: relative;
+}
+
+div.fullwidth {
+    width: 100%;
+    max-width: 800px;
+    overflow: hidden;
+    position: relative;
+    border-bottom-style: solid;
+}
+
+div.fullpage {
+    margin: auto;
+    max-width: 800px;
+    height: auto;
+    overflow: hidden;
+    position: relative;
+    float: none;
+    border-style: solid;
+}
+
+div.center {
+    text-align: center;
+    padding: 0px;
+}
+
+div.footer {
+    width: 100%;
+    font-size: 12px;
+}
+
+.logo {
+    font-family: 'Courier New', Courier, monospace;
+    text-align: left;
+    white-space: pre;
+    font-weight: bold;
+    padding: 0;
+    margin: 0;
+    display: inline-grid;
+}
+
+p.logo {
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-weight: normal;
+    font-size: 2vw;
+    margin: 0px;
+}
+
+pre.logo {
+    font-size: 1.5vw;
+    margin-bottom: -2vw;
+}
+
+div.name {
+    font-weight: bold;
+    font-size: 4vw;
+    text-align: left;
+    padding: 0;
+    margin: 0;
+    margin-left: 2vw;
+    margin-top: 1.5vw;
+    height: 100%;
+    display: flex;
+}
+
+td {
+    padding: 2px;
+    vertical-align: top;
+}
+
+@media only screen and (min-width: 800px) {
+    body {
+        font-size: 24px;
+    }
+
+    input {
+        font-size: 16px;
+    }
+
+    div.name {
+        font-size: 32px;
+        margin-left: 16px;
+        margin-top: 12px;
+    }
+
+    pre.logo {
+        font-size: 12px;
+        margin-bottom: -16px;
+    }
+
+    p.logo {
+        font-size: 16px;
+    }
+}
