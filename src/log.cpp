@@ -5,10 +5,22 @@
 
 #include "log.h"
 #include "secplus2.h"
+#include "wifi.h"
 
 #ifndef UNIT_TEST
 
 #include <Arduino.h>
+#include <WiFiUdp.h>
+
+#define SYSLOG_SERVER "syslog"
+#define SYSLOG_PORT 514
+
+#define DEVICE_HOSTNAME "ratgdo"
+#define APP_NAME "ratgdo"
+
+WiFiUDP udpClient;
+
+Syslog syslog(udpClient, SYSLOG_SERVER, SYSLOG_PORT, DEVICE_HOSTNAME, APP_NAME, LOG_KERN);
 
 void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]) {
     RINFO("decoded packet: [%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X]",
