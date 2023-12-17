@@ -3,9 +3,11 @@
 
 #include <arduino_homekit_server.h>
 #include <ESP8266WebServer.h>
+#include <ESP8266HTTPUpdateServer.h>
 #include "log.h"
 
 ESP8266WebServer server(80);
+ESP8266HTTPUpdateServer httpUpdater;
 
 /********* forward decl *********/
 
@@ -23,6 +25,9 @@ void setup_web() {
     server.onNotFound([]() {
         server.send(404, "text/plain", "404: Not Found");
     });
+
+    httpUpdater.setup(&server);
+
 
     server.begin();
     RINFO("HTTP server started");
@@ -46,6 +51,8 @@ void handle_root() {
             "<form action=\"/reboot\" method=\"POST\">"
             "<input type=\"submit\" value=\"Reboot RATGDO\">"
             "</form>"
+            "<p>" AUTO_VERSION "</p>"
+            "<p><a href=\"/update\">Firmware update</a></p>"
         );
     } else {
         server.send(
@@ -62,6 +69,8 @@ void handle_root() {
             "<form action=\"/reboot\" method=\"POST\">"
                 "<input type=\"submit\" value=\"Reboot RATGDO\">"
             "</form>"
+            "<p>" AUTO_VERSION "</p>"
+            "<p><a href=\"/update\">Firmware update</a></p>"
         );
     }
 }
