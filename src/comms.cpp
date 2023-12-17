@@ -371,6 +371,7 @@ void set_light(bool value) {
     PacketAction pkt_ac = {pkt, true};
 
     q_push(&pkt_q, &pkt_ac);
+    send_get_status();
 }
 
 
