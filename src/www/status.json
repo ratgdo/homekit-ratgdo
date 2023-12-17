@@ -1,0 +1,17 @@
+{
+  "upTime": 847155,
+  "deviceName": "Garage Door ABCDEF",
+  "paired": false,
+  "firmwareVersion": "9.9.9",
+  "accessoryID": "BA:98:76:54:32:10",
+  "localIP": "192.168.99.99",
+  "subnetMask": "255.255.255.0",
+  "gatewayIP": "192.168.99.1",
+  "macAddress": "02:23:45:AB:CD:EF",
+  "wifiSSID": "Test",
+  "garageLightOn": false,
+  "garageDoorState": "Closed",
+  "garageLockState": "Unsecured",
+  "garageMotion": false,
+  "garageObstructed": false
+}

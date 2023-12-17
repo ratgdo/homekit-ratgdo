@@ -10,4 +10,5 @@ compile_commands.json
 __pycache__
 .DS_Store
 .vscode
+src/www/build
 .vscode/*
