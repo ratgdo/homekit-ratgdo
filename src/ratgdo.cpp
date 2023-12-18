@@ -11,7 +11,7 @@
 /********************************* FWD DECLARATIONS *****************************************/
 
 void setup_pins();
-void obstructionLoop();
+void obstruction_loop();
 void IRAM_ATTR isr_obstruction();
 void led_loop();
 
@@ -56,7 +56,7 @@ void loop() {
 
     web_loop();
 
-    obstructionLoop();
+    obstruction_loop();
 
     led_loop();
 }
@@ -115,7 +115,7 @@ void IRAM_ATTR isr_obstruction() {
     }
 }
 
-void obstructionLoop() {
+void obstruction_loop() {
     if (!obstruction_sensor.detected)
         return;
     long current_millis = millis();
