@@ -7,7 +7,7 @@
 #include "log.h"
 
 ESP8266WebServer server(80);
-ESP8266HTTPUpdateServer httpUpdater;
+ESP8266HTTPUpdateServer httpUpdater(true);
 
 /********* forward decl *********/
 
