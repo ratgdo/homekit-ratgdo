@@ -30,7 +30,7 @@ a GetStatus response ASAP.
 In the case of introducing a new client ID, the first packet is ignored. So why not send two
 GetStatus commands? There is an untested-by-me claim that the garage door will ignore duplicate
 packets sent within some indeterminate short period of time. We avoid this problem by sending an
-Openings packet as the first. We need status information, so we send a GetOpenings packet next,
+Openings packet as the first. We need status information, so we send a GetStatus packet next,
 which garners a response.
 
 The delay between the packets was basically just pulled out of thin air.
