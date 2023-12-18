@@ -33,11 +33,11 @@ void setup() {
 
     wifi_connect();
 
-    setup_homekit();
-
     setup_pins();
 
     setup_comms();
+
+    setup_homekit();
 
     setup_web();
 
@@ -50,9 +50,9 @@ void loop() {
 
     improv_loop();
 
-    homekit_loop();
-
     comms_loop();
+
+    homekit_loop();
 
     web_loop();
 
