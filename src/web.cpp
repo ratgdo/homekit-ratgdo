@@ -43,23 +43,32 @@ void handle_root() {
             "<form action=\"/reset\" method=\"POST\">"
             "<input type=\"submit\" value=\"Un-pair HomeKit\">"
             "</form>"
+            "<p>To reboot the RATGDO, click the following button:</p>"
             "<form action=\"/reboot\" method=\"POST\">"
             "<input type=\"submit\" value=\"Reboot RATGDO\">"
             "</form>"
-        );
+            "<p>Current Firmware Version: v" AUTO_VERSION "</p>"
+            "<form action=\"/update\">"
+            "<input type=\"submit\" value=\"Update Firmware\">"
+            "</form>");
     } else {
         server.send(
             200,
             "text/html",
+            "<p>Scan the following QR code with your iOS device to pair with HomeKit:</p>"
             #include "qrcode.h"
             "<p>If you wish to re-pair to another HomeKit Home, you must first click the following button:</p>"
             "<form action=\"/reset\" method=\"POST\">"
-                "<input type=\"submit\" value=\"Un-pair HomeKit\">"
+            "<input type=\"submit\" value=\"Un-pair HomeKit\">"
             "</form>"
             "<p>To reboot the RATGDO, click the following button:</p>"
             "<form action=\"/reboot\" method=\"POST\">"
-                "<input type=\"submit\" value=\"Reboot RATGDO\">"
+            "<input type=\"submit\" value=\"Reboot RATGDO\">"
             "</form>"
+            "<p>Current Firmware Version: v" AUTO_VERSION "</p>"
+            "<form action=\"/update\">"
+            "<input type=\"submit\" value=\"Update Firmware\">"
+            "</form>");
         );
     }
 }
