@@ -8,3 +8,4 @@
 .piolibdeps
 compile_commands.json
 __pycache__
+.vscode/*
