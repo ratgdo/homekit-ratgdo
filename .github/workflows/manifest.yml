@@ -1,9 +1,9 @@
 name: Update Manifest
 
 on:
- release:
-    types: [published]
- workflow_dispatch:
+  release:
+     types: [published]
+  workflow_dispatch:
 
 jobs:
   manifest:
@@ -16,6 +16,19 @@ jobs:
       - name: Tag
         id: tag
         uses: JinoArch/get-latest-tag@latest
+        
+      - name: Check Tag
+        id: check-tag
+        run: |
+          echo "Latest Tag: ${{ steps.tag.outputs.latestTag }}"
+          if [[ ${{ steps.tag.outputs.latestTag }} =~ ^v[0-9].[0-9].[0-9]$ ]]; then
+              echo "match=true" >> $GITHUB_OUTPUT
+          fi
+      - name: Match
+        if: steps.check-tag.outputs.match != 'true'
+        run: |
+          echo "Tag: ${{ steps.tag.outputs.latestTag }}, does not match the required format: v0.0.0"
+          exit 1
 
       - name: Write version to manifest.json
         uses: amochkin/action-json@v1
@@ -64,7 +77,7 @@ jobs:
         uses: wow-actions/download-upload@v1
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          url: https://github.com/donavanbecker/homekit-ratgdo/releases/download/${{ steps.tag.outputs.latestTag }}/manifest.json
+          url: https://github.com/ratgdo/homekit-ratgdo/releases/download/${{ steps.tag.outputs.latestTag }}/manifest.json
           dir: docs/
           commit_message: "Add Update manifest.json for ${{ steps.tag.outputs.latestTag }}"
 
