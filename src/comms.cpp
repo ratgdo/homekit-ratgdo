@@ -41,6 +41,7 @@ bool transmit(PacketAction& pkt_ac);
 void door_command(DoorAction action);
 void send_get_status();
 
+
 /********************************** MAIN LOOP CODE *****************************************/
 
 void setup_comms() {
@@ -220,12 +221,15 @@ void comms_loop() {
 
     } else {
         PacketAction pkt_ac;
+        static bool logged_transmit_failed_err = false;
 
         if (q_peek(&pkt_q, &pkt_ac)) {
             if (transmit(pkt_ac)) {
                 q_drop(&pkt_q);
-            } else {
+                logged_transmit_failed_err = false;
+            } else if (!logged_transmit_failed_err){ 
                 RERROR("transmit failed, will retry");
+                logged_transmit_failed_err = true;
             }
         }
     }
@@ -245,8 +249,12 @@ bool transmit(PacketAction& pkt_ac) {
     delayMicroseconds(130);
 
     // check to see if anyone else is continuing to assert the bus after we have released it
+    static bool logged_collision_err = false;
     if (digitalRead(UART_RX_PIN)) {
-        RINFO("Collision detected, waiting to send packet");
+        if (!logged_collision_err) {
+            RINFO("Collision detected, waiting to send packet");
+            logged_collision_err = true;
+        }
         return false;
     } else {
         uint8_t buf[SECPLUS2_CODE_LEN];
@@ -265,6 +273,7 @@ bool transmit(PacketAction& pkt_ac) {
         }
     }
 
+    logged_collision_err = false;
     return true;
 }
 
