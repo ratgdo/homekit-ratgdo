@@ -1,0 +1,74 @@
+name: Update Manifest
+
+on:
+ release:
+    types: [published]
+ workflow_dispatch:
+
+jobs:
+  manifest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Tag
+        id: tag
+        uses: JinoArch/get-latest-tag@latest
+
+      - name: Write version to manifest.json
+        uses: amochkin/action-json@v1
+        id: write_version
+        with:
+          mode: write
+          file: docs/manifest.json
+          property: version
+          value: ${{ steps.tag.outputs.latestTag }}
+          value_type: string
+          
+      - name: Output created (or overwritten) manifest.json
+        run: cat docs/manifest.json
+        shell: bash
+        
+      - name: Output read value of 'version' property
+        run: echo ${{ steps.write_version.outputs.value }}
+        shell: bash
+
+      - name: Write version to manifest.json
+        uses: amochkin/action-json@v1
+        id: builds_parts_path
+        with:
+          mode: write
+          file: docs/manifest.json
+          property: builds.0.parts.0.path
+          value: firmware/homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin
+          value_type: string
+          
+      - name: Output created (or overwritten) manifest.json
+        run: cat docs/manifest.json
+        shell: bash
+        
+      - name: Output read value of 'version' property
+        run: echo ${{ steps.builds_parts_path.outputs.value }}
+        shell: bash
+
+      - name: Attach manifest.json
+        uses: AButler/upload-release-assets@v3.0
+        with:
+          files: "/home/runner/work/homekit-ratgdo/homekit-ratgdo/docs/manifest.json"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          release-tag: ${{ steps.tag.outputs.latestTag }}
+
+      - name: Upload Release manifest.json
+        uses: wow-actions/download-upload@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          url: https://github.com/donavanbecker/homekit-ratgdo/releases/download/${{ steps.tag.outputs.latestTag }}/manifest.json
+          dir: docs/
+          commit_message: "Add Update manifest.json for ${{ steps.tag.outputs.latestTag }}"
+
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          event-type: build-firmware

@@ -11,17 +11,19 @@
 /********************************* FWD DECLARATIONS *****************************************/
 
 void setup_pins();
-void obstructionLoop();
 void IRAM_ATTR isr_obstruction();
+void service_timer_loop();
 
 /********************************* RUNTIME STORAGE *****************************************/
 
 struct obstruction_sensor_t {
-    unsigned int low_count = 0;  // count obstruction low pulses
+    unsigned int low_count = 0;        // count obstruction low pulses
     bool detected = false;
-    unsigned long last_high = 0;  // count time between high pulses from the obst ISR
+    unsigned long last_high = 0;       // count time between high pulses from the obst ISR
 } obstruction_sensor;
 
+
+long unsigned int led_on_time = 0;     // Stores time when LED should turn back on
 
 /********************************** MAIN LOOP CODE *****************************************/
 
@@ -30,30 +32,30 @@ void setup() {
 
     wifi_connect();
 
-    setup_homekit();
-
     setup_pins();
 
     setup_comms();
+
+    setup_homekit();
 
     setup_web();
 
     RINFO("RATGDO setup completed");
     RINFO("Starting RATGDO Homekit version %s", AUTO_VERSION);
-    RINFO("%s", ESP.getFullVersion());
+    RINFO("%s", ESP.getFullVersion().c_str());
 }
 
 void loop() {
 
     improv_loop();
 
-    homekit_loop();
-
     comms_loop();
+
+    homekit_loop();
 
     web_loop();
 
-    obstructionLoop();
+    service_timer_loop();
 }
 
 /*********************************** HELPER FUNCTIONS **************************************/
@@ -103,7 +105,7 @@ void IRAM_ATTR isr_obstruction() {
     }
 }
 
-void obstructionLoop() {
+void obstruction_timer() {
     if (!obstruction_sensor.detected)
         return;
     long current_millis = millis();
@@ -143,5 +145,24 @@ void obstructionLoop() {
 
         last_millis = current_millis;
         obstruction_sensor.low_count = 0;
+    }
+}
+
+void service_timer_loop() {
+    // Service the Obstruction Timer
+    obstruction_timer();
+
+    long current_millis = millis();
+
+    // LED Timer
+    if (digitalRead(LED_BUILTIN) && (current_millis > led_on_time)) {
+        digitalWrite(LED_BUILTIN, LOW);
+    }
+
+    // Motion Clear Timer
+    if (garage_door.motion && (current_millis > garage_door.motion_timer)) {
+        RINFO("Motion Cleared");
+        garage_door.motion = false;
+        notify_homekit_motion();
     }
 }

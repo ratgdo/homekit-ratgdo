@@ -58,9 +58,7 @@ void handle_root() {
         server.send(
             200,
             "text/html",
-            "<center>"
-                "<img src=\"https://ratgdo.github.io/homekit-ratgdo/qr.png\"/>"
-            "</center>"
+            #include "qrcode.h"
             "<p>If you wish to re-pair to another HomeKit Home, you must first click the following button:</p>"
             "<form action=\"/reset\" method=\"POST\">"
                 "<input type=\"submit\" value=\"Un-pair HomeKit\">"

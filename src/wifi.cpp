@@ -159,16 +159,46 @@ bool on_command_callback(improv::ImprovCommand cmd) {
 void get_available_wifi_networks() {
     int networkNum = WiFi.scanNetworks();
 
+    int sortedIndicies[networkNum];
+    for (int i = 0; i < networkNum; i++) {
+        sortedIndicies[i] = i;
+    }
+
+    // sort networks by RSSI, strongest to weakest
+    for (int i = 0; i < networkNum; i++) {
+        for (int j = i + 1; j < networkNum; j++) {
+            if (WiFi.RSSI(sortedIndicies[j]) > WiFi.RSSI(sortedIndicies[i])) {
+                std::swap(sortedIndicies[i], sortedIndicies[j]);
+            }
+        }
+    }
+
+    // find duplicates (must be RSSI sorted)
+    String temp_ssid;
+    for (int i = 0; i < networkNum; i++) {
+        if (sortedIndicies[i] == -1) continue;       // skip duplicate
+        temp_ssid = WiFi.SSID(sortedIndicies[i]);
+        for (int j = i + 1; j < networkNum; j++) {
+            if (temp_ssid == WiFi.SSID(sortedIndicies[j])) {
+                sortedIndicies[j] = -1;              // set dupes to -1 to skip later
+            }
+        }
+    }
+
     for (int id = 0; id < networkNum; ++id) {
+        if (sortedIndicies[id] == -1) continue;      // skip duplicate
         std::vector<uint8_t> data = improv::build_rpc_response(
-                improv::GET_WIFI_NETWORKS, {WiFi.SSID(id), String(WiFi.RSSI(id)), (WiFi.encryptionType(id) == ENC_TYPE_NONE ? "NO" : "YES")}, false);
+                improv::GET_WIFI_NETWORKS, {WiFi.SSID(sortedIndicies[id]), String(WiFi.RSSI(sortedIndicies[id])), (WiFi.encryptionType(sortedIndicies[id]) == ENC_TYPE_NONE ? "NO" : "YES")}, false);
         send_response(data);
         delay(1);
     }
-    //final response
+    // final response
     std::vector<uint8_t> data =
         improv::build_rpc_response(improv::GET_WIFI_NETWORKS, std::vector<std::string>{}, false);
     send_response(data);
+
+    // delete scan from memory
+    WiFi.scanDelete();
 }
 
 void set_state(improv::State state) {

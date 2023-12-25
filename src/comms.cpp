@@ -30,6 +30,8 @@ SecPlus2Reader reader;
 uint32_t id_code = 0;
 uint32_t rolling_code = 0;
 
+extern long unsigned int led_on_time;
+
 /*************************** FORWARD DECLARATIONS ******************************/
 
 void sync();
@@ -119,7 +121,7 @@ void comms_loop() {
                         RINFO("tgt %d curr %d", garage_door.target_state, garage_door.current_state);
                         notify_homekit_target_door_state_change();
                         notify_homekit_current_door_state_change();
-                        
+
                         if (pkt.m_data.value.status.light != garage_door.light) {
                             RINFO("Light Status %s", pkt.m_data.value.status.light ? "On" : "Off");
                             garage_door.light = pkt.m_data.value.status.light;
@@ -138,6 +140,7 @@ void comms_loop() {
 
                         break;
                     }
+
                 case PacketCommand::Lock:
                     {
                         LockTargetState lock = garage_door.target_lock;
@@ -165,6 +168,7 @@ void comms_loop() {
                         send_get_status();
                         break;
                     }
+
                 case PacketCommand::Light:
                     {
                         bool l = garage_door.light;
@@ -191,6 +195,7 @@ void comms_loop() {
                         send_get_status();
                         break;
                     }
+
                 case PacketCommand::Motion:
                     {
                         RINFO("Motion Detected");
@@ -206,6 +211,7 @@ void comms_loop() {
                         send_get_status();
                         break;
                     }
+
                 default:
                     RINFO("Support for %s packet unimplemented. Ignoring.", PacketCommand::to_string(pkt.m_pkt_cmd));
                     break;
@@ -213,13 +219,6 @@ void comms_loop() {
         }
 
     } else {
-        // no incoming data waiting, so we can start transmitting
-        if (garage_door.motion && (millis() > garage_door.motion_timer)) {
-            RINFO("Motion Cleared");
-            garage_door.motion = false;
-            notify_homekit_motion();
-        }
-
         PacketAction pkt_ac;
 
         if (q_peek(&pkt_q, &pkt_ac)) {
@@ -235,6 +234,10 @@ void comms_loop() {
 /********************************** CONTROLLER CODE *****************************************/
 
 bool transmit(PacketAction& pkt_ac) {
+    // Turn off LED
+    digitalWrite(LED_BUILTIN, HIGH);
+    led_on_time = millis() + 500;
+
     // inverted logic, so this pulls the bus low to assert it
     digitalWrite(UART_TX_PIN, HIGH);
     delayMicroseconds(1300);
@@ -266,20 +269,20 @@ bool transmit(PacketAction& pkt_ac) {
 }
 
 void sync() {
+    // for exposition about this process, see docs/syncing.md
+
     PacketData d;
     d.type = PacketDataType::NoData;
     d.value.no_data = NoData();
-    Packet pkt = Packet(PacketCommand::GetStatus, d, id_code);
+    Packet pkt = Packet(PacketCommand::GetOpenings, d, id_code);
     PacketAction pkt_ac = {pkt, true};
     transmit(pkt_ac);
 
-    delay(500);
+    delay(100);
 
-    pkt = Packet(PacketCommand::GetOpenings, d, id_code);
+    pkt = Packet(PacketCommand::GetStatus, d, id_code);
     pkt_ac.pkt = pkt;
     transmit(pkt_ac);
-
-    delay(500);
 
 }
 
@@ -371,6 +374,7 @@ void set_light(bool value) {
     PacketAction pkt_ac = {pkt, true};
 
     q_push(&pkt_q, &pkt_ac);
+    send_get_status();
 }
 
 
