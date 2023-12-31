@@ -72,7 +72,12 @@ does not matter). You can then re-pair the device by adding it again as normal.
 
 ### Where can I get help?
 
-If your question has not been answered here, you can try the Discord chat:
+If your question has not been answered here, you can try the Discord chat.
+
+Click [this link](https://discord.gg/homebridge-432663330281226270) to follow an invite to the
+server. Server rules require a 10 minute wait after signup.
+
+Now that you've signed up, go here to join the discussion:
 
 [![the Discord logo](docs/discord-logo.png)](https://discord.com/channels/432663330281226270/1184710180563329115).
 
