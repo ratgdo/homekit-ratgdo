@@ -4,8 +4,13 @@ on:
   repository_dispatch:
     types: [build-firmware]
 
+permissions:
+  actions: write
+
 jobs:
   build:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
 
     steps:
@@ -15,7 +20,7 @@ jobs:
 
       - uses: actions/checkout@v3
         with:
-            submodules: secplus
+            submodules: true
       - uses: actions/cache@v3
         with:
           path: |
@@ -29,11 +34,6 @@ jobs:
         run: |
             pip install --upgrade pip
             pip install --upgrade platformio
-
-      - name: Install External Dependencies
-        run: |
-          cd lib
-          git clone https://github.com/argilo/secplus.git
 
       - name: Build PlatformIO Project
         run: pio run -e ratgdo_esp8266_hV25
@@ -54,7 +54,7 @@ jobs:
         uses: wow-actions/download-upload@v1
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          url: https://github.com/donavanbecker/homekit-ratgdo/releases/download/${{ steps.tag.outputs.latestTag }}/homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin
+          url: https://github.com/ratgdo/homekit-ratgdo/releases/download/${{ steps.tag.outputs.latestTag }}/homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin
           dir: docs/firmware/
           commit_message: "Add Latest Firmware: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin"
     
