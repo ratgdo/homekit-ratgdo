@@ -69,7 +69,7 @@ jobs:
         uses: wow-actions/download-upload@v1
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          url: https://github.com/donavanbecker/homekit-ratgdo/releases/download/${{ steps.tag.outputs.latestTag }}/manifest.json
+          url: https://github.com/ratgdo/homekit-ratgdo/releases/download/${{ steps.tag.outputs.latestTag }}/manifest.json
           dir: docs/
           commit_message: "Add Update manifest.json for ${{ steps.tag.outputs.latestTag }}"
 
