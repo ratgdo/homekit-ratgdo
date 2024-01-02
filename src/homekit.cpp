@@ -109,7 +109,7 @@ homekit_value_t active_state_get() {
 }
 
 homekit_value_t current_lock_state_get() {
-    RINFO("get current door state: %d", garage_door.current_lock);
+    RINFO("get current lock state: %d", garage_door.current_lock);
 
     return HOMEKIT_UINT8_CPP(garage_door.current_lock);
 }
