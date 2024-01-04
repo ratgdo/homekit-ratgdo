@@ -4,8 +4,13 @@ on:
   repository_dispatch:
     types: [build-firmware]
 
+permissions:
+  actions: write
+
 jobs:
   build:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
 
     steps:

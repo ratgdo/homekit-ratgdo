@@ -5,8 +5,13 @@ on:
      types: [published]
   workflow_dispatch:
 
+permissions:
+  actions: write
+
 jobs:
   manifest:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
 
     steps:
