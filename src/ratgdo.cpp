@@ -108,7 +108,7 @@ void IRAM_ATTR isr_obstruction() {
 void obstruction_timer() {
     if (!obstruction_sensor.detected)
         return;
-    long current_millis = millis();
+    unsigned long current_millis = millis();
     static unsigned long last_millis = 0;
 
     // the obstruction sensor has 3 states: clear (HIGH with LOW pulse every 7ms), obstructed (HIGH), asleep (LOW)
@@ -152,7 +152,7 @@ void service_timer_loop() {
     // Service the Obstruction Timer
     obstruction_timer();
 
-    long current_millis = millis();
+    unsigned long current_millis = millis();
 
     // LED Timer
     if (digitalRead(LED_BUILTIN) && (current_millis > led_on_time)) {
