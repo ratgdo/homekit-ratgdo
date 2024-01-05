@@ -5,6 +5,7 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266HTTPUpdateServer.h>
 #include "log.h"
+#include "utilities.h"
 
 ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater(true);
@@ -100,6 +101,5 @@ void handle_reboot() {
         "</body>"
     );
     server.stop(); // ensure that delivery is complete?
-    delay(10);     // give a bit of time for the connection to close fully
-    ESP.restart();
+    sync_and_restart();
 }
