@@ -43,9 +43,19 @@ That's it!
 
 ## How do I upgrade?
 
-The flash in the default ESP8266-based RATGDO hardware is too small to permit over-the-air updates,
-so you'll need to use the web flasher, above, to update the firmware. You don't need to do anything
-to prepare for the upgrade.  Simply flash it, and pairing and wifi configuration will be retained.
+In [v0.8.0](https://github.com/ratgdo/homekit-ratgdo/releases/tag/v0.8.0), Over-the-Air (OTA) updates were added. Follow the steps below to update:
+
+1. Download the latest release, by download the `.bin` file on the [latest release](https://github.com/ratgdo/homekit-ratgdo/releases)
+[![firmware](docs/ota/firmware.png)](#firmware)
+2. Navigate to your ratgdo's ip address where you will see the devices web server, Click `Update Firmware`
+[![webserver](docs/ota/webserver.png)](#webserver)
+3. Upload the firmware that was downloaded in step 1, by clicking `Choose File` under `Firmware:`.
+[![ota](docs/ota/ota.png)](#ota)
+Note: **Ignore the FileSysyem Update Options.**
+4. Click `Update Firmware` to proceed with upgrading
+[![uploaded](docs/ota/uploaded.png)](#uploaded)
+5. Update Successful, ratgdo will now Reboot
+[![success](docs/ota/success.png)](#success)
 
 Automatic updates are not supported (and probably will never be), so set a reminder to check back
 again in the future.
