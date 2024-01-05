@@ -59,6 +59,7 @@ struct GarageDoor {
     GarageDoorCurrentState current_state;
     GarageDoorTargetState target_state;
     bool obstructed;
+    bool has_motion_sensor;
     unsigned long motion_timer;
     bool motion;
     bool light;
