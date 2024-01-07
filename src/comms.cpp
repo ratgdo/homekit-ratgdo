@@ -13,6 +13,7 @@
 #include "secplus2.h"
 #include "Packet.h"
 #include "cQueue.h"
+#include "utilities.h"
 
 /********************************** LOCAL STORAGE *****************************************/
 
@@ -35,8 +36,6 @@ extern long unsigned int led_on_time;
 /*************************** FORWARD DECLARATIONS ******************************/
 
 void sync();
-void write_counter_to_flash(const char *filename, uint32_t* counter);
-uint32_t read_counter_from_flash(const char* filename);
 bool transmit(PacketAction& pkt_ac);
 void door_command(DoorAction action);
 void send_get_status();
@@ -51,15 +50,15 @@ void setup_comms() {
     sw_serial.enableAutoBaud(true); // found in ratgdo/espsoftwareserial branch autobaud
 
     LittleFS.begin();
-    id_code = read_counter_from_flash("id_code");
+    id_code = read_file_from_flash("id_code");
     if (!id_code) {
         RINFO("id code not found");
         id_code = (random(0x1, 0xFFF) << 12) | 0x539;
-        write_counter_to_flash("id_code", &id_code);
+        write_file_to_flash("id_code", &id_code);
     }
     RINFO("id code %02X", id_code);
 
-    rolling_code = read_counter_from_flash("rolling");
+    rolling_code = read_file_from_flash("rolling");
     RINFO("rolling code %02X", rolling_code);
 
     q_init(&pkt_q, sizeof(PacketAction), 5, FIFO,  false);
@@ -199,6 +198,14 @@ void comms_loop() {
                 case PacketCommand::Motion:
                     {
                         RINFO("Motion Detected");
+                        // We got a motion message, so we know we have a motion sensor
+                        // If it's not yet enabled, add the service
+                        if (!garage_door.has_motion_sensor) {
+                            RINFO("Detected new Motion Sensor.  Enabling Service");
+                            enable_service_homekit_motion();
+                            garage_door.has_motion_sensor = true;
+                        }
+
                         /* When we get the motion detect message, notify HomeKit. Motion sensor
                            will continue to send motion messages every 5s until motion stops.
                            set a timer for 5 seconds to disable motion after the last message */
@@ -261,7 +268,7 @@ bool transmit(PacketAction& pkt_ac) {
         if (pkt_ac.inc_counter) {
             rolling_code += 1;
             // TODO slow this rate down to save eeprom wear
-            write_counter_to_flash("rolling", &rolling_code);
+            write_file_to_flash("rolling", &rolling_code);
         }
     }
 
@@ -375,35 +382,4 @@ void set_light(bool value) {
 
     q_push(&pkt_q, &pkt_ac);
     send_get_status();
-}
-
-
-/********************************** UTIL CODE *****************************************/
-
-uint32_t read_counter_from_flash(const char* filename) {
-
-    File file = LittleFS.open(filename, "r");
-
-    if (!file) {
-        RINFO("%s doesn't exist. creating...", filename);
-
-        uint32_t count = 0;
-        write_counter_to_flash(filename, &count);
-        return 0;
-    }
-
-    uint32_t counter = file.parseInt();
-
-    file.close();
-
-    return counter;
-}
-
-void write_counter_to_flash(const char *filename, uint32_t* counter) {
-    File file = LittleFS.open(filename, "w");
-    RINFO("writing %02X to file %s", *counter, filename);
-
-    file.print(*counter);
-
-    file.close();
 }
