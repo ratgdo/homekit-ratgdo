@@ -13,14 +13,13 @@ ESP8266-based hardware.
 > sure it won't leave your garage open to thieves and light your cat on fire, but it might.
 >
 > Stability is a top priority, but you should expect to need to update your device from time to time
-> while this firmware is improved. This currently requires being able to physically connect a USB
-> wire to the RATGDO to flash new firmware. If that's not practical (or possible) for you, you may
-> want to wait for [over-the-air (OTA) updates](https://github.com/ratgdo/homekit-ratgdo/issues/20)
-> to be supported, or wait until better stability is promised.
+> while this firmware is improved.
 
 ## What does this firmware support?
 
 * Opening and closing multiple garage doors independently in the same HomeKit home.
+* Light Control and Status
+* Obstruction sensor reporting
 * Motion sensor reporting, if you have a "smart" wall-mounted control panel.
 
 That's it, for now. Check the [GitHub Issues](https://github.com/ratgdo/homekit-ratgdo/issues) for
@@ -35,7 +34,7 @@ planned features, or to suggest your own.
 For each of the following steps, use the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo):
 
 * Install the HomeKit-RATGDO firmware, and then *wait 20 seconds*.
-* Connect the RATGDO to WiFi.
+* Connect the RATGDO to WiFi.  There is currently a known issue where the RATGDO will timeout on connect.  Just retry the connect.  This is only known to happen on initial provisioning.
 * Click "Visit Device", and then begin the process of adding a device to HomeKit. Scan the QR code,
   or manually enter the setup code `2510-2023`.
 
@@ -56,6 +55,7 @@ Note: **Ignore the FileSysyem Update Options.**
 [![uploaded](docs/ota/uploaded.png)](#uploaded)
 5. Update Successful, ratgdo will now Reboot
 [![success](docs/ota/success.png)](#success)
+6. After a firmware update, you _may_ have to go through the process of re-pairing your device to HomeKit.  If your device is showing up as unresponsive in HomeKit, please try un-pairing, reboot, and re-pairing.
 
 Automatic updates are not supported (and probably will never be), so set a reminder to check back
 again in the future.
@@ -78,7 +78,8 @@ select after adding it.
 Use the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo/flash.html), and follow the
 "Visit Device" link. If you see a big QR code, the ratgdo is *not* paired. Click the "Un-pair
 HomeKit" button, and then delete the garage door from within the HomeKit app (or vice versa, order
-does not matter). You can then re-pair the device by adding it again as normal.
+does not matter). It is also recommended that you reboot the RATGDO after un-pairing.  You can then re-pair the 
+device by adding it again as normal.
 
 ### Where can I get help?
 
