@@ -64,7 +64,7 @@ again in the future.
 
 ### How can I tell if the ratgdo is paired to HomeKit?
 
-Use the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo), and follow the
+Use the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo/flash.html), and follow the
 "Visit Device" link. If you see a big QR code, the ratgdo is *not* paired.
 
 ### I added my garage door in the Home app but can't find it
@@ -75,7 +75,7 @@ select after adding it.
 
 ### How to do I re-pair my ratgdo?
 
-Use the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo), and follow the
+Use the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo/flash.html), and follow the
 "Visit Device" link. If you see a big QR code, the ratgdo is *not* paired. Click the "Un-pair
 HomeKit" button, and then delete the garage door from within the HomeKit app (or vice versa, order
 does not matter). You can then re-pair the device by adding it again as normal.
