@@ -39,6 +39,9 @@ input {
         border-color: #e6e6e6;
         color: black;
     }
+    a {
+        color: black;
+    }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -47,6 +50,9 @@ input {
     body {
         background-color: #333333;
         border-color: #333333;
+        color: white;
+    }
+    a {
         color: white;
     }
 }
