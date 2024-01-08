@@ -11,14 +11,17 @@
 
 html,
 body {
-    background-color: #a6a6a6;
+    background-color: darkgray;
     overflow-x: hidden;
     font-family: Verdana, Geneva, Tahoma, sans-serif;
     font-size: 3vw
 }
 
-input {
-    background-color: rgb(180, 117, 23);
+input,
+input[type="file"]::-webkit-file-upload-button,
+input[type="file"]::file-selector-button {
+    /* background-color: rgb(180, 117, 23); */
+    background-color: darkgoldenrod;
     color: white;
     border-style: solid;
     border-color: white;
@@ -31,36 +34,11 @@ input {
     padding: 5px;
 }
 
-@media (prefers-color-scheme: light) {
-
-    html,
-    body {
-        background-color: #e6e6e6;
-        border-color: #e6e6e6;
-        color: black;
-    }
-    a {
-        color: black;
-    }
-}
-
-@media (prefers-color-scheme: dark) {
-
-    html,
-    body {
-        background-color: #333333;
-        border-color: #333333;
-        color: white;
-    }
-    a {
-        color: white;
-    }
-}
-
 div {
     position: static;
     float: left;
-    border-color: #808080;
+    background-color: #E0E0E0;
+    border-color: #303030;
     padding: 10px;
 }
 
@@ -140,31 +118,124 @@ div.name {
 }
 
 td {
-    padding: 2px;
+    padding: 1px;
     vertical-align: top;
 }
 
-@media only screen and (min-width: 800px) {
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    padding-top: 100px;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Modal Content */
+.modal-content {
+    background-color: #E0E0E0;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid gray;
+    width: 90%;
+    max-width: 720px;
+    float: none;
+}
+
+/* The Close Button */
+.close {
+    color: #aaaaaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+fieldset {
+    border: 1px solid darkgray;
+    width: 100%;
+}
+
+@media only screen and (min-width: 660px) {
     body {
-        font-size: 24px;
+        font-size: 19.8px;
     }
 
-    input {
-        font-size: 16px;
+    input,
+    input[type="file"]::-webkit-file-upload-button,
+    input[type="file"]::file-selector-button {
+        font-size: 13.2px;
     }
 
     div.name {
-        font-size: 32px;
-        margin-left: 16px;
-        margin-top: 12px;
+        font-size: 26.4px;
+        margin-left: 13.2px;
+        margin-top: 9.9px;
     }
 
     pre.logo {
-        font-size: 12px;
-        margin-bottom: -16px;
+        font-size: 9.9px;
+        margin-bottom: -13.2px;
     }
 
     p.logo {
-        font-size: 16px;
+        font-size: 13.2px;
+    }
+}
+
+@media (prefers-color-scheme: light) {
+
+    .modal-content,
+    html,
+    div,
+    input[type="file"],
+    /* fieldset, */
+    body {
+        background-color: #E0E0E0;
+        border-color: #303030;
+        color: black;
+    }
+
+    input[type="password"] {
+        background-color: #F0F0F0;
+        border-color: #303030;
+        color: black;
+    }
+
+    a {
+        color: black;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+
+    .modal-content,
+    html,
+    div,
+    input[type="file"],
+    body {
+        background-color: #303030;
+        border-color: #E0E0E0;
+        color: white;
+    }
+
+    input[type="password"] {
+        background-color: #202020;
+        border-color: #E0E0E0;
+        color: white;
+    }
+
+    a {
+        color: white;
     }
 }

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <!--  Copyright (c) 2023-24 David Kerr, https://github.com/dkerr64 -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=1">
+  <meta name="apple-mobile-web-app-title" content="RATDGO">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>HomeKit Garage Door Opener</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" type="image/png">
+  <script src="functions.js"></script>
+</head>
+
+<body>
+  <div class="fullpage">
+    <main>
+      <div class="fullwidth">
+        <div class="logo">
+          <pre class="logo">
+ _____ _____ _____ _____ ____  _____
+| __  |  _  |_   _|   __|    \|     |
+|    -|     | | | |  |  |  |  |  |  |
+|__|__|__|__| |_| |_____|____/|_____|
+          </pre>
+          <p class="logo"> for HomeKit</p>
+        </div>
+      </div>
+      <div class="fullwidth">
+        <div>
+          <table>
+            <tr>
+              <td style="text-align: right;">Password:</td>
+              <td><input id="newPassword" type="password" placeholder="new password" autocomplete="new-password"></td>
+            </tr>
+            <tr>
+              <td style="text-align: right;">Confirm:</td>
+              <td><input id="confirmPassword" type="password" placeholder="confirm new password"></td>
+            </tr>
+            <tr>
+              <td></td>
+              <td id="matchMsg" style="font-size: 0.65em;"><br></td>
+            </tr>
+          </table>
+        </div>
+        <div>
+          <br>
+          <input type="button" value="Save Password" onclick="changePassword();">
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="footer">
+        <p>For documentation and support see the <a href="https://github.com/ratgdo/homekit-ratgdo">GitHub</a>
+          page.<br>Copyright (c) 2023-24 <a
+            href="https://github.com/ratgdo/homekit-ratgdo/graphs/contributors">homekit-ratgdo
+            contributors.</a><br>Licensed under terms of the <a
+            href="https://www.gnu.org/licenses/gpl-3.0.en.html">GPL-3.0
+            License.</a></p>
+      </div>
+    </footer>
+  </div>
+</body>
+<script>
+  newPW = document.getElementById("newPassword");
+  confirmPW = document.getElementById("confirmPassword");
+  matchMsg = document.getElementById("matchMsg");
+  newPW.oninput = (event) => {
+    if (newPW.value === confirmPW.value) {
+      matchMsg.innerHTML = "<br>";
+    }
+    else {
+      matchMsg.innerHTML = "Passwords do not match<br>";
+    }
+  };
+  confirmPW.oninput = (event) => {
+    if (newPW.value === confirmPW.value) {
+      matchMsg.innerHTML = "<br>";
+    }
+    else {
+      matchMsg.innerHTML = "Passwords do not match<br>";
+    }
+  };
+</script>
+
+</html>

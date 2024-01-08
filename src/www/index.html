@@ -10,9 +10,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>HomeKit Garage Door Opener</title>
-  <link rel="stylesheet" href="./style.css">
-  <link rel="icon" href="./favicon.png" type="image/png">
-  <link rel="apple-touch-icon" sizes="512x512" href="./ratgdo_logo.png">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" type="image/png">
+  <script src="functions.js"></script>
 </head>
 
 <body>
@@ -32,12 +33,14 @@
         <div class="name">
           <p id="devicename" style="margin:0px;">Garage Door</p>
         </div>
+        <span class="close" style="color: darkgoldenrod; font-size: 2em;"
+          onclick="window.location.href = 'settings.html'">&#x2699;</span>
       </div>
       <div class="serverstatus">
         <table>
           <tr>
             <td style="text-align: right; width: 40%">Firmware:</td>
-            <td id="firmware"></td>
+            <td><span id="firmware"></span><br><sup><span id="newversion"></span><span id="dotdot1"></span></sup></td>
           </tr>
           <tr>
             <td style="text-align: right; white-space: pre;">Up Time:<br><sup>(dd:hh:mm:ss)</sup> </td>
@@ -55,7 +58,7 @@
             <td id="macaddress"></td>
           </tr>
           <tr>
-            <td style="text-align: right;">IPAddress:</td>
+            <td style="text-align: right;">IP Address:</td>
             <td id="ipaddress"></td>
           </tr>
           <tr>
@@ -76,20 +79,19 @@
         </table>
       </div>
       <div class="qrcode">
-        <img id="qrcode" src="./qrcode.svg" alt="QR Code" style="display:none;" />
+        <img id="qrcode" src="qrcode.svg" alt="QR Code" style="display:none;">
         <p id="re-pair-info" style="display:none; font-size: 10px;">If you wish to pair to another HomeKit home, you
-          must first un-pair from exiting home.
+          must first un-pair from existing home.
         </p>
       </div>
       <div class="fullwidth" style="padding: 0px;">
         <div class="serverstatus" style="padding: 0px; padding-bottom: 5px;">
-          <form action="./reboot" method="POST" style="display: inline-block;">
-            <input type="submit" value="Reboot RATGDO" onclick="return confirm('Reboot RATGDO, are you sure?')">
-          </form>
-          <input type="button" value="Firmware Update" onclick="location.href='./update';">
+          <input type="button" value="Reboot RATGDO"
+            onclick="return confirm('Reboot RATGDO, are you sure?') && rebootRATGDO()">
+          <input type="button" value="Firmware Update" onclick="modal.style.display = 'block'">
         </div>
         <div class="qrcode center">
-          <form action="./reset" method="POST">
+          <form action="reset" method="POST">
             <input id="unpair" type="submit" value="Un-pair HomeKit"
               onclick="return confirm('Pair to new HomeKit, are you sure?')">
           </form>
@@ -117,73 +119,74 @@
           </tr>
         </table>
       </div>
+      <div id="GDOcontrols" class="fullwidth" style="padding-left: 0px; padding-right: 0px; display: flex; justify-content: space-between;">
+        <input type="button" value="Light On" onclick="setGDO('lighton', '1');">
+        <input type="button" value="Light Off" onclick="setGDO('lighton', '0');">
+        <input type="button" value="Door Open" onclick="setGDO('doorstate', '1');">
+        <input type="button" value="Door Close" onclick="setGDO('doorstate', '0');">
+        <input type="button" value="Door Lock" onclick="setGDO('lockstate', '1');">
+        <input type="button" value="Door Unlock" onclick="setGDO('lockstate', '0');">
+      </div>
     </main>
+
     <footer>
       <div class="footer">
-        <p>For documentation, help and support see the <a href="https://github.com/ratgdo/homekit-ratgdo">homekit-ratgo
-            page</a> on GitHub.<br>Copyright (c) 2023-24 <a
-            href="https://github.com/ratgdo/homekit-ratgdo/graphs/contributors">homekit-ratgdo contributors,</a> All
-          Rights Reserved.<br>Licensed under terms of the <a href="https://www.gnu.org/licenses/gpl-3.0.en.html">GPL-3.0
+        <p>For documentation and support see the <a href="https://github.com/ratgdo/homekit-ratgdo">GitHub</a>
+          page.<br>Copyright (c) 2023-24 <a
+            href="https://github.com/ratgdo/homekit-ratgdo/graphs/contributors">homekit-ratgdo
+            contributors.</a><br>Licensed under terms of the <a
+            href="https://www.gnu.org/licenses/gpl-3.0.en.html">GPL-3.0
             License.</a></p>
       </div>
     </footer>
   </div>
+
+  <div id="myModal" class="modal">
+    <div class="modal-content">
+      <span id="modalClose" class="close" onclick="modal.style.display = 'none'">&times;</span>
+      <span id="modalTitle">Installed Firmware:&nbsp;<span id="firmware2">xxx</span><br></span><br>
+      <div id="updateDialog" style="float: none; padding:0px">
+        <fieldset>
+          <legend>Update from GitHub</legend>
+          <table>
+            <tr>
+              <td style="text-align: right;">Latest available at GitHub:</td>
+              <td><span id="newversion2"></span><span id="dotdot2"></span></td>
+            </tr>
+          </table>
+          <input type="button" value="Check for update" onclick="checkVersion('dotdot2');">
+          <input type="button" value="Update" style="float: right;"
+            onclick="return confirm('Update firmware from GutHub, are you sure? Do not close browser until complete.') && firmwareUpdate(true);">
+        </fieldset>
+        <br>
+        <fieldset>
+          <legend>Update from local file</legend>
+          <input type="file" accept=".bin,.bin.gz" name="firmware" style="border: 0px; padding: 0px;">
+          <input type="button" value="Update" style="float: right;"
+            onclick="return confirm('Update firmware from local file, are you sure? Do not close browser until complete.') && firmwareUpdate(false);">
+        </fieldset>
+      </div>
+      <div id="updateDotDot" style="display:none; float: none; padding:0px">
+        <span id="updateMsg">Do not close browser until update completes. Device will reboot when complete.<br></span>
+        <span id="dotdot3"></span>
+        <br><br>
+      </div>
+    </div>
+  </div>
+
   <script>
-    function msToTime(duration) {
-      var milliseconds = Math.floor((duration % 1000) / 100),
-        seconds = Math.floor((duration / 1000) % 60),
-        minutes = Math.floor((duration / (1000 * 60)) % 60),
-        hours = Math.floor((duration / (1000 * 60 * 60)) % 24),
-        days = Math.floor((duration / (1000 * 60 * 60 * 24)));
+    checkStatus()
+      .then( () => checkVersion("dotdot1"));
 
-      hours = (hours < 10) ? "0" + hours : hours;
-      minutes = (minutes < 10) ? "0" + minutes : minutes;
-      seconds = (seconds < 10) ? "0" + seconds : seconds;
+    const modal = document.getElementById("myModal");
 
-      return days + ":" + hours + ":" + minutes + ":" + seconds;
+    // When the user clicks anywhere outside of the modal, close it
+    window.onclick = function (event) {
+      if (event.target == modal) {
+        modal.style.display = "none";
+      }
+
     }
-
-    fetch("./status.json")
-      .then(response => response.text())
-      .then(json => {
-        const status = JSON.parse(json);
-        document.getElementById("devicename").innerHTML = status.deviceName;
-        if (status.paired) {
-          document.getElementById("unpair").value = "Un-pair HomeKit";
-          document.getElementById("qrcode").style.display = "none";
-          document.getElementById("re-pair-info").style.display = "inline-block";
-        } else {
-          document.getElementById("unpair").value = "Pair to HomeKit";
-          document.getElementById("re-pair-info").style.display = "none";
-          document.getElementById("qrcode").style.display = "inline-block";
-        }
-        document.getElementById("uptime").innerHTML = msToTime(status.upTime);
-        document.getElementById("firmware").innerHTML = status.firmwareVersion;
-        document.getElementById("ssid").innerHTML = status.wifiSSID;
-        document.getElementById("macaddress").innerHTML = status.macAddress;
-        document.getElementById("ipaddress").innerHTML = status.localIP;
-        document.getElementById("netmask").innerHTML = status.subnetMask;
-        document.getElementById("gateway").innerHTML = status.gatewayIP;
-        document.getElementById("accessoryid").innerHTML = status.accessoryID;
-
-        document.getElementById("doorstate").innerHTML = status.garageDoorState;
-        document.getElementById("lockstate").innerHTML = status.garageLockState;
-        document.getElementById("lighton").innerHTML = status.garageLightOn;
-        document.getElementById("obstruction").innerHTML = status.garageObstructed;
-        document.getElementById("motion").innerHTML = status.garageMotion;
-
-        // Refresh the data every 10 seconds.
-        setInterval(async () => {
-          const response = await fetch("./status.json?uptime&doorstate&doorstate&lockstate&lighton&obstruction&motion");
-          const status = await response.json();
-          document.getElementById("uptime").innerHTML = msToTime(status.upTime);
-          document.getElementById("doorstate").innerHTML = status.garageDoorState;
-          document.getElementById("lockstate").innerHTML = status.garageLockState;
-          document.getElementById("lighton").innerHTML = status.garageLightOn;
-          document.getElementById("obstruction").innerHTML = status.garageObstructed;
-          document.getElementById("motion").innerHTML = status.garageMotion;
-        }, 10000);
-      });
   </script>
 </body>
 
