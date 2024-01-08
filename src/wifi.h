@@ -1,11 +1,11 @@
 // Copyright 2023 Brandon Matthews <thenewwazoo@optimaltour.us>
 // All rights reserved. GPLv3 License
+#pragma once
 
-#ifndef WIFI_INFO_H_
-#define WIFI_INFO_H_
+void wifi_task_entry(void* ctx);
 
-void improv_loop();
-
-void wifi_connect();
-
-#endif /* WIFI_INFO_H_ */
+enum class WifiStatus {
+    Disconnected,
+    Pending,
+    Connected,
+};

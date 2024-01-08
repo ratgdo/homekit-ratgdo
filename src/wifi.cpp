@@ -13,39 +13,105 @@
  * Portions of this code written by Jonathas Barbosa <jnths@gmail.com>, and adapted from
  *   https://github.com/jnthas/improv-wifi-demo
  */
+#define TAG ("WIFI")
 
-// #if defined(ESP8266)
-#include <ESP8266WiFi.h>
-// #elif defined(ESP32)
-// #include <WiFi.h>
-// #endif
+#include <string.h>
+
+#include <freertos/FreeRTOS.h>
+#include <driver/uart.h>
+#include <esp_log.h>
+#include <esp_wifi.h>
+
+#include "wifi.h"
+/* TODO Improv
 #include "improv.h"
-#include <Arduino.h>
+*/
 #include "ratgdo.h"
 #include "log.h"
+
+#define UART_BUF_SIZE (128)
 
 #define MAX_ATTEMPTS_WIFI_CONNECTION 20
 uint8_t x_buffer[16];
 uint8_t x_position = 0;
 
+/* TODO Improv
 void set_error(improv::Error error);
 void send_response(std::vector<uint8_t> &response);
 void set_state(improv::State state);
 void get_available_wifi_networks();
 bool on_command_callback(improv::ImprovCommand cmd);
 void on_error_callback(improv::Error err);
+*/
 
-void wifi_connect() {
-    WiFi.persistent(true);       // enable connection by default after future boots if improv has succeeded
-    WiFi.mode(WIFI_STA);
-    WiFi.setSleepMode(WIFI_NONE_SLEEP);
-    WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
-    RINFO("Starting WiFi connecting in background");
-    WiFi.begin();                // use credentials stored in flash
+// TODO Improv
+#define WIFI_SSID   ""
+#define WIFI_PASS   ""
+#define WIFI_RETRY  10
 
+static int s_retry_num = 0;
+static WifiStatus wifi_status = WifiStatus::Disconnected;
+
+static void event_handler(void* arg, esp_event_base_t event_base,
+                                int32_t event_id, void* event_data)
+{
+    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
+        wifi_status = WifiStatus::Pending;
+        esp_wifi_connect();
+
+    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        if (s_retry_num < WIFI_RETRY) {
+            wifi_status = WifiStatus::Pending;
+            ESP_LOGI(TAG, "retry to connect to the AP");
+            esp_wifi_connect();
+            s_retry_num++;
+        } else {
+            wifi_status = WifiStatus::Disconnected;
+            ESP_LOGI(TAG,"connect to the AP fail");
+        }
+    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        wifi_status = WifiStatus::Connected;
+        ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
+        ESP_LOGI(TAG, "got ip:%s", ip4addr_ntoa(&event->ip_info.ip));
+        s_retry_num = 0;
+    }
 }
 
-void improv_loop() {
+
+void wifi_task_entry(void* ctx) {
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL));
+
+    wifi_config_t wifi_config = { };
+    strcpy((char *)wifi_config.sta.ssid, WIFI_SSID);
+    strcpy((char *)wifi_config.sta.password, WIFI_PASS);
+
+    if (strlen((char *)wifi_config.sta.password)) {
+        wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    }
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
+    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
+    ESP_ERROR_CHECK(esp_wifi_start() );
+
+    // set up the UART for incoming Improv bytes
+    uart_config_t uart_config = {
+        .baud_rate = 115200,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
+    };
+    uart_param_config(UART_NUM_0, &uart_config);
+    uart_driver_install(UART_NUM_0, UART_BUF_SIZE * 2, 0, 0, NULL, 0);
+
+    ESP_LOGI(TAG, "wifi and improv setup finished.");
+
+/* TODO Improv
+    while (true) {
     if (Serial.available() > 0) {
         uint8_t b = Serial.read();
 
@@ -55,8 +121,12 @@ void improv_loop() {
             x_position = 0;
         }
     }
+    }
+*/
+    vTaskDelete(NULL); // TODO Improv
 }
 
+/* TODO Improv
 bool connect_wifi(std::string ssid, std::string password) {
     uint8_t count = 0;
 
@@ -249,3 +319,4 @@ void set_error(improv::Error error) {
 
     Serial.write(data.data(), data.size());
 }
+*/

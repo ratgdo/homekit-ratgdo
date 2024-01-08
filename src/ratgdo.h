@@ -1,5 +1,8 @@
-#ifndef _RATGDO_H
-#define _RATGDO_H
+// Copyright 2023 Brandon Matthews <thenewwazoo@optimaltour.us>
+// All rights reserved. GPLv3 License
+#pragma once
+
+#include <driver/gpio.h>
 
 #include "homekit_decl.h"
 
@@ -11,16 +14,19 @@
 
 /********************************** PIN DEFINITIONS *****************************************/
 
-#define UART_TX_PIN             D1  // red control terminal / GarageDoorOpener (UART1 TX)
-#define UART_RX_PIN             D2  // red control terminal / GarageDoorOpener (UART1 RX)
+const gpio_num_t UART_TX_PIN = GPIO_NUM_5;
+const gpio_num_t UART_RX_PIN = GPIO_NUM_4;
+const gpio_num_t LED_BUILTIN = GPIO_NUM_2;
 
-#define INPUT_OBST_PIN          D7  // black obstruction sensor terminal
+// TODO obstruction refactor
+// const gpio_num_t INPUT_OBST_PIN = GPIO_NUM_13; // black obstruction sensor terminal
 
 /*
  * TODO add support for dry contact switches
 #define STATUS_DOOR_PIN         D0  // output door status, HIGH for open, LOW for closed
 */
-#define STATUS_OBST_PIN         D8  // output for obstruction status, HIGH for obstructed, LOW for clear
+// TODO obstruction refactor
+// const gpio_num_t STATUS_DOOR_PIN = GPIO_NUM_16;  // output for obstruction status, HIGH for obstructed, LOW for clear
 /*
 #define DRY_CONTACT_OPEN_PIN    D5  // dry contact for opening door
 #define DRY_CONTACT_CLOSE_PIN   D6  // dry contact for closing door
@@ -59,12 +65,8 @@ struct GarageDoor {
     GarageDoorCurrentState current_state;
     GarageDoorTargetState target_state;
     bool obstructed;
-    unsigned long motion_timer;
     bool motion;
     bool light;
     LockCurrentState current_lock;
     LockTargetState target_lock;
 };
-
-
-#endif // _RATGDO_H

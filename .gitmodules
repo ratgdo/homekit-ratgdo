@@ -1,3 +1,6 @@
-[submodule "secplus"]
-	path = lib/secplus
+[submodule "components/secplus/secplus"]
+	path = components/secplus/secplus
 	url = https://github.com/argilo/secplus.git
+[submodule "components/esp8266-rtos-softuart"]
+	path = components/esp8266-rtos-softuart
+	url = https://github.com/thenewwazoo/esp8266-rtos-softuart.git

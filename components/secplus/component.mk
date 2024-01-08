@@ -1,0 +1,2 @@
+COMPONENT_ADD_INCLUDEDIRS := secplus/src/
+COMPONENT_SRCDIRS := secplus/src/

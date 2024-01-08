@@ -11,6 +11,8 @@
  * TODO add a service for the motion detector
  */
 
+#if 0 // esp refactor
+
 #include <homekit/homekit.h>
 #include <homekit/characteristics.h>
 
@@ -110,3 +112,5 @@ homekit_server_config_t config = {
                                // access for "unauthorized" third parties.
     .setupId = "RTGO",
 };
+
+#endif

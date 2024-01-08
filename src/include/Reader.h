@@ -1,8 +1,6 @@
 // Copyright 2023 Brandon Matthews <thenewwazoo@optimaltour.us>
 // All rights reserved. GPLv3 License
-
-#ifndef _READER_H
-#define _READER_H
+#pragma once
 
 #include <secplus2.h>
 #include "log.h"
@@ -60,5 +58,3 @@ class SecPlus2Reader {
             return m_rx_buf;
         }
 };
-
-#endif // _READER_H

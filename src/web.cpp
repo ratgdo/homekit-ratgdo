@@ -2,6 +2,8 @@
 // Copyright (c) 2023-24 David Kerr, https://github.com/dkerr64
 // All rights reserved. GPLv3 License
 
+#if 0 // esp refactor
+
 #include "www/build/webcontent.h"
 
 #include <arduino_homekit_server.h>
@@ -210,3 +212,5 @@ void handle_handlestatus()
     server.send(200, "application/json", json.c_str());
     return;
 }
+
+#endif // esp refactor

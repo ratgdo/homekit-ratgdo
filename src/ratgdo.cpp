@@ -1,84 +1,134 @@
+// Copyright 2023 Brandon Matthews <thenewwazoo@optimaltour.us>
+// All rights reserved. GPLv3 License
+#define TAG ("RATGDO")
 
-#include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/timers.h>
+
+#include <driver/gpio.h>
+#include <driver/uart.h>
+#include <esp_err.h>
+#include <esp_log.h>
+#include <esp_system.h>
+#include <nvs_flash.h>
+#include <esp_netif.h>
+#include <esp_event.h>
 
 #include "ratgdo.h"
 #include "wifi.h"
 #include "homekit.h"
 #include "comms.h"
 #include "log.h"
-#include "web.h"
+// #include "web.h"
+#include "tasks.h"
 
 /********************************* FWD DECLARATIONS *****************************************/
 
 void setup_pins();
-void IRAM_ATTR isr_obstruction();
-void service_timer_loop();
+// void isr_obstruction();  // TODO obstruction refactor
+void motion_timer_cb(void* ctx);
+void led_on_timer_cb(void* ctx);
 
 /********************************* RUNTIME STORAGE *****************************************/
 
 struct obstruction_sensor_t {
-    unsigned int low_count = 0;        // count obstruction low pulses
+    uint32_t low_count = 0;        // count obstruction low pulses
     bool detected = false;
-    unsigned long last_high = 0;       // count time between high pulses from the obst ISR
+    uint32_t last_high = 0;       // count time between high pulses from the obst ISR
 } obstruction_sensor;
 
+// This timer is reset when a packet is sent or received.
+TimerHandle_t led_on_timer;
 
-long unsigned int led_on_time = 0;     // Stores time when LED should turn back on
+// This timer is periodically reset by incoming packets when motion is detected.
+TimerHandle_t motion_timer;
 
 /********************************** MAIN LOOP CODE *****************************************/
 
-void setup() {
-    Serial.begin(115200);
+extern "C" void app_main() {
+    ESP_ERROR_CHECK(uart_set_baudrate(UART_NUM_0, 115200));
+    ESP_LOGI(TAG, "RATGDO main app starting");
 
-    wifi_connect();
+    // core setup
+    ESP_ERROR_CHECK(nvs_flash_init());
+    esp_set_cpu_freq(ESP_CPU_FREQ_160M); // returns void
+    tcpip_adapter_init();  // returns void
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    // Print chip information
+    esp_chip_info_t chip_info;
+    esp_chip_info(&chip_info);
+    printf("This is ESP8266 chip with %d CPU cores, WiFi, ",
+            chip_info.cores);
+    printf("silicon revision %d, ", chip_info.revision);
+    printf("%dMB %s flash\n", spi_flash_get_chip_size() / (1024 * 1024),
+            (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
+
+    xTaskCreate(wifi_task_entry, WIFI_TASK_NAME, WIFI_TASK_STK_SZ, NULL, WIFI_TASK_PRIO, NULL);
 
     setup_pins();
 
-    setup_comms();
+    xTaskCreate(comms_task_entry, COMMS_TASK_NAME, COMMS_TASK_STK_SZ, NULL, COMMS_TASK_PRIO, NULL);
 
-    setup_homekit();
+    xTaskCreate(homekit_task_entry, HOMEKIT_TASK_NAME, HOMEKIT_TASK_STK_SZ, NULL, HOMEKIT_TASK_PRIO, NULL);
 
-    setup_web();
+    // setup_web();  // TODO
 
     RINFO("RATGDO setup completed");
-    RINFO("Starting RATGDO Homekit version %s", AUTO_VERSION);
-    RINFO("%s", ESP.getFullVersion().c_str());
-}
+    RINFO("Starting RATGDO Homekit version %s", "esptest");  // TODO
+    RINFO("%s", IDF_VER);
 
-void loop() {
+    // improv_loop();
 
-    improv_loop();
+    // comms_loop();
 
-    comms_loop();
+    // homekit_loop();
 
-    homekit_loop();
+    // web_loop();
 
-    web_loop();
-
-    service_timer_loop();
+    // service_timer_loop();
 }
 
 /*********************************** HELPER FUNCTIONS **************************************/
 
 void setup_pins() {
     RINFO("Setting up pins");
+    gpio_install_isr_service(0);  // meaningless zero to appease the API
 
     if (UART_TX_PIN != LED_BUILTIN) {
         RINFO("enabling built-in LED");
-        pinMode(LED_BUILTIN, OUTPUT);
-        digitalWrite(LED_BUILTIN, LOW);
+        gpio_set_direction(LED_BUILTIN, GPIO_MODE_OUTPUT);
+        gpio_set_level(LED_BUILTIN, false);
+
+        led_on_timer = xTimerCreate(
+            "led_timer",
+            pdMS_TO_TICKS(500),
+            false,
+            NULL,
+            led_on_timer_cb
+        );
     }
 
-    pinMode(UART_TX_PIN, OUTPUT);
-    pinMode(UART_RX_PIN, INPUT_PULLUP);
+    motion_timer = xTimerCreate(
+        "motion_timer",
+        pdMS_TO_TICKS(5000),
+        false,
+        NULL,
+        motion_timer_cb
+    );
 
-    pinMode(INPUT_OBST_PIN, INPUT);
+    /* TODO obstruction refactor
+    gpio_set_direction(INPUT_OBST_PIN, GPIO_MODE_INPUT);
+    */
 
     /*
      * TODO add support for dry contact switches
     pinMode(STATUS_DOOR_PIN, OUTPUT);
     */
-    pinMode(STATUS_OBST_PIN, OUTPUT);
+    /* TODO obstruction refactor
+    gpio_set_direction(STATUS_OBST_PIN, GPIO_MODE_OUTPUT);
+    */
     /*
     pinMode(DRY_CONTACT_OPEN_PIN, INPUT_PULLUP);
     pinMode(DRY_CONTACT_CLOSE_PIN, INPUT_PULLUP);
@@ -88,7 +138,10 @@ void setup_pins() {
     /* pin-based obstruction detection
     // FALLING from https://github.com/ratgdo/esphome-ratgdo/blob/e248c705c5342e99201de272cb3e6dc0607a0f84/components/ratgdo/ratgdo.cpp#L54C14-L54C14
      */
-    attachInterrupt(INPUT_OBST_PIN, isr_obstruction, FALLING);
+    /* TODO obstruction refactor
+    gpio_set_intr_type(INPUT_OBST_PIN, GPIO_INTR_NEGEDGE);
+    gpio_isr_handler_add(INPUT_OBST_PIN, isr_obstruction);
+    */
 }
 
 /*********************************** MODEL **************************************/
@@ -96,9 +149,10 @@ void setup_pins() {
 struct GarageDoor garage_door;
 
 /*************************** OBSTRUCTION DETECTION ***************************/
-void IRAM_ATTR isr_obstruction() {
-    if (digitalRead(INPUT_OBST_PIN)) {
-        obstruction_sensor.last_high = millis();
+/* TODO obstruction refactor
+void isr_obstruction() {
+    if (gpio_get_level(INPUT_OBST_PIN)) {
+        obstruction_sensor.last_high = esp_get_time();
     } else {
         obstruction_sensor.detected = true;
         obstruction_sensor.low_count++;
@@ -108,7 +162,7 @@ void IRAM_ATTR isr_obstruction() {
 void obstruction_timer() {
     if (!obstruction_sensor.detected)
         return;
-    unsigned long current_millis = millis();
+    unsigned long current_millis = esp_get_time();
     static unsigned long last_millis = 0;
 
     // the obstruction sensor has 3 states: clear (HIGH with LOW pulse every 7ms), obstructed (HIGH), asleep (LOW)
@@ -126,7 +180,7 @@ void obstruction_timer() {
                 RINFO("Obstruction Clear");
                 garage_door.obstructed = false;
                 notify_homekit_obstruction();
-                digitalWrite(STATUS_OBST_PIN,garage_door.obstructed);
+                gpio_set_level(STATUS_OBST_PIN, garage_door.obstructed);
             }
 
             // if there have been no pulses the line is steady high or low
@@ -138,7 +192,7 @@ void obstruction_timer() {
                     RINFO("Obstruction Detected");
                     garage_door.obstructed = true;
                     notify_homekit_obstruction();
-                    digitalWrite(STATUS_OBST_PIN,garage_door.obstructed);
+                    gpio_set_level(STATUS_OBST_PIN, garage_door.obstructed);
                 }
             }
         }
@@ -147,22 +201,20 @@ void obstruction_timer() {
         obstruction_sensor.low_count = 0;
     }
 }
+*/
 
-void service_timer_loop() {
-    // Service the Obstruction Timer
-    obstruction_timer();
-
-    unsigned long current_millis = millis();
-
+void led_on_timer_cb(void* ctx) {
     // LED Timer
-    if (digitalRead(LED_BUILTIN) && (current_millis > led_on_time)) {
-        digitalWrite(LED_BUILTIN, LOW);
-    }
+    gpio_set_level(LED_BUILTIN, false);
+}
 
+void motion_timer_cb(void* ctx) {
     // Motion Clear Timer
-    if (garage_door.motion && (current_millis > garage_door.motion_timer)) {
-        RINFO("Motion Cleared");
-        garage_door.motion = false;
-        notify_homekit_motion();
-    }
+    RINFO("Motion Cleared");
+    garage_door.motion = false;
+    notify_homekit_motion();
+}
+
+uint8_t system_get_cpu_freq() {
+    return 160;
 }
