@@ -32,7 +32,7 @@ async function checkStatus() {
     if (!fetchSemaphore) fetchSemaphore = new Semaphore();
     const releaseSemaphore = await fetchSemaphore.acquire();
     try {
-        const response = await fetch("./status.json");
+        const response = await fetch("status.json");
         if (response.status !== 200) {
             console.warn("Error retrieving status from RATGDO");
             return;
@@ -49,7 +49,7 @@ async function checkStatus() {
             document.getElementById("qrcode").style.display = "none";
             document.getElementById("re-pair-info").style.display = "inline-block";
         } else {
-            document.getElementById("unpair").value = "Pair to HomeKit";
+            document.getElementById("unpair").value = "Reset HomeKit";
             document.getElementById("re-pair-info").style.display = "none";
             document.getElementById("qrcode").style.display = "inline-block";
         }
@@ -74,12 +74,21 @@ async function checkStatus() {
             if (!fetchSemaphore) fetchSemaphore = new Semaphore();
             const releaseSemaphore = await fetchSemaphore.acquire();
             try {
-                const response = await fetch("./status.json?uptime&doorstate&lockstate&lighton&obstruction&motion");
+                const response = await fetch("status.json?uptime&paired&doorstate&lockstate&lighton&obstruction&motion");
                 if (response.status !== 200) {
                     console.warn("Error retrieving status from RATGDO");
                     return;
                 }
                 serverStatus = { ...serverStatus, ...await response.json() };
+                if (serverStatus.paired) {
+                    document.getElementById("unpair").value = "Un-pair HomeKit";
+                    document.getElementById("qrcode").style.display = "none";
+                    document.getElementById("re-pair-info").style.display = "inline-block";
+                } else {
+                    document.getElementById("unpair").value = "Reset HomeKit";
+                    document.getElementById("re-pair-info").style.display = "none";
+                    document.getElementById("qrcode").style.display = "inline-block";
+                }
                 document.getElementById("uptime").innerHTML = msToTime(serverStatus.upTime);
                 document.getElementById("doorstate").innerHTML = serverStatus.garageDoorState;
                 document.getElementById("lockstate").innerHTML = serverStatus.garageLockState;
@@ -157,16 +166,16 @@ async function checkVersion(progress) {
 // repurposes the myModal <div> to display a countdown timer
 // from 30 seconds to zero, at end of which the page is reloaded.
 // Used at end of firmware update or on reboot request.
-function countdown30(msg) {
+function countdown(secs, msg) {
     const spanDots = document.getElementById("dotdot3");
     document.getElementById("modalTitle").innerHTML = "";
-    document.getElementById("updateMsg").innerHTML = "RATGDO device rebooting...&nbsp;";
+    document.getElementById("updateMsg").innerHTML = msg;
     document.getElementById("updateDialog").style.display = "none";
     document.getElementById("modalClose").style.display = 'none';
     document.getElementById("myModal").style.display = 'block';
     document.getElementById("updateDotDot").style.display = "block";
     spanDots.innerHTML = "";
-    var seconds = 30;
+    var seconds = secs;
     spanDots.innerHTML = seconds;
     var countdown = setInterval(() => {
         if (seconds-- === 0) {
@@ -213,7 +222,7 @@ async function firmwareUpdate(github = true) {
                 console.log("Download complete, size: " + blob.size);
                 const formData = new FormData();
                 formData.append("content", blob);
-                response = await fetch("./update", {
+                response = await fetch("update", {
                     method: "POST",
                     body: formData,
                 });
@@ -223,7 +232,7 @@ async function firmwareUpdate(github = true) {
                 if (inputElem.files.length > 0) {
                     console.log("Uploading file: " + inputElem.files[0]);
                     formData.append("file", inputElem.files[0]);
-                    response = await fetch("./update", {
+                    response = await fetch("update", {
                         method: "POST",
                         body: formData,
                     });
@@ -243,7 +252,7 @@ async function firmwareUpdate(github = true) {
     finally {
         clearInterval(aniDots);
         if (showRebootMsg) {
-            countdown30("Update complete, RATGDO device rebooting...&nbsp;");
+            countdown(30, "Update complete, RATGDO device rebooting...&nbsp;");
         } else {
             document.getElementById("updateDotDot").style.display = "none";
             document.getElementById("updateDialog").style.display = "block";
@@ -252,14 +261,25 @@ async function firmwareUpdate(github = true) {
 }
 
 async function rebootRATGDO() {
-    var response = await fetch("./reboot", {
+    var response = await fetch("reboot", {
         method: "POST",
     });
     if (response.status !== 200) {
         console.warn("Error attempting to reboot RATGDO");
         return;
     }
-    countdown30("RATGDO device rebooting...&nbsp;");
+    countdown(30, "RATGDO device rebooting...&nbsp;");
+}
+
+async function unpairRATGDO() {
+    var response = await fetch("reset", {
+        method: "POST",
+    });
+    if (response.status !== 200) {
+        console.warn("Error attempting to unpair and reboot RATGDO");
+        return;
+    }
+    countdown(30, "RATGO un-pairing and rebooting...&nbsp;");
 }
 
 async function setGDO(arg, value) {
@@ -271,7 +291,7 @@ async function setGDO(arg, value) {
         const formData = new FormData();
         formData.append(arg, value);
         console.log("SetGDO await fetch");
-        var response = await fetch("/setgdo", {
+        var response = await fetch("setgdo", {
             method: "POST",
             body: formData,
             signal: AbortSignal.timeout(2000),

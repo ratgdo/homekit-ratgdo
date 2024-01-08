@@ -10,10 +10,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>HomeKit Garage Door Opener</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="favicon.png" type="image/png">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png" type="image/png">
-  <script src="functions.js"></script>
+  <link rel="stylesheet" href="style.css?v=CRC-32">
+  <link rel="icon" href="favicon.png?v=CRC-32" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=CRC-32" type="image/png">
+  <script src="functions.js?v=CRC-32"></script>
 </head>
 
 <body>
@@ -34,7 +34,7 @@
           <p id="devicename" style="margin:0px;">Garage Door</p>
         </div>
         <span class="close" style="color: darkgoldenrod; font-size: 2em;"
-          onclick="window.location.href = 'settings.html'">&#x2699;</span>
+          onclick="window.location.href = 'settings.html?v=CRC-32'">&#x2699;</span>
       </div>
       <div class="serverstatus">
         <table>
@@ -79,7 +79,7 @@
         </table>
       </div>
       <div class="qrcode">
-        <img id="qrcode" src="qrcode.svg" alt="QR Code" style="display:none;">
+        <img id="qrcode" src="qrcode.svg?v=CRC-32" alt="QR Code" style="display:none;">
         <p id="re-pair-info" style="display:none; font-size: 10px;">If you wish to pair to another HomeKit home, you
           must first un-pair from existing home.
         </p>
@@ -91,10 +91,8 @@
           <input type="button" value="Firmware Update" onclick="modal.style.display = 'block'">
         </div>
         <div class="qrcode center">
-          <form action="reset" method="POST">
-            <input id="unpair" type="submit" value="Un-pair HomeKit"
-              onclick="return confirm('Pair to new HomeKit, are you sure?')">
-          </form>
+          <input type="button" id="unpair" value="Reset HomeKit"
+            onclick="return confirm('Pair to new HomeKit, are you sure?') && unpairRATGDO()">
         </div>
       </div>
       <div class="fullwidth">

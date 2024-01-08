@@ -3,8 +3,8 @@
 // All rights reserved. GPLv3 License
 
 // Browser cache control, time in seconds after which browser cache invalid
-// This is used for CSS, JS and IMAGE file types.
-#define CACHE_CONTROL 3600
+// This is used for CSS, JS and IMAGE file types.  Set to 30 days !!
+#define CACHE_CONTROL (60*60*24*30)
 
 #include <string>
 #include <tuple>
@@ -119,6 +119,8 @@ void handle_reset()
     const char *resp = "<p>This device has been un-paired from HomeKit.</p><p><a href=\"/\">Back</a></p>";
     homekit_storage_reset();
     server.send(200, resp);
+    server.stop();
+    sync_and_restart();
     return;
 }
 
@@ -147,10 +149,10 @@ void load_page(const char *page)
         const unsigned int length = std::get<1>(webcontent.at(page));
         const char *type = std::get<2>(webcontent.at(page));
         // Following for browser cache control...
-        const char *md5 = std::get<3>(webcontent.at(page)).c_str();
+        const char *crc32 = std::get<3>(webcontent.at(page)).c_str();
         bool cache = false;
         char cacheHdr[24] = "no-cache, no-store";
-        char matchHdr[48] = "";
+        char matchHdr[8] = "";
 
         if ((CACHE_CONTROL > 0) &&
             (!strcmp(type, "text/css") || !strcmp(type, "text/javascript") || strstr(type, "image")))
@@ -161,12 +163,12 @@ void load_page(const char *page)
 
         server.sendHeader("Cache-Control", cacheHdr);
         if (cache)
-            server.sendHeader("ETag", md5);
+            server.sendHeader("ETag", crc32);
 
         if (server.hasHeader("If-None-Match"))
-            strncpy(matchHdr, server.header("If-None-Match").c_str(), 48);
+            strncpy(matchHdr, server.header("If-None-Match").c_str(), 8);
 
-        if (strcmp(md5, matchHdr))
+        if (strcmp(crc32, matchHdr))
         {
             RINFO("Sending gzip data for: %s (type %s, length %i)", page, type, length);
             server.sendHeader("Content-Encoding", "gzip");
@@ -252,7 +254,7 @@ void handle_status()
         ADD_INT(json, "upTime", upTime);
     if (all)
         ADD_STR(json, "deviceName", device_name);
-    if (all)
+    if (all || HAS_ARG("paired"))
         ADD_BOOL(json, "paired", paired);
     if (all)
         ADD_STR(json, "firmwareVersion", std::string(AUTO_VERSION).c_str());
