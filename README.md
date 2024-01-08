@@ -31,7 +31,7 @@ planned features, or to suggest your own.
 > The installation process is still being improved. You may need to reload the flasher tool page
 > after each of the following steps in order to proceed.
 
-For each of the following steps, use the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo):
+For each of the following steps, use the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo/flash.html):
 
 * Install the HomeKit-RATGDO firmware, and then *wait 20 seconds*.
 * Connect the RATGDO to WiFi.  There is currently a known issue where the RATGDO will timeout on connect.  Just retry the connect.  This is only known to happen on initial provisioning.
