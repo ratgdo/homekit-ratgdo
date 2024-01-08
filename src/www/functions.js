@@ -32,7 +32,7 @@ async function checkStatus() {
     if (!fetchSemaphore) fetchSemaphore = new Semaphore();
     const releaseSemaphore = await fetchSemaphore.acquire();
     try {
-        const response = await fetch("./status.json");
+        const response = await fetch("status.json");
         if (response.status !== 200) {
             console.warn("Error retrieving status from RATGDO");
             return;
@@ -43,13 +43,15 @@ async function checkStatus() {
         // Hack because firmware uses v0.0.0 and 0.0.0 for different purposes.
         serverStatus.firmwareVersion = "v" + serverStatus.firmwareVersion;
 
+        window.sessionStorage.setItem("serverStatus", JSON.stringify(serverStatus));
+
         document.getElementById("devicename").innerHTML = serverStatus.deviceName;
         if (serverStatus.paired) {
             document.getElementById("unpair").value = "Un-pair HomeKit";
             document.getElementById("qrcode").style.display = "none";
             document.getElementById("re-pair-info").style.display = "inline-block";
         } else {
-            document.getElementById("unpair").value = "Pair to HomeKit";
+            document.getElementById("unpair").value = "Reset HomeKit";
             document.getElementById("re-pair-info").style.display = "none";
             document.getElementById("qrcode").style.display = "inline-block";
         }
@@ -63,6 +65,8 @@ async function checkStatus() {
         document.getElementById("gateway").innerHTML = serverStatus.gatewayIP;
         document.getElementById("accessoryid").innerHTML = serverStatus.accessoryID;
 
+        document.getElementById("gdosecuritytype").innerHTML = (serverStatus.GDOSecurityType == 1) ? "Sec+ " : "Sec+ 2.0";
+
         document.getElementById("doorstate").innerHTML = serverStatus.garageDoorState;
         document.getElementById("lockstate").innerHTML = serverStatus.garageLockState;
         document.getElementById("lighton").innerHTML = serverStatus.garageLightOn;
@@ -74,12 +78,22 @@ async function checkStatus() {
             if (!fetchSemaphore) fetchSemaphore = new Semaphore();
             const releaseSemaphore = await fetchSemaphore.acquire();
             try {
-                const response = await fetch("./status.json?uptime&doorstate&lockstate&lighton&obstruction&motion");
+                const response = await fetch("status.json?uptime&paired&doorstate&lockstate&lighton&obstruction&motion");
                 if (response.status !== 200) {
                     console.warn("Error retrieving status from RATGDO");
                     return;
                 }
                 serverStatus = { ...serverStatus, ...await response.json() };
+                window.sessionStorage.setItem("serverStatus", JSON.stringify(serverStatus));
+                if (serverStatus.paired) {
+                    document.getElementById("unpair").value = "Un-pair HomeKit";
+                    document.getElementById("qrcode").style.display = "none";
+                    document.getElementById("re-pair-info").style.display = "inline-block";
+                } else {
+                    document.getElementById("unpair").value = "Reset HomeKit";
+                    document.getElementById("re-pair-info").style.display = "none";
+                    document.getElementById("qrcode").style.display = "inline-block";
+                }
                 document.getElementById("uptime").innerHTML = msToTime(serverStatus.upTime);
                 document.getElementById("doorstate").innerHTML = serverStatus.garageDoorState;
                 document.getElementById("lockstate").innerHTML = serverStatus.garageLockState;
@@ -157,28 +171,29 @@ async function checkVersion(progress) {
 // repurposes the myModal <div> to display a countdown timer
 // from 30 seconds to zero, at end of which the page is reloaded.
 // Used at end of firmware update or on reboot request.
-function countdown30(msg) {
+function countdown(secs, msg) {
     const spanDots = document.getElementById("dotdot3");
     document.getElementById("modalTitle").innerHTML = "";
-    document.getElementById("updateMsg").innerHTML = "RATGDO device rebooting...&nbsp;";
-    document.getElementById("updateDialog").style.display = "none";
-    document.getElementById("modalClose").style.display = 'none';
+    document.getElementById("updateMsg").innerHTML = msg;
+    if (document.getElementById("updateDialog")) {
+        document.getElementById("updateDialog").style.display = "none";
+        document.getElementById("modalClose").style.display = 'none';
+    }
     document.getElementById("myModal").style.display = 'block';
     document.getElementById("updateDotDot").style.display = "block";
     spanDots.innerHTML = "";
-    var seconds = 30;
+    var seconds = secs;
     spanDots.innerHTML = seconds;
     var countdown = setInterval(() => {
         if (seconds-- === 0) {
             clearInterval(countdown);
             clearInterval(statusUpdater);
-            location.reload();
+            location.href = "/";
             return;
         } else {
             spanDots.innerHTML = seconds;
         }
     }, 1000);
-
 }
 
 // Handles request to update server firmware from either GitHub (default) or from
@@ -213,7 +228,7 @@ async function firmwareUpdate(github = true) {
                 console.log("Download complete, size: " + blob.size);
                 const formData = new FormData();
                 formData.append("content", blob);
-                response = await fetch("./update", {
+                response = await fetch("update", {
                     method: "POST",
                     body: formData,
                 });
@@ -223,7 +238,7 @@ async function firmwareUpdate(github = true) {
                 if (inputElem.files.length > 0) {
                     console.log("Uploading file: " + inputElem.files[0]);
                     formData.append("file", inputElem.files[0]);
-                    response = await fetch("./update", {
+                    response = await fetch("update", {
                         method: "POST",
                         body: formData,
                     });
@@ -243,7 +258,7 @@ async function firmwareUpdate(github = true) {
     finally {
         clearInterval(aniDots);
         if (showRebootMsg) {
-            countdown30("Update complete, RATGDO device rebooting...&nbsp;");
+            countdown(30, "Update complete, RATGDO device rebooting...&nbsp;");
         } else {
             document.getElementById("updateDotDot").style.display = "none";
             document.getElementById("updateDialog").style.display = "block";
@@ -252,47 +267,76 @@ async function firmwareUpdate(github = true) {
 }
 
 async function rebootRATGDO() {
-    var response = await fetch("./reboot", {
+    var response = await fetch("reboot", {
         method: "POST",
     });
     if (response.status !== 200) {
         console.warn("Error attempting to reboot RATGDO");
         return;
     }
-    countdown30("RATGDO device rebooting...&nbsp;");
+    countdown(30, "RATGDO device rebooting...&nbsp;");
 }
 
-async function setGDO(arg, value) {
-    console.log("SetGDO request semaphore");
+async function unpairRATGDO() {
+    var response = await fetch("reset", {
+        method: "POST",
+    });
+    if (response.status !== 200) {
+        console.warn("Error attempting to unpair and reboot RATGDO");
+        return;
+    }
+    countdown(30, "RATGO un-pairing and rebooting...&nbsp;");
+}
+
+async function checkAuth() {
+    auth = false;
+    var response = await fetch("auth", {
+        method: "GET",
+    });
+    if (response.status == 200) {
+        auth = true;
+    }
+    else if (response.status == 401) {
+        console.warn("Not Authenticated");
+    }
+    return auth;
+}
+
+async function setGDO(...args) {
     if (!fetchSemaphore) fetchSemaphore = new Semaphore();
     const releaseSemaphore = await fetchSemaphore.acquire();
-    console.log("SetGDO acquired semaphore");
     try {
+        // check if authenticated, before post to setgdo, prevents timeout of dialog due to AbortSignal
+        if (!await checkAuth()) {
+            return;
+        }
         const formData = new FormData();
-        formData.append(arg, value);
-        console.log("SetGDO await fetch");
-        var response = await fetch("/setgdo", {
+        for (let i = 0; i < args.length; i = i + 2) {
+            formData.append(args[i], args[i + 1]);
+        }
+        var response = await fetch("setgdo", {
             method: "POST",
             body: formData,
             signal: AbortSignal.timeout(2000),
         });
-        console.log("SetGDO fetch response: " + response.status);
         if (response.status !== 200) {
             console.warn("Error setting RATGDO state");
             return;
         }
-        switch (arg) {
-            case "lighton":
-                document.getElementById("lighton").innerHTML = (value == "1") ? "true" : "false";
-                break;
-            case "lockstate":
-                document.getElementById("lockstate").innerHTML = (value == "1") ? "Secured" : "Unsecured";
-                break;
-            case "doorstate":
-                document.getElementById("lockstate").innerHTML = (value == "1") ? "Opening" : "Closing";
-                break;
-            default:
-                break;
+        for (let i = 0; i < args.length; i = i + 2) {
+            switch (args[i]) {
+                case "lighton":
+                    document.getElementById("lighton").innerHTML = (args[i + 1] == "1") ? "true" : "false";
+                    break;
+                case "lockstate":
+                    document.getElementById("lockstate").innerHTML = (args[i + 1] == "1") ? "Secured" : "Unsecured";
+                    break;
+                case "doorstate":
+                    document.getElementById("lockstate").innerHTML = (args[i + 1] == "1") ? "Opening" : "Closing";
+                    break;
+                default:
+                    break;
+            }
         }
     }
     catch (err) {
@@ -308,7 +352,6 @@ async function setGDO(arg, value) {
         }
     }
     finally {
-        console.log("SetGDO releasing semaphore");
         releaseSemaphore();
     }
 }
@@ -331,6 +374,17 @@ async function changePassword() {
     // On success, go to home page.
     // User will have to re-authenticate to get back to settings.
     location.href = "/";
+    return;
+}
+
+async function saveSettings() {
+    let gdoSec = (document.getElementById("gdosec1").checked) ? '1' : '2';
+    console.log("Set GDO security type to: " + gdoSec);
+    let pwReq = (document.getElementById("pwreq").checked) ? '1' : '0';
+    console.log("Set GDO Web Password required to: " + pwReq);
+    await setGDO("gdoSecurity", gdoSec, "passwordRequired", pwReq);
+    clearInterval(statusUpdater);
+    countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");
     return;
 }
 

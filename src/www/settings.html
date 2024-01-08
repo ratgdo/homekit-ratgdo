@@ -10,10 +10,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>HomeKit Garage Door Opener</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="favicon.png" type="image/png">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png" type="image/png">
-  <script src="functions.js"></script>
+  <link rel="stylesheet" href="style.css?v=CRC-32">
+  <link rel="icon" href="favicon.png?v=CRC-32" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=CRC-32" type="image/png">
+  <script src="functions.js?v=CRC-32"></script>
 </head>
 
 <body>
@@ -32,7 +32,7 @@
       </div>
       <div class="fullwidth">
         <div>
-          <table>
+          <table class="password">
             <tr>
               <td style="text-align: right;">Password:</td>
               <td><input id="newPassword" type="password" placeholder="new password" autocomplete="new-password"></td>
@@ -43,7 +43,7 @@
             </tr>
             <tr>
               <td></td>
-              <td id="matchMsg" style="font-size: 0.65em;"><br></td>
+              <td id="matchMsg" style="font-size: 0.6em;"><br></td>
             </tr>
           </table>
         </div>
@@ -52,7 +52,57 @@
           <input type="button" value="Save Password" onclick="changePassword();">
         </div>
       </div>
+      <div class="fullwidth">
+        <div>
+          <table class="settings">
+            <tr>
+              <td style="text-align: right;">Door Protocol:</td>
+              <td>&nbsp;
+                <input type="radio" id="gdosec1" name="gdosecuritysetting" value="1">
+                <label for="gdosec1">Sec+</label>
+                <input type="radio" id="gdosec2" name="gdosecuritysetting" value="2">
+                <label for="gdosec2">Sec+ 2.0</label>
+              </td>
+            </tr>
+            <tr>
+              <td style="text-align: right;">Require Password:</td>
+              <td>&nbsp;
+                <input type="checkbox" id="pwreq" name="pwreq" value="no">
+                <span style="font-size: 0.6em;">(default: admin/password)</span>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <!--
+                  Future settings go here
+                -->
+              </td>
+            </tr>
+            <tr>
+              <td> <br></td>
+            </tr>
+            <tr>
+              <td>
+                <input type="button" value="Save Settings"
+                  onclick="return confirm('Save Settings & Reboot RATGDO, are you sure?') && saveSettings()">
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
     </main>
+
+    <div id="myModal" class="modal">
+      <div class="modal-content">
+        <span id="modalClose" class="close" onclick="modal.style.display = 'none'">&times;</span>
+        <span id="modalTitle">Installed Firmware:&nbsp;<span id="firmware2">xxx</span><br></span><br>
+        <div id="updateDotDot" style="display:none; float: none; padding:0px">
+          <span id="updateMsg">Do not close browser until update completes. Device will reboot when complete.<br></span>
+          <span id="dotdot3"></span>
+          <br><br>
+        </div>
+      </div>
+    </div>
 
     <footer>
       <div class="footer">
@@ -67,6 +117,11 @@
   </div>
 </body>
 <script>
+  serverStatus = JSON.parse(window.sessionStorage.getItem("serverStatus"));
+  document.getElementById("gdosec1").checked = (serverStatus.GDOSecurityType == 1) ? true : false;
+  document.getElementById("gdosec2").checked = (serverStatus.GDOSecurityType == 2) ? true : false;
+  document.getElementById("pwreq").checked = serverStatus.passwordRequired;
+
   newPW = document.getElementById("newPassword");
   confirmPW = document.getElementById("confirmPassword");
   matchMsg = document.getElementById("matchMsg");
