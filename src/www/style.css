@@ -73,6 +73,8 @@ div.fullwidth {
     position: relative;
     border-bottom-style: solid;
     border-bottom-width: 1px;
+    padding-left: 0px;
+    padding-right: 0px;
 }
 
 div.fullpage {
@@ -93,6 +95,7 @@ div.center {
 div.footer {
     width: 100%;
     font-size: 12px;
+    padding: 0px;
 }
 
 .logo {

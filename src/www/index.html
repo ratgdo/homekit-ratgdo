@@ -17,9 +17,9 @@
 </head>
 
 <body>
+  <!-- Title section of page ------------------------------------------------------------------>
   <div class="fullpage">
     <main>
-
       <div class="fullwidth">
         <div class="logo">
           <pre class="logo">
@@ -33,100 +33,171 @@
         <div class="name">
           <p id="devicename" style="margin:0px;">Garage Door</p>
         </div>
-        <span class="close" style="color: darkgoldenrod; font-size: 2em;"
-          onclick="window.location.href = 'settings.html?v=CRC-32'">&#x2699;</span>
-      </div>
-      <div class="serverstatus">
-        <table>
-          <tr>
-            <td style="text-align: right; width: 40%">Firmware:</td>
-            <td><span id="firmware"></span><br><sup style="font-size: 0.6em;"><span id="newversion"></span><span id="dotdot1"></span></sup></td>
-          </tr>
-          <tr>
-            <td style="text-align: right; white-space: pre;">Up Time:</td>
-            <td><span id="uptime"></span><br><sup style="font-size: 0.6em;">(days:hrs:min:sec)</sup></td>
-          </tr>
-          <tr style="height: 10px">
-            <td colspan="2"></td>
-          </tr>
-          <tr>
-            <td style="text-align: right;">WiFi SSID:</td>
-            <td id="ssid"></td>
-          </tr>
-          <tr>
-            <td style="text-align: right;">MAC Address:</td>
-            <td id="macaddress"></td>
-          </tr>
-          <tr>
-            <td style="text-align: right;">IP Address:</td>
-            <td id="ipaddress"></td>
-          </tr>
-          <tr>
-            <td style="text-align: right;">Netmask:</td>
-            <td id="netmask"></td>
-          </tr>
-          <tr>
-            <td style="text-align: right;">Gatweway IP:</td>
-            <td id="gateway"></td>
-          </tr>
-          <tr style="height: 10px">
-            <td colspan="2"></td>
-          </tr>
-          <tr>
-            <td style="text-align: right;">HomeKit ID:</td>
-            <td id="accessoryid"></td>
-          </tr>
-        </table>
-      </div>
-      <div class="qrcode">
-        <img id="qrcode" src="qrcode.svg?v=CRC-32" alt="QR Code" style="display:none;">
-        <p id="re-pair-info" style="display:none; font-size: 10px;">If you wish to pair to another HomeKit home, you
-          must first un-pair from existing home.
-        </p>
-      </div>
-      <div class="fullwidth" style="padding: 0px;">
-        <div class="serverstatus" style="padding: 0px; padding-bottom: 5px;">
-          <input type="button" value="Reboot RATGDO"
-            onclick="return confirm('Reboot RATGDO, are you sure?') && rebootRATGDO()">
-          <input type="button" value="Firmware Update" onclick="modal.style.display = 'block'">
-        </div>
-        <div class="qrcode center">
-          <input type="button" id="unpair" value="Reset HomeKit"
-            onclick="return confirm('Pair to new HomeKit, are you sure?') && unpairRATGDO()">
+        <div style="float:right;vertical-align: middle; padding-left: 0; padding-right: 0;">
+          <img id="settings-icon" src="settings-sliders.svg?v=CRC-32" alt="Settings" style="width:1.5em;height:1.5em;">
+          <img id="main-icon" src="garage-car.svg?v=CRC-32" alt="Homepage" onclick="history.back()"
+            style="display:none; width:1.5em;height:1.5em;">
         </div>
       </div>
-      <div class="fullwidth">
-        <table>
-          <tr>
-            <td style="width: 25%; text-align: right;">Door State:</td>
-            <td style="width: 15%;" id="doorstate"></td>
-            <td style="width: 40%; text-align: right;">Light On:</td>
-            <td style="width: 20%;" id="lighton"></td>
-          </tr>
-          <tr>
-            <td style="text-align: right;">Lock State:</td>
-            <td id="lockstate"></td>
-            <td style="text-align: right;">Obstruction:</td>
-            <td id="obstruction"></td>
-          </tr>
-          <tr>
-            <td style="text-align: right;">Door Protocol:</td>
-            <td id="gdosecuritytype"></td>
-            <td style="text-align: right;">Motion:</td>
-            <td id="motion"></td>
-          </tr>
-        </table>
+      <!-- Main section of page ------------------------------------------------------------------>
+      <div id="main-page" style="padding-left: 0px; padding-right: 0px;">
+        <div class="serverstatus">
+          <table>
+            <tr>
+              <td style="text-align: right; width: 40%">Firmware:</td>
+              <td><span id="firmware"></span><br><sup style="font-size: 0.6em;"><span id="newversion"></span><span
+                    id="dotdot1"></span></sup></td>
+            </tr>
+            <tr>
+              <td style="text-align: right; white-space: pre;">Up Time:</td>
+              <td><span id="uptime"></span><br><sup style="font-size: 0.6em;">(days:hrs:min:sec)</sup></td>
+            </tr>
+            <tr style="height: 2px">
+              <td colspan="2"></td>
+            </tr>
+            <tr>
+              <td style="text-align: right;">WiFi SSID:</td>
+              <td id="ssid"></td>
+            </tr>
+            <tr>
+              <td style="text-align: right;">MAC Address:</td>
+              <td id="macaddress"></td>
+            </tr>
+            <tr>
+              <td style="text-align: right;">IP Address:</td>
+              <td id="ipaddress"></td>
+            </tr>
+            <tr>
+              <td style="text-align: right;">Netmask:</td>
+              <td id="netmask"></td>
+            </tr>
+            <tr>
+              <td style="text-align: right;">Gatweway IP:</td>
+              <td id="gateway"></td>
+            </tr>
+            <tr style="height: 10px">
+              <td colspan="2"></td>
+            </tr>
+            <tr>
+              <td style="text-align: right;">HomeKit ID:</td>
+              <td id="accessoryid"></td>
+            </tr>
+          </table>
+        </div>
+        <div class="qrcode">
+          <img id="qrcode" src="qrcode.svg?v=CRC-32" alt="QR Code" style="display:none;">
+          <p id="re-pair-info" style="display:none; font-size: 10px;">If you wish to pair to another HomeKit home, you
+            must first un-pair from existing home.
+          </p>
+        </div>
+        <div class="fullwidth" style="padding: 0px;">
+          <div class="serverstatus" style="padding: 0px; padding-bottom: 5px;">
+            <input type="button" value="Reboot RATGDO"
+              onclick="return confirm('Reboot RATGDO, are you sure?') && rebootRATGDO()">
+            <input type="button" value="Firmware Update" onclick="modal.style.display = 'block'">
+          </div>
+          <div class="qrcode center">
+            <input type="button" id="unpair" value="Reset HomeKit"
+              onclick="return confirm('Pair to new HomeKit, are you sure?') && unpairRATGDO()">
+          </div>
+        </div>
+        <div class="fullwidth">
+          <table>
+            <tr>
+              <td style="width: 30%; text-align: right;">Door State:</td>
+              <td style="width: 15%;" id="doorstate"></td>
+              <td style="width: 35%; text-align: right;">Light On:</td>
+              <td style="width: 20%;" id="lighton"></td>
+            </tr>
+            <tr>
+              <td style="text-align: right;">Lock State:</td>
+              <td id="lockstate"></td>
+              <td style="text-align: right;">Obstruction:</td>
+              <td id="obstruction"></td>
+            </tr>
+            <tr>
+              <td style="text-align: right;">Door Protocol:</td>
+              <td id="gdosecuritytype"></td>
+              <td style="text-align: right;">Motion:</td>
+              <td id="motion"></td>
+            </tr>
+          </table>
+        </div>
+        <div id="GDOcontrols" class="fullwidth"
+          style="padding-left: 0px; padding-right: 0px; display: flex; justify-content: space-between;">
+          <input type="button" value="Light On" onclick="setGDO('lighton', '1');">
+          <input type="button" value="Light Off" onclick="setGDO('lighton', '0');">
+          <input type="button" value="Door Open" onclick="setGDO('doorstate', '1');">
+          <input type="button" value="Door Close" onclick="setGDO('doorstate', '0');">
+          <input type="button" value="Door Lock" onclick="setGDO('lockstate', '1');">
+          <input type="button" value="Door Unlock" onclick="setGDO('lockstate', '0');">
+        </div>
       </div>
-      <div id="GDOcontrols" class="fullwidth" style="padding-left: 0px; padding-right: 0px; display: flex; justify-content: space-between;">
-        <input type="button" value="Light On" onclick="setGDO('lighton', '1');">
-        <input type="button" value="Light Off" onclick="setGDO('lighton', '0');">
-        <input type="button" value="Door Open" onclick="setGDO('doorstate', '1');">
-        <input type="button" value="Door Close" onclick="setGDO('doorstate', '0');">
-        <input type="button" value="Door Lock" onclick="setGDO('lockstate', '1');">
-        <input type="button" value="Door Unlock" onclick="setGDO('lockstate', '0');">
+      <!-- Settings section of page ------------------------------------------------------------------>
+      <div id="settings-page" style="display: none; padding: 0px;">
+        <div class="fullwidth">
+          <div>
+            <table class="password">
+              <tr>
+                <td style="text-align: right;">Password:</td>
+                <td><input id="newPassword" type="password" placeholder="new password" autocomplete="new-password"></td>
+              </tr>
+              <tr>
+                <td style="text-align: right;">Confirm:</td>
+                <td><input id="confirmPassword" type="password" placeholder="confirm new password"></td>
+              </tr>
+              <tr>
+                <td></td>
+                <td id="matchMsg" style="font-size: 0.6em;"><br></td>
+              </tr>
+            </table>
+          </div>
+          <div>
+            <br>
+            <input type="button" value="Save Password" onclick="changePassword();">
+          </div>
+        </div>
+        <div class="fullwidth">
+          <div>
+            <table class="settings">
+              <tr>
+                <td style="text-align: right;">Door Protocol:</td>
+                <td>&nbsp;
+                  <input type="radio" id="gdosec1" name="gdosecuritysetting" value="1">
+                  <label for="gdosec1">Sec+</label>
+                  <input type="radio" id="gdosec2" name="gdosecuritysetting" value="2">
+                  <label for="gdosec2">Sec+ 2.0</label>
+                </td>
+              </tr>
+              <tr>
+                <td style="text-align: right;">Require Password:</td>
+                <td>&nbsp;
+                  <input type="checkbox" id="pwreq" name="pwreq" value="no">
+                  <span style="font-size: 0.6em;">(default: admin/password)</span>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <!--
+                    Future settings go here
+                  -->
+                </td>
+              </tr>
+              <tr>
+                <td> <br></td>
+              </tr>
+              <tr>
+                <td>
+                  <input type="button" value="Save Settings"
+                    onclick="return confirm('Save Settings & Reboot RATGDO, are you sure?') && saveSettings()">
+                </td>
+              </tr>
+            </table>
+          </div>
+        </div>
       </div>
     </main>
-
+    <!-- Footer section of page ------------------------------------------------------------------>
     <footer>
       <div class="footer">
         <p>For documentation and support see the <a href="https://github.com/ratgdo/homekit-ratgdo">GitHub</a>
@@ -139,6 +210,7 @@
     </footer>
   </div>
 
+  <!-- Popup / modal dialog ------------------------------------------------------------------>
   <div id="myModal" class="modal">
     <div class="modal-content">
       <span id="modalClose" class="close" onclick="modal.style.display = 'none'">&times;</span>
@@ -171,20 +243,74 @@
       </div>
     </div>
   </div>
-
+  <!-- Initialization scripts ------------------------------------------------------------------>
   <script>
     checkStatus()
-      .then( () => checkVersion("dotdot1"));
+      .then(() => checkVersion("dotdot1"));
 
-    const modal = document.getElementById("myModal");
+    window.addEventListener("visibilitychange", (event) => {
+      if (document.visibilityState === "visible") {
+        checkStatus()
+          .then(() => checkVersion("dotdot1"));
+      }
+    });
 
     // When the user clicks anywhere outside of the modal, close it
+    const modal = document.getElementById("myModal");
     window.onclick = function (event) {
       if (event.target == modal) {
         modal.style.display = "none";
       }
+    };
 
+    document.getElementById("settings-icon").onclick = async () => {
+      // Only display the Settings page if user is authenticated.
+      if (await checkAuth()) {
+        showSettings();
+        history.pushState("settings", "");
+      }
+    };
+    function showSettings() {
+      document.getElementById("settings-icon").style.display = "none";
+      document.getElementById("main-page").style.display = "none";
+      document.getElementById("settings-page").style.display = "block";
+      document.getElementById("main-icon").style.display = "block";
     }
+    function showMainpage() {
+      document.getElementById("main-icon").style.display = "none";
+      document.getElementById("settings-page").style.display = "none";
+      document.getElementById("main-page").style.display = "block";
+      document.getElementById("settings-icon").style.display = "block"
+    };
+    history.replaceState("mainpage", "");
+    window.addEventListener("popstate", (e) => {
+      if (e.state === "mainpage") {
+        showMainpage();
+      }
+      else if (e.state === "settings") {
+        showSettings();
+      }
+    });
+
+    newPW = document.getElementById("newPassword");
+    confirmPW = document.getElementById("confirmPassword");
+    matchMsg = document.getElementById("matchMsg");
+    newPW.oninput = (event) => {
+      if (newPW.value === confirmPW.value) {
+        matchMsg.innerHTML = "<br>";
+      }
+      else {
+        matchMsg.innerHTML = "Passwords do not match<br>";
+      }
+    };
+    confirmPW.oninput = (event) => {
+      if (newPW.value === confirmPW.value) {
+        matchMsg.innerHTML = "<br>";
+      }
+      else {
+        matchMsg.innerHTML = "Passwords do not match<br>";
+      }
+    };
   </script>
 </body>
 

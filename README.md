@@ -57,16 +57,18 @@ In [v0.9.0](https://github.com/ratgdo/homekit-ratgdo/releases/tag/v0.9.0), an up
 
 ### How to secure webpage?
 
-Since the [first release](https://github.com/ratgdo/homekit-ratgdo/releases/tag/v0.9.0) of the new webpage, in [v0.11.0](https://github.com/ratgdo/homekit-ratgdo/releases/tag/v0.11.0) a default login was added to protect the wepage.
+Since the [first release](https://github.com/ratgdo/homekit-ratgdo/releases/tag/v0.9.0) of the new webpage, in [v0.11.0](https://github.com/ratgdo/homekit-ratgdo/releases/tag/v0.11.0) a login was added to protect the wepage.  By default authentication is not required, but it is strongly recommended that you enable the setting to require a password and change the default.
 
-#### default Username/Password: `admin`/`password`
+#### Default Username/Password: `admin`/`password`
 
 You can change the default password by clicking into the settings gear:
 
 [![settings](docs/webpage/settings.png)](#settings)
 
-and input a new password:
+and input a new password. Saving a new password will return you to the main webpage.
 [![password](docs/webpage/password.png)](#password)
+
+On this page you can also select the garage door protocol, either Sec+ or Sec+ 2.0 (default) and whether a userid/password is required.  Saving these settings will cause the ratgdo device to restart and return to the main webpage. 
 
 ## How do I upgrade?
 

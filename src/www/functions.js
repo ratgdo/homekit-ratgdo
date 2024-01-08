@@ -10,6 +10,7 @@ var semaphoreNumber = 0;  // for Semaphore code, to support multiple semaphores.
 var fetchSemaphore = undefined; // Semaphore to control HTTP fetch.
 var serverStatus = {};    // object into which all server status is held.
 var statusUpdater = 0;    // to identify the setInterval timer used to update status
+var evtSource = undefined;// for Server Sent Events (SSE)
 
 // convert miliseconds to dd:hh:mm:ss used to calculate server uptime
 function msToTime(duration) {
@@ -43,8 +44,6 @@ async function checkStatus() {
         // Hack because firmware uses v0.0.0 and 0.0.0 for different purposes.
         serverStatus.firmwareVersion = "v" + serverStatus.firmwareVersion;
 
-        window.sessionStorage.setItem("serverStatus", JSON.stringify(serverStatus));
-
         document.getElementById("devicename").innerHTML = serverStatus.deviceName;
         if (serverStatus.paired) {
             document.getElementById("unpair").value = "Un-pair HomeKit";
@@ -73,38 +72,53 @@ async function checkStatus() {
         document.getElementById("obstruction").innerHTML = serverStatus.garageObstructed;
         document.getElementById("motion").innerHTML = serverStatus.garageMotion;
 
-        // Refresh the data every 10 seconds.
-        statusUpdater = setInterval(async () => {
-            if (!fetchSemaphore) fetchSemaphore = new Semaphore();
-            const releaseSemaphore = await fetchSemaphore.acquire();
-            try {
-                const response = await fetch("status.json?uptime&paired&doorstate&lockstate&lighton&obstruction&motion");
-                if (response.status !== 200) {
-                    console.warn("Error retrieving status from RATGDO");
-                    return;
-                }
-                serverStatus = { ...serverStatus, ...await response.json() };
-                window.sessionStorage.setItem("serverStatus", JSON.stringify(serverStatus));
-                if (serverStatus.paired) {
-                    document.getElementById("unpair").value = "Un-pair HomeKit";
-                    document.getElementById("qrcode").style.display = "none";
-                    document.getElementById("re-pair-info").style.display = "inline-block";
-                } else {
-                    document.getElementById("unpair").value = "Reset HomeKit";
-                    document.getElementById("re-pair-info").style.display = "none";
-                    document.getElementById("qrcode").style.display = "inline-block";
-                }
-                document.getElementById("uptime").innerHTML = msToTime(serverStatus.upTime);
-                document.getElementById("doorstate").innerHTML = serverStatus.garageDoorState;
-                document.getElementById("lockstate").innerHTML = serverStatus.garageLockState;
-                document.getElementById("lighton").innerHTML = serverStatus.garageLightOn;
-                document.getElementById("obstruction").innerHTML = serverStatus.garageObstructed;
-                document.getElementById("motion").innerHTML = serverStatus.garageMotion;
+        document.getElementById("gdosec1").checked = (serverStatus.GDOSecurityType == 1) ? true : false;
+        document.getElementById("gdosec2").checked = (serverStatus.GDOSecurityType == 2) ? true : false;
+        document.getElementById("pwreq").checked = serverStatus.passwordRequired;
+
+        // Use Server Send Events to keep status up-to-date, 2 == CLOSED
+        if (!evtSource || evtSource.readyState == 2) {
+            const evtResponse = await fetch("rest/events/subscribe");
+            if (evtResponse.status !== 200) {
+                console.warn("Error registering for Server Send Events");
+                return;
             }
-            finally {
-                releaseSemaphore();
-            }
-        }, 10000);
+            const evtUrl = await evtResponse.text();
+
+            console.log(`Register for server sent events at ${evtUrl}`);
+            evtSource = new EventSource(evtUrl);
+            evtSource.addEventListener("message", (event) => {
+                //console.log(`Message received: ${event.data}`);
+                var msgJson = JSON.parse(event.data);
+                serverStatus = { ...serverStatus, ...msgJson };
+                // Update the HTML for those values that were present in the message...
+                if (msgJson.hasOwnProperty("paired")) {
+                    if (serverStatus.paired) {
+                        document.getElementById("unpair").value = "Un-pair HomeKit";
+                        document.getElementById("qrcode").style.display = "none";
+                        document.getElementById("re-pair-info").style.display = "inline-block";
+                    } else {
+                        document.getElementById("unpair").value = "Reset HomeKit";
+                        document.getElementById("re-pair-info").style.display = "none";
+                        document.getElementById("qrcode").style.display = "inline-block";
+                    }
+                }
+                if (msgJson.hasOwnProperty("upTime")) document.getElementById("uptime").innerHTML = msToTime(serverStatus.upTime);
+                if (msgJson.hasOwnProperty("garageDoorState")) document.getElementById("doorstate").innerHTML = serverStatus.garageDoorState;
+                if (msgJson.hasOwnProperty("garageLockState")) document.getElementById("lockstate").innerHTML = serverStatus.garageLockState;
+                if (msgJson.hasOwnProperty("garageLightOn")) document.getElementById("lighton").innerHTML = serverStatus.garageLightOn;
+                if (msgJson.hasOwnProperty("garageObstructed")) document.getElementById("obstruction").innerHTML = serverStatus.garageObstructed;
+                if (msgJson.hasOwnProperty("garageMotion")) document.getElementById("motion").innerHTML = serverStatus.garageMotion;
+            });
+            evtSource.addEventListener("error", (event) => {
+                // If an error occurs close the connection, then wait 5 seconds and try again.
+                console.log(`SSE error occurred while attempting to connect to ${evtSource.url}`);
+                evtSource.close();
+                setTimeout(checkStatus, 5000);
+            });
+        } else {
+            console.log(`SSE already setup at ${evtSource.url}, State: ${evtSource.readyState}`);
+        }
     }
     finally {
         releaseSemaphore();
@@ -169,7 +183,7 @@ async function checkVersion(progress) {
 }
 
 // repurposes the myModal <div> to display a countdown timer
-// from 30 seconds to zero, at end of which the page is reloaded.
+// from N seconds to zero, at end of which the page is reloaded.
 // Used at end of firmware update or on reboot request.
 function countdown(secs, msg) {
     const spanDots = document.getElementById("dotdot3");
@@ -322,21 +336,6 @@ async function setGDO(...args) {
         if (response.status !== 200) {
             console.warn("Error setting RATGDO state");
             return;
-        }
-        for (let i = 0; i < args.length; i = i + 2) {
-            switch (args[i]) {
-                case "lighton":
-                    document.getElementById("lighton").innerHTML = (args[i + 1] == "1") ? "true" : "false";
-                    break;
-                case "lockstate":
-                    document.getElementById("lockstate").innerHTML = (args[i + 1] == "1") ? "Secured" : "Unsecured";
-                    break;
-                case "doorstate":
-                    document.getElementById("lockstate").innerHTML = (args[i + 1] == "1") ? "Opening" : "Closing";
-                    break;
-                default:
-                    break;
-            }
         }
     }
     catch (err) {
