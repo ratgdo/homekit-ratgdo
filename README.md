@@ -130,3 +130,5 @@ Special credit goes to the Chamberlain Group, without whose irredeemably stupid 
 their API to third
 parties](https://chamberlaingroup.com/press/a-message-about-our-decision-to-prevent-unauthorized-usage-of-myq),
 this firmware would never have been necessary.
+
+[Garage icons](https://www.flaticon.com/free-icons/garage) created by Creative Squad - Flaticon
