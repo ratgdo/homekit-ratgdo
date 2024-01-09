@@ -1,15 +1,14 @@
-name: Update Manifest
+name: Release
 
 on:
   release:
      types: [published]
-  workflow_dispatch:
 
 permissions:
   actions: write
 
 jobs:
-  manifest:
+  release:
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -17,6 +16,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+            submodules: true
 
       - name: Tag
         id: tag
@@ -35,7 +36,7 @@ jobs:
           echo "Tag: ${{ steps.tag.outputs.latestTag }}, does not match the required format: v0.0.0"
           exit 1
 
-      - name: Write version to manifest.json
+      - name: Update version on manifest.json
         uses: amochkin/action-json@v1
         id: write_version
         with:
@@ -53,7 +54,7 @@ jobs:
         run: echo ${{ steps.write_version.outputs.value }}
         shell: bash
 
-      - name: Write version to manifest.json
+      - name: Update firmware/*.bin version on manifest.json
         uses: amochkin/action-json@v1
         id: builds_parts_path
         with:
@@ -86,7 +87,60 @@ jobs:
           dir: docs/
           commit_message: "Add Update manifest.json for ${{ steps.tag.outputs.latestTag }}"
 
-      - name: Repository Dispatch
-        uses: peter-evans/repository-dispatch@v2
+      - uses: actions/cache@v3
         with:
-          event-type: build-firmware
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+          key: ${{ runner.os }}-pio
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install PlatformIO Core
+        run: |
+            pip install --upgrade pip
+            pip install --upgrade platformio
+
+      - name: Build PlatformIO Project
+        run: pio run -e ratgdo_esp8266_hV25
+
+      - name: Rename Firmware
+        run: |
+          mv .pio/build/ratgdo_esp8266_hV25/firmware.bin .pio/build/ratgdo_esp8266_hV25/homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin
+          mv .pio/build/ratgdo_esp8266_hV25/firmware.elf .pio/build/ratgdo_esp8266_hV25/homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.elf
+
+      - name: Attach Bundle
+        uses: AButler/upload-release-assets@v3.0
+        with:
+          files: ".pio/build/ratgdo_esp8266_hV25/*.bin"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          release-tag: ${{ steps.tag.outputs.latestTag }}
+      
+      - name: Upload Release Asset
+        uses: wow-actions/download-upload@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          url: https://github.com/ratgdo/homekit-ratgdo/releases/download/${{ steps.tag.outputs.latestTag }}/homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin
+          dir: docs/firmware/
+          commit_message: "Add Latest Firmware: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin"
+    
+      - name: Upload Firmware.bin
+        uses: actions/upload-artifact@v4
+        with:
+          name: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin
+          path: |
+            .pio/build/ratgdo_esp8266_hV25/*.bin
+    
+      - name: Upload Firmware.elf
+        uses: actions/upload-artifact@v4
+        with:
+          name: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.elf
+          path: |
+            .pio/build/ratgdo_esp8266_hV25/*.elf
+
+      - name: Download Firmware.bin
+        uses: actions/download-artifact@v4
+        with:
+          name: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin
+          path: |
+            docs/firmware/
