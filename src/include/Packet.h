@@ -4,7 +4,9 @@
 #ifndef _PACKET_H
 #define _PACKET_H
 
+#include <inttypes.h>
 #include <stdint.h>
+
 #include "secplus2.h"
 #include <secplus.h>
 #include "log.h"
@@ -581,8 +583,11 @@ struct Packet {
             uint64_t pkt_remote_id = 0; // three bytes
             uint32_t pkt_data = 0;
 
-            decode_wireline(pktbuf, &pkt_rolling, &pkt_remote_id, &pkt_data);
-            RINFO("DECODED  %08X %016llX %08X", pkt_rolling, pkt_remote_id, pkt_data);
+            int8_t ret = decode_wireline(pktbuf, &pkt_rolling, &pkt_remote_id, &pkt_data);
+            if (ret < 0) {
+                ESP_LOGE(TAG, "Failed to decode packet");
+            }
+            ESP_LOGI(TAG, "DECODED  %08X %016" PRIX64 " %08X", pkt_rolling, pkt_remote_id, pkt_data);
 
             uint16_t cmd = ((pkt_remote_id >> 24) & 0xF00) | (pkt_data & 0xFF);
 
@@ -746,7 +751,7 @@ struct Packet {
 
             pkt_data |= (m_pkt_cmd & 0xFF);
 
-            RINFO("ENCODING %08X %016llX %08X", m_rolling, fixed, pkt_data);
+            ESP_LOGI(TAG, "ENCODING %08X %016" PRIX64 " %08X", m_rolling, fixed, pkt_data);
             return encode_wireline(m_rolling, fixed, pkt_data, out_pktbuf);
         }
 
@@ -762,7 +767,7 @@ struct Packet {
             char buf[buflen];
             m_data.to_string(buf, buflen);
 
-            RINFO("PACKET(0x%X @ 0x%X) %s - %s", m_remote_id, m_rolling, PacketCommand::to_string(m_pkt_cmd), buf);
+            ESP_LOGI(TAG, "PACKET(0x%X @ 0x%X) %s - %s", m_remote_id, m_rolling, PacketCommand::to_string(m_pkt_cmd), buf);
         };
 
         PacketCommand m_pkt_cmd;

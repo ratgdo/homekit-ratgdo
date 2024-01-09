@@ -156,7 +156,7 @@ std::vector<std::string> get_local_url() {
 }
 
 void on_error_callback(improv::Error err) {
-    RERROR("improv error: %02X", err);
+    ESP_LOGE(TAG, "improv error: %02X", err);
 }
 
 bool on_command_callback(improv::ImprovCommand cmd) {

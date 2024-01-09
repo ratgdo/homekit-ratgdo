@@ -14,10 +14,10 @@
 
 #include "ratgdo.h"
 #include "homekit.h"
-
 #include "Reader.h"
 #include "secplus2.h"
 #include "Packet.h"
+#include "log.h"
 
 /********************************** LOCAL STORAGE *****************************************/
 
@@ -81,6 +81,7 @@ void comms_task_entry(void* ctx) {
 
             uint8_t ser_data = softuart_read(0);
             if (reader.push_byte(ser_data)) {
+                print_packet(reader.fetch_buf());
                 Packet pkt = Packet(reader.fetch_buf());
                 pkt.print();
 

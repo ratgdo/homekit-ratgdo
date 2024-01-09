@@ -49,12 +49,12 @@ class SecPlus2Reader {
             }
 
             if (msg_ready) {
-                RINFO("reader completed packet");
+                ESP_LOGI(TAG, "reader completed packet");
             }
             return msg_ready;
         };
 
-        uint8_t const * const fetch_buf(void) {
+        uint8_t* fetch_buf(void) {
             return m_rx_buf;
         }
 };

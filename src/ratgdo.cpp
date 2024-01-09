@@ -75,9 +75,9 @@ extern "C" void app_main() {
 
     // setup_web();  // TODO
 
-    RINFO("RATGDO setup completed");
-    RINFO("Starting RATGDO Homekit version %s", "esptest");  // TODO
-    RINFO("%s", IDF_VER);
+    ESP_LOGI(TAG, "RATGDO setup completed");
+    ESP_LOGI(TAG, "Starting RATGDO Homekit version %s", "esptest");  // TODO
+    ESP_LOGI(TAG, "%s", IDF_VER);
 
     // improv_loop();
 
@@ -93,11 +93,11 @@ extern "C" void app_main() {
 /*********************************** HELPER FUNCTIONS **************************************/
 
 void setup_pins() {
-    RINFO("Setting up pins");
+    ESP_LOGI(TAG, "Setting up pins");
     gpio_install_isr_service(0);  // meaningless zero to appease the API
 
     if (UART_TX_PIN != LED_BUILTIN) {
-        RINFO("enabling built-in LED");
+        ESP_LOGI(TAG, "enabling built-in LED");
         gpio_set_direction(LED_BUILTIN, GPIO_MODE_OUTPUT);
         gpio_set_level(LED_BUILTIN, false);
 
@@ -177,7 +177,7 @@ void obstruction_timer() {
         if (obstruction_sensor.low_count >= 3 && obstruction_sensor.low_count <= 8) {
             // Only update if we are changing state
             if (garage_door.obstructed) {
-                RINFO("Obstruction Clear");
+                ESP_LOGI(TAG, "Obstruction Clear");
                 garage_door.obstructed = false;
                 notify_homekit_obstruction();
                 gpio_set_level(STATUS_OBST_PIN, garage_door.obstructed);
@@ -189,7 +189,7 @@ void obstruction_timer() {
             if (digitalRead(INPUT_OBST_PIN) && current_millis - obstruction_sensor.last_high > 70) {
                 // Only update if we are changing state
                 if (!garage_door.obstructed) {
-                    RINFO("Obstruction Detected");
+                    ESP_LOGI(TAG, "Obstruction Detected");
                     garage_door.obstructed = true;
                     notify_homekit_obstruction();
                     gpio_set_level(STATUS_OBST_PIN, garage_door.obstructed);
@@ -210,7 +210,7 @@ void led_on_timer_cb(void* ctx) {
 
 void motion_timer_cb(void* ctx) {
     // Motion Clear Timer
-    RINFO("Motion Cleared");
+    ESP_LOGI(TAG, "Motion Cleared");
     garage_door.motion = false;
     notify_homekit_motion();
 }
