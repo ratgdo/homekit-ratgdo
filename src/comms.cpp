@@ -10,7 +10,7 @@
 #include <esp_system.h>
 #include <esp_log.h>
 
-#include <softuart.h>
+#include "softuart.h"
 
 #include "ratgdo.h"
 #include "homekit.h"
@@ -39,19 +39,20 @@ extern TimerHandle_t motion_timer;
 
 /*************************** FORWARD DECLARATIONS ******************************/
 
-void sync();
+void sync(SoftUart& sw_serial);
 void write_counter_to_flash(const char *filename, uint32_t* counter);
 uint32_t read_counter_from_flash(const char* filename);
-bool transmit(PacketAction& pkt_ac);
+bool transmit(SoftUart& sw_serial, PacketAction& pkt_ac);
 void door_command(DoorAction action);
 void send_get_status();
+void reset_packet_reader(TimerHandle_t t);
 
 /********************************** MAIN LOOP CODE *****************************************/
 
 void comms_task_entry(void* ctx) {
     ESP_LOGI(TAG, "Setting up comms for secplus2.0 protocol");
 
-    softuart_open(0, 9600, UART_RX_PIN, UART_TX_PIN, true);
+    SoftUart sw_serial = SoftUart(UART_RX_PIN, UART_TX_PIN, 9600, true);
 
     /*
     LittleFS.begin();
@@ -72,15 +73,18 @@ void comms_task_entry(void* ctx) {
     pkt_q = xQueueCreate(5, sizeof(PacketAction));
 
     ESP_LOGI(TAG, "Syncing rolling code counter after reboot...");
-    sync();
+    //sync(sw_serial);
 
     while (true) {
 
         // TODO each side of this branch should be a separate task, each handling one end of pkt_q
-        if (softuart_available(0)) {
+        if (sw_serial.available()) {
 
-            uint8_t ser_data = softuart_read(0);
+            uint8_t ser_data;
+            ESP_LOGD(TAG, "ready byte %02X", ser_data);
+            sw_serial.read(&ser_data);
             if (reader.push_byte(ser_data)) {
+
                 print_packet(reader.fetch_buf());
                 Packet pkt = Packet(reader.fetch_buf());
                 pkt.print();
@@ -215,8 +219,9 @@ void comms_task_entry(void* ctx) {
             PacketAction pkt_ac;
 
             if (uxQueueMessagesWaiting(pkt_q) > 0) {
+                ESP_LOGD(TAG, "packet ready for tx");
                 xQueueReceive(pkt_q, &pkt_ac, 0);  // ignore errors
-                if (!transmit(pkt_ac)) {
+                if (!transmit(sw_serial, pkt_ac)) {
                     ESP_LOGE(TAG, "transmit failed, will retry");
                     xQueueSendToFront(pkt_q, &pkt_ac, 0); // ignore errors
                 }
@@ -227,10 +232,17 @@ void comms_task_entry(void* ctx) {
 
 /********************************** CONTROLLER CODE *****************************************/
 
-bool transmit(PacketAction& pkt_ac) {
+bool transmit(SoftUart& sw_serial, PacketAction& pkt_ac) {
     // Turn off LED
     gpio_set_level(LED_BUILTIN, true);
     xTimerReset(led_on_timer, 0);
+
+    uint8_t buf[SECPLUS2_CODE_LEN];
+    if (pkt_ac.pkt.encode(rolling_code, buf) != 0) {
+        ESP_LOGE(TAG, "Could not encode packet");
+        pkt_ac.pkt.print();
+        return false;
+    }
 
     // inverted logic, so this pulls the bus low to assert it
     gpio_set_level(UART_TX_PIN, true);
@@ -242,27 +254,29 @@ bool transmit(PacketAction& pkt_ac) {
     if (gpio_get_level(UART_RX_PIN)) {
         ESP_LOGI(TAG, "Collision detected, waiting to send packet");
         return false;
-    } else {
-        uint8_t buf[SECPLUS2_CODE_LEN];
-        if (pkt_ac.pkt.encode(rolling_code, buf) != 0) {
-            ESP_LOGE(TAG, "Could not encode packet");
-            pkt_ac.pkt.print();
-        } else {
-            //sw_serial.write(buf, SECPLUS2_CODE_LEN);
-            softuart_putn(0, buf, SECPLUS2_CODE_LEN);
-            ets_delay_us(100);
-        }
+    }
 
-        if (pkt_ac.inc_counter) {
-            rolling_code += 1;
-            write_counter_to_flash("rolling", &rolling_code);
+    for (size_t i = 0; i < SECPLUS2_CODE_LEN; i++) {
+        if (!sw_serial.transmit(buf[i])) {
+            ESP_LOGE(TAG, "failed to write byte %02X", buf[i]);
+            return false;
         }
+    }
+
+    if (pkt_ac.inc_counter) {
+        rolling_code += 1;
+        write_counter_to_flash("rolling", &rolling_code);
     }
 
     return true;
 }
 
-void sync() {
+void reset_packet_reader(TimerHandle_t t) {
+    ESP_LOGW(TAG, "reader timed out getting next byte. resetting.");
+    reader.reset();
+}
+
+void sync(SoftUart& sw_serial) {
     // for exposition about this process, see docs/syncing.md
 
     PacketData d;
@@ -270,13 +284,13 @@ void sync() {
     d.value.no_data = NoData();
     Packet pkt = Packet(PacketCommand::GetOpenings, d, id_code);
     PacketAction pkt_ac = {pkt, true};
-    transmit(pkt_ac);
+    transmit(sw_serial, pkt_ac);
 
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(1000));
 
     pkt = Packet(PacketCommand::GetStatus, d, id_code);
     pkt_ac.pkt = pkt;
-    transmit(pkt_ac);
+    transmit(sw_serial, pkt_ac);
 
 }
 

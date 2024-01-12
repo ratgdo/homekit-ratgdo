@@ -41,8 +41,7 @@ class SecPlus2Reader {
                     m_byte_count += 1;
 
                     if (m_byte_count == SECPLUS2_CODE_LEN) {
-                        m_mode = SCANNING;
-                        m_msg_start = 0;
+                        reset();
                         msg_ready = true;
                     }
                     break;
@@ -56,5 +55,11 @@ class SecPlus2Reader {
 
         uint8_t* fetch_buf(void) {
             return m_rx_buf;
+        }
+
+        void reset(void) {
+            ESP_LOGD(TAG, "packet reader resetting");
+            m_msg_start = 0;
+            m_mode = SCANNING;
         }
 };
