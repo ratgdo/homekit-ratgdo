@@ -81,7 +81,6 @@ void comms_task_entry(void* ctx) {
         if (sw_serial.available()) {
 
             uint8_t ser_data;
-            ESP_LOGD(TAG, "ready byte %02X", ser_data);
             sw_serial.read(&ser_data);
             if (reader.push_byte(ser_data)) {
 
@@ -256,11 +255,10 @@ bool transmit(SoftUart& sw_serial, PacketAction& pkt_ac) {
         return false;
     }
 
-    for (size_t i = 0; i < SECPLUS2_CODE_LEN; i++) {
-        if (!sw_serial.transmit(buf[i])) {
-            ESP_LOGE(TAG, "failed to write byte %02X", buf[i]);
-            return false;
-        }
+
+    if (!sw_serial.transmit(buf, SECPLUS2_CODE_LEN)) {
+        ESP_LOGE(TAG, "failed to write packet");
+        return false;
     }
 
     if (pkt_ac.inc_counter) {
