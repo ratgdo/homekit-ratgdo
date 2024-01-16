@@ -2,84 +2,84 @@
 // Copyright (c) 2023-24 David Kerr, https://github.com/dkerr64
 // All rights reserved. GPLv3 License
 
-#if 0 // esp refactor
+#define TAG ("WEB")
 
-#include "www/build/webcontent.h"
+#include <esp_system.h>
+#include <esp_http_server.h>
+#include <esp_log.h>
 
-#include <arduino_homekit_server.h>
-#include <ESP8266WebServer.h>
-#include <ESP8266HTTPUpdateServer.h>
-#include "log.h"
-#include "ratgdo.h"
+#include <hap.h>
 
-#include <ESP8266WebServer.h>
-#include <ESP8266HTTPUpdateServer.h>
+#define HTTPD_RESP_USE_STRLEN -1  // tell httpd_resp_send to use strlen to calculate the response
+                                  // length, so I don't have to pass it myself.
 
-ESP8266WebServer server(80);
-ESP8266HTTPUpdateServer httpUpdater(true);
+esp_err_t handle_reset(httpd_req_t *req);
+esp_err_t handle_reboot(httpd_req_t *req);
+// void handle_notfound();      // esp refactor
+// void handle_handlestatus();  // esp refactor
 
-void handle_reset();
-void handle_reboot();
-void handle_notfound();
-void handle_handlestatus();
+static httpd_handle_t server = NULL;
+httpd_config_t config = HTTPD_DEFAULT_CONFIG();
 
-extern struct GarageDoor garage_door;
+httpd_uri_t reset_uri = {
+    .uri       = "/reset",
+    .method    = HTTP_POST,
+    .handler   = handle_reset,
+    .user_ctx  = NULL
+};
 
-// Make device_name available
-extern "C" char device_name[];
+httpd_uri_t reboot_uri = {
+    .uri       = "/reboot",
+    .method    = HTTP_POST,
+    .handler   = handle_reset,
+    .user_ctx  = NULL
+};
 
 /********* main loop **********/
 
 void setup_web()
 {
-    server.on("/status.json", HTTP_GET, handle_handlestatus);
-    server.on("/reset", HTTP_POST, handle_reset);
-    server.on("/reboot", HTTP_POST, handle_reboot);
+    ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);
+    if (httpd_start(&server, &config) == ESP_OK) {
+        // Set URI handlers
+        ESP_LOGI(TAG, "Registering URI handlers");
+        httpd_register_uri_handler(server, &reset_uri);
+        httpd_register_uri_handler(server, &reboot_uri);
+        return;
+    }
 
-    server.onNotFound(handle_notfound);
-
-    httpUpdater.setup(&server);
-
-    server.begin();
-    RINFO("HTTP server started");
-}
-
-void web_loop()
-{
-    server.handleClient();
+    ESP_LOGI(TAG, "Error starting server!");
 }
 
 /********* handlers **********/
 
-void handle_reset()
-{
-    RINFO("... reset requested");
-    homekit_storage_reset();
-    server.send(
-        200,
-        "text/html",
-        "<p>This device has been un-paired from HomeKit.</p>"
-        "<p><a href=\"/\">Back</a></p>");
+esp_err_t handle_reset(httpd_req_t *req) {
+    ESP_LOGI(TAG, "... reset requested");
+    hap_reset_homekit_data();
+    const char* resp = "<p>This device has been un-paired from HomeKit.</p><p><a href=\"/\">Back</a></p>";
+    httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
 }
 
-void handle_reboot()
-{
-    RINFO("... reboot requested");
-    server.send(
-        200,
-        "text/html",
+esp_err_t handle_reboot(httpd_req_t *req) {
+    ESP_LOGI(TAG, "... reboot requested");
+    const char* resp =
         "<head>"
         "<meta http-equiv=\"refresh\" content=\"15;url=/\" />"
         "</head>"
         "<body>"
         "<p>RATGDO restarting. Please wait. Reconnecting in 15 seconds...</p>"
         "<p><a href=\"/\">Back</a></p>"
-        "</body>");
+        "</body>";
+    httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
+    httpd_stop(server);
+    hap_reboot_accessory();
 
-    server.stop();
-    delay(10); // give a bit of time for the connection to close fully
-    ESP.restart();
+    // unreachable
+    return ESP_OK;
 }
+
+#if 0  // esp refactor
 
 void handle_notfound()
 {

@@ -20,7 +20,7 @@
 #include "homekit.h"
 #include "comms.h"
 #include "log.h"
-// #include "web.h"
+#include "web.h"
 #include "tasks.h"
 
 /********************************* FWD DECLARATIONS *****************************************/
@@ -54,6 +54,7 @@ extern "C" void app_main() {
     ESP_ERROR_CHECK(nvs_flash_init());
     esp_set_cpu_freq(ESP_CPU_FREQ_160M); // returns void
     tcpip_adapter_init();  // returns void
+    ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     // Print chip information
@@ -73,19 +74,13 @@ extern "C" void app_main() {
 
     xTaskCreate(homekit_task_entry, HOMEKIT_TASK_NAME, HOMEKIT_TASK_STK_SZ, NULL, HOMEKIT_TASK_PRIO, NULL);
 
-    // setup_web();  // TODO
+    setup_web();
 
     ESP_LOGI(TAG, "RATGDO setup completed");
     ESP_LOGI(TAG, "Starting RATGDO Homekit version %s", "esptest");  // TODO
     ESP_LOGI(TAG, "%s", IDF_VER);
 
     // improv_loop();
-
-    // comms_loop();
-
-    // homekit_loop();
-
-    // web_loop();
 
     // service_timer_loop();
 }

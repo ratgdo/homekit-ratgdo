@@ -53,9 +53,6 @@ struct SoftUart {
 
             trx_state = TransceiverState::Idle;
 
-            // FIXME magic
-            gpio_set_direction(GPIO_NUM_16, GPIO_MODE_OUTPUT);
-
             if (speed == 0) {
                 ESP_LOGE(TAG, "speed cannot be zero. panicking!");
                 abort();
@@ -126,10 +123,18 @@ struct SoftUart {
     bool transmit(uint8_t bytebuf[], size_t len) {
         ESP_LOGD(TAG, "sending %d bytes", len);
 
-        // disable reception
-        gpio_set_intr_type(this->rx_pin, GPIO_INTR_DISABLE);
-
         if (this->state == State::Idle) {
+
+            // disable reception
+            gpio_set_intr_type(this->rx_pin, GPIO_INTR_DISABLE);
+            // set the uart as transmitting
+            this->trx_state = TransceiverState::Transmitting;
+
+            // wake us up in one bit width and start sending bits. this results in a one-bit-width
+            // delay before starting but makes the state machine more elegant
+            hw_timer_set_reload(true);
+            hw_timer_set_load_data(hw_timer_load_data);
+            hw_timer_enable(true);
 
             // save the byte to be transmitted
             this->out_byte = bytebuf[0];
@@ -141,14 +146,6 @@ struct SoftUart {
 
             // move the state machine
             this->state = State::Start;
-            // set the uart as transmitting
-            this->trx_state = TransceiverState::Transmitting;
-
-            // wake us up in one bit width and start sending bits. this results in a one-bit-width
-            // delay before starting but makes the state machine more elegant
-            hw_timer_set_reload(true);
-            hw_timer_set_load_data(hw_timer_load_data);
-            hw_timer_enable(true);
 
         } else {
             ESP_LOGE(TAG, "invalid state at tx start %d. abandoning tx", (uint8_t)this->state);
@@ -212,7 +209,6 @@ IRAM_ATTR static void handle_tx(void* arg) {
     switch (uart->get_state()) {
         case State::Start:
             {
-                gpio_set_level(GPIO_NUM_16, true);
                 // set the start bit
                 gpio_set_level(uart->tx_pin, uart->invert);
 
@@ -222,13 +218,11 @@ IRAM_ATTR static void handle_tx(void* arg) {
                 // move the state machine
                 uart->set_state(State::Data);
 
-                gpio_set_level(GPIO_NUM_16, false);
                 break;
             }
 
         case State::Data:
             {
-                gpio_set_level(GPIO_NUM_16, true);
                 // get the bit to be output
                 bool bit = (uart->out_byte & 0x1) ^ uart->invert;
                 gpio_set_level(uart->tx_pin, bit);
@@ -245,26 +239,22 @@ IRAM_ATTR static void handle_tx(void* arg) {
                     uart->set_state(State::Stop);
                 }
 
-                gpio_set_level(GPIO_NUM_16, false);
                 break;
             }
 
         case State::Stop:
             {
-                gpio_set_level(GPIO_NUM_16, true);
                 // set the stop bit to logic high
                 gpio_set_level(uart->tx_pin, !uart->invert);
 
                 // after that we're back to idle and done
                 uart->set_state(State::Idle);
 
-                gpio_set_level(GPIO_NUM_16, false);
                 break;
             }
 
         case State::Idle:
             {
-                gpio_set_level(GPIO_NUM_16, true);
 
                 if (xQueueReceiveFromISR(uart->tx_q, &uart->out_byte, NULL)) {
                     // there was another byte waiting to be sent
@@ -277,7 +267,6 @@ IRAM_ATTR static void handle_tx(void* arg) {
                     xSemaphoreGiveFromISR(uart->tx_flag, NULL);
                 }
 
-                gpio_set_level(GPIO_NUM_16, false);
                 break;
             }
     }
@@ -292,7 +281,6 @@ IRAM_ATTR static void handle_rx(void* arg) {
 
                 portENTER_CRITICAL();
 
-                gpio_set_level(GPIO_NUM_16, true);
 
                 // wake us up halfway through the start bit so subsequent sampling is in the center
                 hw_timer_set_reload(false);
@@ -317,7 +305,6 @@ IRAM_ATTR static void handle_rx(void* arg) {
                 // move the state machine
                 uart->set_state(State::Start);
 
-                gpio_set_level(GPIO_NUM_16, false);
 
                 portEXIT_CRITICAL();
 
@@ -328,7 +315,6 @@ IRAM_ATTR static void handle_rx(void* arg) {
             {
 
                 portENTER_CRITICAL();
-                gpio_set_level(GPIO_NUM_16, true);
 
                 // set the initial conditions for reading a byte
                 uart->bit_count = 0;
@@ -342,7 +328,6 @@ IRAM_ATTR static void handle_rx(void* arg) {
                 // move the state machine
                 uart->set_state(State::Data);
 
-                gpio_set_level(GPIO_NUM_16, false);
                 portEXIT_CRITICAL();
 
                 break;
@@ -350,7 +335,6 @@ IRAM_ATTR static void handle_rx(void* arg) {
 
         case State::Data:
             {
-                gpio_set_level(GPIO_NUM_16, true);
                 // shift the input byte in order to store the next most-significant bit
                 uart->inp_byte >>= 1;
                 // sample the bit
@@ -366,13 +350,11 @@ IRAM_ATTR static void handle_rx(void* arg) {
                 if (uart->bit_count == 8) {
                     uart->set_state(State::Stop);
                 }
-                gpio_set_level(GPIO_NUM_16, false);
                 break;
             }
 
         case State::Stop:
             {
-                gpio_set_level(GPIO_NUM_16, true);
                 // if STOP bit is logic-high there's (presumably) no framing error, so use the byte
                 if (gpio_get_level(uart->rx_pin) ^ uart->invert) {
                     xQueueSendToBackFromISR(uart->input_q, &(uart->inp_byte), NULL);
@@ -392,7 +374,6 @@ IRAM_ATTR static void handle_rx(void* arg) {
 
                 // start interrupting on gpio edges again
                 gpio_set_intr_type(uart->rx_pin, uart->invert ? GPIO_INTR_POSEDGE : GPIO_INTR_NEGEDGE);
-                gpio_set_level(GPIO_NUM_16, false);
                 break;
             }
     }

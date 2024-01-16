@@ -9,6 +9,7 @@
 
 #include <esp_system.h>
 #include <esp_log.h>
+#include <nvs.h>
 
 #include "softuart.h"
 
@@ -39,13 +40,12 @@ extern TimerHandle_t motion_timer;
 
 /*************************** FORWARD DECLARATIONS ******************************/
 
-void sync(SoftUart& sw_serial);
-void write_counter_to_flash(const char *filename, uint32_t* counter);
-uint32_t read_counter_from_flash(const char* filename);
-bool transmit(SoftUart& sw_serial, PacketAction& pkt_ac);
+void sync(SoftUart& sw_serial, nvs_handle_t& nvs_handle);
+bool write_counter_to_flash(uint32_t& counter, nvs_handle_t& nvs_handle, const char* filename);
+bool read_counter_from_flash(uint32_t& counter, nvs_handle_t& nvs_handle, const char* filename);
+bool transmit(SoftUart& sw_serial, PacketAction& pkt_ac, nvs_handle_t& nvs_handle);
 void door_command(DoorAction action);
 void send_get_status();
-void reset_packet_reader(TimerHandle_t t);
 
 /********************************** MAIN LOOP CODE *****************************************/
 
@@ -54,26 +54,33 @@ void comms_task_entry(void* ctx) {
 
     SoftUart sw_serial = SoftUart(UART_RX_PIN, UART_TX_PIN, 9600, true);
 
-    /*
-    LittleFS.begin();
-    id_code = read_counter_from_flash("id_code");
-    if (!id_code) {
-        ESP_LOGI(TAG, "id code not found");
-        write_counter_to_flash("id_code", &id_code);
+    nvs_handle_t nvs_handle;
+    esp_err_t err = nvs_open("comms", NVS_READWRITE, &nvs_handle);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Error (%s) opening NVS handle. Comms task dying.", esp_err_to_name(err));
+        return;
     }
-    */
-    // does not need to be cryptographically secure, just unlikely to repeat
-    id_code = (((esp_random() % 0xFFF) + 1) << 12) | 0x539;
-    ESP_LOGI(TAG, "id code %02X", id_code);
 
-    // rolling_code = read_counter_from_flash("rolling");
-    rolling_code = 0;
+    if (!read_counter_from_flash(id_code, nvs_handle, "id_code")) {
+        return;
+    }
+    if (id_code == 0) {
+        // does not need to be cryptographically secure, just unlikely to repeat
+        id_code = (((esp_random() % 0xFFF) + 1) << 12) | 0x539;
+        ESP_LOGI(TAG, "id code %02X", id_code);
+        write_counter_to_flash(id_code, nvs_handle, "id_code");
+    }
+
+    if (!read_counter_from_flash(rolling_code, nvs_handle, "rolling")) {
+        return;
+    }
+    rolling_code += 10;
     ESP_LOGI(TAG, "rolling code %02X", rolling_code);
 
     pkt_q = xQueueCreate(5, sizeof(PacketAction));
 
     ESP_LOGI(TAG, "Syncing rolling code counter after reboot...");
-    //sync(sw_serial);
+    sync(sw_serial, nvs_handle);
 
     while (true) {
 
@@ -220,7 +227,7 @@ void comms_task_entry(void* ctx) {
             if (uxQueueMessagesWaiting(pkt_q) > 0) {
                 ESP_LOGD(TAG, "packet ready for tx");
                 xQueueReceive(pkt_q, &pkt_ac, 0);  // ignore errors
-                if (!transmit(sw_serial, pkt_ac)) {
+                if (!transmit(sw_serial, pkt_ac, nvs_handle)) {
                     ESP_LOGE(TAG, "transmit failed, will retry");
                     xQueueSendToFront(pkt_q, &pkt_ac, 0); // ignore errors
                 }
@@ -231,7 +238,8 @@ void comms_task_entry(void* ctx) {
 
 /********************************** CONTROLLER CODE *****************************************/
 
-bool transmit(SoftUart& sw_serial, PacketAction& pkt_ac) {
+bool transmit(SoftUart& sw_serial, PacketAction& pkt_ac, nvs_handle_t& nvs_handle) {
+
     // Turn off LED
     gpio_set_level(LED_BUILTIN, true);
     xTimerReset(led_on_timer, 0);
@@ -255,7 +263,6 @@ bool transmit(SoftUart& sw_serial, PacketAction& pkt_ac) {
         return false;
     }
 
-
     if (!sw_serial.transmit(buf, SECPLUS2_CODE_LEN)) {
         ESP_LOGE(TAG, "failed to write packet");
         return false;
@@ -263,18 +270,17 @@ bool transmit(SoftUart& sw_serial, PacketAction& pkt_ac) {
 
     if (pkt_ac.inc_counter) {
         rolling_code += 1;
-        write_counter_to_flash("rolling", &rolling_code);
+        // cuts the eeprom wear down by a factor of 10, since we don't have wear levelling easily
+        // available
+        if (!(rolling_code % 10)) {
+            write_counter_to_flash(rolling_code, nvs_handle, "rolling");
+        }
     }
 
     return true;
 }
 
-void reset_packet_reader(TimerHandle_t t) {
-    ESP_LOGW(TAG, "reader timed out getting next byte. resetting.");
-    reader.reset();
-}
-
-void sync(SoftUart& sw_serial) {
+void sync(SoftUart& sw_serial, nvs_handle_t& nvs_handle) {
     // for exposition about this process, see docs/syncing.md
 
     PacketData d;
@@ -282,13 +288,13 @@ void sync(SoftUart& sw_serial) {
     d.value.no_data = NoData();
     Packet pkt = Packet(PacketCommand::GetOpenings, d, id_code);
     PacketAction pkt_ac = {pkt, true};
-    transmit(sw_serial, pkt_ac);
+    transmit(sw_serial, pkt_ac, nvs_handle);
 
     vTaskDelay(pdMS_TO_TICKS(1000));
 
     pkt = Packet(PacketCommand::GetStatus, d, id_code);
     pkt_ac.pkt = pkt;
-    transmit(sw_serial, pkt_ac);
+    transmit(sw_serial, pkt_ac, nvs_handle);
 
 }
 
@@ -316,7 +322,7 @@ void door_command(DoorAction action) {
 }
 
 void open_door() {
-    ESP_LOGI(TAG, "open door req\n");
+    ESP_LOGI(TAG, "open door req");
 
     if (garage_door.current_state == CURR_OPENING) {
         ESP_LOGI(TAG, "door already opening; ignored req");
@@ -327,7 +333,7 @@ void open_door() {
 }
 
 void close_door() {
-    ESP_LOGI(TAG, "close door req\n");
+    ESP_LOGI(TAG, "close door req");
 
     if (garage_door.current_state == CURR_CLOSING) {
         ESP_LOGI(TAG, "door already closing; ignored req");
@@ -396,33 +402,36 @@ void set_light(bool value) {
 
 /********************************** UTIL CODE *****************************************/
 
-uint32_t read_counter_from_flash(const char* filename) {
+bool read_counter_from_flash(uint32_t& counter, nvs_handle_t& nvs_handle, const char* filename) {
 
-    /*
-    File file = LittleFS.open(filename, "r");
 
-    if (!file) {
-        ESP_LOGI(TAG, "%s doesn't exist. creating...", filename);
-
-        uint32_t count = 0;
-        write_counter_to_flash(filename, &count);
-        return 0;
+    esp_err_t err = nvs_get_u32(nvs_handle, filename, &counter);
+    switch (err) {
+        case ESP_OK:
+            ESP_LOGI(TAG, "reading code %s OK, value = %" PRIu32, filename, counter);
+            return true;
+        case ESP_ERR_NVS_NOT_FOUND:
+            ESP_LOGW(TAG, "The value for %s is not initialized yet!", filename);
+            counter = 0;
+            return true;
+        default:
+            ESP_LOGE(TAG, "Error (%s) reading %s!", esp_err_to_name(err), filename);
+            return false;
     }
-
-    uint32_t counter = file.parseInt();
-
-    file.close();
-
-    return counter;
-    */
-    return 0;
 }
 
-void write_counter_to_flash(const char *filename, uint32_t* counter) {
-    //File file = LittleFS.open(filename, "w");
-    ESP_LOGI(TAG, "writing %02X to file %s", *counter, filename);
+bool write_counter_to_flash(uint32_t& counter, nvs_handle_t& nvs_handle, const char* filename) {
 
-    //file.print(*counter);
-
-    //file.close();
+    esp_err_t err = nvs_set_u32(nvs_handle, filename, counter);
+    switch (err) {
+        case ESP_OK:
+            ESP_LOGD(TAG, "wrote value %d to %s", counter, filename);
+            return true;
+        case ESP_ERR_NVS_NOT_FOUND:
+            ESP_LOGE(TAG, "could not write %s: not initialized yet!", filename);
+            return false;
+        default:
+            ESP_LOGE(TAG, "Error (%s) writing %s!", esp_err_to_name(err), filename);
+            return false;
+    }
 }
