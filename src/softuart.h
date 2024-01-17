@@ -10,6 +10,9 @@
 
 #include "secplus2.h"
 
+// enable to emit an ISR edge on D0 aka GPIO_NUM_16
+// #define ISR_DEBUG
+
 IRAM_ATTR static void tmr_isr(void* arg);
 IRAM_ATTR static void handle_tx(void* arg);
 IRAM_ATTR static void handle_rx(void* arg);
@@ -90,6 +93,11 @@ struct SoftUart {
             // Setup Tx
             gpio_set_direction(tx_pin, GPIO_MODE_OUTPUT_OD);
             gpio_set_pull_mode(tx_pin, GPIO_PULLUP_ONLY);
+
+#ifdef ISR_DEBUG
+            gpio_set_direction(GPIO_NUM_16, GPIO_MODE_OUTPUT);
+            gpio_set_pull_mode(GPIO_NUM_16, GPIO_PULLUP_ONLY);
+#endif
 
             // IDLE high
             gpio_set_level(tx_pin, !invert);
@@ -280,6 +288,9 @@ IRAM_ATTR static void handle_rx(void* arg) {
             {
 
                 portENTER_CRITICAL();
+#ifdef ISR_DEBUG
+                gpio_set_level(GPIO_NUM_16, true);
+#endif
 
 
                 // wake us up halfway through the start bit so subsequent sampling is in the center
@@ -305,7 +316,9 @@ IRAM_ATTR static void handle_rx(void* arg) {
                 // move the state machine
                 uart->set_state(State::Start);
 
-
+#ifdef ISR_DEBUG
+                gpio_set_level(GPIO_NUM_16, false);
+#endif
                 portEXIT_CRITICAL();
 
                 break;
@@ -315,6 +328,9 @@ IRAM_ATTR static void handle_rx(void* arg) {
             {
 
                 portENTER_CRITICAL();
+#ifdef ISR_DEBUG
+                gpio_set_level(GPIO_NUM_16, true);
+#endif
 
                 // set the initial conditions for reading a byte
                 uart->bit_count = 0;
@@ -328,6 +344,9 @@ IRAM_ATTR static void handle_rx(void* arg) {
                 // move the state machine
                 uart->set_state(State::Data);
 
+#ifdef ISR_DEBUG
+                gpio_set_level(GPIO_NUM_16, false);
+#endif
                 portEXIT_CRITICAL();
 
                 break;
@@ -335,6 +354,9 @@ IRAM_ATTR static void handle_rx(void* arg) {
 
         case State::Data:
             {
+#ifdef ISR_DEBUG
+                gpio_set_level(GPIO_NUM_16, true);
+#endif
                 // shift the input byte in order to store the next most-significant bit
                 uart->inp_byte >>= 1;
                 // sample the bit
@@ -350,11 +372,18 @@ IRAM_ATTR static void handle_rx(void* arg) {
                 if (uart->bit_count == 8) {
                     uart->set_state(State::Stop);
                 }
+#ifdef ISR_DEBUG
+                gpio_set_level(GPIO_NUM_16, false);
+#endif
                 break;
             }
 
         case State::Stop:
             {
+
+#ifdef ISR_DEBUG
+                gpio_set_level(GPIO_NUM_16, true);
+#endif
                 // if STOP bit is logic-high there's (presumably) no framing error, so use the byte
                 if (gpio_get_level(uart->rx_pin) ^ uart->invert) {
                     xQueueSendToBackFromISR(uart->input_q, &(uart->inp_byte), NULL);
@@ -374,6 +403,10 @@ IRAM_ATTR static void handle_rx(void* arg) {
 
                 // start interrupting on gpio edges again
                 gpio_set_intr_type(uart->rx_pin, uart->invert ? GPIO_INTR_POSEDGE : GPIO_INTR_NEGEDGE);
+
+#ifdef ISR_DEBUG
+                gpio_set_level(GPIO_NUM_16, false);
+#endif
                 break;
             }
     }
