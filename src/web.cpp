@@ -40,7 +40,8 @@ httpd_uri_t reboot_uri = {
 void setup_web()
 {
     ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);
-    if (httpd_start(&server, &config) == ESP_OK) {
+    esp_err_t err = httpd_start(&server, &config) == ESP_OK;
+    if (!err) {
         // Set URI handlers
         ESP_LOGI(TAG, "Registering URI handlers");
         httpd_register_uri_handler(server, &reset_uri);
@@ -48,7 +49,7 @@ void setup_web()
         return;
     }
 
-    ESP_LOGI(TAG, "Error starting server!");
+    ESP_LOGI(TAG, "Error starting server! %s", esp_err_to_name(err));
 }
 
 /********* handlers **********/
