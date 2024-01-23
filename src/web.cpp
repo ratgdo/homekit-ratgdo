@@ -31,7 +31,7 @@ httpd_uri_t reset_uri = {
 httpd_uri_t reboot_uri = {
     .uri       = "/reboot",
     .method    = HTTP_POST,
-    .handler   = handle_reset,
+    .handler   = handle_reboot,
     .user_ctx  = NULL
 };
 

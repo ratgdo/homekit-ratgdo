@@ -11,6 +11,9 @@
 #include <esp_log.h>
 #include <nvs.h>
 
+#include <esp_task.h>
+#include "tasks.h"
+
 #include "softuart.h"
 
 #include "ratgdo.h"
@@ -48,7 +51,7 @@ void door_command(DoorAction action);
 void send_get_status();
 
 /********************************** MAIN LOOP CODE *****************************************/
-
+bool reported = false;
 void comms_task_entry(void* ctx) {
     ESP_LOGI(TAG, "Setting up comms for secplus2.0 protocol");
 
@@ -57,7 +60,7 @@ void comms_task_entry(void* ctx) {
     nvs_handle_t nvs_handle;
     esp_err_t err = nvs_open("comms", NVS_READWRITE, &nvs_handle);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Error (%s) opening NVS handle. Comms task dying.", esp_err_to_name(err));
+        ESP_LOGE(TAG, "Error (%s) opening comms NVS handle. Comms task dying.", esp_err_to_name(err));
         return;
     }
 
@@ -233,6 +236,11 @@ void comms_task_entry(void* ctx) {
                 }
             }
         }
+        if (!reported) {
+            ESP_LOGI(TAG, "stack high water mark %d of %d", COMMS_TASK_STK_SZ - uxTaskGetStackHighWaterMark(NULL), COMMS_TASK_STK_SZ);
+            reported = true;
+        }
+
     }
 }
 
@@ -258,10 +266,12 @@ bool transmit(SoftUart& sw_serial, PacketAction& pkt_ac, nvs_handle_t& nvs_handl
     ets_delay_us(130);
 
     // check to see if anyone else is continuing to assert the bus after we have released it
+    /* TODO FIXME
     if (gpio_get_level(UART_RX_PIN)) {
         ESP_LOGI(TAG, "Collision detected, waiting to send packet");
         return false;
     }
+    */
 
     if (!sw_serial.transmit(buf, SECPLUS2_CODE_LEN)) {
         ESP_LOGE(TAG, "failed to write packet");

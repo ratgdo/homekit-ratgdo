@@ -20,6 +20,9 @@
 #include "comms.h"
 #include "log.h"
 
+#include <esp_task.h>
+#include "tasks.h"
+
 #define DEVICE_NAME_SIZE 19
 #define SERIAL_NAME_SIZE 18
 
@@ -138,7 +141,8 @@ void homekit_task_entry(void* ctx) {
     while (true) {
         hap_val_t value;
 
-        if (xQueueReceive(gdo_notif_event_q, &e, portMAX_DELAY)) {
+        //if (xQueueReceive(gdo_notif_event_q, &e, portMAX_DELAY)) {
+        if (xQueueReceive(gdo_notif_event_q, &e, pdMS_TO_TICKS(1000))) {
             switch (e.dest) {
                 case HomeKitNotifDest::DoorCurrentState:
                     dest = hap_serv_get_char_by_uuid(gdo_svc, HAP_CHAR_UUID_CURRENT_DOOR_STATE);
@@ -176,6 +180,12 @@ void homekit_task_entry(void* ctx) {
                 }
             }
         }
+
+
+    ESP_LOGI(TAG, "stack high water mark %d of %d", HOMEKIT_TASK_STK_SZ - uxTaskGetStackHighWaterMark(NULL), HOMEKIT_TASK_STK_SZ);
+
+    uint32_t f = esp_get_free_heap_size();
+    ESP_LOGI(TAG, "free heap is %d", f);
     }
 
 }

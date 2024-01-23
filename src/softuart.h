@@ -24,7 +24,7 @@ void rx_isr_handler_entry(SoftUart* uart);
 // we can buffer up to 10 complete Security+ 2.0 packets to transmit
 const size_t BYTE_Q_BUF_SZ = SECPLUS2_CODE_LEN * 10;
 
-// we can store up to 5 complete Security+ 2.0 packets w/ value 0x55
+// we can store up to 5 complete Security+ 2.0 packets' worth of data w/ value 0x55
 const size_t ISR_Q_BUF_SZ = 10 /* bits per byte */ * SECPLUS2_CODE_LEN /* bytes per packet */ * 5 /* packets */;
 
 enum class State : uint8_t {
@@ -76,21 +76,21 @@ struct SoftUart {
                 abort();
             }
 
-            rx_isr_q = xQueueCreate(ISR_Q_BUF_SZ, sizeof(ISREvent));
+            rx_q = xQueueCreate(BYTE_Q_BUF_SZ, sizeof(uint8_t));
             if (!rx_q) {
-                ESP_LOGE(TAG, "could not create rx queue. panicking!");
+                ESP_LOGE(TAG, "could not create rx byte queue. panicking!");
                 abort();
             }
 
-            rx_q = xQueueCreate(BYTE_Q_BUF_SZ, sizeof(uint8_t));
+            rx_isr_q = xQueueCreate(ISR_Q_BUF_SZ, sizeof(ISREvent));
             if (!rx_q) {
-                ESP_LOGE(TAG, "could not create rx queue. panicking!");
+                ESP_LOGE(TAG, "could not create rx isr queue. panicking!");
                 abort();
             }
 
             tx_q = xQueueCreate(BYTE_Q_BUF_SZ, sizeof(uint8_t));
             if (!tx_q) {
-                ESP_LOGE(TAG, "could not create tx queue. panicking!");
+                ESP_LOGE(TAG, "could not create tx byte queue. panicking!");
                 abort();
             }
 
@@ -114,7 +114,7 @@ struct SoftUart {
             if (((100000000 / speed) - (100 * bit_time_us)) > 50) {
                 this->bit_time_us++;
             }
-            ESP_LOGI(TAG, "bit time is %d", bit_time_us);
+            ESP_LOGD(TAG, "bit time is %d", bit_time_us);
 
             // Setup Rx
             gpio_set_direction(rx_pin, GPIO_MODE_INPUT);
@@ -136,7 +136,7 @@ struct SoftUart {
             gpio_set_level(tx_pin, !invert);
 
             // set up the hardware timer, readying it for activation
-            ESP_LOGI(TAG, "setting up hw_timer intr");
+            ESP_LOGD(TAG, "setting up hw_timer intr");
             hw_timer_init(handle_tx, (void*)this);
             hw_timer_set_clkdiv(TIMER_CLKDIV_16);
             hw_timer_set_intr_type(TIMER_EDGE_INT);
@@ -147,7 +147,7 @@ struct SoftUart {
             hw_timer_set_reload(true);
 
             // Setup the interrupt handler to get edges
-            ESP_LOGI(TAG, "setting up gpio intr");
+            ESP_LOGD(TAG, "setting up gpio intr");
             gpio_set_intr_type(this->rx_pin, GPIO_INTR_ANYEDGE);
             gpio_isr_handler_add(this->rx_pin, reinterpret_cast<void (*)(void*)>(handle_rx_edge), (void *)this);
 
@@ -158,8 +158,13 @@ struct SoftUart {
 
         if (this->tx_state == State::Idle) {
 
-            // disable reception
-            gpio_set_intr_type(this->rx_pin, GPIO_INTR_DISABLE);
+            // move the state machine
+            this->tx_state = State::Start;
+
+            if (this->one_wire) {
+                // disable reception
+                gpio_set_intr_type(this->rx_pin, GPIO_INTR_DISABLE);
+            }
 
             // wake us up in one bit width and start sending bits. this results in a one-bit-width
             // delay before starting but makes the state machine more elegant
@@ -173,24 +178,23 @@ struct SoftUart {
             }
             ESP_LOGD(TAG, "queued bytes, starting transmission");
 
-            // move the state machine
-            this->tx_state = State::Start;
-
         } else {
             ESP_LOGE(TAG, "invalid state at tx start %d. abandoning tx", (uint8_t)this->tx_state);
             return false;
         }
 
+        bool ret = true;
+
         // now block and wait for the tx flag to get set
         if (!xSemaphoreTake(this->tx_flag, pdMS_TO_TICKS(500))) {
             ESP_LOGE(TAG, "transmission of %d bytes never succeeded", len);
-            return false;
+            ret = false;
         }
 
         // re-enable reception
         gpio_set_intr_type(this->rx_pin, GPIO_INTR_ANYEDGE);
 
-        return true;
+        return ret;
     }
 
     bool available(void) {
@@ -202,20 +206,13 @@ struct SoftUart {
     }
 
     void process_isr(ISREvent& e) {
-        int64_t ticks = 0;
-        //if (e.ticks > this->last_isr_ticks) {
-            ticks = e.ticks - this->last_isr_ticks;
-        //} else {
-            //ticks = (UINT32_MAX - this->last_isr_ticks) + e.ticks;
-        //}
-        ESP_LOGD(TAG, "proc %d %s", (int32_t)ticks, e.level ? "h" : "l");
+        int64_t ticks = e.ticks - this->last_isr_ticks;
 
         // calculate how many bit periods it's been since the last edge
         uint32_t bits = ticks / this->bit_time_us;
         if ((ticks % this->bit_time_us) > (this->bit_time_us / 2)) {
             bits += 1;
         }
-        ESP_LOGD(TAG, "inner bits %d", bits);
 
         // inspect each bit period, moving the state machine accordingly
         while (bits) {
@@ -280,7 +277,7 @@ struct SoftUart {
                         // if the value during this bit period was logic-high, there's
                         // presumably no framing error and we should keep the byte
                         if (this->last_isr_level ^ this->invert) {
-                            ESP_LOGI(TAG, "byte complete %02X", this->rx_byte);
+                            ESP_LOGD(TAG, "byte complete %02X", this->rx_byte);
                             xQueueSendToBack(this->rx_q, &this->rx_byte, 0);
                             this->rx_byte = 0;
                             this->rx_bit_count = 0;
@@ -389,13 +386,10 @@ void rx_isr_handler_entry(SoftUart* uart) {
     while (true) {
         ISREvent e;
         if (xQueueReceive(uart->rx_isr_q, &e, pdMS_TO_TICKS(byte_timeout_ms))) {
-            ESP_LOGD(TAG, "e %d %s", (int32_t)e.ticks, e.level ? "h" : "l");
             // got a bit
             uart->process_isr(e);
         } else {
-            ESP_LOGD(TAG, "e timeout");
             int64_t ct = esp_timer_get_time();
-            ESP_LOGD(TAG, "cc %d", (int32_t)ct);
             // didn't get a bit
             //
             // if we get here, we're waiting for more bits, but we've timed out waiting for them
@@ -431,4 +425,3 @@ IRAM_ATTR void handle_rx_edge(SoftUart* uart) {
     gpio_set_level(GPIO_NUM_16, false);
 #endif
 }
-

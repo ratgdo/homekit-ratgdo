@@ -14,6 +14,8 @@
 #include <nvs_flash.h>
 #include <esp_netif.h>
 #include <esp_event.h>
+#include <esp_heap_trace.h>
+#include <esp_task.h>
 
 #include "ratgdo.h"
 #include "wifi.h"
@@ -66,23 +68,25 @@ extern "C" void app_main() {
     printf("%dMB %s flash\n", spi_flash_get_chip_size() / (1024 * 1024),
             (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
+    // base RAM consumption
+    // I (2358) RATGDO: free heap is 102104
+
+    // I (2456) RATGDO: free heap is 63200 --> 39904
     xTaskCreate(wifi_task_entry, WIFI_TASK_NAME, WIFI_TASK_STK_SZ, NULL, WIFI_TASK_PRIO, NULL);
 
     setup_pins();
 
+    // I (2370) RATGDO: free heap is 81200 --> 20904
     xTaskCreate(comms_task_entry, COMMS_TASK_NAME, COMMS_TASK_STK_SZ, NULL, COMMS_TASK_PRIO, NULL);
 
+    // I (3240) RATGDO: free heap is 54580 --> 47524
     xTaskCreate(homekit_task_entry, HOMEKIT_TASK_NAME, HOMEKIT_TASK_STK_SZ, NULL, HOMEKIT_TASK_PRIO, NULL);
 
-    setup_web();
+    //setup_web();
 
     ESP_LOGI(TAG, "RATGDO setup completed");
     ESP_LOGI(TAG, "Starting RATGDO Homekit version %s", "esptest");  // TODO
     ESP_LOGI(TAG, "%s", IDF_VER);
-
-    // improv_loop();
-
-    // service_timer_loop();
 }
 
 /*********************************** HELPER FUNCTIONS **************************************/

@@ -1,0 +1,2 @@
+COMPONENT_ADD_INCLUDEDIRS := sdk-cpp/src/
+COMPONENT_SRCDIRS := sdk-cpp/src/
