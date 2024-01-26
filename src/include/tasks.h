@@ -4,7 +4,7 @@
 
 #define HOMEKIT_TASK_NAME   ("homekit")
 #define HOMEKIT_TASK_PRIO   (2)
-#define HOMEKIT_TASK_STK_SZ (1024*2)
+#define HOMEKIT_TASK_STK_SZ (1024*4)
 
 #define WIFI_TASK_NAME   ("wifi")
 #define WIFI_TASK_PRIO   (1)

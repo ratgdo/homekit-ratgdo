@@ -16,14 +16,14 @@
 #include <esp_wifi.h>
 #include <nvs.h>
 #include <esp_err.h>
-#include <esp_heap_trace.h>
 
 #include <improv.h>
 
 #include "wifi.h"
 #include "ratgdo.h"
 #include "log.h"
-#include "tasks.h"
+
+#include <freertos/task.h>
 
 #define UART_BUF_SZ (256)
 #define UART_EVT_Q_SZ (8)
@@ -131,29 +131,41 @@ void wifi_task_entry(void* ctx) {
 
         uart_event_t event = { };
 
-        // if (xQueueReceive(uart0_queue, (void *)&event, (portTickType)portMAX_DELAY))
-        if (xQueueReceive(uart0_queue, (void *)&event, pdMS_TO_TICKS(1000))) {
+        if (xQueueReceive(uart0_queue, (void *)&event, (portTickType)portMAX_DELAY)) {
             bzero(dtmp, UART_BUF_SZ);
 
             if (event.type == UART_DATA) {
                 uart_read_bytes(UART_NUM_0, dtmp, event.size, portMAX_DELAY);
-                ESP_LOGI(TAG, "uart read %d bytes: %s", event.size, dtmp);
+                ESP_LOGI(TAG, "uart read %d bytes", event.size);
 
                 for (size_t i = 0; i < event.size; i++) {
                     uint8_t b = dtmp[i];
+                    ESP_LOGI(TAG, "handling byte %02X", b);
 
                     if (parse_improv_serial_byte(x_position, b, x_buffer, on_command_callback, on_error_callback)) {
                         x_buffer[x_position++] = b;
                     } else {
                         x_position = 0;
+
+                        int count = uxTaskGetNumberOfTasks();
+                        TaskStatus_t* tasks = (TaskStatus_t*)pvPortMalloc(sizeof(TaskStatus_t) * count);
+                        if (tasks != NULL) {
+                            uxTaskGetSystemState(tasks, count, NULL);
+
+                            ESP_LOGI(TAG, "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-");
+                            for (size_t i = 0; i < count; i++) {
+                                ESP_LOGI(TAG, "%s\t\t%d\t\t%d", tasks[i].pcTaskName, tasks[i].uxBasePriority, tasks[i].usStackHighWaterMark);
+                            }
+                            ESP_LOGI(TAG, "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-");
+                        }
+                        vPortFree(tasks);
+
                     }
 
                 }
             } else {
                 ESP_LOGI(TAG, "unhandled event type %d", event.type);
             }
-        } else {
-            ESP_LOGI(TAG, "stack high water mark %d of %d", WIFI_TASK_STK_SZ - uxTaskGetStackHighWaterMark(NULL), WIFI_TASK_STK_SZ);
         }
     }
 
@@ -197,13 +209,13 @@ void on_error_callback(improv::Error err) {
 }
 
 bool on_command_callback(improv::ImprovCommand cmd) {
-    std::vector<std::string> local_url = get_local_url();
 
     switch (cmd.command) {
         case improv::Command::GET_CURRENT_STATE:
             {
                 ESP_LOGD(TAG, "improv cmd GET_CURRENT_STATE");
                 if ((wifi_status == WifiStatus::Connected)) {
+                    std::vector<std::string> local_url = get_local_url();
                     ESP_LOGD(TAG, "wifi is connected, returning local url %s", local_url[0].c_str());
                     set_state(improv::State::STATE_PROVISIONED);
                     std::vector<uint8_t> data = improv::build_rpc_response(improv::GET_CURRENT_STATE, local_url, false);

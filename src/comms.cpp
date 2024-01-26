@@ -11,9 +11,6 @@
 #include <esp_log.h>
 #include <nvs.h>
 
-#include <esp_task.h>
-#include "tasks.h"
-
 #include "softuart.h"
 
 #include "ratgdo.h"
@@ -51,7 +48,6 @@ void door_command(DoorAction action);
 void send_get_status();
 
 /********************************** MAIN LOOP CODE *****************************************/
-bool reported = false;
 void comms_task_entry(void* ctx) {
     ESP_LOGI(TAG, "Setting up comms for secplus2.0 protocol");
 
@@ -236,11 +232,6 @@ void comms_task_entry(void* ctx) {
                 }
             }
         }
-        if (!reported) {
-            ESP_LOGI(TAG, "stack high water mark %d of %d", COMMS_TASK_STK_SZ - uxTaskGetStackHighWaterMark(NULL), COMMS_TASK_STK_SZ);
-            reported = true;
-        }
-
     }
 }
 
