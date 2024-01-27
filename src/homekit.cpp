@@ -6,6 +6,7 @@
 #include "comms.h"
 #include "log.h"
 #include <ESP8266WiFi.h>
+#include "utilities.h"
 
 #define DEVICE_NAME_SIZE 19
 #define SERIAL_NAME_SIZE 18
@@ -64,6 +65,11 @@ void setup_homekit() {
     light_state.getter = light_state_get;
     light_state.setter = light_state_set;
 
+    garage_door.has_motion_sensor = (bool)read_file_from_flash("has_motion");
+    if (!garage_door.has_motion_sensor) {
+        RINFO("Motion Sensor not detected.  Disabling Service");
+        config.accessories[0]->services[3] = NULL;
+    }
     arduino_homekit_setup(&config);
 }
 
@@ -188,9 +194,16 @@ void notify_homekit_light() {
     );
 }
 
+void enable_service_homekit_motion() {
+    uint32_t data = 1;
+    write_file_to_flash("has_motion", &data);
+    sync_and_restart();
+}
+
 void notify_homekit_motion() {
     homekit_characteristic_notify(
         &motion_detected,
         HOMEKIT_BOOL_CPP(garage_door.motion)
     );
 }
+
