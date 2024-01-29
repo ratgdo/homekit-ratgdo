@@ -72,7 +72,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           url: https://github.com/ratgdo/homekit-ratgdo/releases/download/${{ steps.tag.outputs.latestTag }}/manifest.json
           dir: docs/
-          commit_message: "Add Update manifest.json for ${{ steps.tag.outputs.latestTag }}"
+          commit_message: "Upload Latest manifest.json for ${{ steps.tag.outputs.latestTag }}"
 
       - uses: actions/cache@v3
         with:
@@ -109,7 +109,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           url: https://github.com/ratgdo/homekit-ratgdo/releases/download/${{ steps.tag.outputs.latestTag }}/homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin
           dir: docs/firmware/
-          commit_message: "Add Latest Firmware: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin"
+          commit_message: "Upload Latest Firmware: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin"
     
       - name: Upload Firmware.bin
         uses: actions/upload-artifact@v4
@@ -131,3 +131,27 @@ jobs:
           name: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin
           path: |
             docs/firmware/
+
+      - name: Latest Release
+        if: ${{ github.event.release.prerelease == false }}
+        uses: SethCohen/github-releases-to-discord@v1.13.1
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          color: "5723991"
+          username: "ratgdo"
+          avatar_url: "https://avatars.githubusercontent.com/u/144837877?s=200&v=4"
+          footer_title: "homekit-ratgdo"
+          footer_icon_url: "https://avatars.githubusercontent.com/u/144837877?s=200&v=4"
+          footer_timestamp: true
+          
+      - name: Pre-Release
+        if: ${{ github.event.release.prerelease == true }}
+        uses: SethCohen/github-releases-to-discord@v1.13.1
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          color: "5723991"
+          username: "ratgdo"
+          avatar_url: "https://avatars.githubusercontent.com/u/144837877?s=200&v=4"
+          footer_title: "Pre-Release: homekit-ratgdo"
+          footer_icon_url: "https://avatars.githubusercontent.com/u/144837877?s=200&v=4"
+          footer_timestamp: true  
