@@ -157,6 +157,7 @@ enum class LockState : uint8_t {
 struct LockCommandData {
     LockState lock;
     uint8_t parity;
+    bool pressed;
 
     LockCommandData() = default;
     LockCommandData(uint32_t pkt_data) {
@@ -207,6 +208,7 @@ enum class LightState : uint8_t {
 struct LightCommandData {
     LightState light;
     uint8_t parity;
+    bool pressed;
 
     LightCommandData() = default;
     LightCommandData(uint32_t pkt_data) {

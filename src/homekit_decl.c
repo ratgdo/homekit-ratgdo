@@ -89,12 +89,12 @@ homekit_accessory_t *accessories[] = {
                     NULL
                     }),
             HOMEKIT_SERVICE(LIGHTBULB, .primary=false, .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "ratgdo"),
+                    HOMEKIT_CHARACTERISTIC(NAME, "Light"),
                     &light_state,
                     NULL
                     }),
             HOMEKIT_SERVICE(MOTION_SENSOR, .primary=false, .characteristics=(homekit_characteristic_t*[]){
-                    HOMEKIT_CHARACTERISTIC(NAME, "ratgdo"),
+                    HOMEKIT_CHARACTERISTIC(NAME, "Motion"),
                     &motion_detected,
                     NULL
                     }),
