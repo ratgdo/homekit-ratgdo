@@ -12,30 +12,31 @@ void sync_and_restart() {
     ESP.restart();
 }
 
-uint32_t read_file_from_flash(const char* filename) {
+uint32_t read_file_from_flash(const char* filename, uint32_t defaultValue) {
+    // set to default value
+    uint32_t value = defaultValue;
 
     File file = LittleFS.open(filename, "r");
-
     if (!file) {
         RINFO("%s doesn't exist. creating...", filename);
 
-        uint32_t count = 0;
-        write_file_to_flash(filename, &count);
-        return 0;
+        write_file_to_flash(filename, &value);
+    }
+    else {
+
+        value = file.parseInt();
+
+        file.close();
     }
 
-    uint32_t counter = file.parseInt();
-
-    file.close();
-
-    return counter;
+    return value;
 }
 
-void write_file_to_flash(const char *filename, uint32_t* counter) {
+void write_file_to_flash(const char *filename, uint32_t* value) {
     File file = LittleFS.open(filename, "w");
-    RINFO("writing %02X to file %s", *counter, filename);
+    RINFO("writing %02X to file %s", *value, filename);
 
-    file.print(*counter);
+    file.print(*value);
 
     file.close();
 }
