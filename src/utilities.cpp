@@ -39,3 +39,32 @@ void write_file_to_flash(const char *filename, uint32_t* counter) {
 
     file.close();
 }
+
+uint8_t read_gdo_security_from_flash(const char* filename) {
+
+    File file = LittleFS.open(filename, "r");
+
+    if (!file) {
+        RINFO("%s doesn't exist. creating...", filename);
+
+        // DEFAULT TO THE NEWER +2.0 SECURITY
+        uint8_t secType = 2;
+        write_gdo_security_to_flash(filename, &secType);
+        return secType;
+    }
+
+    uint8_t secType = file.parseInt();
+
+    file.close();
+
+    return secType;
+}
+
+void write_gdo_security_to_flash(const char *filename, uint8_t* secType) {
+    File file = LittleFS.open(filename, "w");
+    RINFO("writing %02X to file %s", *secType, filename);
+
+    file.print(*secType);
+
+    file.close();
+}

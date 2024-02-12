@@ -38,10 +38,8 @@ void handle_auth();
 extern "C" char device_name[];
 // Garage door status
 extern struct GarageDoor garage_door;
-// TODO Garage door security type
-// extern uint8_t gdoSecurityType;
-// placeholder for now...
-uint8_t gdoSecurityType = 2;
+// Garage door security type
+extern uint8_t gdoSecurityType;
 
 // userid/password
 const char www_username[] = "admin";
@@ -424,13 +422,13 @@ void handle_setgdo()
         }
         else if (!strcmp(key, "gdoSecurity"))
         {
-            int type = atoi(value);
+            uint8_t type = atoi(value);
             if ((type == 1) || (type == 2))
             {
                 RINFO("SetGDO security type to %i", type);
                 gdoSecurityType = type;
-                // TODO Add code to set security type
-                // write_gdo_security_to_flash("gdo_security", &gdoSecurityType);
+                // Write to flash and reboot
+                write_gdo_security_to_flash("gdo_security", &gdoSecurityType);
                 reboot = true;
             }
             else
