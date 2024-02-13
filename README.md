@@ -40,22 +40,46 @@ For each of the following steps, use the [online browser-based flash tool](https
 
 That's it!
 
+## Using ratgdo Webpage
+
+In [v0.9.0](https://github.com/ratgdo/homekit-ratgdo/releases/tag/v0.9.0), an updated webpage was added. 
+
+[![webpage](docs/webpage/webpage.png)](#webpage)
+
+### How to secure webpage?
+
+Since the [first release](https://github.com/ratgdo/homekit-ratgdo/releases/tag/v0.9.0) of the new webpage, in [v0.11.0](https://github.com/ratgdo/homekit-ratgdo/releases/tag/v0.11.0) a default login was added to protect the wepage.
+
+#### default Username/Password: `admin`/`password`
+
+You can change the default password by clicking into the settings gear:
+
+[![settings](docs/webpage/settings.png)](#settings)
+
+and input a new password:
+[![password](docs/webpage/password.png)](#password)
+
 ## How do I upgrade?
 
 In [v0.8.0](https://github.com/ratgdo/homekit-ratgdo/releases/tag/v0.8.0), Over-the-Air (OTA) updates were added. Follow the steps below to update:
 
-1. Download the latest release, by download the `.bin` file on the [latest release](https://github.com/ratgdo/homekit-ratgdo/releases)
-[![firmware](docs/ota/firmware.png)](#firmware)
-2. Navigate to your ratgdo's ip address where you will see the devices web server, Click `Update Firmware`
-[![webserver](docs/ota/webserver.png)](#webserver)
-3. Upload the firmware that was downloaded in step 1, by clicking `Choose File` under `Firmware:`.
+With [v0.11.0](https://github.com/ratgdo/homekit-ratgdo/releases/tag/v0.11.0) a second option was added to upgrade directly from Github.
+You can either
+- Update from Github
+    - To check for updates, click `Check for update`
+    - If update is available, Click `Update`
 [![ota](docs/ota/ota.png)](#ota)
-Note: **Ignore the FileSysyem Update Options.**
-4. Click `Update Firmware` to proceed with upgrading
+- Update from local file
+    - Download the latest release, by download the `.bin` file on the [latest release](https://github.com/ratgdo/homekit-ratgdo/releases)
+[![firmware](docs/ota/firmware.png)](#firmware)
+    - Navigate to your ratgdo's ip address where you will see the devices webpage, Click `Firmware Update`
+[![webpage](docs/webpage/webpage.png)](#webpage)
+    - Upload the firmware that was downloaded in step 1, by clicking `Choose File` under `Update from local file`.
+[![ota](docs/ota/ota.png)](#ota)
+    - Click `Update` to proceed with upgrading
 [![uploaded](docs/ota/uploaded.png)](#uploaded)
-5. Update Successful, ratgdo will now Reboot
-[![success](docs/ota/success.png)](#success)
-6. After a firmware update, you _may_ have to go through the process of re-pairing your device to HomeKit.  If your device is showing up as unresponsive in HomeKit, please try un-pairing, reboot, and re-pairing.
+    - Once the update is Successful, ratgdo will now Reboot
+    - After a firmware update, you _may_ have to go through the process of re-pairing your device to HomeKit.  If your device is showing up as unresponsive in HomeKit, please try un-pairing, reboot, and re-pairing.
 
 Automatic updates are not supported (and probably will never be), so set a reminder to check back
 again in the future.
