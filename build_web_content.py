@@ -3,16 +3,16 @@
 # This script converts standard web content files (html, css, etc) into a C++ language
 # header file that is included in the program body.  The files are compressed and use
 # PROGMEM keyword to store in Flash to save RAM.
-# Requires: gzip, xxd and sed.
 #
+# With thanks to https://github.com/mitchjs for removal of dependencies on external gzip/sed/xxd 
+# 
 # Copyright (c) 2023 David Kerr, https://github.com/dkerr64
 #
 import os
-import subprocess
 import shutil
-import zlib
 import base64
-
+import zlib
+import gzip
 
 sourcepath = "src/www"
 targetpath = sourcepath + "/build"
@@ -30,7 +30,6 @@ os.mkdir(targetpath)
 # calculate a CRC32 for each file and base64 encode it, this will change if the
 # file contents are changed.  We use this to control browser caching.
 file_crc = {}
-sed_param = ""
 for file in filenames:
     # skip hidden files
     if file[0] == ".":
@@ -46,10 +45,6 @@ for file in filenames:
         )
         f.close()
         file_crc[file] = crc32
-        # Build a SED search/replace string that will replace placeholder version with actual version CRC
-        sed_param = (
-            sed_param + "-e 's/" + file + "?v=CRC-32/" + file + "?v=" + crc32 + "/g' "
-        )
         print("CRC: " + crc32 + " (" + file + ")")
 
 # Open webcontent file and write warning header...
@@ -68,24 +63,45 @@ for file in filenames:
     if file[0] == ".":
         continue
 
-    t = file.rpartition(".")[-1]
+    # create gzip file name
     gzfile = targetpath + "/" + file + ".gz"
-    varnames.append(
-        (
-            "/" + file,
-            gzfile.replace(".", "_").replace("/", "_").replace("-", "_"),
-            file_crc[file],
-        )
-    )
-    f = open(gzfile, "w")
+    # create variable names
+    varnames.append(("/" + file, gzfile.replace(".", "_").replace("/", "_").replace("-", "_"), file_crc[file]))
+    # get file type
+    t = file.rpartition(".")[-1]
+    # if file matches, add true crc to ?v=CRC-32 marker and create the gzip
     if (t == "html") or (t == "htm") or (t == "js"):
-        # run the SED command on files that may fetch sub-resources with CRC versioning.
-        cmd = "sed " + sed_param + sourcepath + "/" + file + " | gzip -c "
-        subprocess.run([cmd], stdout=f, shell=True, text=True)
-    else:
-        subprocess.run(["gzip", "-c", sourcepath + "/" + file], stdout=f)
-    f.close()
-    subprocess.run(["xxd", "-i", gzfile], stdout=wf)
+        with open(sourcepath + "/" + file, 'rb') as f_in, gzip.open(gzfile, 'wb') as f_out:
+            # read contents of the file
+            data = f_in.read()
+            # loop through each file that could be referenced
+            for f_name, crc32 in file_crc.items():
+                # Replace the target string with real crc
+                data = data.replace(bytes(f_name + "?v=CRC-32", 'utf-8'), bytes(f_name + "?v=" + crc32, 'utf-8'))
+            f_out.write(data)
+            f_out.close()
+    else :
+        with open(sourcepath + "/" + file, 'rb') as f_in, gzip.open(gzfile, 'wb') as f_out:
+            f_out.writelines(f_in)
+            f_out.close()
+   
+    # create the 'c' code
+    # const unsigned char src_www_build_apple_touch_icon_png_gz[] PROGMEM = {
+    # const unsigned int src_www_build_apple_touch_icon_png_gz_len = 2721;
+    wf.write("const unsigned char %s[] PROGMEM = {\n" % gzfile.replace(".", "_").replace("/", "_").replace("-", "_") )
+    count = 0
+    with open(gzfile, 'rb') as f:
+        bytes_read = f.read(12)
+        while bytes_read:
+            count = count + len(bytes_read)
+            wf.write('  ')
+            for b in bytes_read:
+                wf.write('0x%02X,' % b)
+            wf.write('\n')
+            bytes_read = f.read(12)
+    
+    wf.write('};\n')
+    wf.write("const unsigned int %s_len = %d;\n\n" % (gzfile.replace(".", "_").replace("/", "_").replace("-", "_"), count) )
 
 wf.flush()
 
@@ -113,7 +129,7 @@ const char type_json[] = "application/json";
 
 # Use an unordered_map so we can lookup the data, length and type based on filename...
 wf.write(
-    "const std::unordered_map<std::string, std::tuple<unsigned char *, unsigned int, const char *, std::string>> webcontent = {"
+    "const std::unordered_map<std::string, std::tuple<const unsigned char *, const unsigned int, const char *, std::string>> webcontent = {"
 )
 n = 0
 for file, var, crc32 in varnames:
@@ -121,36 +137,11 @@ for file, var, crc32 in varnames:
     # Need comma at end of every line except last one...
     if n > 0:
         wf.write(",")
-    wf.write(
-        '\n  { "'
-        + file
-        + '", {'
-        + var
-        + ", "
-        + var
-        + "_len, type_"
-        + t
-        + ', "'
-        + crc32
-        + '"'
-        + "} }"
-    )
+    wf.write('\n  { "' + file + '", {' + var + ", " + var + "_len, type_" + t + ', "' + crc32 + '"' + "} }")
     n = n + 1
 
 # All done, close the file...
 wf.write("\n};\n")
 wf.close()
 
-# Add the PROGMEM keyword to tell system to leave contents in Flash and not load into RAM...
-subprocess.run(
-    ["sed -i -e 's/_gz\[\]/_gz\[\] PROGMEM/g' " + targetpath + "/webcontent.h"],
-    shell=True,
-    text=True,
-)
-# convert all unsigned to const unsigned...
-subprocess.run(
-    ["sed -i -e 's/unsigned/const unsigned/g' " + targetpath + "/webcontent.h"],
-    shell=True,
-    text=True,
-)
 print("processed " + str(len(varnames)) + " files")
