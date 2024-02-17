@@ -42,20 +42,17 @@ void write_file_to_flash(const char *filename, uint32_t* counter) {
 
 uint8_t read_gdo_security_from_flash(const char* filename) {
 
+    // DEFAULT TO THE NEWER +2.0 SECURITY
+    uint8_t secType = 2;
     File file = LittleFS.open(filename, "r");
 
     if (!file) {
         RINFO("%s doesn't exist. creating...", filename);
-
-        // DEFAULT TO THE NEWER +2.0 SECURITY
-        uint8_t secType = 2;
         write_gdo_security_to_flash(filename, &secType);
-        return secType;
+    } else {
+        secType = file.parseInt();
+        file.close();
     }
-
-    uint8_t secType = file.parseInt();
-
-    file.close();
 
     return secType;
 }

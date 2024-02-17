@@ -36,6 +36,7 @@ input[type="file"]::file-selector-button {
 
 input[type="radio"] {
     vertical-align: middle;
+    accent-color: darkgoldenrod;
 }
 
 select {
