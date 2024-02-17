@@ -133,6 +133,13 @@ td {
     vertical-align: top;
 }
 
+table.settings td,
+table.settings label,
+table.password td,
+table.password label {
+    vertical-align: middle;
+}
+
 .modal {
     display: none;
     position: fixed;
