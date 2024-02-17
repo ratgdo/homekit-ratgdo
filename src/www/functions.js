@@ -65,7 +65,7 @@ async function checkStatus() {
         document.getElementById("gateway").innerHTML = serverStatus.gatewayIP;
         document.getElementById("accessoryid").innerHTML = serverStatus.accessoryID;
 
-        document.getElementById("gdosecuritytype").innerHTML = (serverStatus.GDOSecurityType == 1) ? "+1.0" : "+2.0";
+        document.getElementById("gdosecuritytype").innerHTML = (serverStatus.GDOSecurityType == 1) ? "Sec+ " : "Sec+ 2.0";
 
         document.getElementById("doorstate").innerHTML = serverStatus.garageDoorState;
         document.getElementById("lockstate").innerHTML = serverStatus.garageLockState;
@@ -302,7 +302,7 @@ async function checkAuth() {
     return auth;
 }
 
-async function setGDO(arg, value) {
+async function setGDO(...args) {
     if (!fetchSemaphore) fetchSemaphore = new Semaphore();
     const releaseSemaphore = await fetchSemaphore.acquire();
     try {
@@ -311,30 +311,32 @@ async function setGDO(arg, value) {
             return;
         }
         const formData = new FormData();
-        formData.append(arg, value);
-        console.log("SetGDO await fetch");
+        for (let i = 0; i < args.length; i = i + 2) {
+            formData.append(args[i], args[i + 1]);
+        }
         var response = await fetch("setgdo", {
             method: "POST",
             body: formData,
             signal: AbortSignal.timeout(2000),
         });
-        console.log("SetGDO fetch response: " + response.status);
         if (response.status !== 200) {
             console.warn("Error setting RATGDO state");
             return;
         }
-        switch (arg) {
-            case "lighton":
-                document.getElementById("lighton").innerHTML = (value == "1") ? "true" : "false";
-                break;
-            case "lockstate":
-                document.getElementById("lockstate").innerHTML = (value == "1") ? "Secured" : "Unsecured";
-                break;
-            case "doorstate":
-                document.getElementById("lockstate").innerHTML = (value == "1") ? "Opening" : "Closing";
-                break;
-            default:
-                break;
+        for (let i = 0; i < args.length; i = i + 2) {
+            switch (args[i]) {
+                case "lighton":
+                    document.getElementById("lighton").innerHTML = (args[i + 1] == "1") ? "true" : "false";
+                    break;
+                case "lockstate":
+                    document.getElementById("lockstate").innerHTML = (args[i + 1] == "1") ? "Secured" : "Unsecured";
+                    break;
+                case "doorstate":
+                    document.getElementById("lockstate").innerHTML = (args[i + 1] == "1") ? "Opening" : "Closing";
+                    break;
+                default:
+                    break;
+            }
         }
     }
     catch (err) {
@@ -376,13 +378,11 @@ async function changePassword() {
 }
 
 async function saveSettings() {
-    //let gdoSec = document.getElementById("gdosecuritysetting").value;
-    let gdoSec = '2';
-    if (document.getElementById("gdosec1").checked) {
-        gdoSec = '1';
-    }
+    let gdoSec = (document.getElementById("gdosec1").checked) ? '1' : '2';
     console.log("Set GDO security type to: " + gdoSec);
-    await setGDO("gdoSecurity", gdoSec);
+    let pwReq = (document.getElementById("pwreq").checked) ? '1' : '0';
+    console.log("Set GDO Web Password required to: " + pwReq);
+    await setGDO("gdoSecurity", gdoSec, "passwordRequired", pwReq);
     clearInterval(statusUpdater);
     countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");
     return;

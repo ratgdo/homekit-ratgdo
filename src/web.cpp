@@ -50,6 +50,10 @@ const char www_realm[] = "RATGDO Login Required";
 char www_credentials[48] = "10d3c00fa1e09696601ef113b99f8a87";
 const char credentials_file[] = "www_credentials";
 
+// Whether password required
+bool passwordReq = false;
+const char www_pw_required_file[] = "www_pw_required_file";
+
 void web_loop()
 {
     server.handleClient();
@@ -84,6 +88,8 @@ void setup_web()
     }
     file.close();
     RINFO("WWW Credentials: %s", www_credentials);
+    passwordReq = (read_file_from_flash(www_pw_required_file) != 0);
+    RINFO("WWW Password %s required", (passwordReq) ? "is" : "not");
 
     RINFO("Registering URI handlers");
     // Register URI handlers for URIs that have built-in handlers in this source file.
@@ -115,7 +121,7 @@ void setup_web()
 /********* handlers **********/
 void handle_auth()
 {
-    if (!server.authenticateDigest(www_username, www_credentials))
+    if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
     {
         RINFO("In settings request authentication");
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
@@ -128,7 +134,7 @@ void handle_auth()
 
 void handle_reset()
 {
-    if (!server.authenticateDigest(www_username, www_credentials))
+    if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
     {
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
     }
@@ -328,11 +334,13 @@ void handle_status()
         }
     }
     if (all || HAS_ARG("lighton"))
-        ADD_BOOL(json, "garageLightOn", garage_door.light)
+        ADD_BOOL(json, "garageLightOn", garage_door.light);
     if (all || HAS_ARG("motion"))
-        ADD_BOOL(json, "garageMotion", garage_door.motion)
+        ADD_BOOL(json, "garageMotion", garage_door.motion);
     if (all || HAS_ARG("obstruction"))
-        ADD_BOOL(json, "garageObstructed", garage_door.obstructed)
+        ADD_BOOL(json, "garageObstructed", garage_door.obstructed);
+    if (all)
+        ADD_BOOL(json, "passwordRequired", passwordReq);
 
     // remove the final comma/newline to ensure valid JSON syntax
     json[strlen(json) - 2] = 0;
@@ -349,7 +357,7 @@ void handle_status()
 
 void handle_settings()
 {
-    if (!server.authenticateDigest(www_username, www_credentials))
+    if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
     {
         RINFO("In settings request authentication");
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
@@ -377,7 +385,7 @@ void handle_setgdo()
     bool error = false;
 
     RINFO("In setGDO");
-    if (!server.authenticateDigest(www_username, www_credentials))
+    if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
     {
         RINFO("In setGDO request authentication");
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
@@ -435,6 +443,12 @@ void handle_setgdo()
             {
                 error = true;
             }
+        }
+        else if (!strcmp(key, "passwordRequired"))
+        {
+            uint32_t required = atoi(value);
+            write_file_to_flash(www_pw_required_file, &required);
+            reboot = true;
         }
         else
         {

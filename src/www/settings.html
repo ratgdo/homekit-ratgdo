@@ -32,7 +32,7 @@
       </div>
       <div class="fullwidth">
         <div>
-          <table>
+          <table class="password">
             <tr>
               <td style="text-align: right;">Password:</td>
               <td><input id="newPassword" type="password" placeholder="new password" autocomplete="new-password"></td>
@@ -43,7 +43,7 @@
             </tr>
             <tr>
               <td></td>
-              <td id="matchMsg" style="font-size: 0.65em;"><br></td>
+              <td id="matchMsg" style="font-size: 0.6em;"><br></td>
             </tr>
           </table>
         </div>
@@ -54,24 +54,32 @@
       </div>
       <div class="fullwidth">
         <div>
-          <table id="settings">
+          <table class="settings">
             <tr>
-              <td style="text-align: right;">Door Security Protocol:</td>
+              <td style="text-align: right;">Door Protocol:</td>
               <td>&nbsp;
-                <!--
-                <select id="gdosecuritysetting" name="gdosecuritysetting" size="1">
-                  <option value="1">+1.0</option>
-                  <option value="2">+2.0</option>
-                </select>
-                -->
                 <input type="radio" id="gdosec1" name="gdosecuritysetting" value="1">
-                <label for="gdosec1">Security+</label>
+                <label for="gdosec1">Sec+</label>
                 <input type="radio" id="gdosec2" name="gdosecuritysetting" value="2">
-                <label for="gdosec2">Security+ 2.0</label>
+                <label for="gdosec2">Sec+ 2.0</label>
               </td>
             </tr>
             <tr>
-              <td><br></td>
+              <td style="text-align: right;">Require Password:</td>
+              <td>&nbsp;
+                <input type="checkbox" id="pwreq" name="pwreq" value="no">
+                <span style="font-size: 0.6em;">(default: admin/password)</span>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <!--
+                  Future settings go here
+                -->
+              </td>
+            </tr>
+            <tr>
+              <td> <br></td>
             </tr>
             <tr>
               <td>
@@ -110,9 +118,9 @@
 </body>
 <script>
   serverStatus = JSON.parse(window.sessionStorage.getItem("serverStatus"));
-  //document.getElementById("gdosecuritysetting").value = serverStatus.GDOSecurityType;
   document.getElementById("gdosec1").checked = (serverStatus.GDOSecurityType == 1) ? true : false;
   document.getElementById("gdosec2").checked = (serverStatus.GDOSecurityType == 2) ? true : false;
+  document.getElementById("pwreq").checked = serverStatus.passwordRequired;
 
   newPW = document.getElementById("newPassword");
   confirmPW = document.getElementById("confirmPassword");
