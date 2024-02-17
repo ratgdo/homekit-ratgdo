@@ -14,5 +14,6 @@
   "garageDoorState": "Closed",
   "garageLockState": "Unsecured",
   "garageMotion": false,
-  "garageObstructed": false
+  "garageObstructed": false,
+  "passwordRequired": true
 }

@@ -43,7 +43,7 @@
             </tr>
             <tr>
               <td></td>
-              <td id="matchMsg" style="font-size: 0.65em;"><br></td>
+              <td id="matchMsg" style="font-size: 0.6em;"><br></td>
             </tr>
           </table>
         </div>
@@ -56,12 +56,19 @@
         <div>
           <table class="settings">
             <tr>
-              <td style="text-align: right;">Security Protocol:</td>
+              <td style="text-align: right;">Door Protocol:</td>
               <td>&nbsp;
                 <input type="radio" id="gdosec1" name="gdosecuritysetting" value="1">
                 <label for="gdosec1">Sec+</label>
                 <input type="radio" id="gdosec2" name="gdosecuritysetting" value="2">
                 <label for="gdosec2">Sec+ 2.0</label>
+              </td>
+            </tr>
+            <tr>
+              <td style="text-align: right;">Require Password:</td>
+              <td>&nbsp;
+                <input type="checkbox" id="pwreq" name="pwreq" value="no">
+                <span style="font-size: 0.6em;">(default: admin/password)</span>
               </td>
             </tr>
             <tr>
@@ -113,6 +120,7 @@
   serverStatus = JSON.parse(window.sessionStorage.getItem("serverStatus"));
   document.getElementById("gdosec1").checked = (serverStatus.GDOSecurityType == 1) ? true : false;
   document.getElementById("gdosec2").checked = (serverStatus.GDOSecurityType == 2) ? true : false;
+  document.getElementById("pwreq").checked = serverStatus.passwordRequired;
 
   newPW = document.getElementById("newPassword");
   confirmPW = document.getElementById("confirmPassword");
