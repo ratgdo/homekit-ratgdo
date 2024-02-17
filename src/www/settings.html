@@ -52,7 +52,49 @@
           <input type="button" value="Save Password" onclick="changePassword();">
         </div>
       </div>
+      <div class="fullwidth">
+        <div>
+          <table id="settings">
+            <tr>
+              <td style="text-align: right;">Door Security Protocol:</td>
+              <td>&nbsp;
+                <!--
+                <select id="gdosecuritysetting" name="gdosecuritysetting" size="1">
+                  <option value="1">+1.0</option>
+                  <option value="2">+2.0</option>
+                </select>
+                -->
+                <input type="radio" id="gdosec1" name="gdosecuritysetting" value="1">
+                <label for="gdosec1">Security+</label>
+                <input type="radio" id="gdosec2" name="gdosecuritysetting" value="2">
+                <label for="gdosec2">Security+ 2.0</label>
+              </td>
+            </tr>
+            <tr>
+              <td><br></td>
+            </tr>
+            <tr>
+              <td>
+                <input type="button" value="Save Settings"
+                  onclick="return confirm('Save Settings & Reboot RATGDO, are you sure?') && saveSettings()">
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
     </main>
+
+    <div id="myModal" class="modal">
+      <div class="modal-content">
+        <span id="modalClose" class="close" onclick="modal.style.display = 'none'">&times;</span>
+        <span id="modalTitle">Installed Firmware:&nbsp;<span id="firmware2">xxx</span><br></span><br>
+        <div id="updateDotDot" style="display:none; float: none; padding:0px">
+          <span id="updateMsg">Do not close browser until update completes. Device will reboot when complete.<br></span>
+          <span id="dotdot3"></span>
+          <br><br>
+        </div>
+      </div>
+    </div>
 
     <footer>
       <div class="footer">
@@ -67,6 +109,11 @@
   </div>
 </body>
 <script>
+  serverStatus = JSON.parse(window.sessionStorage.getItem("serverStatus"));
+  //document.getElementById("gdosecuritysetting").value = serverStatus.GDOSecurityType;
+  document.getElementById("gdosec1").checked = (serverStatus.GDOSecurityType == 1) ? true : false;
+  document.getElementById("gdosec2").checked = (serverStatus.GDOSecurityType == 2) ? true : false;
+
   newPW = document.getElementById("newPassword");
   confirmPW = document.getElementById("confirmPassword");
   matchMsg = document.getElementById("matchMsg");

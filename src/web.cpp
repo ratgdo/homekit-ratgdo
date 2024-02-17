@@ -4,7 +4,7 @@
 
 // Browser cache control, time in seconds after which browser cache invalid
 // This is used for CSS, JS and IMAGE file types.  Set to 30 days !!
-#define CACHE_CONTROL (60*60*24*30)
+#define CACHE_CONTROL (60 * 60 * 24 * 30)
 
 #include <string>
 #include <tuple>
@@ -32,11 +32,16 @@ void handle_settings();
 void handle_everything();
 void handle_setgdo();
 void handle_logout();
+void handle_auth();
 
 // Make device_name available
 extern "C" char device_name[];
 // Garage door status
 extern struct GarageDoor garage_door;
+// TODO Garage door security type
+// extern uint8_t gdoSecurityType;
+// placeholder for now...
+uint8_t gdoSecurityType = 2;
 
 // userid/password
 const char www_username[] = "admin";
@@ -59,6 +64,7 @@ const std::unordered_multimap<std::string, std::pair<const HTTPMethod, void (*)(
     {"/setgdo", {HTTP_POST, handle_setgdo}},
     {"/logout", {HTTP_GET, handle_logout}},
     {"/settings.html", {HTTP_GET, handle_settings}},
+    {"/auth", {HTTP_GET, handle_auth}},
     {"/", {HTTP_GET, handle_everything}}};
 
 void setup_web()
@@ -109,6 +115,19 @@ void setup_web()
 }
 
 /********* handlers **********/
+void handle_auth()
+{
+    if (!server.authenticateDigest(www_username, www_credentials))
+    {
+        RINFO("In settings request authentication");
+        return server.requestAuthentication(DIGEST_AUTH, www_realm);
+    }
+    RINFO("authenticated");
+    const char *resp = "Authenticated";
+    server.send(200, resp);
+    return;
+}
+
 void handle_reset()
 {
     if (!server.authenticateDigest(www_username, www_credentials))
@@ -119,6 +138,7 @@ void handle_reset()
     const char *resp = "<p>This device has been un-paired from HomeKit.</p><p><a href=\"/\">Back</a></p>";
     homekit_storage_reset();
     server.send(200, resp);
+    delay(100);
     server.stop();
     sync_and_restart();
     return;
@@ -128,14 +148,10 @@ void handle_reboot()
 {
     RINFO("... reboot requested");
     const char *resp =
-        "<head>"
-        "<meta http-equiv=\"refresh\" content=\"15;url=/\" />"
-        "</head>"
-        "<body>"
-        "<p>RATGDO restarting. Please wait. Reconnecting in 15 seconds...</p>"
-        "<p><a href=\"/\">Back</a></p>"
-        "</body>";
+        "<head><meta http-equiv=\"refresh\" content=\"30;url=/\" /></head>"
+        "<body><p>RATGDO restarting. Please wait. Reconnecting in 30 seconds...</p><p><a href=\"/\">Back</a></p></body>";
     server.send(200, resp);
+    delay(100);
     server.stop();
     sync_and_restart();
     return;
@@ -222,6 +238,7 @@ void handle_status()
 #define gatewayIP WiFi.gatewayIP().toString().c_str()
 #define macAddress WiFi.macAddress().c_str()
 #define wifiSSID WiFi.SSID().c_str()
+#define GDOSecurityType std::to_string(gdoSecurityType).c_str()
 // Helper macros to add int, string or boolean to a json format string.
 #define ADD_INT(s, k, v)                      \
     {                                         \
@@ -270,6 +287,8 @@ void handle_status()
         ADD_STR(json, "macAddress", macAddress);
     if (all)
         ADD_STR(json, "wifiSSID", wifiSSID);
+    if (all)
+        ADD_STR(json, "GDOSecurityType", GDOSecurityType);
     if (all || HAS_ARG("doorstate"))
     {
         switch (garage_door.current_state)
@@ -356,6 +375,9 @@ void handle_setgdo()
 {
     char key[20] = "";
     char value[48] = "";
+    bool reboot = false;
+    bool error = false;
+
     RINFO("In setGDO");
     if (!server.authenticateDigest(www_username, www_credentials))
     {
@@ -363,50 +385,82 @@ void handle_setgdo()
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
     }
 
-    strncpy(key, server.argName(0).c_str(), 20);
-    strncpy(value, server.arg(0).c_str(), 48);
-    RINFO("Key: %s, Value: %s", key, value);
-    if (strlen(key) == 0 || strlen(value) == 0)
+    // Loop over all the GDO settings passed in...
+    for (int i = 0; i < server.args(); i++)
     {
-        RINFO("Sending 400 bad request, missing argument, for: %s", server.uri().c_str());
-        server.send(400, "text/plain", "400: Bad Request, missing argument");
-        return;
-    }
-    if (!server.authenticateDigest(www_username, www_credentials))
-    {
-        RINFO("In setGDO request authentication");
-        return server.requestAuthentication(DIGEST_AUTH, www_realm);
-    }
+        strncpy(key, server.argName(i).c_str(), 20);
+        strncpy(value, server.arg(i).c_str(), 48);
+        RINFO("Key: %s, Value: %s", key, value);
+        if (strlen(key) == 0 || strlen(value) == 0)
+        {
+            RINFO("Sending 400 bad request, missing argument, for: %s", server.uri().c_str());
+            server.send(400, "text/plain", "400: Bad Request, missing argument");
+            return;
+        }
 
-    if (!strcmp(key, "lighton"))
-    {
-        set_light(!strcmp(value, "1") ? true : false);
-    }
-    else if (!strcmp(key, "doorstate"))
-    {
-        if (!strcmp(value, "1"))
-            open_door();
+        // Check against each known setting
+        if (!strcmp(key, "lighton"))
+        {
+            set_light(!strcmp(value, "1") ? true : false);
+        }
+        else if (!strcmp(key, "doorstate"))
+        {
+            if (!strcmp(value, "1"))
+                open_door();
+            else
+                close_door();
+        }
+        else if (!strcmp(key, "lockstate"))
+        {
+            set_lock(!strcmp(value, "1") ? 1 : 0);
+        }
+        else if (!strcmp(key, "credentials"))
+        {
+            strncpy(www_credentials, server.arg(0).c_str(), 48);
+            RINFO("Writing new www_credentials to file: %s", www_credentials);
+            File file = LittleFS.open(credentials_file, "w");
+            file.print(www_credentials);
+            file.close();
+        }
+        else if (!strcmp(key, "gdoSecurity"))
+        {
+            int type = atoi(value);
+            if ((type == 1) || (type == 2))
+            {
+                RINFO("SetGDO security type to %i", type);
+                gdoSecurityType = type;
+                // TODO Add code to set security type
+                // write_gdo_security_to_flash("gdo_security", &gdoSecurityType);
+                reboot = true;
+            }
+            else
+            {
+                error = true;
+            }
+        }
         else
-            close_door();
+        {
+            error = true;
+        }
     }
-    else if (!strcmp(key, "lockstate"))
+    RINFO("SetGDO Complete");
+    // Simple error handling...
+    if (error)
     {
-        set_lock(!strcmp(value, "1") ? 1 : 0);
-    }
-    else if (!strcmp(key, "credentials"))
-    {
-        strncpy(www_credentials, server.arg(0).c_str(), 48);
-        RINFO("Writing new www_credentials to file: %s", www_credentials);
-        File file = LittleFS.open(credentials_file, "w");
-        file.print(www_credentials);
-        file.close();
+        RINFO("Sending 400 bad request, missing or invalid argument, for: %s", server.uri().c_str());
+        server.send(400, "text/plain", "400: Bad Request, invalid argument");
     }
     else
     {
-        RINFO("Sending 400 bad request, missing argument, for: %s", server.uri().c_str());
-        server.send(400, "text/plain", "400: Bad Request, missing argument");
+        server.send(200, "text/html", "<p>Success.</p>");
     }
-    RINFO("SetGDO Complete");
-    server.send(200, "text/html", "<p>Success.</p>");
+    // Some settings require reboot to take effect...
+    if (reboot)
+    {
+        RINFO("SetGDO Restart required");
+        delay(100);
+        server.stop();
+        sync_and_restart();
+    }
     return;
 }

@@ -43,6 +43,8 @@ async function checkStatus() {
         // Hack because firmware uses v0.0.0 and 0.0.0 for different purposes.
         serverStatus.firmwareVersion = "v" + serverStatus.firmwareVersion;
 
+        window.sessionStorage.setItem("serverStatus", JSON.stringify(serverStatus));
+
         document.getElementById("devicename").innerHTML = serverStatus.deviceName;
         if (serverStatus.paired) {
             document.getElementById("unpair").value = "Un-pair HomeKit";
@@ -63,6 +65,8 @@ async function checkStatus() {
         document.getElementById("gateway").innerHTML = serverStatus.gatewayIP;
         document.getElementById("accessoryid").innerHTML = serverStatus.accessoryID;
 
+        document.getElementById("gdosecuritytype").innerHTML = (serverStatus.GDOSecurityType == 1) ? "+1.0" : "+2.0";
+
         document.getElementById("doorstate").innerHTML = serverStatus.garageDoorState;
         document.getElementById("lockstate").innerHTML = serverStatus.garageLockState;
         document.getElementById("lighton").innerHTML = serverStatus.garageLightOn;
@@ -80,6 +84,7 @@ async function checkStatus() {
                     return;
                 }
                 serverStatus = { ...serverStatus, ...await response.json() };
+                window.sessionStorage.setItem("serverStatus", JSON.stringify(serverStatus));
                 if (serverStatus.paired) {
                     document.getElementById("unpair").value = "Un-pair HomeKit";
                     document.getElementById("qrcode").style.display = "none";
@@ -170,8 +175,10 @@ function countdown(secs, msg) {
     const spanDots = document.getElementById("dotdot3");
     document.getElementById("modalTitle").innerHTML = "";
     document.getElementById("updateMsg").innerHTML = msg;
-    document.getElementById("updateDialog").style.display = "none";
-    document.getElementById("modalClose").style.display = 'none';
+    if (document.getElementById("updateDialog")) {
+        document.getElementById("updateDialog").style.display = "none";
+        document.getElementById("modalClose").style.display = 'none';
+    }
     document.getElementById("myModal").style.display = 'block';
     document.getElementById("updateDotDot").style.display = "block";
     spanDots.innerHTML = "";
@@ -181,13 +188,12 @@ function countdown(secs, msg) {
         if (seconds-- === 0) {
             clearInterval(countdown);
             clearInterval(statusUpdater);
-            location.reload();
+            location.href = "/";
             return;
         } else {
             spanDots.innerHTML = seconds;
         }
     }, 1000);
-
 }
 
 // Handles request to update server firmware from either GitHub (default) or from
@@ -282,12 +288,28 @@ async function unpairRATGDO() {
     countdown(30, "RATGO un-pairing and rebooting...&nbsp;");
 }
 
+async function checkAuth() {
+    auth = false;
+    var response = await fetch("auth", {
+        method: "GET",
+    });
+    if (response.status == 200) {
+        auth = true;
+    }
+    else if (response.status == 401) {
+        console.warn("Not Authenticated");
+    }
+    return auth;
+}
+
 async function setGDO(arg, value) {
-    console.log("SetGDO request semaphore");
     if (!fetchSemaphore) fetchSemaphore = new Semaphore();
     const releaseSemaphore = await fetchSemaphore.acquire();
-    console.log("SetGDO acquired semaphore");
     try {
+        // check if authenticated, before post to setgdo, prevents timeout of dialog due to AbortSignal
+        if (!await checkAuth()) {
+            return;
+        }
         const formData = new FormData();
         formData.append(arg, value);
         console.log("SetGDO await fetch");
@@ -328,7 +350,6 @@ async function setGDO(arg, value) {
         }
     }
     finally {
-        console.log("SetGDO releasing semaphore");
         releaseSemaphore();
     }
 }
@@ -351,6 +372,19 @@ async function changePassword() {
     // On success, go to home page.
     // User will have to re-authenticate to get back to settings.
     location.href = "/";
+    return;
+}
+
+async function saveSettings() {
+    //let gdoSec = document.getElementById("gdosecuritysetting").value;
+    let gdoSec = '2';
+    if (document.getElementById("gdosec1").checked) {
+        gdoSec = '1';
+    }
+    console.log("Set GDO security type to: " + gdoSec);
+    await setGDO("gdoSecurity", gdoSec);
+    clearInterval(statusUpdater);
+    countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");
     return;
 }
 

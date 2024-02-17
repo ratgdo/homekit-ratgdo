@@ -9,6 +9,7 @@
   "gatewayIP": "192.168.99.1",
   "macAddress": "02:23:45:AB:CD:EF",
   "wifiSSID": "Test",
+  "GDOSecurityType" : "2",
   "garageLightOn": false,
   "garageDoorState": "Closed",
   "garageLockState": "Unsecured",
