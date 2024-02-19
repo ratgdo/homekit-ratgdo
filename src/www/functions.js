@@ -10,6 +10,7 @@ var semaphoreNumber = 0;  // for Semaphore code, to support multiple semaphores.
 var fetchSemaphore = undefined; // Semaphore to control HTTP fetch.
 var serverStatus = {};    // object into which all server status is held.
 var statusUpdater = 0;    // to identify the setInterval timer used to update status
+var evtSource;            // for Server Sent Events
 
 // convert miliseconds to dd:hh:mm:ss used to calculate server uptime
 function msToTime(duration) {
@@ -73,18 +74,21 @@ async function checkStatus() {
         document.getElementById("obstruction").innerHTML = serverStatus.garageObstructed;
         document.getElementById("motion").innerHTML = serverStatus.garageMotion;
 
-        // Refresh the data every 10 seconds.
-        statusUpdater = setInterval(async () => {
-            if (!fetchSemaphore) fetchSemaphore = new Semaphore();
-            const releaseSemaphore = await fetchSemaphore.acquire();
-            try {
-                const response = await fetch("status.json?uptime&paired&doorstate&lockstate&lighton&obstruction&motion");
-                if (response.status !== 200) {
-                    console.warn("Error retrieving status from RATGDO");
-                    return;
-                }
-                serverStatus = { ...serverStatus, ...await response.json() };
-                window.sessionStorage.setItem("serverStatus", JSON.stringify(serverStatus));
+        // Use Server Send Events to keep status up-to-date
+        const evtResponse = await fetch("rest/events/subscribe");
+        if (evtResponse.status !== 200) {
+            console.warn("Error registering for Server Send Events");
+            return;
+        }
+        const evtUrl = await evtResponse.text();
+        console.log(`Register for server sent events at ${evtUrl}`);
+        evtSource = new EventSource(evtUrl);
+        evtSource.onmessage = (event) => {
+            // console.log(`Message received: ${event.data}`);
+            var msgJson = JSON.parse(event.data);
+            serverStatus = { ...serverStatus, ...msgJson };
+            // Update the HTML for those values that were present in the message...
+            if (msgJson.hasOwnProperty("paired")) {
                 if (serverStatus.paired) {
                     document.getElementById("unpair").value = "Un-pair HomeKit";
                     document.getElementById("qrcode").style.display = "none";
@@ -94,17 +98,14 @@ async function checkStatus() {
                     document.getElementById("re-pair-info").style.display = "none";
                     document.getElementById("qrcode").style.display = "inline-block";
                 }
-                document.getElementById("uptime").innerHTML = msToTime(serverStatus.upTime);
-                document.getElementById("doorstate").innerHTML = serverStatus.garageDoorState;
-                document.getElementById("lockstate").innerHTML = serverStatus.garageLockState;
-                document.getElementById("lighton").innerHTML = serverStatus.garageLightOn;
-                document.getElementById("obstruction").innerHTML = serverStatus.garageObstructed;
-                document.getElementById("motion").innerHTML = serverStatus.garageMotion;
             }
-            finally {
-                releaseSemaphore();
-            }
-        }, 10000);
+            if (msgJson.hasOwnProperty("upTime")) document.getElementById("uptime").innerHTML = msToTime(serverStatus.upTime);
+            if (msgJson.hasOwnProperty("garageDoorState")) document.getElementById("doorstate").innerHTML = serverStatus.garageDoorState;
+            if (msgJson.hasOwnProperty("garageLockState")) document.getElementById("lockstate").innerHTML = serverStatus.garageLockState;
+            if (msgJson.hasOwnProperty("garageLightOn")) document.getElementById("lighton").innerHTML = serverStatus.garageLightOn;
+            if (msgJson.hasOwnProperty("garageObstructed")) document.getElementById("obstruction").innerHTML = serverStatus.garageObstructed;
+            if (msgJson.hasOwnProperty("garageMotion")) document.getElementById("motion").innerHTML = serverStatus.garageMotion;
+        };
     }
     finally {
         releaseSemaphore();
@@ -169,7 +170,7 @@ async function checkVersion(progress) {
 }
 
 // repurposes the myModal <div> to display a countdown timer
-// from 30 seconds to zero, at end of which the page is reloaded.
+// from N seconds to zero, at end of which the page is reloaded.
 // Used at end of firmware update or on reboot request.
 function countdown(secs, msg) {
     const spanDots = document.getElementById("dotdot3");
@@ -322,21 +323,6 @@ async function setGDO(...args) {
         if (response.status !== 200) {
             console.warn("Error setting RATGDO state");
             return;
-        }
-        for (let i = 0; i < args.length; i = i + 2) {
-            switch (args[i]) {
-                case "lighton":
-                    document.getElementById("lighton").innerHTML = (args[i + 1] == "1") ? "true" : "false";
-                    break;
-                case "lockstate":
-                    document.getElementById("lockstate").innerHTML = (args[i + 1] == "1") ? "Secured" : "Unsecured";
-                    break;
-                case "doorstate":
-                    document.getElementById("lockstate").innerHTML = (args[i + 1] == "1") ? "Opening" : "Closing";
-                    break;
-                default:
-                    break;
-            }
         }
     }
     catch (err) {

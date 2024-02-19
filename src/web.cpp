@@ -19,6 +19,7 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266HTTPUpdateServer.h>
 #include <LittleFS.h>
+#include <Ticker.h>
 #include "log.h"
 #include "utilities.h"
 
@@ -33,11 +34,19 @@ void handle_everything();
 void handle_setgdo();
 void handle_logout();
 void handle_auth();
+void handle_subscribe();
+void SSEHandler(uint8_t);
+void SSEBroadcastState(const char *);
+void handle_notfound();
 
 // Make device_name available
 extern "C" char device_name[];
 // Garage door status
 extern struct GarageDoor garage_door;
+// Local copy of door status
+GarageDoor last_reported_garage_door;
+bool last_reported_paired = false;
+
 // Garage door security type
 extern uint8_t gdoSecurityType;
 
@@ -54,8 +63,96 @@ const char credentials_file[] = "www_credentials";
 bool passwordReq = false;
 const char www_pw_required_file[] = "www_pw_required_file";
 
+// For Server Sent Events (SSE) support
+// Just reloading page causes register on new channel.  So we need a reasonable number
+// to accommodate "extra" until old one is detected as disconnected.
+#define SSE_MAX_CHANNELS 16
+struct SSESubscription
+{
+    IPAddress clientIP;
+    WiFiClient client;
+    Ticker keepAliveTimer;
+} subscription[SSE_MAX_CHANNELS];
+uint8_t subscriptionCount = 0;
+
+char json[512] = ""; // Maximum length of JSON response
+#define START_JSON(s)     \
+    {                     \
+        s[0] = 0;         \
+        strcat(s, "{\n"); \
+    }
+#define END_JSON(s)           \
+    {                         \
+        s[strlen(s) - 2] = 0; \
+        strcat(s, "\n}");     \
+    }
+#define ADD_INT(s, k, v)                      \
+    {                                         \
+        strcat(s, "\"");                      \
+        strcat(s, (k));                       \
+        strcat(s, "\": ");                    \
+        strcat(s, std::to_string(v).c_str()); \
+        strcat(s, ",\n");                     \
+    }
+#define ADD_STR(s, k, v)     \
+    {                        \
+        strcat(s, "\"");     \
+        strcat(s, (k));      \
+        strcat(s, "\": \""); \
+        strcat(s, (v));      \
+        strcat(s, "\",\n");  \
+    }
+#define ADD_BOOL(s, k, v)                  \
+    {                                      \
+        strcat(s, "\"");                   \
+        strcat(s, (k));                    \
+        strcat(s, "\": ");                 \
+        strcat(s, (v) ? "true" : "false"); \
+        strcat(s, ",\n");                  \
+    }
+#define ADD_BOOL_C(s, k, v, ov) \
+    {                           \
+        if (v != ov)            \
+        {                       \
+            ov = v;             \
+            ADD_BOOL(s, k, v)   \
+        }                       \
+    }
+#define ADD_STR_C(s, k, v, nv, ov) \
+    {                              \
+        if (nv != ov)              \
+        {                          \
+            ov = nv;               \
+            ADD_STR(s, k, v)       \
+        }                          \
+    }
+
+#define DOOR_STATE(s) (s == 0) ? "Open" : (s == 1) ? "Closed"  \
+                                      : (s == 2)   ? "Opening" \
+                                      : (s == 3)   ? "Closing" \
+                                      : (s == 4)   ? "Stopped" \
+                                                   : "Unknown"
+#define LOCK_STATE(s) (s == 0) ? "Unsecured" : (s == 1) ? "Secured" \
+                                           : (s == 2)   ? "Jammed"  \
+                                                        : "Unknown"
+
 void web_loop()
 {
+    START_JSON(json);
+    ADD_BOOL_C(json, "paired", homekit_is_paired(), last_reported_paired);
+    ADD_STR_C(json, "garageDoorState", DOOR_STATE(garage_door.current_state), garage_door.current_state, last_reported_garage_door.current_state);
+    ADD_STR_C(json, "garageLockState", LOCK_STATE(garage_door.current_lock), garage_door.current_lock, last_reported_garage_door.current_lock);
+    ADD_BOOL_C(json, "garageLightOn", garage_door.light, last_reported_garage_door.light);
+    ADD_BOOL_C(json, "garageMotion", garage_door.motion, last_reported_garage_door.motion);
+    ADD_BOOL_C(json, "garageObstructed", garage_door.obstructed, last_reported_garage_door.obstructed);
+    if (strlen(json) > 2) // Have we added anything to the JSON string?
+    {
+        ADD_INT(json, "upTime", millis());
+        END_JSON(json);
+        // replace all newline with spaces in JSON string
+        for (char *p = json; (p = strchr(p, '\n')) != NULL; *p = ' ');
+        SSEBroadcastState(json);
+    }
     server.handleClient();
 }
 
@@ -67,12 +164,13 @@ const std::unordered_multimap<std::string, std::pair<const HTTPMethod, void (*)(
     {"/logout", {HTTP_GET, handle_logout}},
     {"/settings.html", {HTTP_GET, handle_settings}},
     {"/auth", {HTTP_GET, handle_auth}},
+    {"/rest/events/subscribe", {HTTP_GET, handle_subscribe}},
     {"/", {HTTP_GET, handle_everything}}};
 
 void setup_web()
 {
     RINFO("Starting server");
-
+    last_reported_paired = homekit_is_paired();
     // www_credentials = server.credentialHash(www_username, www_realm, www_password);
     File file = LittleFS.open(credentials_file, "r");
     if (!file)
@@ -119,6 +217,24 @@ void setup_web()
 }
 
 /********* handlers **********/
+void handle_notfound()
+{
+    RINFO("Handle not found");
+    String message = "Handle Not Found\n\n";
+    message += "URI: ";
+    message += server.uri();
+    message += "\nMethod: ";
+    message += (server.method() == HTTP_GET) ? "GET" : "POST";
+    message += "\nArguments: ";
+    message += server.args();
+    message += "\n";
+    for (uint8_t i = 0; i < server.args(); i++)
+    {
+        message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
+    }
+    server.send(404, "text/plain", message);
+}
+
 void handle_auth()
 {
     if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
@@ -202,8 +318,7 @@ void load_page(const char *page)
     }
     else
     {
-        RINFO("Sending 404 not found for: %s", page);
-        server.send(404, "text/plain", "404: Not Found");
+        handle_notfound();
     }
     return;
 }
@@ -212,16 +327,29 @@ void handle_everything()
 {
     String page = server.uri();
     if (page == "/")
+    {
         load_page("/index.html");
+    }
     else
+    {
+        const char *uri = server.uri().c_str();
+        const char *restEvents = PSTR("/rest/events/");
+        if (!strncmp_P(uri, restEvents, strlen_P(restEvents)))
+        {
+            uri += strlen_P(restEvents); // Skip the "/rest/events/" and get to the channel number
+            unsigned int channel = atoi(uri);
+            if (channel < SSE_MAX_CHANNELS)
+            {
+                return SSEHandler(channel);
+            }
+        }
         load_page(page.c_str());
+    }
 }
 
 void handle_status()
 {
     bool all = true;
-    char json[512] = ""; // Maximum length of JSON response
-
     // find query string and macro to test if arg is present
     std::unordered_map<std::string, bool> argReq;
     if (server.args() > 0)
@@ -237,40 +365,16 @@ void handle_status()
 #define upTime millis()
 #define paired homekit_is_paired()
 #define accessoryID arduino_homekit_get_running_server()->accessory_id
-#define localIP WiFi.localIP().toString().c_str()
+#define IPaddr WiFi.localIP().toString().c_str()
 #define subnetMask WiFi.subnetMask().toString().c_str()
 #define gatewayIP WiFi.gatewayIP().toString().c_str()
 #define macAddress WiFi.macAddress().c_str()
 #define wifiSSID WiFi.SSID().c_str()
 #define GDOSecurityType std::to_string(gdoSecurityType).c_str()
-// Helper macros to add int, string or boolean to a json format string.
-#define ADD_INT(s, k, v)                      \
-    {                                         \
-        strcat(s, "\"");                      \
-        strcat(s, (k));                       \
-        strcat(s, "\": ");                    \
-        strcat(s, std::to_string(v).c_str()); \
-        strcat(s, ",\n");                     \
-    }
-#define ADD_STR(s, k, v)     \
-    {                        \
-        strcat(s, "\"");     \
-        strcat(s, (k));      \
-        strcat(s, "\": \""); \
-        strcat(s, (v));      \
-        strcat(s, "\",\n");  \
-    }
-#define ADD_BOOL(s, k, v)                  \
-    {                                      \
-        strcat(s, "\"");                   \
-        strcat(s, (k));                    \
-        strcat(s, "\": ");                 \
-        strcat(s, (v) ? "true" : "false"); \
-        strcat(s, ",\n");                  \
-    }
+    // Helper macros to add int, string or boolean to a json format string.
 
     // Build the JSON string
-    strcat(json, "{\n");
+    START_JSON(json);
     if (all || HAS_ARG("uptime"))
         ADD_INT(json, "upTime", upTime);
     if (all)
@@ -282,7 +386,7 @@ void handle_status()
     if (all)
         ADD_STR(json, "accessoryID", accessoryID);
     if (all)
-        ADD_STR(json, "localIP", localIP);
+        ADD_STR(json, "localIP", IPaddr);
     if (all)
         ADD_STR(json, "subnetMask", subnetMask);
     if (all)
@@ -294,45 +398,9 @@ void handle_status()
     if (all)
         ADD_STR(json, "GDOSecurityType", GDOSecurityType);
     if (all || HAS_ARG("doorstate"))
-    {
-        switch (garage_door.current_state)
-        {
-        case 0:
-            ADD_STR(json, "garageDoorState", "Open");
-            break;
-        case 1:
-            ADD_STR(json, "garageDoorState", "Closed");
-            break;
-        case 2:
-            ADD_STR(json, "garageDoorState", "Opening");
-            break;
-        case 3:
-            ADD_STR(json, "garageDoorState", "Closing");
-            break;
-        case 4:
-            ADD_STR(json, "garageDoorState", "Stopped");
-            break;
-        default:
-            ADD_STR(json, "garageDoorState", "Unknown");
-        }
-    }
+        ADD_STR(json, "garageDoorState", DOOR_STATE(garage_door.current_state));
     if (all || HAS_ARG("lockstate"))
-    {
-        switch (garage_door.current_lock)
-        {
-        case 0:
-            ADD_STR(json, "garageLockState", "Unsecured");
-            break;
-        case 1:
-            ADD_STR(json, "garageLockState", "Secured");
-            break;
-        case 2:
-            ADD_STR(json, "garageLockState", "Jammed");
-            break;
-        default:
-            ADD_STR(json, "garageLockState", "Unknown");
-        }
-    }
+        ADD_STR(json, "garageLockState", LOCK_STATE(garage_door.current_lock));
     if (all || HAS_ARG("lighton"))
         ADD_BOOL(json, "garageLightOn", garage_door.light);
     if (all || HAS_ARG("motion"))
@@ -342,14 +410,13 @@ void handle_status()
     if (all)
         ADD_BOOL(json, "passwordRequired", passwordReq);
 
-    // remove the final comma/newline to ensure valid JSON syntax
-    json[strlen(json) - 2] = 0;
-    // Terminate json with close curly
-    strcat(json, "\n}");
+    END_JSON(json);
     // Only log if all requested (no arguments).
     // Avoids spaming console log if repeated requests for one value.
     if (all)
         RINFO("Status requested:\n%s", json);
+    last_reported_garage_door = garage_door;
+
     server.sendHeader("Cache-Control", "no-cache, no-store");
     server.send(200, "application/json", json);
     return;
@@ -475,4 +542,100 @@ void handle_setgdo()
         sync_and_restart();
     }
     return;
+}
+
+void SSEKeepAlive()
+{
+    char keepAlive[32] = "";
+    START_JSON(keepAlive);
+    ADD_INT(keepAlive, "upTime", millis());
+    END_JSON(keepAlive);
+    // replace all newline with spaces in JSON string
+    for (char *p = keepAlive; (p = strchr(p, '\n')) != NULL; *p = ' ');
+    for (uint8_t i = 0; i < SSE_MAX_CHANNELS; i++)
+    {
+        if (!(subscription[i].clientIP))
+        {
+            continue;
+        }
+        if (subscription[i].client.connected())
+        {
+            subscription[i].client.printf_P(PSTR("event: message\ndata: %s\n\n"), keepAlive);
+        }
+        else
+        {
+            RINFO("SSEKeepAlive - client not listening on channel %d, remove subscription", i);
+            subscription[i].keepAliveTimer.detach();
+            subscription[i].client.flush();
+            subscription[i].client.stop();
+            subscription[i].clientIP = INADDR_NONE;
+            subscriptionCount--;
+        }
+    }
+}
+
+void SSEHandler(uint8_t channel)
+{
+    WiFiClient client = server.client();
+    SSESubscription &s = subscription[channel];
+    if (s.clientIP != client.remoteIP())
+    { // IP addresses don't match, reject this client
+        RINFO("SSEHandler - unregistered client with IP %s tries to listen", server.client().remoteIP().toString().c_str());
+        return handle_notfound();
+    }
+    client.setNoDelay(true);
+    client.setSync(true);
+    // RINFO("SSEHandler - registered client with IP %s is listening on %i", IPAddress(s.clientIP).toString().c_str(), channel);
+    s.client = client;                               // capture SSE server client connection
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN); // the payload can go on forever
+    /*
+    server.sendHeader("Cache-Control", "no-cache, no-store");
+    server.sendHeader("Connection", "keep-alive");
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    */
+    server.sendContent_P(PSTR("HTTP/1.1 200 OK\nContent-Type: text/event-stream;\nConnection: keep-alive\nCache-Control: no-cache\nAccess-Control-Allow-Origin: *\n\n"));
+    s.keepAliveTimer.attach_scheduled(10.0, SSEKeepAlive); // Refresh time every N seconds
+}
+
+void handle_subscribe()
+{
+    if (subscriptionCount == SSE_MAX_CHANNELS - 1)
+    {
+        return handle_notfound(); // We ran out of channels
+    }
+    uint8_t channel;
+    IPAddress clientIP = server.client().remoteIP(); // get IP address of client
+    String SSEurl = "/rest/events/";
+
+    ++subscriptionCount;
+    for (channel = 0; channel < SSE_MAX_CHANNELS; channel++) // Find first free slot
+        if (!subscription[channel].clientIP)
+            break;
+    subscription[channel] = {clientIP, server.client(), Ticker()};
+    SSEurl += channel;
+    RINFO("Allocated channel on uri %s", SSEurl.c_str());
+    RINFO("subscription for client IP %s: event bus location: %s", clientIP.toString().c_str(), SSEurl.c_str());
+    server.sendHeader("Cache-Control", "no-cache, no-store");
+    server.send(200, "text/plain", SSEurl.c_str());
+}
+
+void SSEBroadcastState(const char *data)
+{
+    for (uint8_t i = 0; i < SSE_MAX_CHANNELS; i++)
+    {
+        if (!(subscription[i].clientIP))
+        {
+            continue;
+        }
+        String IPaddrstr = IPAddress(subscription[i].clientIP).toString();
+        if (subscription[i].client.connected())
+        {
+            RINFO("broadcast status change to client IP %s on channel %d with new state %s", IPaddrstr.c_str(), i, data);
+            subscription[i].client.printf_P(PSTR("event: message\ndata: %s\n\n"), data);
+        }
+        else
+        {
+            RINFO("SSEBroadcastState - client %s registered on channel %d but not listening", IPaddrstr.c_str(), i);
+        }
+    }
 }
