@@ -9,11 +9,20 @@ This firmware supports only Security+ 2.0-enabled garage door openers and RATGDO
 ESP8266-based hardware.
 
 > [!IMPORTANT]
-> This is a work-in-progress implementation that is ready for *beta testing only*. I am pretty
-> sure it won't leave your garage open to thieves and light your cat on fire, but it might.
+> This is a work-in-progress implementation that is ready for *testing only*. Many users have
+> reported having significant reliability issues, though a small minority report that it works fine
+> _most of the time_. There are several known issues, including:
 >
-> Stability is a top priority, but you should expect to need to update your device from time to time
-> while this firmware is improved.
+> * Poor WiFi performance, possibly relating to certain network hardware
+> * Loss of pairing, requiring re-pairing and re-setup in HomeKit
+> * Loss of network connectivity until the device is rebooted
+> * Spontaneous reboots without known cause
+> * Difficulty pairing, requiring multiple attempts before success
+> * [... and more](https://github.com/ratgdo/homekit-ratgdo/issues)
+>
+> I am pretty sure it won't leave your garage open to thieves and light your cat on fire, but it
+> might. If your happiness depends on your garage door working every time, [consider using an
+> alternative](https://thenewwazoo.github.io/bye-bye-ratgdo.html#whats-next).
 
 ## What does this firmware support?
 
@@ -42,7 +51,7 @@ That's it!
 
 ## Using ratgdo Webpage
 
-In [v0.9.0](https://github.com/ratgdo/homekit-ratgdo/releases/tag/v0.9.0), an updated webpage was added. 
+In [v0.9.0](https://github.com/ratgdo/homekit-ratgdo/releases/tag/v0.9.0), an updated webpage was added.
 
 [![webpage](docs/webpage/webpage.png)](#webpage)
 
@@ -102,7 +111,7 @@ select after adding it.
 Use the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo/flash.html), and follow the
 "Visit Device" link. If you see a big QR code, the ratgdo is *not* paired. Click the "Un-pair
 HomeKit" button, and then delete the garage door from within the HomeKit app (or vice versa, order
-does not matter). It is also recommended that you reboot the RATGDO after un-pairing.  You can then re-pair the 
+does not matter). It is also recommended that you reboot the RATGDO after un-pairing.  You can then re-pair the
 device by adding it again as normal.
 
 ### Where can I get help?
