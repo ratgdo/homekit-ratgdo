@@ -15,5 +15,6 @@
   "garageLockState": "Unsecured",
   "garageMotion": false,
   "garageObstructed": false,
-  "passwordRequired": true
+  "passwordRequired": true,
+  "rebootSeconds": 0
 }

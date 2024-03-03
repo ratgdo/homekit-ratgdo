@@ -177,6 +177,13 @@
                 </td>
               </tr>
               <tr>
+                <td style="text-align: right;">Reboot Every:</td>
+                <td>&nbsp;
+                  <input type="number" id="reboothours" name="reboothours" value="24" , min="0" , max="72" , step="1">
+                  <label for="reboothours">Hours <span style="font-size: 0.6em;">(never:0, min:1, max:72)</span></label>
+                </td>
+              </tr>
+              <tr>
                 <td>
                   <!--
                     Future settings go here
@@ -280,7 +287,7 @@
       document.getElementById("main-icon").style.display = "none";
       document.getElementById("settings-page").style.display = "none";
       document.getElementById("main-page").style.display = "block";
-      document.getElementById("settings-icon").style.display = "block"
+      document.getElementById("settings-icon").style.display = "block";
     };
     history.replaceState("mainpage", "");
     window.addEventListener("popstate", (e) => {
@@ -292,6 +299,7 @@
       }
     });
 
+    // Check new passwords match when typed in.
     newPW = document.getElementById("newPassword");
     confirmPW = document.getElementById("confirmPassword");
     matchMsg = document.getElementById("matchMsg");
@@ -311,6 +319,13 @@
         matchMsg.innerHTML = "Passwords do not match<br>";
       }
     };
+
+    // Allow only numeric keystrokes into the reboot every X hours field
+    document.getElementById("reboothours").addEventListener("keypress", (event) => {
+      if (event.which < 48 || event.which > 57) {
+        event.preventDefault();
+      }
+    });
   </script>
 </body>
 

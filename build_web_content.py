@@ -117,6 +117,7 @@ const char type_png[]  = "image/png";
 const char type_tiff[] = "image/tiff";
 const char type_tif[]  = "image/tiff";
 const char type_txt[]  = "text/plain";
+const char type_[]     = "text/plain";
 const char type_htm[]  = "text/html";
 const char type_html[] = "text/html";
 const char type_css[]  = "text/css";
@@ -133,7 +134,9 @@ wf.write(
 )
 n = 0
 for file, var, crc32 in varnames:
-    t = file.rpartition(".")[-1]
+    t = ""
+    if file.find(".") > 0:
+        t = file.rpartition(".")[-1]
     # Need comma at end of every line except last one...
     if n > 0:
         wf.write(",")
