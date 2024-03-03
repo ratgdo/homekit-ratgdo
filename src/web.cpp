@@ -6,6 +6,9 @@
 // This is used for CSS, JS and IMAGE file types.  Set to 30 days !!
 #define CACHE_CONTROL (60 * 60 * 24 * 30)
 
+// Reboot the system every X seconds, defaults to disabled
+#define REBOOT_SECONDS (0)
+
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -61,6 +64,10 @@ const char credentials_file[] = "www_credentials";
 // Whether password required
 bool passwordReq = false;
 const char www_pw_required_file[] = "www_pw_required_file";
+
+// Control automatic reboot
+uint32_t rebootSeconds; // seconds between reboots
+const char system_reboot_timer[] = "system_reboot_timer";
 
 // For Server Sent Events (SSE) support
 // Just reloading page causes register on new channel.  So we need a reasonable number
@@ -150,12 +157,21 @@ void web_loop()
     ADD_BOOL_C(json, "garageLightOn", garage_door.light, last_reported_garage_door.light);
     ADD_BOOL_C(json, "garageMotion", garage_door.motion, last_reported_garage_door.motion);
     ADD_BOOL_C(json, "garageObstructed", garage_door.obstructed, last_reported_garage_door.obstructed);
-    if (strlen(json) > 2) // Have we added anything to the JSON string?
+    if (strlen(json) > 2)
     {
+        // Have we added anything to the JSON string?
         ADD_INT(json, "upTime", millis());
         END_JSON(json);
         REMOVE_NL(json);
         SSEBroadcastState(json);
+    }
+    if ((rebootSeconds != 0) && (rebootSeconds < millis() / 1000))
+    {
+        // Reboot the system if we have reached time...
+        RINFO("Rebooting system as %i seconds expired", rebootSeconds);
+        server.stop();
+        sync_and_restart();
+        return;
     }
     server.handleClient();
 }
@@ -192,6 +208,9 @@ void setup_web()
     RINFO("WWW Credentials: %s", www_credentials);
     passwordReq = (read_file_from_flash(www_pw_required_file) != 0);
     RINFO("WWW Password %s required", (passwordReq) ? "is" : "not");
+
+    rebootSeconds = read_file_from_flash(system_reboot_timer, REBOOT_SECONDS);
+    RINFO("System will reboot every %i seconds", rebootSeconds);
 
     RINFO("Registering URI handlers");
     // Register URI handlers for URIs that have built-in handlers in this source file.
@@ -399,6 +418,8 @@ void handle_status()
         ADD_BOOL(json, "garageObstructed", garage_door.obstructed);
     if (all)
         ADD_BOOL(json, "passwordRequired", passwordReq);
+    if (all)
+        ADD_INT(json, "rebootSeconds", rebootSeconds);
 
     END_JSON(json);
     // Only log if all requested (no arguments).
@@ -503,6 +524,12 @@ void handle_setgdo()
         {
             uint32_t required = atoi(value);
             write_file_to_flash(www_pw_required_file, &required);
+            reboot = true;
+        }
+        else if (!strcmp(key, "rebootSeconds"))
+        {
+            uint32_t seconds = atoi(value);
+            write_file_to_flash(system_reboot_timer, &seconds);
             reboot = true;
         }
         else

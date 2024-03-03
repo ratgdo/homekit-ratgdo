@@ -29,7 +29,7 @@ uint32_t read_file_from_flash(const char* filename, uint32_t defaultValue) {
 
 void write_file_to_flash(const char *filename, uint32_t* value) {
     File file = LittleFS.open(filename, "w");
-    RINFO("writing %02X to file %s", *value, filename);
+    RINFO("writing 0x%02X to file %s", *value, filename);
     file.print(*value);
     file.close();
 }

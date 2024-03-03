@@ -75,6 +75,7 @@ async function checkStatus() {
         document.getElementById("gdosec1").checked = (serverStatus.GDOSecurityType == 1) ? true : false;
         document.getElementById("gdosec2").checked = (serverStatus.GDOSecurityType == 2) ? true : false;
         document.getElementById("pwreq").checked = serverStatus.passwordRequired;
+        document.getElementById("reboothours").value = serverStatus.rebootSeconds / 60 / 60;
 
         // Use Server Send Events to keep status up-to-date, 2 == CLOSED
         if (!evtSource || evtSource.readyState == 2) {
@@ -381,7 +382,11 @@ async function saveSettings() {
     console.log("Set GDO security type to: " + gdoSec);
     let pwReq = (document.getElementById("pwreq").checked) ? '1' : '0';
     console.log("Set GDO Web Password required to: " + pwReq);
-    await setGDO("gdoSecurity", gdoSec, "passwordRequired", pwReq);
+    let rebootHours = Math.max(Math.min(parseInt(document.getElementById("reboothours").value), 72), 0);
+    if (isNaN(rebootHours)) rebootHours = 24;
+    console.log("Set GDO Reboot Every: " + (rebootHours * 60 * 60) + " seconds");
+
+    await setGDO("gdoSecurity", gdoSec, "passwordRequired", pwReq, "rebootSeconds", rebootHours * 60 * 60);
     clearInterval(statusUpdater);
     countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");
     return;
