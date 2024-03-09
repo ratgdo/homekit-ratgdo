@@ -55,6 +55,8 @@ async function checkStatus() {
             document.getElementById("qrcode").style.display = "inline-block";
         }
         document.getElementById("uptime").innerHTML = msToTime(serverStatus.upTime);
+        const date = new Date(Math.floor(Date.now() / 1000) * 1000 - Math.floor(serverStatus.upTime / 1000) * 1000);
+        document.getElementById("lastreboot").innerHTML = date.toLocaleString();
         document.getElementById("firmware").innerHTML = serverStatus.firmwareVersion;
         document.getElementById("firmware2").innerHTML = serverStatus.firmwareVersion;
         document.getElementById("ssid").innerHTML = serverStatus.wifiSSID;
@@ -76,6 +78,7 @@ async function checkStatus() {
         document.getElementById("gdosec2").checked = (serverStatus.GDOSecurityType == 2) ? true : false;
         document.getElementById("pwreq").checked = serverStatus.passwordRequired;
         document.getElementById("reboothours").value = serverStatus.rebootSeconds / 60 / 60;
+        document.getElementById("freeheap").innerHTML = serverStatus.freeHeap;
 
         // Use Server Send Events to keep status up-to-date, 2 == CLOSED
         if (!evtSource || evtSource.readyState == 2) {
@@ -104,12 +107,17 @@ async function checkStatus() {
                         document.getElementById("qrcode").style.display = "inline-block";
                     }
                 }
-                if (msgJson.hasOwnProperty("upTime")) document.getElementById("uptime").innerHTML = msToTime(serverStatus.upTime);
+                if (msgJson.hasOwnProperty("upTime")) {
+                    document.getElementById("uptime").innerHTML = msToTime(serverStatus.upTime);
+                    const date = new Date(Math.floor(Date.now() / 1000) * 1000 - Math.floor(serverStatus.upTime / 1000) * 1000);
+                    document.getElementById("lastreboot").innerHTML = date.toLocaleString();
+                }
                 if (msgJson.hasOwnProperty("garageDoorState")) document.getElementById("doorstate").innerHTML = serverStatus.garageDoorState;
                 if (msgJson.hasOwnProperty("garageLockState")) document.getElementById("lockstate").innerHTML = serverStatus.garageLockState;
                 if (msgJson.hasOwnProperty("garageLightOn")) document.getElementById("lighton").innerHTML = serverStatus.garageLightOn;
                 if (msgJson.hasOwnProperty("garageObstructed")) document.getElementById("obstruction").innerHTML = serverStatus.garageObstructed;
                 if (msgJson.hasOwnProperty("garageMotion")) document.getElementById("motion").innerHTML = serverStatus.garageMotion;
+                if (msgJson.hasOwnProperty("freeHeap")) document.getElementById("freeheap").innerHTML = serverStatus.freeHeap;
             });
             evtSource.addEventListener("error", (event) => {
                 // If an error occurs close the connection, then wait 5 seconds and try again.
@@ -383,7 +391,7 @@ async function saveSettings() {
     let pwReq = (document.getElementById("pwreq").checked) ? '1' : '0';
     console.log("Set GDO Web Password required to: " + pwReq);
     let rebootHours = Math.max(Math.min(parseInt(document.getElementById("reboothours").value), 72), 0);
-    if (isNaN(rebootHours)) rebootHours = 24;
+    if (isNaN(rebootHours)) rebootHours = 0;
     console.log("Set GDO Reboot Every: " + (rebootHours * 60 * 60) + " seconds");
 
     await setGDO("gdoSecurity", gdoSec, "passwordRequired", pwReq, "rebootSeconds", rebootHours * 60 * 60);

@@ -16,5 +16,6 @@
   "garageMotion": false,
   "garageObstructed": false,
   "passwordRequired": true,
-  "rebootSeconds": 0
+  "rebootSeconds": 0,
+  "freeHeap": 0
 }
