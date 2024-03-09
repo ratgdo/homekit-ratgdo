@@ -210,8 +210,10 @@ void setup_web()
     RINFO("WWW Password %s required", (passwordReq) ? "is" : "not");
 
     rebootSeconds = read_file_from_flash(system_reboot_timer, REBOOT_SECONDS);
-    RINFO("System will reboot every %i seconds", rebootSeconds);
-
+    if (rebootSeconds > 0)
+    {
+        RINFO("System will reboot every %i seconds", rebootSeconds);
+    }
     RINFO("Registering URI handlers");
     // Register URI handlers for URIs that have built-in handlers in this source file.
     for (auto uri : builtInUri)
@@ -231,7 +233,7 @@ void setup_web()
             server.on(uri.first.c_str(), HTTP_GET, handle_everything);
         }
     }
-    // xSemaphoreHttpd = xSemaphoreCreateMutex();
+
     server.onNotFound(handle_everything);
     httpUpdater.setup(&server);
     server.begin();
