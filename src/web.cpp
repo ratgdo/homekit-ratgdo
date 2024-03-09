@@ -132,12 +132,7 @@ char json[512] = ""; // Maximum length of JSON response
             ADD_STR(s, k, v)       \
         }                          \
     }
-char *REMOVE_NL(char *s)
-{
-    for (char *p = s; (p = strchr(p, '\n')) != NULL; *p = ' ')
-        ;
-    return s;
-}
+#define REMOVE_NL(s) for (char *p = (char *)s; (p = strchr(p, '\n')) != NULL; *p = ' ')
 
 #define DOOR_STATE(s) (s == 0) ? "Open" : (s == 1) ? "Closed"  \
                                       : (s == 2)   ? "Opening" \
@@ -422,6 +417,8 @@ void handle_status()
         ADD_BOOL(json, "passwordRequired", passwordReq);
     if (all)
         ADD_INT(json, "rebootSeconds", rebootSeconds);
+    if (all)
+        ADD_INT(json, "freeHeap", system_get_free_heap_size());
 
     END_JSON(json);
     // Only log if all requested (no arguments).
@@ -563,9 +560,10 @@ void handle_setgdo()
 
 void SSEheartbeat()
 {
-    char heartbeat[32] = "";
+    char heartbeat[64] = "";
     START_JSON(heartbeat);
     ADD_INT(heartbeat, "upTime", millis());
+    ADD_INT(heartbeat, "freeHeap", system_get_free_heap_size());
     END_JSON(heartbeat);
     REMOVE_NL(heartbeat);
 
