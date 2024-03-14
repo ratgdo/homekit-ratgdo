@@ -55,7 +55,7 @@ async function checkStatus() {
             document.getElementById("qrcode").style.display = "inline-block";
         }
         document.getElementById("uptime").innerHTML = msToTime(serverStatus.upTime);
-        const date = new Date(Math.floor(Date.now() / 1000) * 1000 - Math.floor(serverStatus.upTime / 1000) * 1000);
+        const date = new Date(Date.now() - serverStatus.upTime);
         document.getElementById("lastreboot").innerHTML = date.toLocaleString();
         document.getElementById("firmware").innerHTML = serverStatus.firmwareVersion;
         document.getElementById("firmware2").innerHTML = serverStatus.firmwareVersion;
@@ -82,6 +82,8 @@ async function checkStatus() {
 
         // Use Server Send Events to keep status up-to-date, 2 == CLOSED
         if (!evtSource || evtSource.readyState == 2) {
+            let evtCount = 0;
+            let evtLastCount = 0;
             const evtResponse = await fetch("rest/events/subscribe");
             if (evtResponse.status !== 200) {
                 console.warn("Error registering for Server Send Events");
@@ -93,6 +95,7 @@ async function checkStatus() {
             evtSource = new EventSource(evtUrl);
             evtSource.addEventListener("message", (event) => {
                 //console.log(`Message received: ${event.data}`);
+                evtCount++;
                 var msgJson = JSON.parse(event.data);
                 serverStatus = { ...serverStatus, ...msgJson };
                 // Update the HTML for those values that were present in the message...
@@ -107,11 +110,7 @@ async function checkStatus() {
                         document.getElementById("qrcode").style.display = "inline-block";
                     }
                 }
-                if (msgJson.hasOwnProperty("upTime")) {
-                    document.getElementById("uptime").innerHTML = msToTime(serverStatus.upTime);
-                    const date = new Date(Math.floor(Date.now() / 1000) * 1000 - Math.floor(serverStatus.upTime / 1000) * 1000);
-                    document.getElementById("lastreboot").innerHTML = date.toLocaleString();
-                }
+                if (msgJson.hasOwnProperty("upTime")) document.getElementById("uptime").innerHTML = msToTime(serverStatus.upTime);
                 if (msgJson.hasOwnProperty("garageDoorState")) document.getElementById("doorstate").innerHTML = serverStatus.garageDoorState;
                 if (msgJson.hasOwnProperty("garageLockState")) document.getElementById("lockstate").innerHTML = serverStatus.garageLockState;
                 if (msgJson.hasOwnProperty("garageLightOn")) document.getElementById("lighton").innerHTML = serverStatus.garageLightOn;
@@ -125,6 +124,16 @@ async function checkStatus() {
                 evtSource.close();
                 setTimeout(checkStatus, 5000);
             });
+            let checkTimeout = setInterval(() => {
+                if (evtLastCount == evtCount) {
+                    // if no message received since last check then close connection and try again.
+                    console.log('SSE timeout, no message received in 5 seconds');
+                    clearInterval(checkTimeout);
+                    evtSource.close();
+                    setTimeout(checkStatus, 1000);
+                }
+                evtLastCount = evtCount;
+            }, 5000);
         } else {
             console.log(`SSE already setup at ${evtSource.url}, State: ${evtSource.readyState}`);
         }
