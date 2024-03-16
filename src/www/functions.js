@@ -33,12 +33,22 @@ async function checkStatus() {
     if (!fetchSemaphore) fetchSemaphore = new Semaphore();
     const releaseSemaphore = await fetchSemaphore.acquire();
     try {
-        const response = await fetch("status.json");
-        if (response.status !== 200) {
-            console.warn("Error retrieving status from RATGDO");
+        try {
+            const response = await fetch("status.json")
+                .catch((error) => {
+                    console.warn(`Promise rejection error fetching status from RATGDO, try again in 5 seconds: ${error}`);
+                    throw ("Promise rejection");
+                });
+            if (!response.ok || response.status !== 200) {
+                console.warn(`Error RC ${response.status} fetching status from RATGDO, try again in 5 seconds.`);
+                throw ("Error RC");
+            }
+            serverStatus = await response.json();
+        }
+        catch {
+            setTimeout(checkStatus, 5000);
             return;
         }
-        serverStatus = await response.json();
         console.log(serverStatus);
         // Add letter 'v' to front of returned firmware version.
         // Hack because firmware uses v0.0.0 and 0.0.0 for different purposes.
@@ -129,7 +139,7 @@ async function checkStatus() {
             let checkTimeout = setInterval(() => {
                 if (evtLastCount == evtCount) {
                     // if no message received since last check then close connection and try again.
-                    console.log('SSE timeout, no message received in 5 seconds');
+                    console.log(`SSE timeout, no message received in 5 seconds. Last upTime: ${serverStatus.upTime} (${msToTime(serverStatus.upTime)})`);
                     clearInterval(checkTimeout);
                     evtSource.close();
                     setTimeout(checkStatus, 1000);
@@ -410,6 +420,46 @@ async function saveSettings() {
     countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");
     return;
 }
+
+ // Functions to support mobile device swipe-down to reload...
+ let pStart = { x: 0, y: 0 };
+ let pStop = { x: 0, y: 0 };
+ function swipeStart(e) {
+   if (typeof e['targetTouches'] !== "undefined") {
+     const touch = e.targetTouches[0];
+     pStart.x = touch.screenX;
+     pStart.y = touch.screenY;
+   } else {
+     pStart.x = e.screenX;
+     pStart.y = e.screenY;
+   }
+ }
+ function swipeEnd(e) {
+   if (typeof e['changedTouches'] !== "undefined") {
+     const touch = e.changedTouches[0];
+     pStop.x = touch.screenX;
+     pStop.y = touch.screenY;
+   } else {
+     pStop.x = e.screenX;
+     pStop.y = e.screenY;
+   }
+   swipeCheck();
+ }
+ function swipeCheck() {
+   const changeY = pStart.y - pStop.y;
+   const changeX = pStart.x - pStop.x;
+   if (isPullDown(changeY, changeX)) {
+     // alert('Swipe Down!');
+     location.reload();
+   }
+ }
+ function isPullDown(dY, dX) {
+   // methods of checking slope, length, direction of line created by swipe action 
+   return dY < 0 && (
+     (Math.abs(dX) <= 100 && Math.abs(dY) >= 300)
+     || (Math.abs(dX) / Math.abs(dY) <= 0.3 && dY >= 60)
+   );
+ }
 
 // MD5 Hash function from
 // https://stackoverflow.com/questions/14733374/how-to-generate-an-md5-hash-from-a-string-in-javascript-node-js
