@@ -28,6 +28,7 @@ long unsigned int led_on_time = 0;     // Stores time when LED should turn back 
 /********************************** MAIN LOOP CODE *****************************************/
 
 void setup() {
+    disable_extra4k_at_link_time();
     Serial.begin(115200);
 
     wifi_connect();
