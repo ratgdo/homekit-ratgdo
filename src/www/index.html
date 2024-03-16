@@ -259,12 +259,17 @@
     checkStatus()
       .then(() => checkVersion("dotdot1"));
 
+    // reload status if visibility change
     window.addEventListener("visibilitychange", (event) => {
       if (document.visibilityState === "visible") {
         checkStatus()
           .then(() => checkVersion("dotdot1"));
       }
     });
+
+     // Handle mobile device swipe-down to reload...
+    document.addEventListener('touchstart', function (e) { swipeStart(e); }, false);
+    document.addEventListener('touchend', function (e) { swipeEnd(e); }, false);
 
     // When the user clicks anywhere outside of the modal, close it
     const modal = document.getElementById("myModal");
