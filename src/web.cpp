@@ -82,7 +82,7 @@ struct SSESubscription
 } subscription[SSE_MAX_CHANNELS];
 uint8_t subscriptionCount = 0;
 
-char json[512] = ""; // Maximum length of JSON response
+char json[1024] = ""; // Maximum length of JSON response
 #define START_JSON(s)     \
     {                     \
         s[0] = 0;         \
@@ -568,15 +568,14 @@ void handle_setgdo()
 
 void SSEheartbeat()
 {
-    char heartbeat[64] = "";
-    START_JSON(heartbeat);
-    ADD_INT(heartbeat, "upTime", millis());
+    START_JSON(json);
+    ADD_INT(json, "upTime", millis());
     uint32_t free_heap = system_get_free_heap_size();
     if (free_heap < min_heap) min_heap = free_heap;
-    ADD_INT(heartbeat, "freeHeap", free_heap);
-    ADD_INT(heartbeat, "minHeap", min_heap);
-    END_JSON(heartbeat);
-    REMOVE_NL(heartbeat);
+    ADD_INT(json, "freeHeap", free_heap);
+    ADD_INT(json, "minHeap", min_heap);
+    END_JSON(json);
+    REMOVE_NL(json);
 
     for (uint8_t i = 0; i < SSE_MAX_CHANNELS; i++)
     {
@@ -586,7 +585,7 @@ void SSEheartbeat()
         }
         if (subscription[i].client.connected())
         {
-            subscription[i].client.printf_P(PSTR("event: message\nretry: 15000\ndata: %s\n\n"), heartbeat);
+            subscription[i].client.printf_P(PSTR("event: message\nretry: 15000\ndata: %s\n\n"), json);
         }
         else
         {
