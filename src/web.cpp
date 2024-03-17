@@ -68,6 +68,7 @@ const char www_pw_required_file[] = "www_pw_required_file";
 // Control automatic reboot
 uint32_t rebootSeconds; // seconds between reboots
 const char system_reboot_timer[] = "system_reboot_timer";
+uint32_t min_heap = 0xffffffff;
 
 // For Server Sent Events (SSE) support
 // Just reloading page causes register on new channel.  So we need a reasonable number
@@ -169,6 +170,9 @@ void web_loop()
         return;
     }
     server.handleClient();
+
+    uint32_t free_heap = system_get_free_heap_size();
+    if (free_heap < min_heap) min_heap = free_heap;
 }
 
 const std::unordered_multimap<std::string, std::pair<const HTTPMethod, void (*)()>> builtInUri = {
@@ -417,8 +421,12 @@ void handle_status()
         ADD_BOOL(json, "passwordRequired", passwordReq);
     if (all)
         ADD_INT(json, "rebootSeconds", rebootSeconds);
+    uint32_t free_heap = system_get_free_heap_size();
+    if (free_heap < min_heap) min_heap = free_heap;
     if (all)
-        ADD_INT(json, "freeHeap", system_get_free_heap_size());
+        ADD_INT(json, "freeHeap", free_heap);
+    if (all)
+        ADD_INT(json, "minHeap", min_heap);
 
     END_JSON(json);
     // Only log if all requested (no arguments).
@@ -563,7 +571,10 @@ void SSEheartbeat()
     char heartbeat[64] = "";
     START_JSON(heartbeat);
     ADD_INT(heartbeat, "upTime", millis());
-    ADD_INT(heartbeat, "freeHeap", system_get_free_heap_size());
+    uint32_t free_heap = system_get_free_heap_size();
+    if (free_heap < min_heap) min_heap = free_heap;
+    ADD_INT(heartbeat, "freeHeap", free_heap);
+    ADD_INT(heartbeat, "minHeap", min_heap);
     END_JSON(heartbeat);
     REMOVE_NL(heartbeat);
 
