@@ -585,7 +585,7 @@ void SSEheartbeat()
         }
         if (subscription[i].client.connected())
         {
-            subscription[i].client.printf_P(PSTR("event: message\nretry: 15000\ndata: %s\n\n"), json);
+            subscription[i].client.printf("event: message\nretry: 15000\ndata: %s\n\n", json);
         }
         else
         {
