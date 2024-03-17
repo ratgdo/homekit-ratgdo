@@ -79,6 +79,7 @@ async function checkStatus() {
         document.getElementById("pwreq").checked = serverStatus.passwordRequired;
         document.getElementById("reboothours").value = serverStatus.rebootSeconds / 60 / 60;
         document.getElementById("freeheap").innerHTML = serverStatus.freeHeap;
+        document.getElementById("minheap").innerHTML = serverStatus.minHeap;
 
         // Use Server Send Events to keep status up-to-date, 2 == CLOSED
         if (!evtSource || evtSource.readyState == 2) {
@@ -117,6 +118,7 @@ async function checkStatus() {
                 if (msgJson.hasOwnProperty("garageObstructed")) document.getElementById("obstruction").innerHTML = serverStatus.garageObstructed;
                 if (msgJson.hasOwnProperty("garageMotion")) document.getElementById("motion").innerHTML = serverStatus.garageMotion;
                 if (msgJson.hasOwnProperty("freeHeap")) document.getElementById("freeheap").innerHTML = serverStatus.freeHeap;
+                if (msgJson.hasOwnProperty("minHeap")) document.getElementById("minheap").innerHTML = serverStatus.minHeap;
             });
             evtSource.addEventListener("error", (event) => {
                 // If an error occurs close the connection, then wait 5 seconds and try again.
