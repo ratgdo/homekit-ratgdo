@@ -579,15 +579,16 @@ void SSEheartbeat()
 
     for (uint8_t i = 0; i < SSE_MAX_CHANNELS; i++)
     {
+        size_t txsize = 0;
         if (!(subscription[i].clientIP))
         {
             continue;
         }
         if (subscription[i].client.connected())
         {
-            subscription[i].client.printf("event: message\nretry: 15000\ndata: %s\n\n", json);
+            txsize = subscription[i].client.printf("event: message\nretry: 15000\ndata: %s\n\n", json);
         }
-        else
+        if (txsize == 0)
         {
             RINFO("SSEheartbeat - client not listening on channel %d, remove subscription", i);
             subscription[i].heartbeatTimer.detach();
@@ -610,6 +611,7 @@ void SSEHandler(uint8_t channel)
     }
     client.setNoDelay(true);
     client.setSync(true);
+    client.setTimeout(500);
     // RINFO("SSEHandler - registered client with IP %s is listening on %i", IPAddress(s.clientIP).toString().c_str(), channel);
     s.client = client;                               // capture SSE server client connection
     server.setContentLength(CONTENT_LENGTH_UNKNOWN); // the payload can go on forever
@@ -656,7 +658,7 @@ void SSEBroadcastState(const char *data)
         if (subscription[i].client.connected())
         {
             RINFO("broadcast status change to client IP %s on channel %d with new state %s", IPaddrstr.c_str(), i, data);
-            subscription[i].client.printf_P(PSTR("event: message\ndata: %s\n\n"), data);
+            subscription[i].client.printf("event: message\ndata: %s\n\n", data);
         }
         else
         {
