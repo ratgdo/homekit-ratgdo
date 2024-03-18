@@ -343,10 +343,10 @@ void handle_everything()
     else
     {
         const char *uri = server.uri().c_str();
-        const char *restEvents = PSTR("/rest/events/");
-        if (!strncmp_P(uri, restEvents, strlen_P(restEvents)))
+        const char *restEvents = "/rest/events/";
+        if (!strncmp_P(uri, restEvents, strlen(restEvents)))
         {
-            uri += strlen_P(restEvents); // Skip the "/rest/events/" and get to the channel number
+            uri += strlen(restEvents); // Skip the "/rest/events/" and get to the channel number
             unsigned int channel = atoi(uri);
             if (channel < SSE_MAX_CHANNELS)
             {
@@ -620,7 +620,7 @@ void SSEHandler(uint8_t channel)
     server.sendHeader("Connection", "keep-alive");
     server.sendHeader("Access-Control-Allow-Origin", "*");
     */
-    server.sendContent_P(PSTR("HTTP/1.1 200 OK\nContent-Type: text/event-stream;\nConnection: keep-alive\nCache-Control: no-cache\nAccess-Control-Allow-Origin: *\n\n"));
+    server.sendContent("HTTP/1.1 200 OK\nContent-Type: text/event-stream;\nConnection: keep-alive\nCache-Control: no-cache\nAccess-Control-Allow-Origin: *\n\n");
     s.heartbeatTimer.attach_scheduled(1.0, SSEheartbeat); // Refresh time every N seconds
 }
 
