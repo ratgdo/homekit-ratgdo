@@ -7,7 +7,7 @@
 
 // Global vars...
 var serverStatus = {};    // object into which all server status is held.
-var statusUpdater = 0;    // to identify the setInterval timer used to update status
+var checkHeartbeat = 0;   // setInterval for heartbeat timeout
 var evtSource = undefined;// for Server Sent Events (SSE)
 
 // convert miliseconds to dd:hh:mm:ss used to calculate server uptime
@@ -131,11 +131,11 @@ async function checkStatus() {
             evtSource.close();
             setTimeout(checkStatus, 5000);
         });
-        let checkTimeout = setInterval(() => {
+        checkHeartbeat = setInterval(() => {
             if (evtLastCount == evtCount) {
                 // if no message received since last check then close connection and try again.
                 console.log(`SSE timeout, no message received in 5 seconds. Last upTime: ${serverStatus.upTime} (${msToTime(serverStatus.upTime)})`);
-                clearInterval(checkTimeout);
+                clearInterval(checkHeartbeat);
                 evtSource.close();
                 setTimeout(checkStatus, 1000);
             }
@@ -207,6 +207,8 @@ async function checkVersion(progress) {
 // from N seconds to zero, at end of which the page is reloaded.
 // Used at end of firmware update or on reboot request.
 function countdown(secs, msg) {
+    // we are counting down to a reload... so clear heartbeat timeout check.
+    clearInterval(checkHeartbeat);
     const spanDots = document.getElementById("dotdot3");
     document.getElementById("modalTitle").innerHTML = "";
     document.getElementById("updateMsg").innerHTML = msg;
@@ -222,7 +224,6 @@ function countdown(secs, msg) {
     var countdown = setInterval(() => {
         if (seconds-- === 0) {
             clearInterval(countdown);
-            clearInterval(statusUpdater);
             location.href = "/";
             return;
         } else {
@@ -378,7 +379,7 @@ async function changePassword() {
     passwordHash = MD5(www_username + ":" + www_realm + ":" + newPW.value);
     console.log("Set new credentials to: " + passwordHash);
     await setGDO("credentials", passwordHash);
-    clearInterval(statusUpdater);
+    clearInterval(checkHeartbeat);
     // On success, go to home page.
     // User will have to re-authenticate to get back to settings.
     location.href = "/";
@@ -395,7 +396,6 @@ async function saveSettings() {
     console.log("Set GDO Reboot Every: " + (rebootHours * 60 * 60) + " seconds");
 
     await setGDO("gdoSecurity", gdoSec, "passwordRequired", pwReq, "rebootSeconds", rebootHours * 60 * 60);
-    clearInterval(statusUpdater);
     countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");
     return;
 }
