@@ -79,6 +79,7 @@ struct SSESubscription
     IPAddress clientIP;
     WiFiClient client;
     Ticker heartbeatTimer;
+    bool SSEconnected;
 } subscription[SSE_MAX_CHANNELS];
 uint8_t subscriptionCount = 0;
 
@@ -584,6 +585,11 @@ void SSEheartbeat()
         {
             continue;
         }
+        else if (!(subscription[i].SSEconnected))
+        {
+            RINFO("Client %s on channel %d not yet listening for events", subscription[i].clientIP.toString().c_str(), i);
+            continue;
+        }
         if (subscription[i].client.connected())
         {
             txsize = subscription[i].client.printf("event: message\nretry: 15000\ndata: %s\n\n", json);
@@ -621,6 +627,7 @@ void SSEHandler(uint8_t channel)
     server.sendHeader("Access-Control-Allow-Origin", "*");
     */
     server.sendContent("HTTP/1.1 200 OK\nContent-Type: text/event-stream;\nConnection: keep-alive\nCache-Control: no-cache\nAccess-Control-Allow-Origin: *\n\n");
+    s.SSEconnected = true;
     s.heartbeatTimer.attach_scheduled(1.0, SSEheartbeat); // Refresh time every N seconds
 }
 
@@ -638,10 +645,9 @@ void handle_subscribe()
     for (channel = 0; channel < SSE_MAX_CHANNELS; channel++) // Find first free slot
         if (!subscription[channel].clientIP)
             break;
-    subscription[channel] = {clientIP, server.client(), Ticker()};
+    subscription[channel] = {clientIP, server.client(), Ticker(), false};
     SSEurl += channel;
-    RINFO("Allocated channel on uri %s", SSEurl.c_str());
-    RINFO("subscription for client IP %s: event bus location: %s", clientIP.toString().c_str(), SSEurl.c_str());
+    RINFO("Subscription for client IP %s: event bus location: %s", clientIP.toString().c_str(), SSEurl.c_str());
     server.sendHeader("Cache-Control", "no-cache, no-store");
     server.send(200, "text/plain", SSEurl.c_str());
 }
