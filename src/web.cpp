@@ -39,7 +39,6 @@ void handle_logout();
 void handle_auth();
 void handle_subscribe();
 void SSEHandler(uint8_t);
-void SSEheartbeat();
 void SSEBroadcastState(const char *);
 void handle_notfound();
 
@@ -79,11 +78,11 @@ struct SSESubscription
 {
     IPAddress clientIP;
     WiFiClient client;
+    Ticker heartbeatTimer;
     bool SSEconnected;
     int SSEfailCount;
 } subscription[SSE_MAX_CHANNELS];
 uint8_t subscriptionCount = 0;
-Ticker heartbeatTimer;
 
 char json[1024] = ""; // Maximum length of JSON response
 #define START_JSON(s)     \
@@ -168,7 +167,6 @@ void web_loop()
     {
         // Reboot the system if we have reached time...
         RINFO("Rebooting system as %i seconds expired", rebootSeconds);
-        heartbeatTimer.detach();
         server.stop();
         sync_and_restart();
         return;
@@ -247,7 +245,6 @@ void setup_web()
         subscription[i].SSEconnected = false;
         subscription[i].clientIP = INADDR_NONE;
     }
-    heartbeatTimer.attach_scheduled(1.0, SSEheartbeat);
     RINFO("HTTP server started");
     return;
 }
@@ -281,7 +278,6 @@ void handle_reset()
     homekit_storage_reset();
     server.send(200, resp);
     delay(100);
-    heartbeatTimer.detach();
     server.stop();
     sync_and_restart();
     return;
@@ -295,7 +291,6 @@ void handle_reboot()
         "<body><p>RATGDO restarting. Please wait. Reconnecting in 30 seconds...</p><p><a href=\"/\">Back</a></p></body>";
     server.send(200, resp);
     delay(100);
-    heartbeatTimer.detach();
     server.stop();
     sync_and_restart();
     return;
@@ -575,67 +570,62 @@ void handle_setgdo()
     {
         RINFO("SetGDO Restart required");
         delay(100);
-        heartbeatTimer.detach();
         server.stop();
         sync_and_restart();
     }
     return;
 }
 
-void SSEheartbeat()
+void SSEheartbeat(uint8_t channel, SSESubscription *s)
 {
-    // if nothing subscribed, then return
-    if (subscriptionCount == 0)
-        return;
-
-    START_JSON(json);
-    ADD_INT(json, "upTime", millis());
+    // RINFO("SSEheartbeat - Client %s on channel %d", s->clientIP.toString().c_str(), channel);
+    size_t txsize = 0;
     uint32_t free_heap = system_get_free_heap_size();
     if (free_heap < min_heap)
         min_heap = free_heap;
+
+    START_JSON(json);
+    ADD_INT(json, "upTime", millis());
     ADD_INT(json, "freeHeap", free_heap);
     ADD_INT(json, "minHeap", min_heap);
     END_JSON(json);
     REMOVE_NL(json);
 
-    for (uint8_t i = 0; i < SSE_MAX_CHANNELS; i++)
-    {
-        size_t txsize = 0;
-        if (!(subscription[i].clientIP))
-        {
-            continue;
-        }
-        else if (!(subscription[i].SSEconnected))
-        {
-            if (subscription[i].SSEfailCount++ >= 5)
-            {
-                // 5 heartbeats have failed... assume client will not connect
-                // and free up the slot
-                RINFO("SSEheartbeat - Timeout waiting for %s on channel %d to listen for events", subscription[i].clientIP.toString().c_str(), i);
-                subscription[i].clientIP = INADDR_NONE;
-                subscriptionCount--;
-                // no need to stop client socket because it is not live yet.
-            }
-            else
-            {
-                RINFO("SSEheartbeat - Client %s on channel %d not yet listening for events", subscription[i].clientIP.toString().c_str(), i);
-            }
-            continue;
-        }
+    if (!(s->clientIP))
+        return;
 
-        if (subscription[i].client.connected())
+    if (!(s->SSEconnected))
+    {
+        if (s->SSEfailCount++ >= 5)
         {
-            txsize = subscription[i].client.printf("event: message\nretry: 15000\ndata: %s\n\n", json);
-        }
-        if (txsize == 0)
-        {
-            RINFO("SSEheartbeat - client not listening on channel %d, remove subscription", i);
-            subscription[i].client.flush();
-            subscription[i].client.stop();
-            subscription[i].clientIP = INADDR_NONE;
-            subscription[i].SSEconnected = false;
+            // 5 heartbeats have failed... assume client will not connect
+            // and free up the slot
+            RINFO("SSEheartbeat - Timeout waiting for %s on channel %d to listen for events", s->clientIP.toString().c_str(), channel);
+            s->heartbeatTimer.detach();
+            s->clientIP = INADDR_NONE;
             subscriptionCount--;
+            // no need to stop client socket because it is not live yet.
         }
+        else
+        {
+            RINFO("SSEheartbeat - Client %s on channel %d not yet listening for events", s->clientIP.toString().c_str(), channel);
+        }
+        return;
+    }
+
+    if (s->client.connected())
+    {
+        txsize = s->client.printf("event: message\nretry: 15000\ndata: %s\n\n", json);
+    }
+    if (txsize == 0)
+    {
+        RINFO("SSEheartbeat - client not listening on channel %d, remove subscription", channel);
+        s->heartbeatTimer.detach();
+        s->client.flush();
+        s->client.stop();
+        s->clientIP = INADDR_NONE;
+        s->SSEconnected = false;
+        subscriptionCount--;
     }
 }
 
@@ -662,6 +652,8 @@ void SSEHandler(uint8_t channel)
     server.sendContent("HTTP/1.1 200 OK\nContent-Type: text/event-stream;\nConnection: keep-alive\nCache-Control: no-cache\nAccess-Control-Allow-Origin: *\n\n");
     s.SSEconnected = true;
     s.SSEfailCount = 0;
+    s.heartbeatTimer.attach_scheduled(1.0, [channel, &s]
+                                      { SSEheartbeat(channel, &s); });
     RINFO("SSEHandler - Client %s listening for events on channel %d", client.remoteIP().toString().c_str(), channel);
 }
 
@@ -679,7 +671,7 @@ void handle_subscribe()
     for (channel = 0; channel < SSE_MAX_CHANNELS; channel++) // Find first free slot
         if (!subscription[channel].clientIP)
             break;
-    subscription[channel] = {clientIP, server.client(), false, 0};
+    subscription[channel] = {clientIP, server.client(), Ticker(), false, 0};
     SSEurl += channel;
     RINFO("Subscription for client IP %s: event bus location: %s", clientIP.toString().c_str(), SSEurl.c_str());
     server.sendHeader("Cache-Control", "no-cache, no-store");
