@@ -9,17 +9,12 @@ This firmware supports only Security+ 2.0-enabled garage door openers and RATGDO
 ESP8266-based hardware.
 
 > [!IMPORTANT]
-> This is a work-in-progress implementation that is ready for *testing only*. Many users have
-> reported having significant reliability issues, though a small minority report that it works fine
-> _most of the time_. There are several known issues, including:
+> As of release v1.0.0, we believe this code is stable enough to call this a release build. You may
+> still encounter issues.  Please review the [Issues](https://github.com/ratgdo/homekit-ratgdo/issues)
+> and open a new one if necessary.
 >
-> * Poor WiFi performance, possibly relating to certain network hardware
-> * Loss of pairing, requiring re-pairing and re-setup in HomeKit
-> * Loss of network connectivity until the device is rebooted
-> * Spontaneous reboots without known cause
-> * Difficulty pairing, requiring multiple attempts before success
-> * [... and more](https://github.com/ratgdo/homekit-ratgdo/issues)
->
+> See the section below on where to get help.
+> 
 > I am pretty sure it won't leave your garage open to thieves and light your cat on fire, but it
 > might. If your happiness depends on your garage door working every time, [consider using an
 > alternative](https://thenewwazoo.github.io/bye-bye-ratgdo.html#whats-next).
@@ -43,7 +38,7 @@ planned features, or to suggest your own.
 For each of the following steps, use the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo/flash.html):
 
 * Install the HomeKit-RATGDO firmware, and then *wait 20 seconds*.
-* Connect the RATGDO to WiFi.  There is currently a known issue where the RATGDO will timeout on connect.  Just retry the connect.  This is only known to happen on initial provisioning.
+* Connect the RATGDO to WiFi
 * Click "Visit Device", and then begin the process of adding a device to HomeKit. Scan the QR code,
   or manually enter the setup code `2510-2023`.
 
@@ -108,7 +103,7 @@ This is a common problem. Be sure to check all of the "rooms" in the Home app. I
 find it, you can try un-pairing and re-pairing the device, paying close attention to the room you
 select after adding it.
 
-### How to do I re-pair my ratgdo?
+### How do I re-pair my ratgdo?
 
 Use the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo/flash.html), and follow the
 "Visit Device" link. If you see a big QR code, the ratgdo is *not* paired. Click the "Un-pair
