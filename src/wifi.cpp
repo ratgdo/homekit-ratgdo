@@ -25,7 +25,7 @@
 #include "log.h"
 
 #define MAX_ATTEMPTS_WIFI_CONNECTION 20
-uint8_t x_buffer[16];
+uint8_t x_buffer[128];
 uint8_t x_position = 0;
 
 void set_error(improv::Error error);
