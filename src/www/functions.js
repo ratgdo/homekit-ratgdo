@@ -7,7 +7,7 @@
 
 // Global vars...
 var serverStatus = {};    // object into which all server status is held.
-var checkHeartbeat = 0;   // setInterval for heartbeat timeout
+var checkHeartbeat = undefined;   // setInterval for heartbeat timeout
 var evtSource = undefined;// for Server Sent Events (SSE)
 
 // convert miliseconds to dd:hh:mm:ss used to calculate server uptime
@@ -28,6 +28,10 @@ function msToTime(duration) {
 // checkStatus is called once on page load to retrieve status from the server...
 // and setInterval a timer that will refresh the data every 10 seconds
 async function checkStatus() {
+    if (checkHeartbeat) {
+        clearInterval(checkHeartbeat);
+        checkHeartbeat = undefined;
+    }
     try {
         const response = await fetch("status.json")
             .catch((error) => {
@@ -136,6 +140,7 @@ async function checkStatus() {
                 // if no message received since last check then close connection and try again.
                 console.log(`SSE timeout, no message received in 5 seconds. Last upTime: ${serverStatus.upTime} (${msToTime(serverStatus.upTime)})`);
                 clearInterval(checkHeartbeat);
+                checkHeartbeat = undefined;
                 evtSource.close();
                 setTimeout(checkStatus, 1000);
             }
@@ -209,6 +214,7 @@ async function checkVersion(progress) {
 function countdown(secs, msg) {
     // we are counting down to a reload... so clear heartbeat timeout check.
     clearInterval(checkHeartbeat);
+    checkHeartbeat = undefined;
     const spanDots = document.getElementById("dotdot3");
     document.getElementById("modalTitle").innerHTML = "";
     document.getElementById("updateMsg").innerHTML = msg;
@@ -380,6 +386,7 @@ async function changePassword() {
     console.log("Set new credentials to: " + passwordHash);
     await setGDO("credentials", passwordHash);
     clearInterval(checkHeartbeat);
+    checkHeartbeat = undefined;
     // On success, go to home page.
     // User will have to re-authenticate to get back to settings.
     location.href = "/";
