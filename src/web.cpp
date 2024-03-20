@@ -44,6 +44,9 @@ void handle_notfound();
 
 // Make device_name available
 extern "C" char device_name[];
+// filename to save device name
+extern "C" const char device_name_file[] = "device_name";
+
 // Garage door status
 extern struct GarageDoor garage_door;
 // Local copy of door status
@@ -516,7 +519,7 @@ void handle_setgdo()
         }
         else if (!strcmp(key, "credentials"))
         {
-            strncpy(www_credentials, server.arg(0).c_str(), 48);
+            strncpy(www_credentials, value, 48);
             RINFO("Writing new www_credentials to file: %s", www_credentials);
             File file = LittleFS.open(credentials_file, "w");
             file.print(www_credentials);
@@ -548,6 +551,18 @@ void handle_setgdo()
             uint32_t seconds = atoi(value);
             write_file_to_flash(system_reboot_timer, &seconds);
             reboot = true;
+        }
+        else if (!strcmp(key, "newDeviceName"))
+        {
+            if (strlen(value) > 0)
+            {
+                strncpy(device_name, value, 32);
+                RINFO("Writing new device name to file: %s", device_name);
+                File file = LittleFS.open(device_name_file, "w");
+                file.print(device_name);
+                file.close();
+                reboot = true;
+            }
         }
         else
         {

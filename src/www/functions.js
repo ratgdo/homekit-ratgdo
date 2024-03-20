@@ -83,6 +83,7 @@ async function checkStatus() {
     document.getElementById("obstruction").innerHTML = serverStatus.garageObstructed;
     document.getElementById("motion").innerHTML = serverStatus.garageMotion;
 
+    document.getElementById("newDevicename").placeholder = serverStatus.deviceName;
     document.getElementById("gdosec1").checked = (serverStatus.GDOSecurityType == 1) ? true : false;
     document.getElementById("gdosec2").checked = (serverStatus.GDOSecurityType == 2) ? true : false;
     document.getElementById("pwreq").checked = serverStatus.passwordRequired;
@@ -345,7 +346,9 @@ async function setGDO(...args) {
         }
         const formData = new FormData();
         for (let i = 0; i < args.length; i = i + 2) {
-            formData.append(args[i], args[i + 1]);
+            if (args[i + 1].length > 0) {
+                formData.append(args[i], args[i + 1]);
+            }
         }
         var response = await fetch("setgdo", {
             method: "POST",
@@ -401,8 +404,13 @@ async function saveSettings() {
     let rebootHours = Math.max(Math.min(parseInt(document.getElementById("reboothours").value), 72), 0);
     if (isNaN(rebootHours)) rebootHours = 0;
     console.log("Set GDO Reboot Every: " + (rebootHours * 60 * 60) + " seconds");
+    let newDeviceName = document.getElementById("newDevicename").value.substring(0, 20);
+    console.log("Set device name to: " + newDeviceName);
 
-    await setGDO("gdoSecurity", gdoSec, "passwordRequired", pwReq, "rebootSeconds", rebootHours * 60 * 60);
+    await setGDO("gdoSecurity", gdoSec,
+        "passwordRequired", pwReq,
+        "rebootSeconds", rebootHours * 60 * 60,
+        "newDeviceName", newDeviceName);
     countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");
     return;
 }
