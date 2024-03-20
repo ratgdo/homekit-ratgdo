@@ -228,6 +228,7 @@ fieldset {
     }
 
     input[type="number"],
+    input[type="text"],
     input[type="password"] {
         background-color: #F0F0F0;
         border-color: #303030;
@@ -252,6 +253,7 @@ fieldset {
     }
 
     input[type="number"],
+    input[type="text"],
     input[type="password"] {
         background-color: #202020;
         border-color: #E0E0E0;

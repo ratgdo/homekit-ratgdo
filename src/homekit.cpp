@@ -6,9 +6,10 @@
 #include "comms.h"
 #include "log.h"
 #include <ESP8266WiFi.h>
+#include <LittleFS.h>
 #include "utilities.h"
 
-#define DEVICE_NAME_SIZE 19
+#define DEVICE_NAME_SIZE 32
 #define SERIAL_NAME_SIZE 18
 
 // Bring in config and characteristics defined in homekit_decl.c
@@ -39,6 +40,7 @@ void light_state_set(const homekit_value_t value);
 
 // Make device_name available
 extern "C" char device_name[DEVICE_NAME_SIZE];
+extern "C" const char device_name_file[];
 
 // Make serial_number available
 extern "C" char serial_number[SERIAL_NAME_SIZE];
@@ -51,6 +53,20 @@ void homekit_loop() {
 
 void setup_homekit() {
     snprintf(device_name, DEVICE_NAME_SIZE, "Garage Door %06X", ESP.getChipId());
+    File file = LittleFS.open(device_name_file, "r");
+    if (!file)
+    {
+        RINFO("Device name file doesn't exist. creating...");
+        file = LittleFS.open(device_name_file, "w");
+        file.print(device_name);
+    }
+    else
+    {
+        RINFO("Reading device name from file");
+        strncpy(device_name, file.readString().c_str(), DEVICE_NAME_SIZE);
+    }
+    file.close();
+
     String macAddress = WiFi.macAddress();
     snprintf(serial_number, SERIAL_NAME_SIZE, "%s", macAddress.c_str());
 
