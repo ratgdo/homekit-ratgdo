@@ -163,7 +163,7 @@
               <tr>
                 <td style="text-align: right;">Name:</td>
                 <td>&nbsp;
-                  <input id="newDevicename" type="text" placeholder="" maxlength="18" minlength="1">
+                  <input id="newDevicename" type="text" placeholder="" maxlength="30" minlength="1">
                 </td>
               </tr>
               <tr>
@@ -187,6 +187,13 @@
                 <td>&nbsp;
                   <input type="number" id="reboothours" name="reboothours" value="24" , min="0" , max="72" , step="1">
                   <label for="reboothours">Hours <span style="font-size: 0.6em;">(never:0, min:1, max:72)</span></label>
+                </td>
+              </tr>
+              <tr>
+                <td style="text-align: right;">WiFi Version Lock:</td>
+                <td>&nbsp;
+                  <input type="checkbox" id="wifiversionlock" name="wifiversionlock" value="no">
+                  <label for="wifiversionlock">802.11g</label>
                 </td>
               </tr>
               <tr>

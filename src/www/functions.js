@@ -90,6 +90,7 @@ async function checkStatus() {
     document.getElementById("reboothours").value = serverStatus.rebootSeconds / 60 / 60;
     document.getElementById("freeheap").innerHTML = serverStatus.freeHeap;
     document.getElementById("minheap").innerHTML = serverStatus.minHeap;
+    document.getElementById("wifiversionlock").checked = serverStatus.wifiVersionLock;
 
     // Use Server Send Events to keep status up-to-date, 2 == CLOSED
     if (!evtSource || evtSource.readyState == 2) {
@@ -404,13 +405,16 @@ async function saveSettings() {
     let rebootHours = Math.max(Math.min(parseInt(document.getElementById("reboothours").value), 72), 0);
     if (isNaN(rebootHours)) rebootHours = 0;
     console.log("Set GDO Reboot Every: " + (rebootHours * 60 * 60) + " seconds");
-    let newDeviceName = document.getElementById("newDevicename").value.substring(0, 20);
+    let newDeviceName = document.getElementById("newDevicename").value.substring(0, 30);
     console.log("Set device name to: " + newDeviceName);
+    let wifiVersionLock = (document.getElementById("wifiversionlock").checked) ? '1' : '0';
+    console.log("Set GDO WiFi version lock to: " + wifiVersionLock);
 
     await setGDO("gdoSecurity", gdoSec,
         "passwordRequired", pwReq,
         "rebootSeconds", rebootHours * 60 * 60,
-        "newDeviceName", newDeviceName);
+        "newDeviceName", newDeviceName,
+        "wifiVersionLock", wifiVersionLock);
     countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");
     return;
 }
