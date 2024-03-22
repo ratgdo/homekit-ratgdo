@@ -21,7 +21,6 @@
 #include <arduino_homekit_server.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266HTTPUpdateServer.h>
-#include <LittleFS.h>
 #include <Ticker.h>
 #include "log.h"
 #include "utilities.h"
@@ -72,6 +71,9 @@ const char www_pw_required_file[] = "www_pw_required_file";
 uint32_t rebootSeconds; // seconds between reboots
 const char system_reboot_timer[] = "system_reboot_timer";
 uint32_t min_heap = 0xffffffff;
+
+bool wifiVersionLock = false;
+extern "C" const char wifiVersionFile[] = "wifiVersionLock";
 
 // For Server Sent Events (SSE) support
 // Just reloading page causes register on new channel.  So we need a reasonable number
@@ -197,22 +199,12 @@ void setup_web()
     RINFO("Starting server");
     last_reported_paired = homekit_is_paired();
     // www_credentials = server.credentialHash(www_username, www_realm, www_password);
-    File file = LittleFS.open(credentials_file, "r");
-    if (!file)
-    {
-        RINFO("www_credentials file doesn't exist. creating...");
-        file = LittleFS.open(credentials_file, "w");
-        file.print(www_credentials);
-    }
-    else
-    {
-        RINFO("Reading www_credentials from file");
-        strncpy(www_credentials, file.readString().c_str(), 48);
-    }
-    file.close();
+    read_string_from_flash(credentials_file, www_credentials, www_credentials, 48);
     RINFO("WWW Credentials: %s", www_credentials);
     passwordReq = (read_file_from_flash(www_pw_required_file) != 0);
     RINFO("WWW Password %s required", (passwordReq) ? "is" : "not");
+    wifiVersionLock = (read_file_from_flash(wifiVersionFile) != 0);
+    RINFO("WiFi version locked to 802.11g: %s", (wifiVersionLock) ? "true" : "false");
 
     rebootSeconds = read_file_from_flash(system_reboot_timer, REBOOT_SECONDS);
     if (rebootSeconds > 0)
@@ -440,6 +432,8 @@ void handle_status()
         ADD_INT(json, "freeHeap", free_heap);
     if (all)
         ADD_INT(json, "minHeap", min_heap);
+    if (all)
+        ADD_INT(json, "wifiVersionLock", wifiVersionLock);
 
     END_JSON(json);
     // Only log if all requested (no arguments).
@@ -521,9 +515,7 @@ void handle_setgdo()
         {
             strncpy(www_credentials, value, 48);
             RINFO("Writing new www_credentials to file: %s", www_credentials);
-            File file = LittleFS.open(credentials_file, "w");
-            file.print(www_credentials);
-            file.close();
+            write_string_to_flash(credentials_file, www_credentials);
         }
         else if (!strcmp(key, "gdoSecurity"))
         {
@@ -558,11 +550,15 @@ void handle_setgdo()
             {
                 strncpy(device_name, value, 32);
                 RINFO("Writing new device name to file: %s", device_name);
-                File file = LittleFS.open(device_name_file, "w");
-                file.print(device_name);
-                file.close();
+                write_string_to_flash(device_name_file, device_name);
                 reboot = true;
             }
+        }
+        else if (!strcmp(key, "wifiVersionLock"))
+        {
+            uint32_t wifiVersionLock = atoi(value);
+            write_file_to_flash(wifiVersionFile, &wifiVersionLock);
+            reboot = true;
         }
         else
         {
