@@ -52,7 +52,7 @@ void homekit_loop() {
 
 void setup_homekit() {
     snprintf(device_name, DEVICE_NAME_SIZE, "Garage Door %06X", ESP.getChipId());
-    read_string_from_flash(device_name_file, device_name, device_name, DEVICE_NAME_SIZE);
+    read_string_from_file(device_name_file, device_name, device_name, DEVICE_NAME_SIZE);
     String macAddress = WiFi.macAddress();
     snprintf(serial_number, SERIAL_NAME_SIZE, "%s", macAddress.c_str());
 
@@ -67,7 +67,7 @@ void setup_homekit() {
     light_state.getter = light_state_get;
     light_state.setter = light_state_set;
 
-    garage_door.has_motion_sensor = (bool)read_file_from_flash("has_motion");
+    garage_door.has_motion_sensor = (bool)read_int_from_file("has_motion");
     if (!garage_door.has_motion_sensor) {
         RINFO("Motion Sensor not detected.  Disabling Service");
         config.accessories[0]->services[3] = NULL;
@@ -198,7 +198,7 @@ void notify_homekit_light() {
 
 void enable_service_homekit_motion() {
     uint32_t data = 1;
-    write_file_to_flash("has_motion", &data);
+    write_int_to_file("has_motion", &data);
     sync_and_restart();
 }
 

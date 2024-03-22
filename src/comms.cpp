@@ -91,7 +91,7 @@ void setup_comms() {
     LittleFS.begin();
 
     // read from flash, default of 2 (SECURITY+2.0) if file not exist
-    gdoSecurityType = (uint8_t)read_file_from_flash("gdo_security", 2);
+    gdoSecurityType = (uint8_t)read_int_from_file("gdo_security", 2);
 
     if (gdoSecurityType == 1) {
 
@@ -114,16 +114,16 @@ void setup_comms() {
         sw_serial.enableAutoBaud(true); // found in ratgdo/espsoftwareserial branch autobaud
 
         // read from flash, default of 0 if file not exist
-        id_code = read_file_from_flash("id_code");
+        id_code = read_int_from_file("id_code");
         if (!id_code) {
             RINFO("id code not found");
             id_code = (random(0x1, 0xFFF) << 12) | 0x539;
-            write_file_to_flash("id_code", &id_code);
+            write_int_to_file("id_code", &id_code);
         }
         RINFO("id code %02X", id_code);
 
         // read from flash, default of 0 if file not exist
-        rolling_code = read_file_from_flash("rolling");
+        rolling_code = read_int_from_file("rolling");
         RINFO("rolling code %02X", rolling_code);
 
         RINFO("Syncing rolling code counter after reboot...");
@@ -691,7 +691,7 @@ bool transmitSec2(PacketAction& pkt_ac) {
         if (pkt_ac.inc_counter) {
             rolling_code += 1;
             // TODO slow this rate down to save eeprom wear
-            write_file_to_flash("rolling", &rolling_code);
+            write_int_to_file("rolling", &rolling_code);
         }
     }
 

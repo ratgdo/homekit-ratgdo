@@ -199,14 +199,14 @@ void setup_web()
     RINFO("Starting server");
     last_reported_paired = homekit_is_paired();
     // www_credentials = server.credentialHash(www_username, www_realm, www_password);
-    read_string_from_flash(credentials_file, www_credentials, www_credentials, 48);
+    read_string_from_file(credentials_file, www_credentials, www_credentials, 48);
     RINFO("WWW Credentials: %s", www_credentials);
-    passwordReq = (read_file_from_flash(www_pw_required_file) != 0);
+    passwordReq = (read_int_from_file(www_pw_required_file) != 0);
     RINFO("WWW Password %s required", (passwordReq) ? "is" : "not");
-    wifiVersionLock = (read_file_from_flash(wifiVersionFile) != 0);
+    wifiVersionLock = (read_int_from_file(wifiVersionFile) != 0);
     RINFO("WiFi version locked to 802.11g: %s", (wifiVersionLock) ? "true" : "false");
 
-    rebootSeconds = read_file_from_flash(system_reboot_timer, REBOOT_SECONDS);
+    rebootSeconds = read_int_from_file(system_reboot_timer, REBOOT_SECONDS);
     if (rebootSeconds > 0)
     {
         RINFO("System will reboot every %i seconds", rebootSeconds);
@@ -515,7 +515,7 @@ void handle_setgdo()
         {
             strncpy(www_credentials, value, 48);
             RINFO("Writing new www_credentials to file: %s", www_credentials);
-            write_string_to_flash(credentials_file, www_credentials);
+            write_string_to_file(credentials_file, www_credentials);
         }
         else if (!strcmp(key, "gdoSecurity"))
         {
@@ -524,7 +524,7 @@ void handle_setgdo()
             {
                 RINFO("SetGDO security type to %i", type);
                 // Write to flash and reboot
-                write_file_to_flash("gdo_security", &type);
+                write_int_to_file("gdo_security", &type);
                 reboot = true;
             }
             else
@@ -535,13 +535,13 @@ void handle_setgdo()
         else if (!strcmp(key, "passwordRequired"))
         {
             uint32_t required = atoi(value);
-            write_file_to_flash(www_pw_required_file, &required);
+            write_int_to_file(www_pw_required_file, &required);
             reboot = true;
         }
         else if (!strcmp(key, "rebootSeconds"))
         {
             uint32_t seconds = atoi(value);
-            write_file_to_flash(system_reboot_timer, &seconds);
+            write_int_to_file(system_reboot_timer, &seconds);
             reboot = true;
         }
         else if (!strcmp(key, "newDeviceName"))
@@ -550,14 +550,14 @@ void handle_setgdo()
             {
                 strncpy(device_name, value, 32);
                 RINFO("Writing new device name to file: %s", device_name);
-                write_string_to_flash(device_name_file, device_name);
+                write_string_to_file(device_name_file, device_name);
                 reboot = true;
             }
         }
         else if (!strcmp(key, "wifiVersionLock"))
         {
             uint32_t wifiVersionLock = atoi(value);
-            write_file_to_flash(wifiVersionFile, &wifiVersionLock);
+            write_int_to_file(wifiVersionFile, &wifiVersionLock);
             reboot = true;
         }
         else
