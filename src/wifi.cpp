@@ -38,6 +38,27 @@ void get_available_wifi_networks();
 bool on_command_callback(improv::ImprovCommand cmd);
 void on_error_callback(improv::Error err);
 
+WiFiEventHandler connectedHandler;
+WiFiEventHandler disconnectedHandler;
+WiFiEventHandler gotIPHandler;
+WiFiEventHandler dhcpTimeoutHandler;
+
+void onConnected(const WiFiEventStationModeConnected& evt) {
+  RINFO("WiFi connected SSID: %s, Channel: %d", evt.ssid, evt.channel);
+}
+
+void onDisconnected(const WiFiEventStationModeDisconnected& evt) {
+  RINFO("WiFi disconnected SSID: %s, Reason: %d", evt.ssid, evt.reason);
+}
+
+void onGotIP(const WiFiEventStationModeGotIP& evt) {
+  RINFO("WiFi Got IP: %s, Mask: %s, Gateway: %s", evt.ip.toString().c_str(), evt.mask.toString().c_str() ,evt.gw.toString().c_str());
+}
+
+void onDHCPTimeout() {
+  RINFO("WiFi DHCP Timeout");
+}
+
 void wifi_connect() {
     WiFi.persistent(true);       // enable connection by default after future boots if improv has succeeded
     WiFi.mode(WIFI_STA);
@@ -48,9 +69,15 @@ void wifi_connect() {
         WiFi.setPhyMode(WIFI_PHY_MODE_11G);
     }
     WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
+
+    // Set callbacks so we can monitor connection status
+    connectedHandler = WiFi.onStationModeConnected(&onConnected);
+    disconnectedHandler = WiFi.onStationModeDisconnected(&onDisconnected);
+    gotIPHandler = WiFi.onStationModeGotIP(&onGotIP);
+    dhcpTimeoutHandler = WiFi.onStationModeDHCPTimeout(&onDHCPTimeout);
+
     RINFO("Starting WiFi connecting in background");
     WiFi.begin();                // use credentials stored in flash
-
 }
 
 void improv_loop() {
