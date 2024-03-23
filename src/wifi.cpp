@@ -23,6 +23,9 @@
 #include <Arduino.h>
 #include "ratgdo.h"
 #include "log.h"
+#include "utilities.h"
+
+extern "C" const char wifiVersionFile[];
 
 #define MAX_ATTEMPTS_WIFI_CONNECTION 20
 uint8_t x_buffer[128];
@@ -39,7 +42,11 @@ void wifi_connect() {
     WiFi.persistent(true);       // enable connection by default after future boots if improv has succeeded
     WiFi.mode(WIFI_STA);
     WiFi.setSleepMode(WIFI_NONE_SLEEP);
-    WiFi.setPhyMode(WIFI_PHY_MODE_11G);
+    if (read_int_from_file(wifiVersionFile) != 0)
+    {
+        RINFO("Forcing WiFi to 802.11g (Wi-Fi 3)");
+        WiFi.setPhyMode(WIFI_PHY_MODE_11G);
+    }
     WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
     RINFO("Starting WiFi connecting in background");
     WiFi.begin();                // use credentials stored in flash
