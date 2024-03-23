@@ -44,11 +44,12 @@ char *read_string_from_file(const char *filename, const char *defaultValue, char
     if (!file)
     {
         RINFO("%s doesn't exist. creating...", filename);
+        strlcpy(buffer, defaultValue, bufsize);
         write_string_to_file(filename, defaultValue);
     }
     else
     {
-        strncpy(buffer, file.readString().c_str(), bufsize);
+        strlcpy(buffer, file.readString().c_str(), bufsize);
         file.close();
     }
     return buffer;

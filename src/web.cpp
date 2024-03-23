@@ -316,7 +316,7 @@ void load_page(const char *page)
             server.sendHeader("ETag", crc32);
 
         if (server.hasHeader("If-None-Match"))
-            strncpy(matchHdr, server.header("If-None-Match").c_str(), 8);
+            strlcpy(matchHdr, server.header("If-None-Match").c_str(), 8);
 
         if (strcmp(crc32, matchHdr))
         {
@@ -485,8 +485,8 @@ void handle_setgdo()
     // Loop over all the GDO settings passed in...
     for (int i = 0; i < server.args(); i++)
     {
-        strncpy(key, server.argName(i).c_str(), 20);
-        strncpy(value, server.arg(i).c_str(), 48);
+        strlcpy(key, server.argName(i).c_str(), 20);
+        strlcpy(value, server.arg(i).c_str(), 48);
         RINFO("Key: %s, Value: %s", key, value);
         if (strlen(key) == 0 || strlen(value) == 0)
         {
@@ -513,7 +513,7 @@ void handle_setgdo()
         }
         else if (!strcmp(key, "credentials"))
         {
-            strncpy(www_credentials, value, 48);
+            strlcpy(www_credentials, value, 48);
             RINFO("Writing new www_credentials to file: %s", www_credentials);
             write_string_to_file(credentials_file, www_credentials);
         }
@@ -548,7 +548,7 @@ void handle_setgdo()
         {
             if (strlen(value) > 0)
             {
-                strncpy(device_name, value, 32);
+                strlcpy(device_name, value, 32);
                 RINFO("Writing new device name to file: %s", device_name);
                 write_string_to_file(device_name_file, device_name);
                 reboot = true;
