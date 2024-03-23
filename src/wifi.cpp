@@ -25,7 +25,13 @@
 #include "log.h"
 #include "utilities.h"
 
-extern "C" const char wifiVersionFile[];
+// support for changeing WiFi settings
+extern WiFiPhyMode_t wifiPhyMode;
+extern "C" const char wifiPhyModeFile[];
+extern "C" const char wifiSettingsChangedFile[];
+bool wifiSettingsChanged = false;
+unsigned long wifiConnectTimeout = 0;
+
 
 #define MAX_ATTEMPTS_WIFI_CONNECTION 20
 uint8_t x_buffer[128];
@@ -63,11 +69,21 @@ void wifi_connect() {
     WiFi.persistent(true);       // enable connection by default after future boots if improv has succeeded
     WiFi.mode(WIFI_STA);
     WiFi.setSleepMode(WIFI_NONE_SLEEP);
-    if (read_int_from_file(wifiVersionFile) != 0)
-    {
-        RINFO("Forcing WiFi to 802.11g (Wi-Fi 3)");
-        WiFi.setPhyMode(WIFI_PHY_MODE_11G);
+    wifiSettingsChanged = (read_int_from_file(wifiSettingsChangedFile) != 0);
+    if (wifiSettingsChanged) {
+        RINFO("WARNING: WiFi settings changed. Will check for connection after 30 seconds.");
     }
+    wifiPhyMode = (WiFiPhyMode_t)read_int_from_file(wifiPhyModeFile);
+    if (wifiPhyMode == WIFI_PHY_MODE_11B) {
+        RINFO("Forcing WiFi to 802.11b (Wi-Fi 1)");
+    }
+    else if (wifiPhyMode == WIFI_PHY_MODE_11G) {
+        RINFO("Forcing WiFi to 802.11g (Wi-Fi 3)");
+    }
+    else if (wifiPhyMode == WIFI_PHY_MODE_11N) {
+        RINFO("Forcing WiFi to 802.11n (Wi-Fi 4)");
+    }
+    WiFi.setPhyMode(wifiPhyMode);
     WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
 
     // Set callbacks so we can monitor connection status
@@ -77,6 +93,7 @@ void wifi_connect() {
     dhcpTimeoutHandler = WiFi.onStationModeDHCPTimeout(&onDHCPTimeout);
 
     RINFO("Starting WiFi connecting in background");
+    wifiConnectTimeout = millis() + 30000;
     WiFi.begin();                // use credentials stored in flash
 }
 
@@ -88,6 +105,23 @@ void improv_loop() {
             x_buffer[x_position++] = b;
         } else {
             x_position = 0;
+        }
+    }
+
+    if (wifiSettingsChanged && (millis() > wifiConnectTimeout)) {
+        bool connected = (WiFi.status() == WL_CONNECTED);
+        RINFO("30 seconds since WiFi version change, connected: %s", (connected) ? "true" : "false");
+        // reset flag
+        uint32_t changed = 0;
+        wifiSettingsChanged = false;
+        write_int_to_file(wifiSettingsChangedFile, &changed);
+        // If not connected, reset to auto.
+        // Not sure if setPhyMode() works immediately or if reboot required???
+        if (!connected) {
+            wifiPhyMode = (WiFiPhyMode_t)0;
+            RINFO("Reset WiFiPhyMode to: %d", wifiPhyMode)
+            write_int_to_file(wifiPhyModeFile, (uint32_t *)&wifiPhyMode);
+            WiFi.setPhyMode(wifiPhyMode);
         }
     }
 }
