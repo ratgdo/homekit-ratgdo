@@ -2,7 +2,6 @@
 #include "SoftwareSerial.h"
 #include "ratgdo.h"
 #include "homekit_debug.h"
-#include "LittleFS.h"
 // #include "secplus.h"
 #include "homekit.h"
 #include "log.h"
@@ -87,8 +86,6 @@ void setup_comms() {
 
     // init queue
     q_init(&pkt_q, sizeof(PacketAction), 8, FIFO,  false);
-
-    LittleFS.begin();
 
     // read from flash, default of 2 (SECURITY+2.0) if file not exist
     gdoSecurityType = (uint8_t)read_int_from_file("gdo_security", 2);

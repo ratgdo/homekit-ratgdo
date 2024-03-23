@@ -1,5 +1,6 @@
 
 #include <Arduino.h>
+#include "LittleFS.h"
 
 #include "ratgdo.h"
 #include "wifi.h"
@@ -30,6 +31,7 @@ long unsigned int led_on_time = 0;     // Stores time when LED should turn back 
 void setup() {
     disable_extra4k_at_link_time();
     Serial.begin(115200);
+    LittleFS.begin();
 
     wifi_connect();
 

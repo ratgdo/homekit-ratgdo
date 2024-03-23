@@ -204,7 +204,6 @@ void setup_web()
     passwordReq = (read_int_from_file(www_pw_required_file) != 0);
     RINFO("WWW Password %s required", (passwordReq) ? "is" : "not");
     wifiVersionLock = (read_int_from_file(wifiVersionFile) != 0);
-    RINFO("WiFi version locked to 802.11g: %s", (wifiVersionLock) ? "true" : "false");
 
     rebootSeconds = read_int_from_file(system_reboot_timer, REBOOT_SECONDS);
     if (rebootSeconds > 0)
