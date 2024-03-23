@@ -72,8 +72,9 @@ uint32_t rebootSeconds; // seconds between reboots
 const char system_reboot_timer[] = "system_reboot_timer";
 uint32_t min_heap = 0xffffffff;
 
-bool wifiVersionLock = false;
-extern "C" const char wifiVersionFile[] = "wifiVersionLock";
+WiFiPhyMode_t wifiPhyMode = (WiFiPhyMode_t)0;
+extern "C" const char wifiPhyModeFile[] = "wifiPhyMode";
+extern "C" const char wifiSettingsChangedFile[] = "wifiSettingsChanged";
 
 // For Server Sent Events (SSE) support
 // Just reloading page causes register on new channel.  So we need a reasonable number
@@ -203,7 +204,7 @@ void setup_web()
     RINFO("WWW Credentials: %s", www_credentials);
     passwordReq = (read_int_from_file(www_pw_required_file) != 0);
     RINFO("WWW Password %s required", (passwordReq) ? "is" : "not");
-    wifiVersionLock = (read_int_from_file(wifiVersionFile) != 0);
+    wifiPhyMode = (WiFiPhyMode_t)read_int_from_file(wifiPhyModeFile);
 
     rebootSeconds = read_int_from_file(system_reboot_timer, REBOOT_SECONDS);
     if (rebootSeconds > 0)
@@ -432,7 +433,7 @@ void handle_status()
     if (all)
         ADD_INT(json, "minHeap", min_heap);
     if (all)
-        ADD_INT(json, "wifiVersionLock", wifiVersionLock);
+        ADD_INT(json, "wifiPhyMode", wifiPhyMode);
 
     END_JSON(json);
     // Only log if all requested (no arguments).
@@ -553,11 +554,17 @@ void handle_setgdo()
                 reboot = true;
             }
         }
-        else if (!strcmp(key, "wifiVersionLock"))
+        else if (!strcmp(key, "wifiPhyMode"))
         {
-            uint32_t wifiVersionLock = atoi(value);
-            write_int_to_file(wifiVersionFile, &wifiVersionLock);
-            reboot = true;
+            WiFiPhyMode_t wifiPhyMode = (WiFiPhyMode_t)atoi(value);
+            if (read_int_from_file(wifiPhyModeFile) != (uint32_t)wifiPhyMode)
+            {
+                // Setting has changed.  Write new value and note that change has taken place
+                write_int_to_file(wifiPhyModeFile, (uint32_t *)&wifiPhyMode);
+                uint32_t changed = 1;
+                write_int_to_file(wifiSettingsChangedFile, &changed);
+                reboot = true;
+            }
         }
         else
         {
