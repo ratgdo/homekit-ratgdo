@@ -142,6 +142,7 @@ table.settings label,
 table.password td,
 table.password label {
     vertical-align: middle;
+    font-size: 0.8em;
 }
 
 .modal {
