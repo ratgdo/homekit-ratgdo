@@ -72,6 +72,7 @@ uint32_t rebootSeconds; // seconds between reboots
 const char system_reboot_timer[] = "system_reboot_timer";
 uint32_t min_heap = 0xffffffff;
 
+// Control WiFi physical layer mode
 WiFiPhyMode_t wifiPhyMode = (WiFiPhyMode_t)0;
 extern "C" const char wifiPhyModeFile[] = "wifiPhyMode";
 extern "C" const char wifiSettingsChangedFile[] = "wifiSettingsChanged";

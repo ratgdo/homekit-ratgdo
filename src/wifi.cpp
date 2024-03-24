@@ -75,16 +75,16 @@ void wifi_connect() {
     }
     wifiPhyMode = (WiFiPhyMode_t)read_int_from_file(wifiPhyModeFile);
     if (wifiPhyMode == WIFI_PHY_MODE_11B) {
-        RINFO("Forcing WiFi to 802.11b (Wi-Fi 1)");
+        RINFO("Setting WiFi preference to 802.11b (Wi-Fi 1)");
     }
     else if (wifiPhyMode == WIFI_PHY_MODE_11G) {
-        RINFO("Forcing WiFi to 802.11g (Wi-Fi 3)");
+        RINFO("Setting WiFi preference to 802.11g (Wi-Fi 3)");
     }
     else if (wifiPhyMode == WIFI_PHY_MODE_11N) {
-        RINFO("Forcing WiFi to 802.11n (Wi-Fi 4)");
+        RINFO("Setting WiFi preference to 802.11n (Wi-Fi 4)");
     }
     else {
-        RINFO("WiFi physical layer selected automatically");
+        RINFO("Setting WiFi version preference to automatic");
     }
     WiFi.setPhyMode(wifiPhyMode);
     WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
