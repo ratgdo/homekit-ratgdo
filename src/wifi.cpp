@@ -83,6 +83,9 @@ void wifi_connect() {
     else if (wifiPhyMode == WIFI_PHY_MODE_11N) {
         RINFO("Forcing WiFi to 802.11n (Wi-Fi 4)");
     }
+    else {
+        RINFO("WiFi physical layer selected automatically");
+    }
     WiFi.setPhyMode(wifiPhyMode);
     WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
 

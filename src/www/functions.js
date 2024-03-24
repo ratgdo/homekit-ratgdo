@@ -90,7 +90,10 @@ async function checkStatus() {
     document.getElementById("reboothours").value = serverStatus.rebootSeconds / 60 / 60;
     document.getElementById("freeheap").innerHTML = serverStatus.freeHeap;
     document.getElementById("minheap").innerHTML = serverStatus.minHeap;
-    document.getElementById("wifiphymode").checked = serverStatus.wifiPhyMode;
+    document.getElementById("wifiphymode0").checked = (serverStatus.wifiPhyMode == 0) ? true : false;
+    document.getElementById("wifiphymode1").checked = (serverStatus.wifiPhyMode == 1) ? true : false;
+    document.getElementById("wifiphymode2").checked = (serverStatus.wifiPhyMode == 2) ? true : false;
+    document.getElementById("wifiphymode3").checked = (serverStatus.wifiPhyMode == 3) ? true : false;
 
     // Use Server Send Events to keep status up-to-date, 2 == CLOSED
     if (!evtSource || evtSource.readyState == 2) {
@@ -407,8 +410,11 @@ async function saveSettings() {
     console.log("Set GDO Reboot Every: " + (rebootHours * 60 * 60) + " seconds");
     let newDeviceName = document.getElementById("newDevicename").value.substring(0, 30);
     console.log("Set device name to: " + newDeviceName);
-    let wifiPhyMode = (document.getElementById("wifiphymode").checked) ? '2' : '0';
-    console.log("Set GDO WiFi version lock to: " + wifiPhyMode);
+    let wifiPhyMode = (document.getElementById("wifiphymode3").checked) ? '3'
+        : (document.getElementById("wifiphymode2").checked) ? '2'
+            : (document.getElementById("wifiphymode1").checked) ? '1'
+                : '0';
+    console.log("Set GDO WiFi version to: " + wifiPhyMode);
 
     await setGDO("gdoSecurity", gdoSec,
         "passwordRequired", pwReq,
