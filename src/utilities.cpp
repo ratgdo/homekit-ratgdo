@@ -45,7 +45,7 @@ char *read_string_from_file(const char *filename, const char *defaultValue, char
     {
         RINFO("%s doesn't exist. creating...", filename);
         strlcpy(buffer, defaultValue, bufsize);
-        write_string_to_file(filename, defaultValue);
+        write_string_to_file(filename, buffer);
     }
     else
     {
