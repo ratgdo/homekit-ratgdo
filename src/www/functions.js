@@ -73,6 +73,7 @@ async function checkStatus() {
     document.getElementById("ipaddress").innerHTML = serverStatus.localIP;
     document.getElementById("netmask").innerHTML = serverStatus.subnetMask;
     document.getElementById("gateway").innerHTML = serverStatus.gatewayIP;
+    document.getElementById("rssi").innerHTML = serverStatus.wifiRSSI;
     document.getElementById("accessoryid").innerHTML = serverStatus.accessoryID;
 
     document.getElementById("gdosecuritytype").innerHTML = (serverStatus.GDOSecurityType == 1) ? "Sec+ " : "Sec+ 2.0";
