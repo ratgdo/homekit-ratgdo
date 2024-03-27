@@ -45,7 +45,7 @@ homekit_characteristic_t target_door_state = HOMEKIT_CHARACTERISTIC_(
         );
 
 homekit_characteristic_t obstruction_detected = HOMEKIT_CHARACTERISTIC_(
-        OBSTRUCTION_DETECTED, HOMEKIT_CHARACTERISTIC_TARGET_DOOR_STATE_CLOSED,
+        OBSTRUCTION_DETECTED, false,
         //.getter=obstruction_detected_get,
         //.setter=NULL
         );

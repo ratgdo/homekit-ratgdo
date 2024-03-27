@@ -411,6 +411,8 @@ void handle_status()
     if (all)
         ADD_STR(json, "wifiSSID", wifiSSID);
     if (all)
+        ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm").c_str());
+    if (all)
         ADD_STR(json, "GDOSecurityType", GDOSecurityType);
     if (all || HAS_ARG("doorstate"))
         ADD_STR(json, "garageDoorState", DOOR_STATE(garage_door.current_state));
@@ -606,6 +608,7 @@ void SSEheartbeat(uint8_t channel, SSESubscription *s)
     ADD_INT(json, "upTime", millis());
     ADD_INT(json, "freeHeap", free_heap);
     ADD_INT(json, "minHeap", min_heap);
+    ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm").c_str());
     END_JSON(json);
     REMOVE_NL(json);
 
