@@ -17,14 +17,12 @@ ESP8266-based hardware.
 
 > [!WARNING]
 > This firmware does not currently provide support the delayed close feature while warning users with
-> flash lights and beeping.  When you ask it to close, it closes.  If this is a concern for you, then you
+> flashing lights and beeping.  When you ask it to close, it closes.  If this is a concern for you, then you
 > may want to go with another solution until this feature can be implemented.  See [Issue #60](https://github.com/ratgdo/homekit-ratgdo/issues/60)
 
 > [!NOTE]
-> Message from the original Author.  
-> I am pretty sure it won't leave your garage open to thieves and light your cat on fire, but it
-> might. If your happiness depends on your garage door working every time, [consider using an
-> alternative](https://thenewwazoo.github.io/bye-bye-ratgdo.html#whats-next).
+> Many thanks to the original author @thenewwazoo.
+> [Why I'm leaving](https://thenewwazoo.github.io/bye-bye-ratgdo.html#whats-next).
 
 ## What does this firmware support?
 
