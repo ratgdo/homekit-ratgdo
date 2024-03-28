@@ -14,7 +14,14 @@ ESP8266-based hardware.
 > and open a new one if necessary.
 >
 > See the section below on where to get help.
-> 
+
+> [!WARNING]
+> This firmware does not currently provide support the delayed close feature while warning users with
+> flash lights and beeping.  When you ask it to close, it closes.  If this is a concern for you, then you
+> may want to go with another solution until this feature can be implemented.  See [Issue #60](https://github.com/ratgdo/homekit-ratgdo/issues/60)
+
+> [!NOTE]
+> Message from the original Author.  
 > I am pretty sure it won't leave your garage open to thieves and light your cat on fire, but it
 > might. If your happiness depends on your garage door working every time, [consider using an
 > alternative](https://thenewwazoo.github.io/bye-bye-ratgdo.html#whats-next).
@@ -102,6 +109,12 @@ Use the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgd
 This is a common problem. Be sure to check all of the "rooms" in the Home app. If you really can't
 find it, you can try un-pairing and re-pairing the device, paying close attention to the room you
 select after adding it.
+
+### Unable to Pair
+> I get a message [Unable to Add Accessory: The setup code is incorrect.](https://github.com/ratgdo/homekit-ratgdo/issues/97)
+
+We have had a number of users that have encountered this error that was a result of running HomeBrdige with the Bounjour-HAP mDNS backend. You can find
+more details in the issue thread, but the short story is to consider changing that backend to Avahi or Ciao.
 
 ### How do I re-pair my ratgdo?
 
