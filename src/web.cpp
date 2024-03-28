@@ -18,6 +18,7 @@
 #include "ratgdo.h"
 #include "comms.h"
 
+#include "EspSaveCrash.h"
 #include <arduino_homekit_server.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266HTTPUpdateServer.h>
@@ -25,6 +26,7 @@
 #include "log.h"
 #include "utilities.h"
 
+EspSaveCrash SaveCrash(1408, 0x400);
 ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater(true);
 
@@ -37,6 +39,8 @@ void handle_setgdo();
 void handle_logout();
 void handle_auth();
 void handle_subscribe();
+void handle_crashlog();
+void handle_clearcrashlog();
 void SSEHandler(uint8_t);
 void SSEBroadcastState(const char *);
 void handle_notfound();
@@ -193,6 +197,8 @@ const std::unordered_multimap<std::string, std::pair<const HTTPMethod, void (*)(
     {"/logout", {HTTP_GET, handle_logout}},
     {"/settings.html", {HTTP_GET, handle_settings}},
     {"/auth", {HTTP_GET, handle_auth}},
+    {"/crashlog", {HTTP_GET, handle_crashlog}},
+    {"/clearcrashlog", {HTTP_GET, handle_clearcrashlog}},
     {"/rest/events/subscribe", {HTTP_GET, handle_subscribe}},
     {"/", {HTTP_GET, handle_everything}}};
 
@@ -697,6 +703,22 @@ void handle_subscribe()
     RINFO("Subscription for client IP %s: event bus location: %s", clientIP.toString().c_str(), SSEurl.c_str());
     server.sendHeader("Cache-Control", "no-cache, no-store");
     server.send(200, "text/plain", SSEurl.c_str());
+}
+
+void handle_crashlog()
+{
+    WiFiClient client = server.client(); 
+    client.print("HTTP/1.1 200 OK\n");
+    client.print("Content-Type: text/plain\n");
+    client.print("Connection: close\n");
+    client.print("\n");
+    SaveCrash.print(client);
+}
+
+void handle_clearcrashlog()
+{
+    SaveCrash.clear();
+    server.send(200, "text/plain", "Crash log cleared");
 }
 
 void SSEBroadcastState(const char *data)
