@@ -707,10 +707,36 @@ void handle_subscribe()
     IPAddress clientIP = server.client().remoteIP(); // get IP address of client
     String SSEurl = "/rest/events/";
 
-    ++subscriptionCount;
-    for (channel = 0; channel < SSE_MAX_CHANNELS; channel++) // Find first free slot
-        if (!subscription[channel].clientIP)
+    // check if we already have a subscription for this UUID
+    for (channel = 0; channel < SSE_MAX_CHANNELS; channel++)
+    {
+        if (subscription[channel].clientUUID == server.arg(0))
+        {
+            if (subscription[channel].SSEconnected)
+            {
+                // Already connected.  We need to close it down as client will be reconnecting
+                RINFO("SSE Subscribe - client %s with IP %s already connected on channel %d, remove subscription", server.arg(0).c_str(), clientIP.toString().c_str(), channel);
+                subscription[channel].heartbeatTimer.detach();
+                subscription[channel].client.flush();
+                subscription[channel].client.stop();
+            }
+            else
+            {
+                // Subscribed but not connected yet, so nothing to close down.
+                RINFO("SSE Subscribe - client %s with IP %s already subscribed but not connected on channel %d", server.arg(0).c_str(), clientIP.toString().c_str(), channel);
+            }
             break;
+        }
+    }
+
+    if (channel == SSE_MAX_CHANNELS)
+    {
+        // ended loop above without finding a match, so need to allocate a free slot
+        ++subscriptionCount;
+        for (channel = 0; channel < SSE_MAX_CHANNELS; channel++)
+            if (!subscription[channel].clientIP)
+                break;
+    }
     subscription[channel] = {clientIP, server.client(), Ticker(), false, 0, server.arg(0)};
     SSEurl += channel;
     RINFO("Subscription for client %s with IP %s: event bus location: %s", server.arg(0).c_str(), clientIP.toString().c_str(), SSEurl.c_str());
