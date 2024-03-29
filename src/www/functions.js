@@ -99,8 +99,6 @@ async function checkStatus() {
 
     // Use Server Sent Events to keep status up-to-date, 2 == CLOSED
     if (!evtSource || evtSource.readyState == 2) {
-        let evtCount = 0;
-        let evtLastCount = 0;
         const evtResponse = await fetch("rest/events/subscribe?id=" + clientUUID);
         if (evtResponse.status !== 200) {
             console.warn("Error registering for Server Sent Events");
