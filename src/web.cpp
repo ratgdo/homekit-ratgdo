@@ -88,6 +88,7 @@ struct SSESubscription
     Ticker heartbeatTimer;
     bool SSEconnected;
     int SSEfailCount;
+    String clientUUID;
 } subscription[SSE_MAX_CHANNELS];
 uint8_t subscriptionCount = 0;
 
@@ -240,6 +241,7 @@ void setup_web()
     {
         subscription[i].SSEconnected = false;
         subscription[i].clientIP = INADDR_NONE;
+        subscription[i].clientUUID.clear();
     }
     RINFO("HTTP server started");
     return;
@@ -599,7 +601,7 @@ void handle_setgdo()
 void SSEheartbeat(uint8_t channel, SSESubscription *s)
 {
     // RINFO("SSEheartbeat - Client %s on channel %d", s->clientIP.toString().c_str(), channel);
-    size_t txsize = 0;
+    size_t txsize;
     uint32_t free_heap = system_get_free_heap_size();
     if (free_heap < min_heap)
         min_heap = free_heap;
@@ -624,6 +626,7 @@ void SSEheartbeat(uint8_t channel, SSESubscription *s)
             RINFO("SSEheartbeat - Timeout waiting for %s on channel %d to listen for events", s->clientIP.toString().c_str(), channel);
             s->heartbeatTimer.detach();
             s->clientIP = INADDR_NONE;
+            s->clientUUID.clear();
             subscriptionCount--;
             // no need to stop client socket because it is not live yet.
         }
@@ -634,6 +637,7 @@ void SSEheartbeat(uint8_t channel, SSESubscription *s)
         return;
     }
 
+    txsize = 0;
     if (s->client.connected())
     {
         txsize = s->client.printf("event: message\nretry: 15000\ndata: %s\n\n", json);
@@ -645,6 +649,7 @@ void SSEheartbeat(uint8_t channel, SSESubscription *s)
         s->client.flush();
         s->client.stop();
         s->clientIP = INADDR_NONE;
+        s->clientUUID.clear();
         s->SSEconnected = false;
         subscriptionCount--;
     }
@@ -652,17 +657,22 @@ void SSEheartbeat(uint8_t channel, SSESubscription *s)
 
 void SSEHandler(uint8_t channel)
 {
+    if (server.args() != 1)
+    {
+        RINFO("Sending 400 bad request, missing argument, for: %s", server.uri().c_str());
+        server.send(400, "text/plain", "400: Bad Request, missing argument");
+        return;
+    }
     WiFiClient client = server.client();
     SSESubscription &s = subscription[channel];
-    if (s.clientIP != client.remoteIP())
-    { // IP addresses don't match, reject this client
-        RINFO("SSEHandler - unregistered client with IP %s tries to listen", client.remoteIP().toString().c_str());
+    if (s.clientUUID != server.arg(0))
+    {
+        RINFO("SSEHandler - unregistered client %s with IP %s tries to listen", server.arg(0).c_str(), client.remoteIP().toString().c_str());
         return handle_notfound();
     }
     client.setNoDelay(true);
     client.setSync(true);
     client.setTimeout(500);
-    // RINFO("SSEHandler - registered client with IP %s is listening on %i", IPAddress(s.clientIP).toString().c_str(), channel);
     s.client = client;                               // capture SSE server client connection
     server.setContentLength(CONTENT_LENGTH_UNKNOWN); // the payload can go on forever
     /*
@@ -680,6 +690,13 @@ void SSEHandler(uint8_t channel)
 
 void handle_subscribe()
 {
+    if (server.args() != 1)
+    {
+        RINFO("Sending 400 bad request, missing argument, for: %s", server.uri().c_str());
+        server.send(400, "text/plain", "400: Bad Request, missing argument");
+        return;
+    }
+
     if (subscriptionCount == SSE_MAX_CHANNELS - 1)
     {
         return handle_notfound(); // We ran out of channels
@@ -692,9 +709,9 @@ void handle_subscribe()
     for (channel = 0; channel < SSE_MAX_CHANNELS; channel++) // Find first free slot
         if (!subscription[channel].clientIP)
             break;
-    subscription[channel] = {clientIP, server.client(), Ticker(), false, 0};
+    subscription[channel] = {clientIP, server.client(), Ticker(), false, 0, server.arg(0)};
     SSEurl += channel;
-    RINFO("Subscription for client IP %s: event bus location: %s", clientIP.toString().c_str(), SSEurl.c_str());
+    RINFO("Subscription for client %s with IP %s: event bus location: %s", server.arg(0).c_str(), clientIP.toString().c_str(), SSEurl.c_str());
     server.sendHeader("Cache-Control", "no-cache, no-store");
     server.send(200, "text/plain", SSEurl.c_str());
 }
