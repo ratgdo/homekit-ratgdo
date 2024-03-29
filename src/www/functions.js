@@ -6,9 +6,11 @@
  */
 
 // Global vars...
-var serverStatus = {};    // object into which all server status is held.
-var checkHeartbeat = undefined;   // setInterval for heartbeat timeout
-var evtSource = undefined;// for Server Sent Events (SSE)
+var serverStatus = {};          // object into which all server status is held.
+var checkHeartbeat = undefined; // setTimeout for heartbeat timeout
+var evtSource = undefined;      // for Server Sent Events (SSE)
+var delayStatusFn = [];         // to keep track of possible checkStatus timeouts
+const clientUUID = uuidv4();    // uniquely identify this session
 
 // convert miliseconds to dd:hh:mm:ss used to calculate server uptime
 function msToTime(duration) {
@@ -28,10 +30,9 @@ function msToTime(duration) {
 // checkStatus is called once on page load to retrieve status from the server...
 // and setInterval a timer that will refresh the data every 10 seconds
 async function checkStatus() {
-    if (checkHeartbeat) {
-        clearInterval(checkHeartbeat);
-        checkHeartbeat = undefined;
-    }
+    // clean up any awaiting timeouts...
+    clearTimeout(checkHeartbeat);
+    while (delayStatusFn.length) clearTimeout(delayStatusFn.pop());
     try {
         const response = await fetch("status.json")
             .catch((error) => {
@@ -45,7 +46,7 @@ async function checkStatus() {
         serverStatus = await response.json();
     }
     catch {
-        setTimeout(checkStatus, 5000);
+        delayStatusFn.push(setTimeout(checkStatus, 5000));
         return;
     }
     console.log(serverStatus);
@@ -96,22 +97,28 @@ async function checkStatus() {
     document.getElementById("wifiphymode2").checked = (serverStatus.wifiPhyMode == 2) ? true : false;
     document.getElementById("wifiphymode3").checked = (serverStatus.wifiPhyMode == 3) ? true : false;
 
-    // Use Server Send Events to keep status up-to-date, 2 == CLOSED
+    // Use Server Sent Events to keep status up-to-date, 2 == CLOSED
     if (!evtSource || evtSource.readyState == 2) {
         let evtCount = 0;
         let evtLastCount = 0;
-        const evtResponse = await fetch("rest/events/subscribe");
+        const evtResponse = await fetch("rest/events/subscribe?id=" + clientUUID);
         if (evtResponse.status !== 200) {
-            console.warn("Error registering for Server Send Events");
+            console.warn("Error registering for Server Sent Events");
             return;
         }
-        const evtUrl = await evtResponse.text();
+        const evtUrl = (await evtResponse.text()) + '?id=' + clientUUID;
 
         console.log(`Register for server sent events at ${evtUrl}`);
         evtSource = new EventSource(evtUrl);
         evtSource.addEventListener("message", (event) => {
             //console.log(`Message received: ${event.data}`);
-            evtCount++;
+            clearTimeout(checkHeartbeat);
+            checkHeartbeat = setTimeout(() => {
+                // if no message received since last check then close connection and try again.
+                console.log(`SSE timeout, no message received in 5 seconds. Last upTime: ${serverStatus.upTime} (${msToTime(serverStatus.upTime)})`);
+                evtSource.close();
+                delayStatusFn.push(setTimeout(checkStatus, 1000));
+            }, 5000);
             var msgJson = JSON.parse(event.data);
             serverStatus = { ...serverStatus, ...msgJson };
             // Update the HTML for those values that were present in the message...
@@ -139,19 +146,8 @@ async function checkStatus() {
             // If an error occurs close the connection, then wait 5 seconds and try again.
             console.log(`SSE error occurred while attempting to connect to ${evtSource.url}`);
             evtSource.close();
-            setTimeout(checkStatus, 5000);
+            delayStatusFn.push(setTimeout(checkStatus, 5000));
         });
-        checkHeartbeat = setInterval(() => {
-            if (evtLastCount == evtCount) {
-                // if no message received since last check then close connection and try again.
-                console.log(`SSE timeout, no message received in 5 seconds. Last upTime: ${serverStatus.upTime} (${msToTime(serverStatus.upTime)})`);
-                clearInterval(checkHeartbeat);
-                checkHeartbeat = undefined;
-                evtSource.close();
-                setTimeout(checkStatus, 1000);
-            }
-            evtLastCount = evtCount;
-        }, 5000);
     } else {
         console.log(`SSE already setup at ${evtSource.url}, State: ${evtSource.readyState}`);
     }
@@ -219,8 +215,7 @@ async function checkVersion(progress) {
 // Used at end of firmware update or on reboot request.
 function countdown(secs, msg) {
     // we are counting down to a reload... so clear heartbeat timeout check.
-    clearInterval(checkHeartbeat);
-    checkHeartbeat = undefined;
+    clearTimeout(checkHeartbeat);
     const spanDots = document.getElementById("dotdot3");
     document.getElementById("modalTitle").innerHTML = "";
     document.getElementById("updateMsg").innerHTML = msg;
@@ -281,7 +276,7 @@ async function firmwareUpdate(github = true) {
             const inputElem = document.querySelector('input[type="file"]');
             const formData = new FormData();
             if (inputElem.files.length > 0) {
-                console.log("Uploading file: " + inputElem.files[0]);
+                console.log("Uploading file: " + inputElem.files[0].name);
                 formData.append("file", inputElem.files[0]);
                 response = await fetch("update", {
                     method: "POST",
@@ -393,8 +388,7 @@ async function changePassword() {
     passwordHash = MD5(www_username + ":" + www_realm + ":" + newPW.value);
     console.log("Set new credentials to: " + passwordHash);
     await setGDO("credentials", passwordHash);
-    clearInterval(checkHeartbeat);
-    checkHeartbeat = undefined;
+    clearTimeout(checkHeartbeat);
     // On success, go to home page.
     // User will have to re-authenticate to get back to settings.
     location.href = "/";
@@ -463,6 +457,14 @@ function isPullDown(dY, dX) {
     return dY < 0 && (
         (Math.abs(dX) <= 100 && Math.abs(dY) >= 300)
         || (Math.abs(dX) / Math.abs(dY) <= 0.3 && dY >= 60)
+    );
+}
+
+// Generate a UUID.  Cannot use crypto.randomUUID() because that will only run
+// in a secure environment, which is not possible with ratgdo.
+function uuidv4() {
+    return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
+        (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
     );
 }
 
