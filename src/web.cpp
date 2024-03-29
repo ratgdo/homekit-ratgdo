@@ -182,8 +182,10 @@ void web_loop()
     server.handleClient();
 
     uint32_t free_heap = system_get_free_heap_size();
-    if (free_heap < min_heap)
+    if (free_heap < min_heap) {
         min_heap = free_heap;
+        RINFO("Free HEAP dropped to %d", min_heap);
+    }
 }
 
 const std::unordered_multimap<std::string, std::pair<const HTTPMethod, void (*)()>> builtInUri = {
