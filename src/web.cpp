@@ -26,7 +26,7 @@
 #include "log.h"
 #include "utilities.h"
 
-EspSaveCrash saveCrash(1408, 0x400, true);
+EspSaveCrash saveCrash(1408, 1024, true);
 ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater(true);
 
@@ -41,7 +41,10 @@ void handle_auth();
 void handle_subscribe();
 void handle_crashlog();
 void handle_clearcrashlog();
+#ifdef CRASH_DEBUG
 void handle_forcecrash();
+char* test_str = NULL;
+#endif
 void SSEHandler(uint8_t);
 void SSEBroadcastState(const char *);
 void handle_notfound();
@@ -207,7 +210,9 @@ const std::unordered_multimap<std::string, std::pair<const HTTPMethod, void (*)(
     {"/auth", {HTTP_GET, handle_auth}},
     {"/crashlog", {HTTP_GET, handle_crashlog}},
     {"/clearcrashlog", {HTTP_GET, handle_clearcrashlog}},
+#ifdef CRASH_DEBUG
     {"/forcecrash", {HTTP_GET, handle_forcecrash}},
+#endif
     {"/rest/events/subscribe", {HTTP_GET, handle_subscribe}},
     {"/", {HTTP_GET, handle_everything}}};
 
@@ -785,15 +790,14 @@ void handle_clearcrashlog()
     server.send(200, "text/plain", "Crash log cleared");
 }
 
+#ifdef CRASH_DEBUG
 void handle_forcecrash()
 {
-    RINFO("Attempting to divide by zero ...");
+    RINFO("Attempting to null ptr deref ...");
     server.send(200, "text/plain", "Attempting to divide by zero");
-    int result, zero;
-    zero = 0;
-    result = 1 / zero;
-    RINFO("Result: %d", result);
+    RINFO("Result: %s", test_str);
 }
+#endif
 
 void SSEBroadcastState(const char *data)
 {
