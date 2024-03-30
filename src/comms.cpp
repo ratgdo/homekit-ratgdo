@@ -489,26 +489,28 @@ void comms_loop() {
                 switch (pkt.m_pkt_cmd) {
                     case PacketCommand::Status:
                         {
+                            GarageDoorCurrentState current_state = garage_door.current_state;
+                            GarageDoorTargetState target_state = garage_door.target_state;
                             switch (pkt.m_data.value.status.door) {
                                 case DoorState::Open:
-                                    garage_door.current_state = CURR_OPEN;
-                                    garage_door.target_state = TGT_OPEN;
+                                    current_state = CURR_OPEN;
+                                    target_state = TGT_OPEN;
                                     break;
                                 case DoorState::Closed:
-                                    garage_door.current_state = CURR_CLOSED;
-                                    garage_door.target_state = TGT_CLOSED;
+                                    current_state = CURR_CLOSED;
+                                    target_state = TGT_CLOSED;
                                     break;
                                 case DoorState::Stopped:
-                                    garage_door.current_state = CURR_STOPPED;
-                                    garage_door.target_state = TGT_OPEN;
+                                    current_state = CURR_STOPPED;
+                                    target_state = TGT_OPEN;
                                     break;
                                 case DoorState::Opening:
-                                    garage_door.current_state = CURR_OPENING;
-                                    garage_door.target_state = TGT_OPEN;
+                                    current_state = CURR_OPENING;
+                                    target_state = TGT_OPEN;
                                     break;
                                 case DoorState::Closing:
-                                    garage_door.current_state = CURR_CLOSING;
-                                    garage_door.target_state = TGT_CLOSED;
+                                    current_state = CURR_CLOSING;
+                                    target_state = TGT_CLOSED;
                                     break;
                                 case DoorState::Unknown:
                                     RERROR("Got door state unknown");
@@ -519,16 +521,22 @@ void comms_loop() {
                                 RINFO("activating door");
                                 garage_door.active = true;
                                 notify_homekit_active();
-                                if (garage_door.current_state == CURR_OPENING || garage_door.current_state == CURR_OPEN) {
-                                    garage_door.target_state = TGT_OPEN;
+                                if (current_state == CURR_OPENING || current_state == CURR_OPEN) {
+                                    target_state = TGT_OPEN;
                                 } else {
-                                    garage_door.target_state = TGT_CLOSED;
+                                    target_state = TGT_CLOSED;
                                 }
                             }
 
-                            RINFO("tgt %d curr %d", garage_door.target_state, garage_door.current_state);
-                            notify_homekit_target_door_state_change();
-                            notify_homekit_current_door_state_change();
+                            RINFO("tgt %d curr %d", target_state, current_state);
+                            if (target_state != garage_door.target_state) {
+                                notify_homekit_target_door_state_change();
+                                garage_door.target_state = target_state;
+                            }
+                            if (current_state != garage_door.current_state) {
+                                notify_homekit_current_door_state_change();
+                                garage_door.current_state = current_state;
+                            }
 
                             if (pkt.m_data.value.status.light != garage_door.light) {
                                 RINFO("Light Status %s", pkt.m_data.value.status.light ? "On" : "Off");
@@ -536,15 +544,21 @@ void comms_loop() {
                                 notify_homekit_light();
                             }
 
+                            LockCurrentState current_lock;
+                            LockTargetState target_lock;
                             if (pkt.m_data.value.status.lock) {
-                                garage_door.current_lock = CURR_LOCKED;
-                                garage_door.target_lock = TGT_LOCKED;
+                                current_lock = CURR_LOCKED;
+                                target_lock = TGT_LOCKED;
                             } else {
-                                garage_door.current_lock = CURR_UNLOCKED;
-                                garage_door.target_lock = TGT_UNLOCKED;
+                                current_lock = CURR_UNLOCKED;
+                                target_lock = TGT_UNLOCKED;
                             }
-                            notify_homekit_target_lock();
-                            notify_homekit_current_lock();
+                            if (current_lock != garage_door.current_lock) {
+                                notify_homekit_target_lock();
+                                notify_homekit_current_lock();
+                                garage_door.target_lock = target_lock;
+                                garage_door.current_lock = current_lock;
+                            }
 
                             break;
                         }
