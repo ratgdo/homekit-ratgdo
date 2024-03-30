@@ -92,10 +92,18 @@ async function checkStatus() {
     document.getElementById("reboothours").value = serverStatus.rebootSeconds / 60 / 60;
     document.getElementById("freeheap").innerHTML = serverStatus.freeHeap;
     document.getElementById("minheap").innerHTML = serverStatus.minHeap;
+    document.getElementById("crashcount").innerHTML = serverStatus.crashCount;
     document.getElementById("wifiphymode0").checked = (serverStatus.wifiPhyMode == 0) ? true : false;
     document.getElementById("wifiphymode1").checked = (serverStatus.wifiPhyMode == 1) ? true : false;
     document.getElementById("wifiphymode2").checked = (serverStatus.wifiPhyMode == 2) ? true : false;
     document.getElementById("wifiphymode3").checked = (serverStatus.wifiPhyMode == 3) ? true : false;
+
+    if (serverStatus.crashCount > 0) {
+        document.getElementById("crashactions").style.display = "initial";
+    }
+    else {
+        document.getElementById("crashactions").style.display = "none";
+    }
 
     // Use Server Sent Events to keep status up-to-date, 2 == CLOSED
     if (!evtSource || evtSource.readyState == 2) {
@@ -320,6 +328,17 @@ async function unpairRATGDO() {
         return;
     }
     countdown(30, "RATGO un-pairing and rebooting...&nbsp;");
+}
+
+async function clearCrashLog() {
+    var response = await fetch("clearcrashlog", {
+        method: "GET",
+    });
+    if (response.status !== 200) {
+        console.warn("Error attempting to clear RATGDO crash log");
+        return;
+    }
+    document.getElementById("crashactions").style.display = "none";
 }
 
 async function checkAuth() {
