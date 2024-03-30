@@ -26,7 +26,7 @@
 #include "log.h"
 #include "utilities.h"
 
-EspSaveCrash SaveCrash(1408, 0x400);
+EspSaveCrash SaveCrash(1408, 1024, true);
 ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater(true);
 
