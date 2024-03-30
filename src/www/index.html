@@ -230,15 +230,21 @@
     <!-- Footer section of page ------------------------------------------------------------------>
     <footer>
       <div class="footer">
-        <p>For documentation and support see the <a href="https://github.com/ratgdo/homekit-ratgdo">GitHub</a>
+        <p style="margin:0px;">For documentation and support see the <a
+            href="https://github.com/ratgdo/homekit-ratgdo">GitHub</a>
           page.<br>Copyright (c) 2023-24 <a
             href="https://github.com/ratgdo/homekit-ratgdo/graphs/contributors">homekit-ratgdo
             contributors.</a><br>Licensed under terms of the <a
             href="https://www.gnu.org/licenses/gpl-3.0.en.html">GPL-3.0
-            License.</a><br><br>
-          freeHeap:&nbsp;<span id="freeheap">0</span><br>
-          minHeap:&nbsp;<span id="minheap">0</span><br>
-          lastReboot:&nbsp;<span id="lastreboot"></span>
+            License.</a><br>
+          <br>freeHeap:&nbsp;<span id="freeheap">0</span>
+          <br>minHeap:&nbsp;<span id="minheap">0</span>
+          <br>lastReboot:&nbsp;<span id="lastreboot"></span>
+          <br>crashCount:&nbsp;<span id="crashcount"></span>
+          <span id="crashactions" style="display:none;">
+            &nbsp;(<a href="crashlog" target="_blank">display log</a>&nbsp;
+            <a href="#" onclick="return confirm('Clear crash log, are you sure?.') && clearCrashLog();">clear log</a>)
+          </span>
         </p>
       </div>
     </footer>

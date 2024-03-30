@@ -19,5 +19,6 @@
   "rebootSeconds": 0,
   "freeHeap": 0,
   "minHeap": 0,
+  "crashCount": 0,
   "wifiPhyMode": 0
 }
