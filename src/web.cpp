@@ -224,6 +224,11 @@ void setup_web()
     wifiPhyMode = (WiFiPhyMode_t)read_int_from_file(wifiPhyModeFile);
 
     crashCount = saveCrash.count();
+    if (crashCount == 255)
+    {
+        saveCrash.clear();
+        crashCount = 0;
+    }
     rebootSeconds = read_int_from_file(system_reboot_timer, REBOOT_SECONDS);
     if (rebootSeconds > 0)
     {
