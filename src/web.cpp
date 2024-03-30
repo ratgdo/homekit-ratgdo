@@ -18,6 +18,7 @@
 #include "ratgdo.h"
 #include "comms.h"
 
+#include "EspSaveCrash.h"
 #include <arduino_homekit_server.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266HTTPUpdateServer.h>
@@ -25,6 +26,7 @@
 #include "log.h"
 #include "utilities.h"
 
+EspSaveCrash saveCrash(1408, 0x400);
 ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater(true);
 
@@ -37,6 +39,9 @@ void handle_setgdo();
 void handle_logout();
 void handle_auth();
 void handle_subscribe();
+void handle_crashlog();
+void handle_clearcrashlog();
+void handle_forcecrash();
 void SSEHandler(uint8_t);
 void SSEBroadcastState(const char *);
 void handle_notfound();
@@ -76,6 +81,9 @@ uint32_t min_heap = 0xffffffff;
 WiFiPhyMode_t wifiPhyMode = (WiFiPhyMode_t)0;
 extern "C" const char wifiPhyModeFile[] = "wifiPhyMode";
 extern "C" const char wifiSettingsChangedFile[] = "wifiSettingsChanged";
+
+// number of times the device has crashed
+int crashCount = 0;
 
 // For Server Sent Events (SSE) support
 // Just reloading page causes register on new channel.  So we need a reasonable number
@@ -182,7 +190,8 @@ void web_loop()
     server.handleClient();
 
     uint32_t free_heap = system_get_free_heap_size();
-    if (free_heap < min_heap) {
+    if (free_heap < min_heap)
+    {
         min_heap = free_heap;
         RINFO("Free HEAP dropped to %d", min_heap);
     }
@@ -196,6 +205,9 @@ const std::unordered_multimap<std::string, std::pair<const HTTPMethod, void (*)(
     {"/logout", {HTTP_GET, handle_logout}},
     {"/settings.html", {HTTP_GET, handle_settings}},
     {"/auth", {HTTP_GET, handle_auth}},
+    {"/crashlog", {HTTP_GET, handle_crashlog}},
+    {"/clearcrashlog", {HTTP_GET, handle_clearcrashlog}},
+    {"/forcecrash", {HTTP_GET, handle_forcecrash}},
     {"/rest/events/subscribe", {HTTP_GET, handle_subscribe}},
     {"/", {HTTP_GET, handle_everything}}};
 
@@ -210,6 +222,7 @@ void setup_web()
     RINFO("WWW Password %s required", (passwordReq) ? "is" : "not");
     wifiPhyMode = (WiFiPhyMode_t)read_int_from_file(wifiPhyModeFile);
 
+    crashCount = saveCrash.count();
     rebootSeconds = read_int_from_file(system_reboot_timer, REBOOT_SECONDS);
     if (rebootSeconds > 0)
     {
@@ -439,6 +452,8 @@ void handle_status()
         ADD_INT(json, "freeHeap", free_heap);
     if (all)
         ADD_INT(json, "minHeap", min_heap);
+    if (all)
+        ADD_INT(json, "crashCount", crashCount);
     if (all)
         ADD_INT(json, "wifiPhyMode", wifiPhyMode);
 
@@ -742,6 +757,37 @@ void handle_subscribe()
     RINFO("Subscription for client %s with IP %s: event bus location: %s", server.arg(0).c_str(), clientIP.toString().c_str(), SSEurl.c_str());
     server.sendHeader("Cache-Control", "no-cache, no-store");
     server.send(200, "text/plain", SSEurl.c_str());
+}
+
+void handle_crashlog()
+{
+    WiFiClient client = server.client();
+    client.print("HTTP/1.1 200 OK\n");
+    client.print("Content-Type: text/plain\n");
+    client.print("Connection: close\n");
+    client.print("\n");
+    saveCrash.print(client);
+}
+
+void handle_clearcrashlog()
+{
+    if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
+    {
+        return server.requestAuthentication(DIGEST_AUTH, www_realm);
+    }
+    saveCrash.clear();
+    crashCount = 0;
+    server.send(200, "text/plain", "Crash log cleared");
+}
+
+void handle_forcecrash()
+{
+    RINFO("Attempting to divide by zero ...");
+    server.send(200, "text/plain", "Attempting to divide by zero");
+    int result, zero;
+    zero = 0;
+    result = 1 / zero;
+    RINFO("Result: %d", result);
 }
 
 void SSEBroadcastState(const char *data)
