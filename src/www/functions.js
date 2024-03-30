@@ -98,12 +98,12 @@ async function checkStatus() {
     document.getElementById("wifiphymode2").checked = (serverStatus.wifiPhyMode == 2) ? true : false;
     document.getElementById("wifiphymode3").checked = (serverStatus.wifiPhyMode == 3) ? true : false;
 
-    //if (serverStatus.crashCount > 0) {
-        document.getElementById("crashactions").style.display = "inline-block";
-    //}
-    //else {
-    //    document.getElementById("crashactions").style.display = "none";
-    // }
+    if (serverStatus.crashCount > 0) {
+        document.getElementById("crashactions").style.display = "initial";
+    }
+    else {
+        document.getElementById("crashactions").style.display = "none";
+    }
 
     // Use Server Sent Events to keep status up-to-date, 2 == CLOSED
     if (!evtSource || evtSource.readyState == 2) {
@@ -338,6 +338,7 @@ async function clearCrashLog() {
         console.warn("Error attempting to clear RATGDO crash log");
         return;
     }
+    document.getElementById("crashactions").style.display = "none";
 }
 
 async function checkAuth() {

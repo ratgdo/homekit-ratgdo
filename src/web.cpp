@@ -771,6 +771,7 @@ void handle_subscribe()
 
 void handle_crashlog()
 {
+    RINFO("Request to display crash log...");
     WiFiClient client = server.client();
     client.print("HTTP/1.1 200 OK\n");
     client.print("Content-Type: text/plain\n");
@@ -785,6 +786,7 @@ void handle_clearcrashlog()
     {
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
     }
+    RINFO("Clear saved crash log...");
     saveCrash.clear();
     crashCount = 0;
     server.send(200, "text/plain", "Crash log cleared");
@@ -793,8 +795,9 @@ void handle_clearcrashlog()
 #ifdef CRASH_DEBUG
 void handle_forcecrash()
 {
-    RINFO("Attempting to null ptr deref ...");
-    server.send(200, "text/plain", "Attempting to divide by zero");
+    RINFO("Attempting to null ptr deref...");
+    server.send(200, "text/plain", "Attempting to null ptr deref");
+    delay(1000);
     RINFO("Result: %s", test_str);
 }
 #endif
