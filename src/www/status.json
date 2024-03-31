@@ -18,8 +18,9 @@
   "garageObstructed": false,
   "passwordRequired": true,
   "rebootSeconds": 0,
-  "freeHeap": 0,
-  "minHeap": 0,
+  "freeHeap": 20000,
+  "minHeap": 10000,
+  "minStack": 2000,
   "crashCount": 0,
   "wifiPhyMode": 0
 }
