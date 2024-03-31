@@ -111,6 +111,14 @@ jobs:
           dir: docs/firmware/
           commit_message: "Upload Latest Firmware: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin"
     
+      - name: Upload Release Asset
+        uses: wow-actions/download-upload@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          url: https://github.com/ratgdo/homekit-ratgdo/releases/download/${{ steps.tag.outputs.latestTag }}/homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.elf
+          dir: docs/firmware/
+          commit_message: "Upload Latest Firmware: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.elf"
+    
       - name: Upload Firmware.bin
         uses: actions/upload-artifact@v4
         with:
@@ -129,6 +137,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin
+          path: |
+            docs/firmware/
+
+      - name: Download Firmware.elf
+        uses: actions/download-artifact@v4
+        with:
+          name: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.elf
           path: |
             docs/firmware/
 
