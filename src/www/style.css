@@ -77,6 +77,18 @@ div.fullwidth {
     padding-right: 0px;
 }
 
+div.header {
+    width: 100%;
+    max-width: 800px;
+    overflow: hidden;
+    position: relative;
+    border-bottom-style: solid;
+    border-bottom-width: 1px;
+    padding: 0px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
 div.fullpage {
     margin: auto;
     max-width: 800px;
@@ -85,6 +97,8 @@ div.fullpage {
     position: relative;
     float: none;
     border-style: solid;
+    padding-top: 0px;
+    padding-bottom: 0px;
 }
 
 div.center {
@@ -96,6 +110,7 @@ div.footer {
     width: 100%;
     font-size: 12px;
     padding: 0px;
+    padding-bottom: 5px;
 }
 
 .logo {
@@ -143,6 +158,12 @@ table.password td,
 table.password label {
     vertical-align: middle;
     font-size: 0.8em;
+}
+table.settings td.label,
+table.password td.label {
+    vertical-align: middle;
+    text-align: right;
+    font-size: 0.9em;
 }
 
 .modal {
@@ -236,8 +257,9 @@ fieldset {
         color: black;
     }
 
+    div.footer,
     a {
-        color: black;
+        color: #505050;
     }
 }
 
@@ -261,7 +283,8 @@ fieldset {
         color: white;
     }
 
+    div.footer,
     a {
-        color: white;
+        color: #B0B0B0;
     }
 }

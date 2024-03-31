@@ -20,7 +20,7 @@
   <!-- Title section of page ------------------------------------------------------------------>
   <div class="fullpage">
     <main>
-      <div class="fullwidth">
+      <div class="header">
         <div class="logo">
           <pre class="logo">
  _____ _____ _____ _____ ____  _____
@@ -40,7 +40,7 @@
         </div>
       </div>
       <!-- Main section of page ------------------------------------------------------------------>
-      <div id="main-page" style="padding-left: 0px; padding-right: 0px;">
+      <div id="main-page" style="padding: 0px; padding-bottom: 10px;">
         <div class="serverstatus">
           <table>
             <tr>
@@ -138,16 +138,16 @@
         </div>
       </div>
       <!-- Settings section of page ------------------------------------------------------------------>
-      <div id="settings-page" style="display: none; padding: 0px;">
-        <div class="fullwidth">
-          <div>
+      <div id="settings-page" style="display: none; padding-left: 0px; padding-right: 0px;">
+        <div class="fullwidth" style="padding-top: 0px; padding-bottom: 0px;">
+          <div style="padding-top: 0px; padding-bottom: 0px;">
             <table class="password">
               <tr>
-                <td style="text-align: right;">Password:</td>
+                <td class="label">Password:</td>
                 <td><input id="newPassword" type="password" placeholder="new password" autocomplete="new-password"></td>
               </tr>
               <tr>
-                <td style="text-align: right;">Confirm:</td>
+                <td class="label">Confirm:</td>
                 <td><input id="confirmPassword" type="password" placeholder="confirm new password"></td>
               </tr>
               <tr>
@@ -161,17 +161,17 @@
             <input type="button" value="Save Password" onclick="changePassword();">
           </div>
         </div>
-        <div class="fullwidth">
+        <div class="fullwidth" style="padding-top: 0px; padding-bottom: 0px;">
           <div>
             <table class="settings">
               <tr>
-                <td style="text-align: right;">Name:</td>
+                <td class="label">Name:</td>
                 <td>&nbsp;
                   <input id="newDevicename" type="text" placeholder="" maxlength="30" minlength="1">
                 </td>
               </tr>
               <tr>
-                <td style="text-align: right;">Door Protocol:</td>
+                <td class="label">Door Protocol:</td>
                 <td>&nbsp;
                   <input type="radio" id="gdosec1" name="gdosecuritysetting" value="1">
                   <label for="gdosec1">Sec+</label>
@@ -180,21 +180,21 @@
                 </td>
               </tr>
               <tr>
-                <td style="text-align: right;">Require Password:</td>
+                <td class="label">Require Password:</td>
                 <td>&nbsp;
                   <input type="checkbox" id="pwreq" name="pwreq" value="no">
                   <span style="font-size: 0.8em;">(default: admin/password)</span>
                 </td>
               </tr>
               <tr>
-                <td style="text-align: right;">Reboot Every:</td>
+                <td class="label">Reboot Every:</td>
                 <td>&nbsp;
                   <input type="number" id="reboothours" name="reboothours" value="24" , min="0" , max="72" , step="1">
                   Hours <span style="font-size: 0.8em;">(never:0, min:1, max:72)</span>
                 </td>
               </tr>
               <tr>
-                <td style="text-align: right;">WiFi Version:</td>
+                <td class="label">WiFi Version:</td>
                 <td>&nbsp;
                   <input type="radio" id="wifiphymode0" name="wifiphymode" value="0">
                   <label for="wifiphymode0">Auto</label>
@@ -214,7 +214,7 @@
                 </td>
               </tr>
               <tr>
-                <td> <br></td>
+                <td></td>
               </tr>
               <tr>
                 <td>
@@ -236,17 +236,22 @@
             href="https://github.com/ratgdo/homekit-ratgdo/graphs/contributors">homekit-ratgdo
             contributors.</a><br>Licensed under terms of the <a
             href="https://www.gnu.org/licenses/gpl-3.0.en.html">GPL-3.0
-            License.</a><br>
-          <br>freeHeap:&nbsp;<span id="freeheap">0</span>
-          <br>minHeap:&nbsp;<span id="minheap">0</span>
-          <br>minStack:&nbsp;<span id="minstack">0</span>
-          <br>lastReboot:&nbsp;<span id="lastreboot"></span>
-          <span id="crashactions" style="display:none;">
-          <br>crashCount:&nbsp;<span id="crashcount"></span>
-            &nbsp;(<a href="crashlog" target="_blank">display log</a>&nbsp;
-            <a href="#" onclick="return confirm('Clear crash log, are you sure?.') && clearCrashLog();">clear log</a>)
-          </span>
+            License.</a>
         </p>
+        <br>
+        <table style="border-collapse: collapse">
+          <tr>
+            <td style="width: 30%; padding: 0px">freeHeap:&nbsp;<span id="freeheap">0</span></td>
+            <td style="width: 30%; padding: 0px">minHeap:&nbsp;<span id="minheap">0</span></td>
+            <td style="width: 30%; padding: 0px">minStack:&nbsp;<span id="minstack">0</span></td>
+          </tr>
+        </table>
+        lastReboot:&nbsp;<span id="lastreboot"></span>
+        <span id="crashactions" style="display:none;">
+          <br>crashCount:&nbsp;<span id="crashcount"></span>
+          &nbsp;(<a href="crashlog" target="_blank">display log</a>&nbsp;
+          <a href="#" onclick="return confirm('Clear crash log, are you sure?.') && clearCrashLog();">clear log</a>)
+        </span>
       </div>
     </footer>
   </div>
