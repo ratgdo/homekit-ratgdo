@@ -91,7 +91,7 @@ int crashCount = 0;
 // For Server Sent Events (SSE) support
 // Just reloading page causes register on new channel.  So we need a reasonable number
 // to accommodate "extra" until old one is detected as disconnected.
-#define SSE_MAX_CHANNELS 16
+#define SSE_MAX_CHANNELS 8
 struct SSESubscription
 {
     IPAddress clientIP;
@@ -463,6 +463,8 @@ void handle_status()
     if (all)
         ADD_INT(json, "minHeap", min_heap);
     if (all)
+        ADD_INT(json, "minStack", ESP.getFreeContStack());
+    if (all)
         ADD_INT(json, "crashCount", crashCount);
     if (all)
         ADD_INT(json, "wifiPhyMode", wifiPhyMode);
@@ -476,6 +478,7 @@ void handle_status()
 
     server.sendHeader("Cache-Control", "no-cache, no-store");
     server.send(200, "application/json", json);
+
     return;
 }
 

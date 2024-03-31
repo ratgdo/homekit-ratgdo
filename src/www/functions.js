@@ -92,6 +92,7 @@ async function checkStatus() {
     document.getElementById("reboothours").value = serverStatus.rebootSeconds / 60 / 60;
     document.getElementById("freeheap").innerHTML = serverStatus.freeHeap;
     document.getElementById("minheap").innerHTML = serverStatus.minHeap;
+    document.getElementById("minstack").innerHTML = serverStatus.minStack;
     document.getElementById("crashcount").innerHTML = serverStatus.crashCount;
     document.getElementById("wifiphymode0").checked = (serverStatus.wifiPhyMode == 0) ? true : false;
     document.getElementById("wifiphymode1").checked = (serverStatus.wifiPhyMode == 1) ? true : false;
@@ -147,6 +148,7 @@ async function checkStatus() {
             if (msgJson.hasOwnProperty("garageMotion")) document.getElementById("motion").innerHTML = serverStatus.garageMotion;
             if (msgJson.hasOwnProperty("freeHeap")) document.getElementById("freeheap").innerHTML = serverStatus.freeHeap;
             if (msgJson.hasOwnProperty("minHeap")) document.getElementById("minheap").innerHTML = serverStatus.minHeap;
+            if (msgJson.hasOwnProperty("minStack")) document.getElementById("minstack").innerHTML = serverStatus.minStack;
         });
         evtSource.addEventListener("error", (event) => {
             // If an error occurs close the connection, then wait 5 seconds and try again.
