@@ -96,14 +96,14 @@ jobs:
           mv .pio/build/ratgdo_esp8266_hV25/firmware.bin .pio/build/ratgdo_esp8266_hV25/homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin
           mv .pio/build/ratgdo_esp8266_hV25/firmware.elf .pio/build/ratgdo_esp8266_hV25/homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.elf
 
-      - name: Attach Bundle
+      - name: Attach Bundle - Firmware.bin
         uses: AButler/upload-release-assets@v3.0
         with:
           files: ".pio/build/ratgdo_esp8266_hV25/*.bin"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           release-tag: ${{ steps.tag.outputs.latestTag }}
       
-      - name: Upload Release Asset
+      - name: Upload Release Asset - Firmware.bin
         uses: wow-actions/download-upload@v1
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -117,6 +117,28 @@ jobs:
           name: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin
           path: |
             .pio/build/ratgdo_esp8266_hV25/*.bin
+
+      - name: Download Firmware.bin
+        uses: actions/download-artifact@v4
+        with:
+          name: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin
+          path: |
+            docs/firmware/
+  
+      - name: Attach Bundle - Firmware.elf
+        uses: AButler/upload-release-assets@v3.0
+        with:
+          files: ".pio/build/ratgdo_esp8266_hV25/*.elf"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          release-tag: ${{ steps.tag.outputs.latestTag }}
+
+      - name: Upload Release Asset - Firmware.elf
+        uses: wow-actions/download-upload@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          url: https://github.com/ratgdo/homekit-ratgdo/releases/download/${{ steps.tag.outputs.latestTag }}/homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.elf 
+          dir: docs/firmware/
+          commit_message: "Upload Latest Firmware: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.elf"
     
       - name: Upload Firmware.elf
         uses: actions/upload-artifact@v4
@@ -125,10 +147,10 @@ jobs:
           path: |
             .pio/build/ratgdo_esp8266_hV25/*.elf
 
-      - name: Download Firmware.bin
+      - name: Download Firmware.elf
         uses: actions/download-artifact@v4
         with:
-          name: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin
+          name: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.elf
           path: |
             docs/firmware/
 
