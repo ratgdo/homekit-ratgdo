@@ -27,6 +27,64 @@ function msToTime(duration) {
     return days + ":" + hours + ":" + minutes + ":" + seconds;
 }
 
+// Update all elements on HTML page to reflect status
+function setElementsFromStatus(status) {
+    for (const [key, value] of Object.entries(status)) {
+        switch (key) {
+            case "paired":
+                if (value) {
+                    document.getElementById("unpair").value = "Un-pair HomeKit";
+                    document.getElementById("qrcode").style.display = "none";
+                    document.getElementById("re-pair-info").style.display = "inline-block";
+                } else {
+                    document.getElementById("unpair").value = "Reset HomeKit";
+                    document.getElementById("re-pair-info").style.display = "none";
+                    document.getElementById("qrcode").style.display = "inline-block";
+                }
+                break;
+            case "upTime":
+                document.getElementById(key).innerHTML = msToTime(value);
+                const date = new Date(Date.now() - value);
+                document.getElementById("lastreboot").innerHTML = date.toLocaleString();
+                break;
+            case "GDOSecurityType":
+                document.getElementById(key).innerHTML = (value == 1) ? "Sec+ " : "Sec+ 2.0";
+                document.getElementById("gdosec1").checked = (value == 1) ? true : false;
+                document.getElementById("gdosec2").checked = (value == 2) ? true : false;
+                break;
+            case "deviceName":
+                document.getElementById(key).innerHTML = value;
+                document.getElementById("newDeviceName").placeholder = value;
+                break;
+            case "passwordRequired":
+                document.getElementById("pwreq").checked = value;
+                break;
+            case "rebootSeconds":
+                document.getElementById("rebootHours").value = value / 60 / 60;
+                break;
+            case "TTCseconds":
+                document.getElementById(key).value = value;
+                break;
+            case "firmwareVersion":
+                document.getElementById(key).innerHTML = value;
+                document.getElementById("firmwareVersion2").innerHTML = value;
+                break;
+            case "crashCount":
+                document.getElementById(key).innerHTML = value;
+                document.getElementById("crashactions").style.display = (value > 0) ? "initial" : "none";
+                break;
+            case "wifiPhyMode":
+                document.getElementById("wifiPhyMode0").checked = (value == 0) ? true : false;
+                document.getElementById("wifiPhyMode1").checked = (value == 1) ? true : false;
+                document.getElementById("wifiPhyMode2").checked = (value == 2) ? true : false;
+                document.getElementById("wifiPhyMode3").checked = (value == 3) ? true : false;
+                break;
+            default:
+                document.getElementById(key).innerHTML = value;
+        }
+    }
+}
+
 // checkStatus is called once on page load to retrieve status from the server...
 // and setInterval a timer that will refresh the data every 10 seconds
 async function checkStatus() {
@@ -54,58 +112,7 @@ async function checkStatus() {
     // Hack because firmware uses v0.0.0 and 0.0.0 for different purposes.
     serverStatus.firmwareVersion = "v" + serverStatus.firmwareVersion;
 
-    document.getElementById("devicename").innerHTML = serverStatus.deviceName;
-    if (serverStatus.paired) {
-        document.getElementById("unpair").value = "Un-pair HomeKit";
-        document.getElementById("qrcode").style.display = "none";
-        document.getElementById("re-pair-info").style.display = "inline-block";
-    } else {
-        document.getElementById("unpair").value = "Reset HomeKit";
-        document.getElementById("re-pair-info").style.display = "none";
-        document.getElementById("qrcode").style.display = "inline-block";
-    }
-    document.getElementById("uptime").innerHTML = msToTime(serverStatus.upTime);
-    const date = new Date(Date.now() - serverStatus.upTime);
-    document.getElementById("lastreboot").innerHTML = date.toLocaleString();
-    document.getElementById("firmware").innerHTML = serverStatus.firmwareVersion;
-    document.getElementById("firmware2").innerHTML = serverStatus.firmwareVersion;
-    document.getElementById("ssid").innerHTML = serverStatus.wifiSSID;
-    document.getElementById("macaddress").innerHTML = serverStatus.macAddress;
-    document.getElementById("ipaddress").innerHTML = serverStatus.localIP;
-    document.getElementById("netmask").innerHTML = serverStatus.subnetMask;
-    document.getElementById("gateway").innerHTML = serverStatus.gatewayIP;
-    document.getElementById("rssi").innerHTML = serverStatus.wifiRSSI;
-    document.getElementById("accessoryid").innerHTML = serverStatus.accessoryID;
-
-    document.getElementById("gdosecuritytype").innerHTML = (serverStatus.GDOSecurityType == 1) ? "Sec+ " : "Sec+ 2.0";
-
-    document.getElementById("doorstate").innerHTML = serverStatus.garageDoorState;
-    document.getElementById("lockstate").innerHTML = serverStatus.garageLockState;
-    document.getElementById("lighton").innerHTML = serverStatus.garageLightOn;
-    document.getElementById("obstruction").innerHTML = serverStatus.garageObstructed;
-    document.getElementById("motion").innerHTML = serverStatus.garageMotion;
-
-    document.getElementById("newDevicename").placeholder = serverStatus.deviceName;
-    document.getElementById("gdosec1").checked = (serverStatus.GDOSecurityType == 1) ? true : false;
-    document.getElementById("gdosec2").checked = (serverStatus.GDOSecurityType == 2) ? true : false;
-    document.getElementById("pwreq").checked = serverStatus.passwordRequired;
-    document.getElementById("reboothours").value = serverStatus.rebootSeconds / 60 / 60;
-    document.getElementById("TTCseconds").value = serverStatus.TTCseconds;
-    document.getElementById("freeheap").innerHTML = serverStatus.freeHeap;
-    document.getElementById("minheap").innerHTML = serverStatus.minHeap;
-    document.getElementById("minstack").innerHTML = serverStatus.minStack;
-    document.getElementById("crashcount").innerHTML = serverStatus.crashCount;
-    document.getElementById("wifiphymode0").checked = (serverStatus.wifiPhyMode == 0) ? true : false;
-    document.getElementById("wifiphymode1").checked = (serverStatus.wifiPhyMode == 1) ? true : false;
-    document.getElementById("wifiphymode2").checked = (serverStatus.wifiPhyMode == 2) ? true : false;
-    document.getElementById("wifiphymode3").checked = (serverStatus.wifiPhyMode == 3) ? true : false;
-
-    if (serverStatus.crashCount > 0) {
-        document.getElementById("crashactions").style.display = "initial";
-    }
-    else {
-        document.getElementById("crashactions").style.display = "none";
-    }
+    setElementsFromStatus(serverStatus);
 
     // Use Server Sent Events to keep status up-to-date, 2 == CLOSED
     if (!evtSource || evtSource.readyState == 2) {
@@ -130,26 +137,7 @@ async function checkStatus() {
             var msgJson = JSON.parse(event.data);
             serverStatus = { ...serverStatus, ...msgJson };
             // Update the HTML for those values that were present in the message...
-            if (msgJson.hasOwnProperty("paired")) {
-                if (serverStatus.paired) {
-                    document.getElementById("unpair").value = "Un-pair HomeKit";
-                    document.getElementById("qrcode").style.display = "none";
-                    document.getElementById("re-pair-info").style.display = "inline-block";
-                } else {
-                    document.getElementById("unpair").value = "Reset HomeKit";
-                    document.getElementById("re-pair-info").style.display = "none";
-                    document.getElementById("qrcode").style.display = "inline-block";
-                }
-            }
-            if (msgJson.hasOwnProperty("upTime")) document.getElementById("uptime").innerHTML = msToTime(serverStatus.upTime);
-            if (msgJson.hasOwnProperty("garageDoorState")) document.getElementById("doorstate").innerHTML = serverStatus.garageDoorState;
-            if (msgJson.hasOwnProperty("garageLockState")) document.getElementById("lockstate").innerHTML = serverStatus.garageLockState;
-            if (msgJson.hasOwnProperty("garageLightOn")) document.getElementById("lighton").innerHTML = serverStatus.garageLightOn;
-            if (msgJson.hasOwnProperty("garageObstructed")) document.getElementById("obstruction").innerHTML = serverStatus.garageObstructed;
-            if (msgJson.hasOwnProperty("garageMotion")) document.getElementById("motion").innerHTML = serverStatus.garageMotion;
-            if (msgJson.hasOwnProperty("freeHeap")) document.getElementById("freeheap").innerHTML = serverStatus.freeHeap;
-            if (msgJson.hasOwnProperty("minHeap")) document.getElementById("minheap").innerHTML = serverStatus.minHeap;
-            if (msgJson.hasOwnProperty("minStack")) document.getElementById("minstack").innerHTML = serverStatus.minStack;
+            setElementsFromStatus(msgJson);
         });
         evtSource.addEventListener("error", (event) => {
             // If an error occurs close the connection, then wait 5 seconds and try again.
@@ -364,22 +352,38 @@ async function setGDO(...args) {
     try {
         // check if authenticated, before post to setgdo, prevents timeout of dialog due to AbortSignal
         if (!await checkAuth()) {
-            return;
+            return false;
         }
         const formData = new FormData();
         for (let i = 0; i < args.length; i = i + 2) {
-            if (args[i + 1].length > 0) {
+            // Only transmit setting if value has changed
+            if (serverStatus[args[i]] != args[i + 1]) {
+                console.log(`Set: ${args[i]} to: ${args[i + 1]}`);
                 formData.append(args[i], args[i + 1]);
             }
         }
-        var response = await fetch("setgdo", {
-            method: "POST",
-            body: formData,
-            signal: AbortSignal.timeout(2000),
-        });
-        if (response.status !== 200) {
-            console.warn("Error setting RATGDO state");
-            return;
+        if (Array.from(formData.keys()).length > 0) {
+            var response = await fetch("setgdo", {
+                method: "POST",
+                body: formData,
+                signal: AbortSignal.timeout(2000),
+            });
+            if (response.status !== 200) {
+                console.warn("Error setting RATGDO state");
+                return true;;
+            }
+            else {
+                const result = await response.text();
+                if(result.includes('Reboot')) {
+                    console.log('Server settings saved, reboot required');
+                    return true;
+                }
+                return false;
+            }
+        }
+        else {
+            console.log('setGDO: No values changed');
+            return false;
         }
     }
     catch (err) {
@@ -394,6 +398,7 @@ async function setGDO(...args) {
             console.error(`Error: type: ${err.name}, message: ${err.message}`);
         }
     }
+    return false;
 }
 
 async function changePassword() {
@@ -419,30 +424,31 @@ async function changePassword() {
 
 async function saveSettings() {
     let gdoSec = (document.getElementById("gdosec1").checked) ? '1' : '2';
-    console.log("Set GDO security type to: " + gdoSec);
     let pwReq = (document.getElementById("pwreq").checked) ? '1' : '0';
-    console.log("Set GDO Web Password required to: " + pwReq);
-    let rebootHours = Math.max(Math.min(parseInt(document.getElementById("reboothours").value), 72), 0);
+    let rebootHours = Math.max(Math.min(parseInt(document.getElementById("rebootHours").value), 72), 0);
     if (isNaN(rebootHours)) rebootHours = 0;
-    console.log("Set GDO Reboot Every: " + (rebootHours * 60 * 60) + " seconds");
-    let newDeviceName = document.getElementById("newDevicename").value.substring(0, 30);
-    console.log("Set device name to: " + newDeviceName);
-    let wifiPhyMode = (document.getElementById("wifiphymode3").checked) ? '3'
-        : (document.getElementById("wifiphymode2").checked) ? '2'
-            : (document.getElementById("wifiphymode1").checked) ? '1'
+    let newDeviceName = document.getElementById("newDeviceName").value.substring(0, 30);
+    if (newDeviceName.length == 0) newDeviceName = serverStatus.deviceName;
+    let wifiPhyMode = (document.getElementById("wifiPhyMode3").checked) ? '3'
+        : (document.getElementById("wifiPhyMode2").checked) ? '2'
+            : (document.getElementById("wifiPhyMode1").checked) ? '1'
                 : '0';
-    console.log("Set GDO WiFi version to: " + wifiPhyMode);
     let TTCseconds = Math.max(Math.min(parseInt(document.getElementById("TTCseconds").value), 60), 0);
     if (isNaN(TTCseconds)) TTCseconds = 0;
-    console.log("Set GDO Time-to-close delay: " + TTCseconds + " seconds");
 
-    await setGDO("gdoSecurity", gdoSec,
+    const reboot = await setGDO("GDOSecurityType", gdoSec,
         "passwordRequired", pwReq,
-        "rebootSeconds", (rebootHours * 60 * 60).toString(),
-        "newDeviceName", newDeviceName,
+        "rebootSeconds", (rebootHours * 60 * 60),
+        "deviceName", newDeviceName,
         "wifiPhyMode", wifiPhyMode,
-        "TTCseconds", TTCseconds.toString());
-    countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");
+        "TTCseconds", TTCseconds);
+    if (reboot) {
+        countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");
+    }
+    else {
+        // No need to reboot, but return to main page to reload status.
+        location.href = "/";
+    }
     return;
 }
 

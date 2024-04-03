@@ -509,18 +509,18 @@ void handle_setgdo()
         }
 
         // Check against each known setting
-        if (!strcmp(key, "lighton"))
+        if (!strcmp(key, "garageLightOn"))
         {
             set_light(!strcmp(value, "1") ? true : false);
         }
-        else if (!strcmp(key, "doorstate"))
+        else if (!strcmp(key, "garageDoorState"))
         {
             if (!strcmp(value, "1"))
                 open_door();
             else
                 close_door();
         }
-        else if (!strcmp(key, "lockstate"))
+        else if (!strcmp(key, "garageLockState"))
         {
             set_lock(!strcmp(value, "1") ? 1 : 0);
         }
@@ -530,7 +530,7 @@ void handle_setgdo()
             RINFO("Writing new www_credentials to file: %s", www_credentials);
             write_string_to_file(credentials_file, www_credentials);
         }
-        else if (!strcmp(key, "gdoSecurity"))
+        else if (!strcmp(key, "gdoSecurityType"))
         {
             uint32_t type = atoi(value);
             if ((type == 1) || (type == 2))
@@ -548,8 +548,8 @@ void handle_setgdo()
         else if (!strcmp(key, "passwordRequired"))
         {
             uint32_t required = atoi(value);
+            passwordReq = (required != 0);
             write_int_to_file(www_pw_required_file, &required);
-            reboot = true;
         }
         else if (!strcmp(key, "rebootSeconds"))
         {
@@ -557,7 +557,7 @@ void handle_setgdo()
             write_int_to_file(system_reboot_timer, &seconds);
             reboot = true;
         }
-        else if (!strcmp(key, "newDeviceName"))
+        else if (!strcmp(key, "deviceName"))
         {
             if (strlen(value) > 0)
             {
@@ -583,7 +583,6 @@ void handle_setgdo()
         {
             uint32_t seconds = atoi(value);
             write_int_to_file(TTCdelay_file, &seconds);
-            reboot = true;
         }
         else if (!strcmp(key, "updateUnderway"))
         {
@@ -604,7 +603,10 @@ void handle_setgdo()
     }
     else
     {
-        server.send(200, "text/html", "<p>Success.</p>");
+        if (reboot)
+            server.send(200, "text/html", "<p>Success. Reboot.</p>");
+        else
+            server.send(200, "text/html", "<p>Success.</p>");
     }
     // Some settings require reboot to take effect...
     if (reboot)
