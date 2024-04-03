@@ -31,7 +31,7 @@
           <p class="logo"> for HomeKit</p>
         </div>
         <div class="name">
-          <p id="devicename" style="margin:0px;">Garage Door</p>
+          <p id="deviceName" style="margin:0px;">Garage Door</p>
         </div>
         <div style="float:right;vertical-align: middle; padding-left: 0; padding-right: 0;">
           <img id="settings-icon" src="settings-sliders.svg?v=CRC-32" alt="Settings" style="width:1.5em;height:1.5em;">
@@ -45,46 +45,46 @@
           <table>
             <tr>
               <td style="text-align: right; width: 40%">Firmware:</td>
-              <td><span id="firmware"></span><br><sup style="font-size: 0.6em;"><span id="newversion"></span><span
+              <td><span id="firmwareVersion"></span><br><sup style="font-size: 0.6em;"><span id="newversion"></span><span
                     id="dotdot1"></span></sup></td>
             </tr>
             <tr>
               <td style="text-align: right; white-space: pre;">Up Time:</td>
-              <td><span id="uptime"></span><br><sup style="font-size: 0.6em;">(days:hrs:min:sec)</sup></td>
+              <td><span id="upTime"></span><br><sup style="font-size: 0.6em;">(days:hrs:min:sec)</sup></td>
             </tr>
             <tr style="height: 2px">
               <td colspan="2"></td>
             </tr>
             <tr>
               <td style="text-align: right;">WiFi SSID:</td>
-              <td id="ssid"></td>
+              <td id="wifiSSID"></td>
             </tr>
             <tr>
               <td style="text-align: right;">WiFi RSSI:</td>
-              <td id="rssi"></td>
+              <td id="wifiRSSI"></td>
             </tr>
             <tr>
               <td style="text-align: right;">MAC Address:</td>
-              <td id="macaddress"></td>
+              <td id="macAddress"></td>
             </tr>
             <tr>
               <td style="text-align: right;">IP Address:</td>
-              <td id="ipaddress"></td>
+              <td id="localIP"></td>
             </tr>
             <tr>
               <td style="text-align: right;">Netmask:</td>
-              <td id="netmask"></td>
+              <td id="subnetMask"></td>
             </tr>
             <tr>
               <td style="text-align: right;">Gateway IP:</td>
-              <td id="gateway"></td>
+              <td id="gatewayIP"></td>
             </tr>
             <tr style="height: 10px">
               <td colspan="2"></td>
             </tr>
             <tr>
               <td style="text-align: right;">HomeKit ID:</td>
-              <td id="accessoryid"></td>
+              <td id="accessoryID"></td>
             </tr>
           </table>
         </div>
@@ -109,32 +109,32 @@
           <table>
             <tr>
               <td style="width: 30%; text-align: right;">Door State:</td>
-              <td style="width: 15%;" id="doorstate"></td>
+              <td style="width: 15%;" id="garageDoorState"></td>
               <td style="width: 35%; text-align: right;">Light On:</td>
-              <td style="width: 20%;" id="lighton"></td>
+              <td style="width: 20%;" id="garageLightOn"></td>
             </tr>
             <tr>
               <td style="text-align: right;">Lock State:</td>
-              <td id="lockstate"></td>
+              <td id="garageLockState"></td>
               <td style="text-align: right;">Obstruction:</td>
-              <td id="obstruction"></td>
+              <td id="garageObstructed"></td>
             </tr>
             <tr>
               <td style="text-align: right;">Door Protocol:</td>
-              <td id="gdosecuritytype"></td>
+              <td id="GDOSecurityType"></td>
               <td style="text-align: right;">Motion:</td>
-              <td id="motion"></td>
+              <td id="garageMotion"></td>
             </tr>
           </table>
         </div>
         <div id="GDOcontrols" class="fullwidth"
           style="padding-left: 0px; padding-right: 0px; display: flex; justify-content: space-between;">
-          <input type="button" value="Light On" onclick="setGDO('lighton', '1');">
-          <input type="button" value="Light Off" onclick="setGDO('lighton', '0');">
-          <input type="button" value="Door Open" onclick="setGDO('doorstate', '1');">
-          <input type="button" value="Door Close" onclick="setGDO('doorstate', '0');">
-          <input type="button" value="Door Lock" onclick="setGDO('lockstate', '1');">
-          <input type="button" value="Door Unlock" onclick="setGDO('lockstate', '0');">
+          <input type="button" value="Light On" onclick="setGDO('garageLightOn', '1');">
+          <input type="button" value="Light Off" onclick="setGDO('garageLightOn', '0');">
+          <input type="button" value="Door Open" onclick="setGDO('garageDoorState', '1');">
+          <input type="button" value="Door Close" onclick="setGDO('garageDoorState', '0');">
+          <input type="button" value="Door Lock" onclick="setGDO('garageLockState', '1');">
+          <input type="button" value="Door Unlock" onclick="setGDO('garageLockState', '0');">
         </div>
       </div>
       <!-- Settings section of page ------------------------------------------------------------------>
@@ -167,7 +167,7 @@
               <tr>
                 <td class="label">Name:</td>
                 <td>&nbsp;
-                  <input id="newDevicename" type="text" placeholder="" maxlength="30" minlength="1">
+                  <input id="newDeviceName" type="text" placeholder="" maxlength="30" minlength="1">
                 </td>
               </tr>
               <tr>
@@ -196,21 +196,21 @@
               <tr>
                 <td class="label">Reboot Every:</td>
                 <td>&nbsp;
-                  <input type="number" id="reboothours" name="reboothours" value="0" , min="0" , max="72" , step="1">
+                  <input type="number" id="rebootHours" name="rebootHours" value="0" , min="0" , max="72" , step="1">
                   Hours <span style="font-size: 0.8em;">(never:0, min:1, max:72)</span>
                 </td>
               </tr>
               <tr>
                 <td class="label">WiFi Version:</td>
                 <td>&nbsp;
-                  <input type="radio" id="wifiphymode0" name="wifiphymode" value="0">
-                  <label for="wifiphymode0">Auto</label>
-                  <input type="radio" id="wifiphymode1" name="wifiphymode" value="1">
-                  <label for="wifiphymode1">802.11b</label>
-                  <input type="radio" id="wifiphymode2" name="wifiphymode" value="2">
-                  <label for="wifiphymode2">802.11g</label>
-                  <input type="radio" id="wifiphymode3" name="wifiphymode" value="3">
-                  <label for="wifiphymode3">802.11n</label>
+                  <input type="radio" id="wifiPhyMode0" name="wifiPhyMode" value="0">
+                  <label for="wifiPhyMode0">Auto</label>
+                  <input type="radio" id="wifiPhyMode1" name="wifiPhyMode" value="1">
+                  <label for="wifiPhyMode1">802.11b</label>
+                  <input type="radio" id="wifiPhyMode2" name="wifiPhyMode" value="2">
+                  <label for="wifiPhyMode2">802.11g</label>
+                  <input type="radio" id="wifiPhyMode3" name="wifiPhyMode" value="3">
+                  <label for="wifiPhyMode3">802.11n</label>
                 </td>
               </tr>
               <tr>
@@ -226,7 +226,7 @@
               <tr>
                 <td>
                   <input type="button" value="Save Settings"
-                    onclick="return confirm('Save Settings & Reboot RATGDO, are you sure?') && saveSettings()">
+                    onclick="return confirm('Save Settings. Reboot may be required, are you sure?') && saveSettings()">
                 </td>
               </tr>
             </table>
@@ -248,14 +248,14 @@
         <br>
         <table style="border-collapse: collapse">
           <tr>
-            <td style="width: 30%; padding: 0px">freeHeap:&nbsp;<span id="freeheap">0</span></td>
-            <td style="width: 30%; padding: 0px">minHeap:&nbsp;<span id="minheap">0</span></td>
-            <td style="width: 30%; padding: 0px">minStack:&nbsp;<span id="minstack">0</span></td>
+            <td style="width: 30%; padding: 0px">freeHeap:&nbsp;<span id="freeHeap">0</span></td>
+            <td style="width: 30%; padding: 0px">minHeap:&nbsp;<span id="minHeap">0</span></td>
+            <td style="width: 30%; padding: 0px">minStack:&nbsp;<span id="minStack">0</span></td>
           </tr>
         </table>
         lastReboot:&nbsp;<span id="lastreboot"></span>
         <span id="crashactions" style="display:none;">
-          <br>crashCount:&nbsp;<span id="crashcount"></span>
+          <br>crashCount:&nbsp;<span id="crashCount"></span>
           &nbsp;(<a href="crashlog" target="_blank">display log</a>&nbsp;
           <a href="#" onclick="return confirm('Clear crash log, are you sure?.') && clearCrashLog();">clear log</a>)
         </span>
@@ -267,7 +267,7 @@
   <div id="myModal" class="modal">
     <div class="modal-content">
       <span id="modalClose" class="close" onclick="modal.style.display = 'none'">&times;</span>
-      <span id="modalTitle">Installed Firmware:&nbsp;<span id="firmware2">xxx</span><br></span><br>
+      <span id="modalTitle">Installed Firmware:&nbsp;<span id="firmwareVersion2">xxx</span><br></span><br>
       <div id="updateDialog" style="float: none; padding:0px">
         <fieldset>
           <legend>Update from GitHub</legend>
@@ -373,7 +373,14 @@
     };
 
     // Allow only numeric keystrokes into the reboot every X hours field
-    document.getElementById("reboothours").addEventListener("keypress", (event) => {
+    document.getElementById("rebootHours").addEventListener("keypress", (event) => {
+      if (event.which < 48 || event.which > 57) {
+        event.preventDefault();
+      }
+    });
+
+    // Allow only numeric keystrokes into the time-to-close seconds field
+    document.getElementById("TTCseconds").addEventListener("keypress", (event) => {
       if (event.which < 48 || event.which > 57) {
         event.preventDefault();
       }
