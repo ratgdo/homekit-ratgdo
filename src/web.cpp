@@ -25,6 +25,8 @@
 #include <Ticker.h>
 #include "log.h"
 #include "utilities.h"
+#include <umm_malloc/umm_malloc.h>
+#include <umm_malloc/umm_heap_select.h>
 
 EspSaveCrash saveCrash(1408, 1024, true);
 ESP8266WebServer server(80);
@@ -91,7 +93,7 @@ int crashCount = 0;
 // For Server Sent Events (SSE) support
 // Just reloading page causes register on new channel.  So we need a reasonable number
 // to accommodate "extra" until old one is detected as disconnected.
-#define SSE_MAX_CHANNELS 8
+#define SSE_MAX_CHANNELS 4
 struct SSESubscription
 {
     IPAddress clientIP;
@@ -101,9 +103,10 @@ struct SSESubscription
     int SSEfailCount;
     String clientUUID;
 } subscription[SSE_MAX_CHANNELS];
+
 uint8_t subscriptionCount = 0;
 
-char json[1024] = ""; // Maximum length of JSON response
+char *json; // Maximum length of JSON response
 #define START_JSON(s)     \
     {                     \
         s[0] = 0;         \
@@ -219,6 +222,10 @@ const std::unordered_multimap<std::string, std::pair<const HTTPMethod, void (*)(
 void setup_web()
 {
     RINFO("Starting server");
+    {
+        HeapSelectIram ephemeral;
+        json = (char *)malloc(1024);
+    }
     last_reported_paired = homekit_is_paired();
     // www_credentials = server.credentialHash(www_username, www_realm, www_password);
     read_string_from_file(credentials_file, www_credentials, www_credentials, 48);
@@ -473,12 +480,11 @@ void handle_status()
     // Only log if all requested (no arguments).
     // Avoids spaming console log if repeated requests for one value.
     if (all)
-        RINFO("Status requested:\n%s", json);
+        RINFO("Status requested:\n%s\nlength %d\n", json, strlen(json));
     last_reported_garage_door = garage_door;
 
     server.sendHeader("Cache-Control", "no-cache, no-store");
     server.send(200, "application/json", json);
-
     return;
 }
 
