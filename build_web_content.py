@@ -35,6 +35,10 @@ for file in filenames:
     if file[0] == ".":
         continue
 
+    # skip status.json
+    if file == "status.json":
+        continue
+
     with open(sourcepath + "/" + file, "rb") as f:
         # read contents of the file
         data = f.read()
@@ -61,6 +65,10 @@ varnames = []
 for file in filenames:
     # skip hidden files
     if file[0] == ".":
+        continue
+
+    # skip status.json
+    if file == "status.json":
         continue
 
     # create gzip file name
