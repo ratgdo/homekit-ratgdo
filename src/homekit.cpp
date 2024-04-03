@@ -7,9 +7,7 @@
 #include "log.h"
 #include <ESP8266WiFi.h>
 #include "utilities.h"
-
-#define DEVICE_NAME_SIZE 32
-#define SERIAL_NAME_SIZE 18
+#include "homekit_decl.h"
 
 // Bring in config and characteristics defined in homekit_decl.c
 extern "C" homekit_server_config_t config;
