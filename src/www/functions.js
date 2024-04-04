@@ -274,6 +274,7 @@ async function firmwareUpdate(github = true) {
             });
             const blob = await response.blob();
             console.log("Download complete, size: " + blob.size);
+            await setGDO("updateUnderway", "true");
             const formData = new FormData();
             formData.append("content", blob);
             response = await fetch("update", {
@@ -282,8 +283,9 @@ async function firmwareUpdate(github = true) {
             });
         } else {
             const inputElem = document.querySelector('input[type="file"]');
-            const formData = new FormData();
             if (inputElem.files.length > 0) {
+                await setGDO("updateUnderway", "true");
+                const formData = new FormData();
                 console.log("Uploading file: " + inputElem.files[0].name);
                 formData.append("file", inputElem.files[0]);
                 response = await fetch("update", {
