@@ -172,6 +172,7 @@ char json[1024] = ""; // Maximum length of JSON response
 void web_loop()
 {
     START_JSON(json);
+    // Conditional macros, only add if value has changed
     ADD_BOOL_C(json, "paired", homekit_is_paired(), last_reported_paired);
     ADD_STR_C(json, "garageDoorState", DOOR_STATE(garage_door.current_state), garage_door.current_state, last_reported_garage_door.current_state);
     ADD_STR_C(json, "garageLockState", LOCK_STATE(garage_door.current_lock), garage_door.current_lock, last_reported_garage_door.current_lock);
@@ -417,8 +418,6 @@ void handle_status()
 #define macAddress WiFi.macAddress().c_str()
 #define wifiSSID WiFi.SSID().c_str()
 #define GDOSecurityType std::to_string(gdoSecurityType).c_str()
-    // Helper macros to add int, string or boolean to a json format string.
-
     // Build the JSON string
     START_JSON(json);
     ADD_INT(json, "upTime", upTime);
@@ -449,10 +448,8 @@ void handle_status()
     ADD_INT(json, "crashCount", crashCount);
     ADD_INT(json, "wifiPhyMode", wifiPhyMode);
     ADD_INT(json, "TTCseconds", TTCdelay);
-
     END_JSON(json);
-    // Only log if all requested (no arguments).
-    // Avoids spaming console log if repeated requests for one value.
+
     RINFO("Status requested:\n%s", json);
     last_reported_garage_door = garage_door;
 
@@ -554,17 +551,17 @@ void handle_setgdo()
         else if (!strcmp(key, "rebootSeconds"))
         {
             uint32_t seconds = atoi(value);
+            rebootSeconds = seconds;
             write_int_to_file(system_reboot_timer, &seconds);
-            reboot = true;
+            // only reboot if setting to non-zero
+            reboot = (rebootSeconds != 0);
         }
         else if (!strcmp(key, "deviceName"))
         {
             if (strlen(value) > 0)
             {
                 strlcpy(device_name, value, 32);
-                RINFO("Writing new device name to file: %s", device_name);
                 write_string_to_file(device_name_file, device_name);
-                reboot = true;
             }
         }
         else if (!strcmp(key, "wifiPhyMode"))

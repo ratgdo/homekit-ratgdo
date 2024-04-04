@@ -45,8 +45,8 @@
           <table>
             <tr>
               <td style="text-align: right; width: 40%">Firmware:</td>
-              <td><span id="firmwareVersion"></span><br><sup style="font-size: 0.6em;"><span id="newversion"></span><span
-                    id="dotdot1"></span></sup></td>
+              <td><span id="firmwareVersion"></span><br><sup style="font-size: 0.6em;"><span
+                    id="newversion"></span><span id="dotdot1"></span></sup></td>
             </tr>
             <tr>
               <td style="text-align: right; white-space: pre;">Up Time:</td>
@@ -108,10 +108,10 @@
         <div class="fullwidth">
           <table>
             <tr>
-              <td style="width: 30%; text-align: right;">Door State:</td>
-              <td style="width: 15%;" id="garageDoorState"></td>
+              <td style="width: 35%; text-align: right;">Door State:</td>
+              <td style="width: 20%;" id="garageDoorState"></td>
               <td style="width: 35%; text-align: right;">Light On:</td>
-              <td style="width: 20%;" id="garageLightOn"></td>
+              <td style="width: 10%;" id="garageLightOn"></td>
             </tr>
             <tr>
               <td style="text-align: right;">Lock State:</td>
@@ -165,18 +165,20 @@
           <div>
             <table class="settings">
               <tr>
-                <td class="label">Name:</td>
+                <td style="font-size: 0.65em;"><u>No reboot required:</u></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td class="label">Require Password:</td>
                 <td>&nbsp;
-                  <input id="newDeviceName" type="text" placeholder="" maxlength="30" minlength="1">
+                  <input type="checkbox" id="pwreq" name="pwreq" value="no">
+                  <span style="font-size: 0.8em;">(default: admin/password)</span>
                 </td>
               </tr>
               <tr>
-                <td class="label">Door Protocol:</td>
+                <td class="label">Name:</td>
                 <td>&nbsp;
-                  <input type="radio" id="gdosec1" name="gdosecuritysetting" value="1">
-                  <label for="gdosec1">Sec+</label>
-                  <input type="radio" id="gdosec2" name="gdosecuritysetting" value="2">
-                  <label for="gdosec2">Sec+ 2.0</label>
+                  <input id="newDeviceName" type="text" placeholder="" maxlength="30" minlength="1">
                 </td>
               </tr>
               <tr>
@@ -187,18 +189,8 @@
                 </td>
               </tr>
               <tr>
-                <td class="label">Require Password:</td>
-                <td>&nbsp;
-                  <input type="checkbox" id="pwreq" name="pwreq" value="no">
-                  <span style="font-size: 0.8em;">(default: admin/password)</span>
-                </td>
-              </tr>
-              <tr>
-                <td class="label">Reboot Every:</td>
-                <td>&nbsp;
-                  <input type="number" id="rebootHours" name="rebootHours" value="0" , min="0" , max="72" , step="1">
-                  Hours <span style="font-size: 0.8em;">(never:0, min:1, max:72)</span>
-                </td>
+                <td style="font-size: 0.65em;"><br><u>Reboot required:</u></td>
+                <td></td>
               </tr>
               <tr>
                 <td class="label">WiFi Version:</td>
@@ -211,6 +203,22 @@
                   <label for="wifiPhyMode2">802.11g</label>
                   <input type="radio" id="wifiPhyMode3" name="wifiPhyMode" value="3">
                   <label for="wifiPhyMode3">802.11n</label>
+                </td>
+              </tr>
+              <tr>
+                <td class="label">Door Protocol:</td>
+                <td>&nbsp;
+                  <input type="radio" id="gdosec1" name="gdosecuritysetting" value="1">
+                  <label for="gdosec1">Sec+</label>
+                  <input type="radio" id="gdosec2" name="gdosecuritysetting" value="2">
+                  <label for="gdosec2">Sec+ 2.0</label>
+                </td>
+              </tr>
+              <tr>
+                <td class="label">Reboot Every:</td>
+                <td>&nbsp;
+                  <input type="number" id="rebootHours" name="rebootHours" value="0" , min="0" , max="72" , step="1">
+                  Hours <span style="font-size: 0.8em;">(never:0, min:1, max:72)</span>
                 </td>
               </tr>
               <tr>
