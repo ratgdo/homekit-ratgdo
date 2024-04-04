@@ -631,7 +631,6 @@ void handle_setgdo()
 void SSEheartbeat(uint8_t channel, SSESubscription *s)
 {
     // RINFO("SSEheartbeat - Client %s on channel %d", s->clientIP.toString().c_str(), channel);
-    size_t txsize;
     uint32_t free_heap = system_get_free_heap_size();
     if (free_heap < min_heap)
         min_heap = free_heap;
@@ -667,12 +666,11 @@ void SSEheartbeat(uint8_t channel, SSESubscription *s)
         return;
     }
 
-    txsize = 0;
     if (s->client.connected())
     {
-        txsize = s->client.printf("event: message\nretry: 15000\ndata: %s\n\n", json);
+        s->client.printf("event: message\nretry: 15000\ndata: %s\n\n", json);
     }
-    if (txsize == 0)
+    else
     {
         RINFO("SSEheartbeat - client not listening on channel %d, remove subscription", channel);
         s->heartbeatTimer.detach();
@@ -702,7 +700,6 @@ void SSEHandler(uint8_t channel)
     }
     client.setNoDelay(true);
     client.setSync(true);
-    client.setTimeout(500);
     s.client = client;                               // capture SSE server client connection
     server.setContentLength(CONTENT_LENGTH_UNKNOWN); // the payload can go on forever
     /*
