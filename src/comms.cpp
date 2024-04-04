@@ -11,6 +11,9 @@
 #include "Packet.h"
 #include "cQueue.h"
 #include "utilities.h"
+#include "comms.h"
+
+#include <Ticker.h>
 
 /********************************** LOCAL STORAGE *****************************************/
 
@@ -27,6 +30,12 @@ extern long unsigned int led_on_time;
 extern struct GarageDoor garage_door;
 
 uint8_t gdoSecurityType;
+
+// For Time-to-close control
+Ticker TTCtimer = Ticker();
+uint8_t TTCdelay = 0;
+uint8_t TTCcountdown = 0;
+bool TTCwasLightOn = false;
 
 /******************************* SECURITY 2.0 *********************************/
 
@@ -329,6 +338,13 @@ void comms_loop() {
                                 break;
                         }
 
+                        if ((garage_door.current_state == CURR_CLOSING) && (TTCcountdown > 0)) {
+                            // We are in a time-to-close delay timeout, cancel the timeout
+                            RINFO("Canceling time-to-close delay timer");
+                            TTCtimer.detach();
+                            TTCcountdown = 0;
+                        }
+
                         if (!garage_door.active) {
                             RINFO("activating door");
                             garage_door.active = true;
@@ -515,6 +531,13 @@ void comms_loop() {
                                 case DoorState::Unknown:
                                     RERROR("Got door state unknown");
                                     break;
+                            }
+
+                            if ((current_state == CURR_CLOSING) && (TTCcountdown > 0)) {
+                                // We are in a time-to-close delay timeout, cancel the timeout
+                                RINFO("Canceling time-to-close delay timer");
+                                TTCtimer.detach();
+                                TTCcountdown = 0;
                             }
 
                             if (!garage_door.active) {
@@ -847,6 +870,16 @@ void door_command(DoorAction action) {
 void open_door() {
     RINFO("open door request");
 
+    if (TTCcountdown > 0) {
+        // We are in a time-to-close delay timeout.
+        // Effect of open is to cancel the timeout (leaving door open)
+        RINFO("Canceling time-to-close delay timer");
+        TTCtimer.detach();
+        TTCcountdown = 0;
+        // Reset light to state it was at before delay start.
+        set_light(TTCwasLightOn);
+    }
+
     // safety
     if (garage_door.current_state == GarageDoorCurrentState::CURR_OPEN) { RINFO("door already open; ignored request"); return; } 
 
@@ -857,6 +890,19 @@ void open_door() {
     }
 
     door_command(DoorAction::Open);
+}
+
+void TTCdelayLoop() {
+    if (--TTCcountdown > 0) {
+        // If light is on, turn it off.  If off, turn it on.
+        set_light(!garage_door.light);
+    }
+    else {
+        // End of delay period
+        TTCtimer.detach();
+        door_command(DoorAction::Close);
+    }
+    return;
 }
 
 void close_door() {
@@ -871,17 +917,27 @@ void close_door() {
         return;
     }
 
-    // !!! this needs testing
-    if (gdoSecurityType == 2) {
-        if (garage_door.current_state == GarageDoorCurrentState::CURR_OPENING) {
-            door_command(DoorAction::Stop);
-            // TODO? delay here and await the door having stopped, pending
-            // implementation of a richer method of building conditions?
-            // delay(1000);
+    if (TTCdelay == 0) {
+        door_command(DoorAction::Close);
+    }
+    else {
+        if (TTCcountdown > 0) {
+            // We are in a time-to-close delay timeout.
+            // Effect of second click is to cancel the timeout and close immediately
+            RINFO("Canceling time-to-close delay timer");
+            TTCtimer.detach();
+            TTCcountdown = 0;
+            door_command(DoorAction::Close);
+        }
+        else {
+            RINFO("Delay door close by %d seconds", TTCdelay);
+            // Call delay loop every 0.5 seconds to flash light.
+            TTCcountdown = TTCdelay * 2;
+            // Remember whether light was on or off
+            TTCwasLightOn = garage_door.light;
+            TTCtimer.attach_scheduled(0.5, TTCdelayLoop);
         }
     }
-
-    door_command(DoorAction::Close);
 }
 
 void send_get_status() {

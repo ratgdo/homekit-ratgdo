@@ -63,6 +63,10 @@ bool last_reported_paired = false;
 // Garage door security type
 extern uint8_t gdoSecurityType;
 
+// For time-to-close control
+extern uint8_t TTCdelay;
+const char TTCdelay_file[] = "TTC_delay";
+
 // userid/password
 const char www_username[] = "admin";
 const char www_password[] = "password";
@@ -227,6 +231,7 @@ void setup_web()
     passwordReq = (read_int_from_file(www_pw_required_file) != 0);
     RINFO("WWW Password %s required", (passwordReq) ? "is" : "not");
     wifiPhyMode = (WiFiPhyMode_t)read_int_from_file(wifiPhyModeFile);
+    TTCdelay = read_int_from_file(TTCdelay_file);
 
     crashCount = saveCrash.count();
     if (crashCount == 255)
@@ -483,6 +488,8 @@ void handle_status()
         ADD_INT(json, "crashCount", crashCount);
     if (all)
         ADD_INT(json, "wifiPhyMode", wifiPhyMode);
+    if (all)
+        ADD_INT(json, "TTCseconds", TTCdelay);
 
     END_JSON(json);
     // Only log if all requested (no arguments).
@@ -622,6 +629,12 @@ void handle_setgdo()
                 write_int_to_file(wifiSettingsChangedFile, &changed);
                 reboot = true;
             }
+        }
+        else if (!strcmp(key, "TTCseconds"))
+        {
+            uint32_t seconds = atoi(value);
+            write_int_to_file(TTCdelay_file, &seconds);
+            reboot = true;
         }
         else if (!strcmp(key, "updateUnderway"))
         {

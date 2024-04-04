@@ -180,6 +180,13 @@
                 </td>
               </tr>
               <tr>
+                <td class="label">Door Close Delay:</td>
+                <td>&nbsp;
+                  <input type="number" id="TTCseconds" name="TTCseconds" value="0" , min="0" , max="60" , step="1">
+                  Seconds <span style="font-size: 0.8em;">(min:0, max:60)</span>
+                </td>
+              </tr>
+              <tr>
                 <td class="label">Require Password:</td>
                 <td>&nbsp;
                   <input type="checkbox" id="pwreq" name="pwreq" value="no">
@@ -189,7 +196,7 @@
               <tr>
                 <td class="label">Reboot Every:</td>
                 <td>&nbsp;
-                  <input type="number" id="reboothours" name="reboothours" value="24" , min="0" , max="72" , step="1">
+                  <input type="number" id="reboothours" name="reboothours" value="0" , min="0" , max="72" , step="1">
                   Hours <span style="font-size: 0.8em;">(never:0, min:1, max:72)</span>
                 </td>
               </tr>

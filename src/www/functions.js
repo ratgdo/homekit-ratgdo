@@ -90,6 +90,7 @@ async function checkStatus() {
     document.getElementById("gdosec2").checked = (serverStatus.GDOSecurityType == 2) ? true : false;
     document.getElementById("pwreq").checked = serverStatus.passwordRequired;
     document.getElementById("reboothours").value = serverStatus.rebootSeconds / 60 / 60;
+    document.getElementById("TTCseconds").value = serverStatus.TTCseconds;
     document.getElementById("freeheap").innerHTML = serverStatus.freeHeap;
     document.getElementById("minheap").innerHTML = serverStatus.minHeap;
     document.getElementById("minstack").innerHTML = serverStatus.minStack;
@@ -431,12 +432,16 @@ async function saveSettings() {
             : (document.getElementById("wifiphymode1").checked) ? '1'
                 : '0';
     console.log("Set GDO WiFi version to: " + wifiPhyMode);
+    let TTCseconds = Math.max(Math.min(parseInt(document.getElementById("TTCseconds").value), 60), 0);
+    if (isNaN(TTCseconds)) TTCseconds = 0;
+    console.log("Set GDO Time-to-close delay: " + TTCseconds + " seconds");
 
     await setGDO("gdoSecurity", gdoSec,
         "passwordRequired", pwReq,
-        "rebootSeconds", rebootHours * 60 * 60,
+        "rebootSeconds", (rebootHours * 60 * 60).toString(),
         "newDeviceName", newDeviceName,
-        "wifiPhyMode", wifiPhyMode);
+        "wifiPhyMode", wifiPhyMode,
+        "TTCseconds", TTCseconds.toString());
     countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");
     return;
 }
