@@ -21,6 +21,7 @@
   "freeHeap": 20000,
   "minHeap": 10000,
   "minStack": 2000,
-  "crashCount": 0,
-  "wifiPhyMode": 0
+  "crashCount": 1,
+  "wifiPhyMode": 0,
+  "TTCseconds": 0
 }
