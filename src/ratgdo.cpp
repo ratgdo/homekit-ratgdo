@@ -26,6 +26,8 @@ struct obstruction_sensor_t {
 
 long unsigned int led_on_time = 0;     // Stores time when LED should turn back on
 
+extern bool updateUnderway;
+
 /********************************** MAIN LOOP CODE *****************************************/
 
 void setup() {
@@ -52,9 +54,12 @@ void loop() {
 
     improv_loop();
 
-    comms_loop();
+    if (!updateUnderway)
+    {
+        comms_loop();
 
-    homekit_loop();
+        homekit_loop();
+    }
 
     web_loop();
 

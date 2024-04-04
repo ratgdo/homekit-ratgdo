@@ -29,6 +29,7 @@
 EspSaveCrash saveCrash(1408, 1024, true);
 ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater(true);
+bool updateUnderway = false;
 
 void handle_reset();
 void handle_reboot();
@@ -43,7 +44,7 @@ void handle_crashlog();
 void handle_clearcrashlog();
 #ifdef CRASH_DEBUG
 void handle_forcecrash();
-char* test_str = NULL;
+char *test_str = NULL;
 #endif
 void SSEHandler(uint8_t);
 void SSEBroadcastState(const char *);
@@ -367,6 +368,13 @@ void load_page(const char *page)
 
 void handle_everything()
 {
+    if (updateUnderway)
+    {
+        RINFO("Firmware update underway, reject request.");
+        server.send(503, "text/plain", "503: Service Unavailable.");
+        return;
+    }
+
     String page = server.uri();
     if (page == "/")
     {
@@ -391,6 +399,13 @@ void handle_everything()
 
 void handle_status()
 {
+    if (updateUnderway)
+    {
+        RINFO("Firmware update underway, reject status request.");
+        server.send(503, "text/plain", "503: Service Unavailable.");
+        return;
+    }
+
     bool all = true;
     // find query string and macro to test if arg is present
     std::unordered_map<std::string, bool> argReq;
@@ -511,6 +526,13 @@ void handle_setgdo()
     bool error = false;
 
     RINFO("In setGDO");
+    if (updateUnderway)
+    {
+        RINFO("Firmware update underway, reject setGDO request.");
+        server.send(503, "text/plain", "503: Service Unavailable.");
+        return;
+    }
+
     if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
     {
         RINFO("In setGDO request authentication");
@@ -601,6 +623,11 @@ void handle_setgdo()
                 reboot = true;
             }
         }
+        else if (!strcmp(key, "updateUnderway"))
+        {
+            RINFO("Client is signaling that it is about to start a firmware update");
+            updateUnderway = true;
+        }
         else
         {
             error = true;
@@ -631,6 +658,16 @@ void handle_setgdo()
 void SSEheartbeat(uint8_t channel, SSESubscription *s)
 {
     // RINFO("SSEheartbeat - Client %s on channel %d", s->clientIP.toString().c_str(), channel);
+    if (updateUnderway)
+    {
+        RINFO("Firmware update underway, cancel subscription for channel %d", channel);
+        s->heartbeatTimer.detach();
+        s->clientIP = INADDR_NONE;
+        s->clientUUID.clear();
+        subscriptionCount--;
+        return;
+    }
+
     uint32_t free_heap = system_get_free_heap_size();
     if (free_heap < min_heap)
         min_heap = free_heap;
@@ -717,6 +754,13 @@ void SSEHandler(uint8_t channel)
 
 void handle_subscribe()
 {
+    if (updateUnderway)
+    {
+        RINFO("Firmware update underway, reject SSE subscripe request.");
+        server.send(503, "text/plain", "503: Service Unavailable.");
+        return;
+    }
+
     if (server.args() != 1)
     {
         RINFO("Sending 400 bad request, missing argument, for: %s", server.uri().c_str());
