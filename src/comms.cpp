@@ -530,12 +530,12 @@ void comms_loop() {
 
                             RINFO("tgt %d curr %d", target_state, current_state);
                             if (target_state != garage_door.target_state) {
-                                notify_homekit_target_door_state_change();
                                 garage_door.target_state = target_state;
+                                notify_homekit_target_door_state_change();
                             }
                             if (current_state != garage_door.current_state) {
-                                notify_homekit_current_door_state_change();
                                 garage_door.current_state = current_state;
+                                notify_homekit_current_door_state_change();
                             }
 
                             if (pkt.m_data.value.status.light != garage_door.light) {
@@ -554,10 +554,10 @@ void comms_loop() {
                                 target_lock = TGT_UNLOCKED;
                             }
                             if (current_lock != garage_door.current_lock) {
-                                notify_homekit_target_lock();
-                                notify_homekit_current_lock();
                                 garage_door.target_lock = target_lock;
                                 garage_door.current_lock = current_lock;
+                                notify_homekit_target_lock();
+                                notify_homekit_current_lock();
                             }
 
                             break;
@@ -625,8 +625,8 @@ void comms_loop() {
                             // If it's not yet enabled, add the service
                             if (!garage_door.has_motion_sensor) {
                                 RINFO("Detected new Motion Sensor. Enabling Service");
-                                enable_service_homekit_motion();
                                 garage_door.has_motion_sensor = true;
+                                enable_service_homekit_motion();
                             }
 
                             /* When we get the motion detect message, notify HomeKit. Motion sensor
