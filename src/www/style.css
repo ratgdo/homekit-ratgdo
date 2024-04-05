@@ -40,6 +40,13 @@ input[type="checkbox"] {
     accent-color: darkgoldenrod;
 }
 
+input[type="range"] {
+    vertical-align: middle;
+    margin: 0;
+    border: 0;
+    padding: 0;
+}
+
 select {
     vertical-align: middle;
     font-size: 1em;
@@ -159,6 +166,7 @@ table.password label {
     vertical-align: middle;
     font-size: 0.8em;
 }
+
 table.settings td.label,
 table.password td.label {
     vertical-align: middle;

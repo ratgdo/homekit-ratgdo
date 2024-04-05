@@ -79,6 +79,10 @@ function setElementsFromStatus(status) {
                 document.getElementById("wifiPhyMode2").checked = (value == 2) ? true : false;
                 document.getElementById("wifiPhyMode3").checked = (value == 3) ? true : false;
                 break;
+            case "wifiPower":
+                document.getElementById("wifiPower").value = value;
+                document.getElementById("wifiPowerValue").innerHTML = value;
+                break;
             default:
                 document.getElementById(key).innerHTML = value;
         }
@@ -374,7 +378,7 @@ async function setGDO(...args) {
             }
             else {
                 const result = await response.text();
-                if(result.includes('Reboot')) {
+                if (result.includes('Reboot')) {
                     console.log('Server settings saved, reboot required');
                     return true;
                 }
@@ -423,16 +427,17 @@ async function changePassword() {
 }
 
 async function saveSettings() {
-    let gdoSec = (document.getElementById("gdosec1").checked) ? '1' : '2';
-    let pwReq = (document.getElementById("pwreq").checked) ? '1' : '0';
+    const gdoSec = (document.getElementById("gdosec1").checked) ? '1' : '2';
+    const pwReq = (document.getElementById("pwreq").checked) ? '1' : '0';
     let rebootHours = Math.max(Math.min(parseInt(document.getElementById("rebootHours").value), 72), 0);
     if (isNaN(rebootHours)) rebootHours = 0;
     let newDeviceName = document.getElementById("newDeviceName").value.substring(0, 30);
     if (newDeviceName.length == 0) newDeviceName = serverStatus.deviceName;
-    let wifiPhyMode = (document.getElementById("wifiPhyMode3").checked) ? '3'
+    const wifiPhyMode = (document.getElementById("wifiPhyMode3").checked) ? '3'
         : (document.getElementById("wifiPhyMode2").checked) ? '2'
             : (document.getElementById("wifiPhyMode1").checked) ? '1'
                 : '0';
+    const wifiPower = Math.max(Math.min(parseInt(document.getElementById("wifiPower").value), 20), 0);
     let TTCseconds = Math.max(Math.min(parseInt(document.getElementById("TTCseconds").value), 60), 0);
     if (isNaN(TTCseconds)) TTCseconds = 0;
 
@@ -441,6 +446,7 @@ async function saveSettings() {
         "rebootSeconds", (rebootHours * 60 * 60),
         "deviceName", newDeviceName,
         "wifiPhyMode", wifiPhyMode,
+        "wifiPower", wifiPower,
         "TTCseconds", TTCseconds);
     if (reboot) {
         countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");

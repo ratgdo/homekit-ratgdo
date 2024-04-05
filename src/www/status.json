@@ -23,5 +23,6 @@
   "minStack": 2000,
   "crashCount": 1,
   "wifiPhyMode": 0,
+  "wifiPower": 10,
   "TTCseconds": 0
 }
