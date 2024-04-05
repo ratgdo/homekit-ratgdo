@@ -31,7 +31,8 @@ extern "C" const char wifiPhyModeFile[];
 extern "C" const char wifiSettingsChangedFile[];
 bool wifiSettingsChanged = false;
 unsigned long wifiConnectTimeout = 0;
-
+extern uint16_t wifiPower;
+extern "C" const char wifiPowerFile[];
 
 #define MAX_ATTEMPTS_WIFI_CONNECTION 20
 uint8_t x_buffer[128];
@@ -73,6 +74,7 @@ void wifi_connect() {
     if (wifiSettingsChanged) {
         RINFO("WARNING: WiFi settings changed. Will check for connection after 30 seconds.");
     }
+    wifiPower = (uint16_t)read_int_from_file(wifiPowerFile, 20);
     wifiPhyMode = (WiFiPhyMode_t)read_int_from_file(wifiPhyModeFile);
     if (wifiPhyMode == WIFI_PHY_MODE_11B) {
         RINFO("Setting WiFi preference to 802.11b (Wi-Fi 1)");
@@ -87,6 +89,11 @@ void wifi_connect() {
         RINFO("Setting WiFi version preference to automatic");
     }
     WiFi.setPhyMode(wifiPhyMode);
+    float dBm = (float)wifiPower;
+    if (dBm >= 20) dBm = 20.5;
+    else if (dBm < 0) dBm = 0;
+    RINFO("Setting WiFi power to %f", dBm);
+    WiFi.setOutputPower(dBm);
     WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
 
     // Set callbacks so we can monitor connection status
@@ -122,9 +129,13 @@ void improv_loop() {
         // Not sure if setPhyMode() works immediately or if reboot required???
         if (!connected) {
             wifiPhyMode = (WiFiPhyMode_t)0;
-            RINFO("Reset WiFiPhyMode to: %d", wifiPhyMode)
+            RINFO("Reset WiFiPhyMode to: %d", wifiPhyMode);
             write_int_to_file(wifiPhyModeFile, (uint32_t *)&wifiPhyMode);
             WiFi.setPhyMode(wifiPhyMode);
+            wifiPower = 20;
+            RINFO("Reset WiFi Power to 20.5dBm");
+            write_int_to_file(wifiPowerFile, (uint32_t *)&wifiPower);
+            WiFi.setOutputPower(20.5);
         }
     }
 }

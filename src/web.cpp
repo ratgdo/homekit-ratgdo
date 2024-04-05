@@ -90,6 +90,8 @@ uint32_t min_heap = 0xffffffff;
 WiFiPhyMode_t wifiPhyMode = (WiFiPhyMode_t)0;
 extern "C" const char wifiPhyModeFile[] = "wifiPhyMode";
 extern "C" const char wifiSettingsChangedFile[] = "wifiSettingsChanged";
+uint16_t wifiPower = 20; // maximum
+extern "C" const char wifiPowerFile[] = "wifiPower";
 
 // number of times the device has crashed
 int crashCount = 0;
@@ -238,6 +240,7 @@ void setup_web()
     RINFO("WWW Password %s required", (passwordReq) ? "is" : "not");
     wifiPhyMode = (WiFiPhyMode_t)read_int_from_file(wifiPhyModeFile);
     TTCdelay = read_int_from_file(TTCdelay_file);
+    wifiPower = (uint16_t)read_int_from_file(wifiPowerFile, 20);
 
     crashCount = saveCrash.count();
     if (crashCount == 255)
@@ -454,6 +457,7 @@ void handle_status()
     ADD_INT(json, "minStack", ESP.getFreeContStack());
     ADD_INT(json, "crashCount", crashCount);
     ADD_INT(json, "wifiPhyMode", wifiPhyMode);
+    ADD_INT(json, "wifiPower", wifiPower);
     ADD_INT(json, "TTCseconds", TTCdelay);
     END_JSON(json);
 
@@ -577,6 +581,18 @@ void handle_setgdo()
             {
                 // Setting has changed.  Write new value and note that change has taken place
                 write_int_to_file(wifiPhyModeFile, (uint32_t *)&wifiPhyMode);
+                uint32_t changed = 1;
+                write_int_to_file(wifiSettingsChangedFile, &changed);
+                reboot = true;
+            }
+        }
+        else if (!strcmp(key, "wifiPower"))
+        {
+            uint32_t wifiPower = (uint32_t)atoi(value);
+            if (read_int_from_file(wifiPowerFile) != wifiPower)
+            {
+                // Setting has changed.  Write new value and note that change has taken place
+                write_int_to_file(wifiPowerFile, &wifiPower);
                 uint32_t changed = 1;
                 write_int_to_file(wifiSettingsChangedFile, &changed);
                 reboot = true;
