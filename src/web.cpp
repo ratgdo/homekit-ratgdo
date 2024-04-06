@@ -28,7 +28,11 @@
 #include <umm_malloc/umm_malloc.h>
 #include <umm_malloc/umm_heap_select.h>
 
+#ifdef LOG_MSG_BUFFER
+EspSaveCrash saveCrash(1408, 1024, true, &crashCallback);
+#else
 EspSaveCrash saveCrash(1408, 1024, true);
+#endif
 ESP8266WebServer server(80);
 ESP8266HTTPUpdateServer httpUpdater(true);
 bool updateUnderway = false;
@@ -461,7 +465,9 @@ void handle_status()
     ADD_INT(json, "TTCseconds", TTCdelay);
     END_JSON(json);
 
-    RINFO("Status requested:\n%s\nlength %d\n", json, strlen(json));
+    RINFO("Status requested. JSON length: %d", strlen(json));
+    // send JSON straight to serial port
+    Serial.printf("%s\n", json);
     last_reported_garage_door = garage_door;
 
     server.sendHeader("Cache-Control", "no-cache, no-store");
@@ -806,6 +812,9 @@ void handle_crashlog()
     client.print("Connection: close\n");
     client.print("\n");
     saveCrash.print(client);
+#ifdef LOG_MSG_BUFFER
+    printLogBuffer(client);
+#endif
 }
 
 void handle_clearcrashlog()
@@ -814,8 +823,11 @@ void handle_clearcrashlog()
     {
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
     }
-    RINFO("Clear saved crash log...");
+    RINFO("Clear saved crash log");
     saveCrash.clear();
+#ifdef LOG_MSG_BUFFER
+    delete_file(LOG_MSG_FILE);
+#endif
     crashCount = 0;
     server.send(200, "text/plain", "Crash log cleared");
 }
@@ -823,7 +835,7 @@ void handle_clearcrashlog()
 #ifdef CRASH_DEBUG
 void handle_forcecrash()
 {
-    RINFO("Attempting to null ptr deref...");
+    RINFO("Attempting to null ptr deref");
     server.send(200, "text/plain", "Attempting to null ptr deref");
     delay(1000);
     RINFO("Result: %s", test_str);
