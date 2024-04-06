@@ -62,3 +62,26 @@ void write_string_to_file(const char *filename, const char *value)
     file.print(value);
     file.close();
 }
+
+void *read_data_from_file(const char *filename, void *buffer, int bufsize)
+{
+    File file = LittleFS.open(filename, "r");
+    if (!file)
+        return NULL;
+    // strlcpy(buffer, file.readString().c_str(), bufsize);
+    file.read((uint8_t *)buffer, bufsize);
+    file.close();
+    return buffer;
+}
+
+void write_data_to_file(const char *filename, const void *buffer, const int bufsize)
+{
+    File file = LittleFS.open(filename, "w");
+    file.write((const uint8_t *)buffer, bufsize);
+    file.close();
+}
+
+void delete_file(const char *filename)
+{
+    LittleFS.remove(filename);
+}
