@@ -601,6 +601,7 @@ void handle_setgdo()
         else if (!strcmp(key, "TTCseconds"))
         {
             uint32_t seconds = atoi(value);
+            TTCdelay = (uint8_t)seconds;
             write_int_to_file(TTCdelay_file, &seconds);
         }
         else if (!strcmp(key, "updateUnderway"))

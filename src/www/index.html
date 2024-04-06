@@ -169,13 +169,6 @@
                 <td></td>
               </tr>
               <tr>
-                <td class="label">Require Password:</td>
-                <td>&nbsp;
-                  <input type="checkbox" id="pwreq" name="pwreq" value="no">
-                  <span style="font-size: 0.8em;">(default: admin/password)</span>
-                </td>
-              </tr>
-              <tr>
                 <td class="label">Name:</td>
                 <td>&nbsp;
                   <input id="newDeviceName" type="text" placeholder="" maxlength="30" minlength="1">
@@ -184,13 +177,29 @@
               <tr>
                 <td class="label">Door Close Delay:</td>
                 <td>&nbsp;
-                  <input type="number" id="TTCseconds" name="TTCseconds" value="0" , min="0" , max="60" , step="1">
-                  Seconds <span style="font-size: 0.8em;">(min:0, max:60)</span>
+                  <input type="range" min="0" max="60" value="0" id="TTCseconds" name="TTCseconds" class="slider" style="width:150px;">
+                  <span style="vertical-align: middle; font-size: 0.8em"><span id="TTCsecondsValue"></span> Seconds</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="label">Require Password:</td>
+                <td>&nbsp;
+                  <input type="checkbox" id="pwreq" name="pwreq" value="no">
+                  <span style="font-size: 0.8em;">(default: admin/password)</span>
                 </td>
               </tr>
               <tr>
                 <td style="font-size: 0.65em;"><br><u>Reboot required:</u></td>
                 <td></td>
+              </tr>
+              <tr>
+                <td class="label">Door Protocol:</td>
+                <td>&nbsp;
+                  <input type="radio" id="gdosec1" name="gdosecuritysetting" value="1">
+                  <label for="gdosec1">Sec+</label>
+                  <input type="radio" id="gdosec2" name="gdosecuritysetting" value="2">
+                  <label for="gdosec2">Sec+ 2.0</label>
+                </td>
               </tr>
               <tr>
                 <td class="label">WiFi Version:</td>
@@ -208,17 +217,8 @@
               <tr>
                 <td class="label">WiFi Tx Power:</td>
                 <td>&nbsp;
-                  <input type="range" min="0" max="20" value="20" id="wifiPower" name="wifiPower">
-                  <span style="vertical-align: top;"><span id="wifiPowerValue"></span>dBm</span>
-                </td>
-              </tr>
-              <tr>
-                <td class="label">Door Protocol:</td>
-                <td>&nbsp;
-                  <input type="radio" id="gdosec1" name="gdosecuritysetting" value="1">
-                  <label for="gdosec1">Sec+</label>
-                  <input type="radio" id="gdosec2" name="gdosecuritysetting" value="2">
-                  <label for="gdosec2">Sec+ 2.0</label>
+                  <input type="range" min="0" max="20" value="20" id="wifiPower" name="wifiPower" class="slider" style="width:100px;">
+                  <span style="vertical-align: middle; font-size: 0.8em"><span id="wifiPowerValue"></span> dBm</span>
                 </td>
               </tr>
               <tr>
@@ -394,19 +394,18 @@
       }
     });
 
-    // Allow only numeric keystrokes into the time-to-close seconds field
-    document.getElementById("TTCseconds").addEventListener("keypress", (event) => {
-      if (event.which < 48 || event.which > 57) {
-        event.preventDefault();
-      }
-    });
-
-    // This handles user control of wifiPower slider
-    slider = document.getElementById("wifiPower");
-    output = document.getElementById("wifiPowerValue");
-    output.innerHTML = slider.value;
-    slider.oninput = function() {
-      output.innerHTML = this.value;
+    // This handles user control of sliders
+    WiFiSlider = document.getElementById("wifiPower");
+    WiFiText = document.getElementById("wifiPowerValue");
+    WiFiText.innerHTML = WiFiSlider.value;
+    WiFiSlider.oninput = function() {
+      WiFiText.innerHTML = this.value;
+    }
+    TTCslider = document.getElementById("TTCseconds");
+    TTCtext = document.getElementById("TTCsecondsValue");
+    TTCtext.innerHTML = TTCslider.value;
+    TTCslider.oninput = function() {
+      TTCtext.innerHTML = this.value;
     }
   </script>
 </body>

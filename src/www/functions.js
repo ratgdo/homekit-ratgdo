@@ -64,6 +64,7 @@ function setElementsFromStatus(status) {
                 break;
             case "TTCseconds":
                 document.getElementById(key).value = value;
+                document.getElementById("TTCsecondsValue").innerHTML = value;
                 break;
             case "firmwareVersion":
                 document.getElementById(key).innerHTML = value;
@@ -80,7 +81,7 @@ function setElementsFromStatus(status) {
                 document.getElementById("wifiPhyMode3").checked = (value == 3) ? true : false;
                 break;
             case "wifiPower":
-                document.getElementById("wifiPower").value = value;
+                document.getElementById(key).value = value;
                 document.getElementById("wifiPowerValue").innerHTML = value;
                 break;
             default:
