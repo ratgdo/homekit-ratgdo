@@ -9,4 +9,9 @@ void write_int_to_file(const char *filename, uint32_t *value);
 char *read_string_from_file(const char *filename, const char *defaultValue, char *buffer, int bufsize);
 void write_string_to_file(const char *filename, const char *value);
 
+void *read_data_from_file(const char *filename, void *buffer, int bufsize);
+void write_data_to_file(const char *filename, const void *buffer, const int bufsize);
+
+void delete_file(const char *filename);
+
 #endif
