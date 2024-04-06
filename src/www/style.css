@@ -40,12 +40,46 @@ input[type="checkbox"] {
     accent-color: darkgoldenrod;
 }
 
-input[type="range"] {
+input.slider {
+    -webkit-appearance: none;
+    appearance: none;
     vertical-align: middle;
     margin: 0;
     border: 0;
     padding: 0;
+    height: 15px;
+    background-color: transparent;
+    border-radius: 5px;
 }
+input.slider::-webkit-slider-runnable-track {
+    height: 3px;
+    background-color:#B0B0B0;
+}
+input.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    border: 0px;
+    margin-top: -7px;
+    background: darkgoldenrod;
+    cursor: pointer;
+  }
+  input.slider::-moz-range-track {
+    height: 3px;
+    background-color:#B0B0B0;
+}
+  input.slider::-moz-range-thumb {
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    border: 0px;
+    margin-top: -7px;
+    background: darkgoldenrod;
+    cursor: pointer;
+  }
+
 
 select {
     vertical-align: middle;
