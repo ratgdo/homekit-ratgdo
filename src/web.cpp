@@ -549,6 +549,9 @@ void handle_setgdo()
             if ((type == 1) || (type == 2))
             {
                 RINFO("SetGDO security type to %i", type);
+                // reset the door opener ID and rolling codes.
+                delete_file("rolling");
+                delete_file("id_code");
                 // Write to flash and reboot
                 write_int_to_file("gdo_security", &type);
                 reboot = true;
