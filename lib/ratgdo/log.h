@@ -21,12 +21,14 @@ typedef struct logBuffer
     char buffer[2044];
 } logBuffer;
 
-void logToBuffer_P(const char *fmt, ...);
+extern "C" void logToBuffer_P(const char *fmt, ...);
 void printLogBuffer(Print &outDevice = Serial);
 void crashCallback();
 
-#define RINFO(message, ...) logToBuffer_P(PSTR(">>> [%7d] RATGDO: " message "\r\n"), millis(), ##__VA_ARGS__)
-#define RERROR(message, ...) logToBuffer_P(PSTR("!!! [%7d] RATGDO: " message "\r\n"), millis(), ##__VA_ARGS__)
+#define RATGDO_PRINTF(message, ...) logToBuffer_P(PSTR(message), ##__VA_ARGS__)
+
+#define RINFO(message, ...) RATGDO_PRINTF(">>> [%7d] RATGDO: " message "\r\n", millis(), ##__VA_ARGS__)
+#define RERROR(message, ...) RATGDO_PRINTF("!!! [%7d] RATGDO: " message "\r\n", millis(), ##__VA_ARGS__)
 #else // LOG_MSG_BUFFER
 
 #ifndef UNIT_TEST
