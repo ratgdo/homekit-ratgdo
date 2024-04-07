@@ -29,6 +29,7 @@ void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]) {}
 #ifdef LOG_MSG_BUFFER
 char *lineBuffer = NULL;
 logBuffer *msgBuffer = NULL;
+extern void SSEBroadcastState(const char *data, bool logView);
 
 void logToBuffer_P(const char *fmt, ...)
 {
@@ -61,6 +62,8 @@ void logToBuffer_P(const char *fmt, ...)
     {
         msgBuffer->head += len;
     }
+    // send it to subscribed browsers
+    SSEBroadcastState(lineBuffer, true);
 }
 
 void crashCallback()
