@@ -52,7 +52,7 @@ void handle_forcecrash();
 char *test_str = NULL;
 #endif
 void SSEHandler(uint8_t);
-void SSEBroadcastState(const char *);
+void SSEBroadcastState(const char *data, bool logView = false);
 void handle_notfound();
 
 // Make device_name available
@@ -112,6 +112,7 @@ struct SSESubscription
     bool SSEconnected;
     int SSEfailCount;
     String clientUUID;
+    bool logViewer;
 } subscription[SSE_MAX_CHANNELS];
 
 uint8_t subscriptionCount = 0;
@@ -754,11 +755,21 @@ void handle_subscribe()
         return;
     }
 
-    if (server.args() != 1)
+    if (server.args() < 1)
     {
         RINFO("Sending 400 bad request, missing argument, for: %s", server.uri().c_str());
         server.send(400, "text/plain", "400: Bad Request, missing argument");
         return;
+    }
+
+    int id = 0;
+    bool logViewer = false;
+    for (int i = 0; i < server.args(); i++)
+    {
+        if (server.argName(i) == "id")
+            id = i;
+        else if (server.argName(i) == "log")
+            logViewer = true;
     }
 
     if (subscriptionCount == SSE_MAX_CHANNELS - 1)
@@ -772,12 +783,12 @@ void handle_subscribe()
     // check if we already have a subscription for this UUID
     for (channel = 0; channel < SSE_MAX_CHANNELS; channel++)
     {
-        if (subscription[channel].clientUUID == server.arg(0))
+        if (subscription[channel].clientUUID == server.arg(id))
         {
             if (subscription[channel].SSEconnected)
             {
                 // Already connected.  We need to close it down as client will be reconnecting
-                RINFO("SSE Subscribe - client %s with IP %s already connected on channel %d, remove subscription", server.arg(0).c_str(), clientIP.toString().c_str(), channel);
+                RINFO("SSE Subscribe - client %s with IP %s already connected on channel %d, remove subscription", server.arg(id).c_str(), clientIP.toString().c_str(), channel);
                 subscription[channel].heartbeatTimer.detach();
                 subscription[channel].client.flush();
                 subscription[channel].client.stop();
@@ -785,7 +796,7 @@ void handle_subscribe()
             else
             {
                 // Subscribed but not connected yet, so nothing to close down.
-                RINFO("SSE Subscribe - client %s with IP %s already subscribed but not connected on channel %d", server.arg(0).c_str(), clientIP.toString().c_str(), channel);
+                RINFO("SSE Subscribe - client %s with IP %s already subscribed but not connected on channel %d", server.arg(id).c_str(), clientIP.toString().c_str(), channel);
             }
             break;
         }
@@ -799,9 +810,9 @@ void handle_subscribe()
             if (!subscription[channel].clientIP)
                 break;
     }
-    subscription[channel] = {clientIP, server.client(), Ticker(), false, 0, server.arg(0)};
+    subscription[channel] = {clientIP, server.client(), Ticker(), false, 0, server.arg(id), logViewer};
     SSEurl += channel;
-    RINFO("Subscription for client %s with IP %s: event bus location: %s", server.arg(0).c_str(), clientIP.toString().c_str(), SSEurl.c_str());
+    RINFO("Subscription for client %s with IP %s: event bus location: %s", server.arg(id).c_str(), clientIP.toString().c_str(), SSEurl.c_str());
     server.sendHeader("Cache-Control", "no-cache, no-store");
     server.send(200, "text/plain", SSEurl.c_str());
 }
@@ -845,7 +856,7 @@ void handle_forcecrash()
 }
 #endif
 
-void SSEBroadcastState(const char *data)
+void SSEBroadcastState(const char *data, bool logView)
 {
     // if nothing subscribed, then return
     if (subscriptionCount == 0)
@@ -853,17 +864,20 @@ void SSEBroadcastState(const char *data)
 
     for (uint8_t i = 0; i < SSE_MAX_CHANNELS; i++)
     {
-        if (subscription[i].SSEconnected && subscription[i].clientIP)
+        if (subscription[i].SSEconnected && subscription[i].client.connected())
         {
-            String IPaddrstr = IPAddress(subscription[i].clientIP).toString();
-            if (subscription[i].client.connected())
+            if (logView)
             {
-                RINFO("broadcast status change to client IP %s on channel %d with new state %s", IPaddrstr.c_str(), i, data);
-                subscription[i].client.printf("event: message\ndata: %s\n\n", data);
+                if (subscription[i].logViewer)
+                {
+                    subscription[i].client.printf("event: logger\ndata: %s\n\n", data);
+                }
             }
             else
             {
-                RINFO("SSEBroadcastState - client %s registered on channel %d but not listening", IPaddrstr.c_str(), i);
+                String IPaddrstr = IPAddress(subscription[i].clientIP).toString();
+                RINFO("broadcast status change to client IP %s on channel %d with new state %s", IPaddrstr.c_str(), i, data);
+                subscription[i].client.printf("event: message\ndata: %s\n\n", data);
             }
         }
     }
