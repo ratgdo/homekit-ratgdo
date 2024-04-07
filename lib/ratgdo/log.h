@@ -17,8 +17,9 @@ void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]);
 #define LOG_MSG_FILE "crash_log"
 typedef struct logBuffer
 {
-    uint32_t head;
-    char buffer[2044];
+    uint16_t wrapped;
+    uint16_t head;
+    char buffer[4092];
 } logBuffer;
 
 extern "C" void logToBuffer_P(const char *fmt, ...);
