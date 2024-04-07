@@ -544,7 +544,7 @@ void handle_setgdo()
             RINFO("Writing new www_credentials to file: %s", www_credentials);
             write_string_to_file(credentials_file, www_credentials);
         }
-        else if (!strcmp(key, "gdoSecurityType"))
+        else if (!strcmp(key, "GDOSecurityType"))
         {
             uint32_t type = atoi(value);
             if ((type == 1) || (type == 2))

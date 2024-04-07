@@ -29,6 +29,7 @@ void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]) {}
 #ifdef LOG_MSG_BUFFER
 char *lineBuffer = NULL;
 logBuffer *msgBuffer = NULL;
+logBuffer *savedLogs = NULL;
 extern void SSEBroadcastState(const char *data, bool logView);
 
 void logToBuffer_P(const char *fmt, ...)
@@ -39,8 +40,14 @@ void logToBuffer_P(const char *fmt, ...)
         HeapSelectIram ephemeral;
         lineBuffer = (char *)malloc(1024);
         msgBuffer = (logBuffer *)malloc(sizeof(logBuffer));
+        // Fill the buffer with space chars... because if we crash and dump buffer before it fills
+        // up, we want blank space not garbage! Nothing is null-terminated in this circular buffer.
+        memset(msgBuffer->buffer, 0x20, sizeof(msgBuffer->buffer));
+        msgBuffer->wrapped = 0;
         msgBuffer->head = 0;
+        savedLogs = (logBuffer *)malloc(sizeof(logBuffer));
     }
+
     // parse the format string into lineBuffer
     va_list args;
     va_start(args, fmt);
@@ -55,6 +62,7 @@ void logToBuffer_P(const char *fmt, ...)
     if (available < len)
     {
         // we wrapped on the available buffer space
+        msgBuffer->wrapped = 1;
         msgBuffer->head = len - available;
         memcpy(msgBuffer->buffer, &lineBuffer[available], msgBuffer->head);
     }
@@ -75,24 +83,19 @@ void crashCallback()
 
 void printLogBuffer(Print &outputDev)
 {
-    if (!msgBuffer)
-        return;
-    logBuffer *savedLogs = NULL;
-    {
-        HeapSelectIram ephemeral;
-        savedLogs = (logBuffer *)malloc(sizeof(logBuffer));
-    }
     if (!savedLogs)
         return;
 
     if (read_data_from_file(LOG_MSG_FILE, savedLogs, sizeof(logBuffer)))
     {
         outputDev.println();
-        outputDev.write(&savedLogs->buffer[savedLogs->head], sizeof(savedLogs->buffer) - savedLogs->head);
+        if (savedLogs->wrapped != 0)
+        {
+            outputDev.write(&savedLogs->buffer[savedLogs->head], sizeof(savedLogs->buffer) - savedLogs->head);
+        }
         outputDev.write(savedLogs->buffer, savedLogs->head);
         outputDev.println();
     }
-    free(savedLogs);
 }
 
 #endif
