@@ -618,6 +618,7 @@ void handle_setgdo()
         {
             RINFO("Client is signaling that it is about to start a firmware update");
             updateUnderway = true;
+            arduino_homekit_close();
         }
         else
         {
