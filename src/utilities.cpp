@@ -4,9 +4,11 @@
 #include "utilities.h"
 #include "log.h"
 #include "LittleFS.h"
+#include "comms.h"
 
 void sync_and_restart()
 {
+    save_rolling_code();
     LittleFS.end();
     delay(10);
     ESP.restart();
