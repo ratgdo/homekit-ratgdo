@@ -6,6 +6,7 @@
 #include "log.h"
 #include "utilities.h"
 #include "secplus2.h"
+#include "comms.h"
 #include <umm_malloc/umm_malloc.h>
 #include <umm_malloc/umm_heap_select.h>
 
@@ -79,6 +80,7 @@ void crashCallback()
     if (!msgBuffer)
         return;
     write_data_to_file(LOG_MSG_FILE, msgBuffer, sizeof(logBuffer));
+    save_rolling_code();
 }
 
 void printLogBuffer(Print &outputDev)

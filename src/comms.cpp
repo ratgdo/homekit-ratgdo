@@ -42,6 +42,8 @@ bool TTCwasLightOn = false;
 SecPlus2Reader reader;
 uint32_t id_code = 0;
 uint32_t rolling_code = 0;
+uint32_t last_saved_code = 0;
+#define MAX_CODES_WITHOUT_FLASH_WRITE 100
 
 /******************************* SECURITY 1.0 *********************************/
 
@@ -130,11 +132,20 @@ void setup_comms() {
 
         // read from flash, default of 0 if file not exist
         rolling_code = read_int_from_file("rolling");
+        // last saved rolling code may be behind what the GDO thinks, so bump it up so that it will
+        // always be ahead of what the GDO thinks it should be, and save it.
+        rolling_code = (rolling_code != 0) ? rolling_code + MAX_CODES_WITHOUT_FLASH_WRITE : 0;
+        save_rolling_code();
         RINFO("rolling code %02X", rolling_code);
 
         RINFO("Syncing rolling code counter after reboot...");
         sync();
     }
+}
+
+void save_rolling_code() {
+    write_int_to_file("rolling", &rolling_code);
+    last_saved_code = rolling_code;
 }
 
 void wallPlate_Emulation() {
@@ -671,7 +682,12 @@ void comms_loop() {
                 }
             }
         }
-    } 
+
+        // Save rolling code if we have exceeded max limit.
+        if (rolling_code >= (last_saved_code + MAX_CODES_WITHOUT_FLASH_WRITE)) {
+            save_rolling_code();
+        }
+    }
 }
 
 /********************************** CONTROLLER CODE *****************************************/
@@ -723,9 +739,7 @@ bool transmitSec2(PacketAction& pkt_ac) {
         }
 
         if (pkt_ac.inc_counter) {
-            rolling_code += 1;
-            // TODO slow this rate down to save eeprom wear
-            write_int_to_file("rolling", &rolling_code);
+            rolling_code = (rolling_code + 1)  & 0xfffffff;
         }
     }
 
