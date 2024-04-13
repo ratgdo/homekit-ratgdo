@@ -16,9 +16,9 @@ ESP8266-based hardware.
 > See the section below on where to get help.
 
 > [!WARNING]
-> This firmware does not currently provide support the delayed close feature while warning users with
-> flashing lights and beeping.  When you ask it to close, it closes.  If this is a concern for you, then you
-> may want to go with another solution until this feature can be implemented.  See [Issue #60](https://github.com/ratgdo/homekit-ratgdo/issues/60)
+> Delayed close feature is disabled by default. You can enable a delay of up-to 60 seconds on the
+> settings page. During the delay period the garage door lights will flash and you may hear the
+> relay clicking, but there is no audible beep.
 
 > [!NOTE]
 > Many thanks to the original author @thenewwazoo.
@@ -73,7 +73,7 @@ The final section provides useful links to documentation and legal/license infor
 
 ### Authentication
 
-By default authentication is not required for any action on this web page.  However it is strongly recommended that you enable the setting to require a password and change the default. If authentication is enabled then all buttons _except_ Reboot and entering the settings page are protected with a username and password
+By default authentication is not required for any action on this web page.  However it is strongly recommended that you enable the setting to require a password and change the default. If authentication is enabled then all buttons _except_ Reboot are protected with a username and password
 
 #### Default Username/Password: `admin`/`password`
 
@@ -96,21 +96,33 @@ If you save any settings from this page the ratgdo device will reboot and after 
 
 This updates the name reported to HomeKit and for mDNS device discovery.  The default name is _Garage Door ABCDEF_ where the last 6 characters are set to the MAC address of the ratgdo device. Changing the name after pairing with HomeKit does not change the name within HomeKit or Apple Home.
 
-### Door Protocol
+### Door Close Delay
 
-Set the protocol for your model of garage door opener.  This defaults to Security+ 2.0 and you should only change this if necessary.
+You can select up-to 60 second delay before door starts closing. During the delay period the garage door lights will flash and you may hear the relay clicking, but there is no audible beep.
 
 ### Require Password
 
 If selected then all the action buttons _except reboot_, and access to the settings page, will require authentication.  Default is not required.
 
-### Reboot Every
+### Receive Logs
 
-During early devlopment there were several reports that the ratgdo device would reset itself and loose its pairing with HomeKit. To reduce the chance of this occuring a regular (e.g. daily) reboot of the device provided a work-around. The firmware is far more stable now and it is hoped that this is no longer required. This setting may be removed in future versions.
+This option is not available on mobile devices. On a desktop browser all server firmware logs can be displayed in the javascript console log. On some browsers you may need to enable developer mode before you can open the javascript console.
+
+### Door Protocol
+
+Set the protocol for your model of garage door opener.  This defaults to Security+ 2.0 and you should only change this if necessary.
 
 ### WiFi Version
 
-If the device faile to connect reliably and consistently to your WiFi network it may help to lock it to a specific WiFi version. The ratgdo supports 802.11b, 802.11g and 802.11n on the 2.4GHz WiFi band and by default will auto-select. If it helps in your network, select the specific version you wish to use.  Note: If you select a version that your network does not support then the ratgdo will revert to auto-select and reboot itself after 30 seconds. 
+If the device faile to connect reliably and consistently to your WiFi network it may help to lock it to a specific WiFi version. The ratgdo supports 802.11b, 802.11g and 802.11n on the 2.4GHz WiFi band and by default will auto-select. If it helps in your network, select the specific version you wish to use.  Note: If you select a version that your network does not support then the ratgdo will revert to auto-select and reboot itself after 30 seconds.
+
+### WiFi Tx Power
+
+You can set the WiFi transmit power to between 0 and 20 dBm. It defaults to the maximum (20.5 dBm, displayed as 20 dBm) but you may wish to fine tune this to control how the device connects to available WiFi access points.
+
+### Reboot Every
+
+During early devlopment there were several reports that the ratgdo device would reset itself and loose its pairing with HomeKit. To reduce the chance of this occuring a regular (e.g. daily) reboot of the device provided a work-around. The firmware is far more stable now and it is hoped that this is no longer required. This setting may be removed in future versions.
 
 ## How do I upgrade?
 
