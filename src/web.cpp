@@ -21,7 +21,6 @@
 #include "EspSaveCrash.h"
 #include <arduino_homekit_server.h>
 #include <ESP8266WebServer.h>
-#include <ESP8266HTTPUpdateServer.h>
 #include <Ticker.h>
 #include "log.h"
 #include "utilities.h"
@@ -34,8 +33,6 @@ EspSaveCrash saveCrash(1408, 1024, true, &crashCallback);
 EspSaveCrash saveCrash(1408, 1024, true);
 #endif
 ESP8266WebServer server(80);
-ESP8266HTTPUpdateServer httpUpdater(true);
-bool updateUnderway = false;
 
 void handle_reset();
 void handle_reboot();
@@ -51,6 +48,8 @@ void handle_clearcrashlog();
 void handle_forcecrash();
 char *test_str = NULL;
 #endif
+void handle_update();
+void handle_firmware_upload();
 void SSEHandler(uint8_t);
 void SSEBroadcastState(const char *data, bool logView = false);
 void handle_notfound();
@@ -99,6 +98,13 @@ extern "C" const char wifiPowerFile[] = "wifiPower";
 
 // number of times the device has crashed
 int crashCount = 0;
+
+// Implement our own firmware update so can enforce MD5 check.
+// Based on ESP8266HTTPUpdateServer
+String _updaterError;
+bool _authenticatedUpdate;
+bool updateUnderway = false;
+char firmwareMD5[36] = "";
 
 // For Server Sent Events (SSE) support
 // Just reloading page causes register on new channel.  So we need a reasonable number
@@ -278,8 +284,8 @@ void setup_web()
         }
     }
 
+    server.on("/update", HTTP_POST, handle_update, handle_firmware_upload);
     server.onNotFound(handle_everything);
-    httpUpdater.setup(&server);
     server.begin();
     // initialize all the Server-Sent Events (SSE) slots.
     for (uint8_t i = 0; i < SSE_MAX_CHANNELS; i++)
@@ -479,12 +485,6 @@ void handle_status()
 void handle_logout()
 {
     RINFO("Handle logout");
-    /*
-    int nHeaders = server.headers();
-    for (int i = 0; i < nHeaders; i++) {
-        RINFO("%s : %s", server.headerName(i).c_str(), server.header(i).c_str());
-    }
-    */
     return server.requestAuthentication(DIGEST_AUTH, www_realm);
 }
 
@@ -616,8 +616,8 @@ void handle_setgdo()
         }
         else if (!strcmp(key, "updateUnderway"))
         {
-            RINFO("Client is signaling that it is about to start a firmware update");
             updateUnderway = true;
+            strlcpy(firmwareMD5, value, sizeof(firmwareMD5));
             arduino_homekit_close();
         }
         else
@@ -882,4 +882,106 @@ void SSEBroadcastState(const char *data, bool logView)
             }
         }
     }
+}
+
+// Implement our own firmware update so can enforce MD5 check.
+// Based on ESP8266HTTPUpdateServer
+void _setUpdaterError()
+{
+    StreamString str;
+    Update.printError(str);
+    _updaterError = str.c_str();
+    RINFO("Update error: %s", str.c_str());
+}
+
+void handle_update()
+{
+    server.sendHeader("Access-Control-Allow-Headers", "*");
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
+    {
+        RINFO("In handle_update request authentication");
+        return server.requestAuthentication(DIGEST_AUTH, www_realm);
+    }
+
+    if (Update.hasError())
+    {
+        // Error logged in _setUpdaterError
+        server.send(400, F("text/plain"), _updaterError);
+    }
+    else
+    {
+        RINFO("Upload complete, received firmware MD5: %s", Update.md5String().c_str());
+        server.client().setNoDelay(true);
+        server.send_P(200, PSTR("text/plain"), PSTR("Update Success! Rebooting..."));
+    }
+    // Whether error or success, reboot the device
+    delay(100);
+    server.stop();
+    sync_and_restart();
+}
+
+void handle_firmware_upload()
+{
+    // handler for the file upload, gets the sketch bytes, and writes
+    // them through the Update object
+    HTTPUpload &upload = server.upload();
+    if (upload.status == UPLOAD_FILE_START)
+    {
+        _updaterError.clear();
+
+        _authenticatedUpdate = !passwordReq || server.authenticateDigest(www_username, www_credentials);
+        if (!_authenticatedUpdate)
+        {
+            RINFO("Unauthenticated Update");
+            return;
+        }
+
+        RINFO("Update: %s", upload.filename.c_str());
+        if (upload.name == "filesystem")
+        {
+            RINFO("Update from filesystem not supported");
+        }
+        else
+        {
+            uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+            if (!Update.begin(maxSketchSpace, U_FLASH))
+            { // start with max available size
+                _setUpdaterError();
+            }
+            else if (strlen(firmwareMD5) > 0)
+            {
+                // uncomment for testing...
+                // char firmwareMD5[] = "675cbfa11d83a792293fdc3beb199cXX";
+                RINFO("Set expected MD5 for uploaded firmware to: %s", firmwareMD5);
+                Update.setMD5(firmwareMD5);
+            }
+        }
+    }
+    else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_WRITE && !_updaterError.length())
+    {
+        // Progress dot dot dot
+        Serial.printf(".");
+        if (Update.write(upload.buf, upload.currentSize) != upload.currentSize)
+        {
+            _setUpdaterError();
+        }
+    }
+    else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_END && !_updaterError.length())
+    {
+        if (Update.end(true))
+        { // true to set the size to the current progress
+            RINFO("\nUpdate Success: %zu\nRebooting...", upload.totalSize);
+        }
+        else
+        {
+            _setUpdaterError();
+        }
+    }
+    else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_ABORTED)
+    {
+        Update.end();
+        RINFO("Update was aborted");
+    }
+    esp_yield();
 }
