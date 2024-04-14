@@ -7,6 +7,7 @@
 #include "utilities.h"
 #include "secplus2.h"
 #include "comms.h"
+#include "web.h"
 #include <umm_malloc/umm_malloc.h>
 #include <umm_malloc/umm_heap_select.h>
 
@@ -31,7 +32,6 @@ void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]) {}
 char *lineBuffer = NULL;
 logBuffer *msgBuffer = NULL;
 logBuffer *savedLogs = NULL;
-extern void SSEBroadcastState(const char *data, bool logView);
 
 void logToBuffer_P(const char *fmt, ...)
 {
@@ -72,7 +72,7 @@ void logToBuffer_P(const char *fmt, ...)
         msgBuffer->head += len;
     }
     // send it to subscribed browsers
-    SSEBroadcastState(lineBuffer, true);
+    SSEBroadcastState(lineBuffer, LOG_MESSAGE);
 }
 
 void crashCallback()
