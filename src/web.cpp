@@ -17,13 +17,15 @@
 
 #include "ratgdo.h"
 #include "comms.h"
+#include "log.h"
+#include "web.h"
+#include "utilities.h"
 
 #include "EspSaveCrash.h"
 #include <arduino_homekit_server.h>
 #include <ESP8266WebServer.h>
 #include <Ticker.h>
-#include "log.h"
-#include "utilities.h"
+
 #include <umm_malloc/umm_malloc.h>
 #include <umm_malloc/umm_heap_select.h>
 
@@ -51,7 +53,6 @@ char *test_str = NULL;
 void handle_update();
 void handle_firmware_upload();
 void SSEHandler(uint8_t);
-void SSEBroadcastState(const char *data, bool logView = false);
 void handle_notfound();
 
 // Make device_name available
@@ -105,6 +106,8 @@ String _updaterError;
 bool _authenticatedUpdate;
 bool updateUnderway = false;
 char firmwareMD5[36] = "";
+size_t firmwareSize = 0;
+WiFiClient *firmwareClient = NULL;
 
 // For Server Sent Events (SSE) support
 // Just reloading page causes register on new channel.  So we need a reasonable number
@@ -286,6 +289,13 @@ void setup_web()
 
     server.on("/update", HTTP_POST, handle_update, handle_firmware_upload);
     server.onNotFound(handle_everything);
+
+    // here the list of headers to be recorded
+    const char *headerkeys[] = {"If-None-Match"};
+    size_t headerkeyssize = sizeof(headerkeys) / sizeof(char *);
+    // ask server to track these headers
+    server.collectHeaders(headerkeys, headerkeyssize);
+
     server.begin();
     // initialize all the Server-Sent Events (SSE) slots.
     for (uint8_t i = 0; i < SSE_MAX_CHANNELS; i++)
@@ -490,8 +500,8 @@ void handle_logout()
 
 void handle_setgdo()
 {
-    char key[20] = "";
-    char value[48] = "";
+    const char *key;
+    const char *value;
     bool reboot = false;
     bool error = false;
 
@@ -512,8 +522,9 @@ void handle_setgdo()
     // Loop over all the GDO settings passed in...
     for (int i = 0; i < server.args(); i++)
     {
-        strlcpy(key, server.argName(i).c_str(), 20);
-        strlcpy(value, server.arg(i).c_str(), 48);
+        key = server.argName(i).c_str();
+        value = server.arg(i).c_str();
+
         RINFO("Key: %s, Value: %s", key, value);
         if (strlen(key) == 0 || strlen(value) == 0)
         {
@@ -617,7 +628,43 @@ void handle_setgdo()
         else if (!strcmp(key, "updateUnderway"))
         {
             updateUnderway = true;
-            strlcpy(firmwareMD5, value, sizeof(firmwareMD5));
+            firmwareSize = 0;
+            firmwareClient = NULL;
+            char *md5 = strstr(value, "md5");
+            char *size = strstr(value, "size");
+            char *uuid = strstr(value, "uuid");
+            if (md5 && size && uuid)
+            {
+                // JSON string of passed in.
+                // Very basic parsing, not using library functions to save memory
+                // find the colon after the key string
+                md5 = strchr(md5, ':') + 1;
+                size = strchr(size, ':') + 1;
+                uuid = strchr(uuid, ':') + 1;
+                // for strings find the double quote
+                md5 = strchr(md5, '"') + 1;
+                uuid = strchr(uuid, '"') + 1;
+                // null terminate the strings (at closing quote).
+                *strchr(md5, '"') = (char)0;
+                *strchr(uuid, '"') = (char)0;
+                // RINFO("MD5: %s, UUID: %s, Size: %d", md5, uuid, atoi(size));
+                // save values...
+                strlcpy(firmwareMD5, md5, sizeof(firmwareMD5));
+                firmwareSize = atoi(size);
+                for (uint8_t channel = 0; channel < SSE_MAX_CHANNELS; channel++)
+                {
+                    if (subscription[channel].SSEconnected && subscription[channel].clientUUID == uuid && subscription[channel].client.connected())
+                    {
+                        firmwareClient = &(subscription[channel].client);
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                // old implementation... before JSON form of parameter.
+                strlcpy(firmwareMD5, value, sizeof(firmwareMD5));
+            }
             arduino_homekit_close();
         }
         else
@@ -655,11 +702,8 @@ void SSEheartbeat(uint8_t channel, SSESubscription *s)
     // RINFO("SSEheartbeat - Client %s on channel %d", s->clientIP.toString().c_str(), channel);
     if (updateUnderway)
     {
-        RINFO("Firmware update underway, cancel subscription for channel %d", channel);
+        RINFO("Firmware update underway, cancel heartbeat for channel %d", channel);
         s->heartbeatTimer.detach();
-        s->clientIP = INADDR_NONE;
-        s->clientUUID.clear();
-        subscriptionCount--;
         return;
     }
 
@@ -857,7 +901,7 @@ void handle_forcecrash()
 }
 #endif
 
-void SSEBroadcastState(const char *data, bool logView)
+void SSEBroadcastState(const char *data, BroadcastType type)
 {
     // if nothing subscribed, then return
     if (subscriptionCount == 0)
@@ -867,14 +911,14 @@ void SSEBroadcastState(const char *data, bool logView)
     {
         if (subscription[i].SSEconnected && subscription[i].client.connected())
         {
-            if (logView)
+            if (type == LOG_MESSAGE)
             {
                 if (subscription[i].logViewer)
                 {
                     subscription[i].client.printf("event: logger\ndata: %s\n\n", data);
                 }
             }
-            else
+            else if (type == RATGDO_STATUS && !updateUnderway)
             {
                 String IPaddrstr = IPAddress(subscription[i].clientIP).toString();
                 RINFO("broadcast status change to client IP %s on channel %d with new state %s", IPaddrstr.c_str(), i, data);
@@ -925,6 +969,8 @@ void handle_firmware_upload()
 {
     // handler for the file upload, gets the sketch bytes, and writes
     // them through the Update object
+    static size_t uploadProgress;
+    static unsigned int nextPrintPercent;
     HTTPUpload &upload = server.upload();
     if (upload.status == UPLOAD_FILE_START)
     {
@@ -936,7 +982,6 @@ void handle_firmware_upload()
             RINFO("Unauthenticated Update");
             return;
         }
-
         RINFO("Update: %s", upload.filename.c_str());
         if (upload.name == "filesystem")
         {
@@ -955,6 +1000,12 @@ void handle_firmware_upload()
                 // char firmwareMD5[] = "675cbfa11d83a792293fdc3beb199cXX";
                 RINFO("Set expected MD5 for uploaded firmware to: %s", firmwareMD5);
                 Update.setMD5(firmwareMD5);
+                if (firmwareSize > 0)
+                {
+                    uploadProgress = 0;
+                    nextPrintPercent = 10;
+                    Serial.printf("Progress: 00%%");
+                }
             }
         }
     }
@@ -962,6 +1013,25 @@ void handle_firmware_upload()
     {
         // Progress dot dot dot
         Serial.printf(".");
+        if (firmwareSize > 0)
+        {
+            uploadProgress += upload.currentSize;
+            unsigned int uploadPercent = (uploadProgress * 100) / firmwareSize;
+            if (uploadPercent >= nextPrintPercent)
+            {
+                Serial.printf("\nProgress: %i%%", uploadPercent);
+                nextPrintPercent += 10;
+                // Report percentage to browser client if it is listening
+                if (firmwareClient && firmwareClient->connected())
+                {
+                    START_JSON(json);
+                    ADD_INT(json, "uploadPercent", uploadPercent);
+                    END_JSON(json);
+                    REMOVE_NL(json);
+                    firmwareClient->printf("event: uploadStatus\ndata: %s\n\n", json);
+                }
+            }
+        }
         if (Update.write(upload.buf, upload.currentSize) != upload.currentSize)
         {
             _setUpdaterError();
@@ -969,9 +1039,17 @@ void handle_firmware_upload()
     }
     else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_END && !_updaterError.length())
     {
-        if (Update.end(true))
-        { // true to set the size to the current progress
-            RINFO("\nUpdate Success: %zu\nRebooting...", upload.totalSize);
+        Serial.printf("\n"); // newline after last of the dot dot dots
+        if (ESP.checkFlashCRC())
+        {
+            if (Update.end(true))
+            { // true to set the size to the current progress
+                RINFO("Update Success, size: %zu, Rebooting...", upload.totalSize);
+            }
+            else
+            {
+                _setUpdaterError();
+            }
         }
         else
         {

@@ -148,7 +148,7 @@ async function checkStatus() {
                 console.log(`SSE timeout, no message received in 5 seconds. Last upTime: ${serverStatus.upTime} (${msToTime(serverStatus.upTime)})`);
                 evtSource.close();
                 delayStatusFn.push(setTimeout(checkStatus, 1000));
-            }, 5000);
+            }, 30000);
             var msgJson = JSON.parse(event.data);
             serverStatus = { ...serverStatus, ...msgJson };
             // Update the HTML for those values that were present in the message...
@@ -156,6 +156,13 @@ async function checkStatus() {
         });
         evtSource.addEventListener("logger", (event) => {
             console.log(event.data);
+        });
+        evtSource.addEventListener("uploadStatus", (event) => {
+            console.log(event.data);
+            let msgJson = JSON.parse(event.data);
+            let spanPercent = document.getElementById("updatePercent");
+            spanPercent.style.display = 'initial';
+            spanPercent.innerHTML = msgJson.uploadPercent.toString() + '%&nbsp';
         });
         evtSource.addEventListener("error", (event) => {
             // If an error occurs close the connection, then wait 5 seconds and try again.
@@ -238,6 +245,7 @@ function countdown(secs, msg) {
         document.getElementById("updateDialog").style.display = "none";
         document.getElementById("modalClose").style.display = 'none';
     }
+    document.getElementById("updatePercent").style.display = 'none';
     document.getElementById("myModal").style.display = 'block';
     document.getElementById("updateDotDot").style.display = "block";
     spanDots.innerHTML = "";
@@ -264,7 +272,6 @@ async function firmwareUpdate(github = true) {
     var showRebootMsg = false;
     var rebootMsg = "";
     const spanDots = document.getElementById("dotdot3");
-    const spanMsg = document.getElementById("updateMsg");
     const aniDots = dotDotDot(spanDots);
     try {
         document.getElementById("updateDialog").style.display = "none";
@@ -332,7 +339,16 @@ async function firmwareUpdate(github = true) {
         console.log(`Firmware upload size: ${bin.byteLength}`);
         console.log(`Firmware MD5: ${binMD5}`);
         // Tell server we are about to upload new firmware and its MD5 hash
-        await setGDO("updateUnderway", binMD5);
+        await setGDO("updateUnderway", JSON.stringify({
+            md5: binMD5,
+            size: bin.byteLength,
+            uuid: clientUUID
+        }));
+        // Set initial percentage to zero
+        let spanPercent = document.getElementById("updatePercent");
+        spanPercent.style.display = 'initial';
+        spanPercent.innerHTML = '0%&nbsp';
+        // Upload the file
         const formData = new FormData();
         formData.append("content", new Blob([bin]));
         const response = await fetch("update", {
@@ -342,7 +358,7 @@ async function firmwareUpdate(github = true) {
         showRebootMsg = true;
         if (response.status == 200) {
             console.log("Firmware upload complete");
-            rebootMsg = "Update complete..."
+            rebootMsg = "Update complete...";
         } else {
             rebootMsg = await response.text();
             console.error(`Firmware update error: ${rebootMsg}`);
