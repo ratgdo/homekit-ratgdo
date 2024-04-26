@@ -65,6 +65,9 @@ extern struct GarageDoor garage_door;
 // Local copy of door status
 GarageDoor last_reported_garage_door;
 bool last_reported_paired = false;
+uint32_t lastDoorUpdateAt = 0;
+GarageDoorCurrentState lastDoorState = (GarageDoorCurrentState)0xff;
+
 // Garage door security type
 extern uint8_t gdoSecurityType;
 
@@ -190,7 +193,17 @@ char *json; // Maximum length of JSON response
 
 void web_loop()
 {
+    unsigned long upTime = millis();
     START_JSON(json);
+    if (garage_door.active && garage_door.current_state != lastDoorState)
+    {
+        RINFO("Current Door State changing from %d to %d", lastDoorState, garage_door.current_state);
+        lastDoorUpdateAt = (lastDoorState == 0xff) ? 0 : upTime;
+        lastDoorState = garage_door.current_state;
+        // We send milliseconds relative to current time... ie updated X milliseconds ago
+        // First time through, zero offset from upTime, which is when we last rebooted)
+        ADD_INT(json, "lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
+    }
     // Conditional macros, only add if value has changed
     ADD_BOOL_C(json, "paired", homekit_is_paired(), last_reported_paired);
     ADD_STR_C(json, "garageDoorState", DOOR_STATE(garage_door.current_state), garage_door.current_state, last_reported_garage_door.current_state);
@@ -201,7 +214,7 @@ void web_loop()
     if (strlen(json) > 2)
     {
         // Have we added anything to the JSON string?
-        ADD_INT(json, "upTime", millis());
+        ADD_INT(json, "upTime", upTime);
         END_JSON(json);
         REMOVE_NL(json);
         SSEBroadcastState(json);
@@ -255,6 +268,8 @@ void setup_web()
     wifiPhyMode = (WiFiPhyMode_t)read_int_from_file(wifiPhyModeFile);
     TTCdelay = read_int_from_file(TTCdelay_file);
     wifiPower = (uint16_t)read_int_from_file(wifiPowerFile, 20);
+    lastDoorUpdateAt = 0;
+    lastDoorState = (GarageDoorCurrentState)0xff;
 
     crashCount = saveCrash.count();
     if (crashCount == 255)
@@ -440,7 +455,7 @@ void handle_status()
         server.send(503, "text/plain", "503: Service Unavailable.");
         return;
     }
-#define upTime millis()
+    unsigned long upTime = millis();
 #define paired homekit_is_paired()
 #define accessoryID arduino_homekit_get_running_server()->accessory_id
 #define IPaddr WiFi.localIP().toString().c_str()
@@ -480,6 +495,8 @@ void handle_status()
     ADD_INT(json, "wifiPhyMode", wifiPhyMode);
     ADD_INT(json, "wifiPower", wifiPower);
     ADD_INT(json, "TTCseconds", TTCdelay);
+    // We send milliseconds relative to current time... ie updated X milliseconds ago
+    ADD_INT(json, "lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
     END_JSON(json);
 
     RINFO("Status requested. JSON length: %d", strlen(json));

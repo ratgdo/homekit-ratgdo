@@ -177,8 +177,10 @@
               <tr>
                 <td class="label">Door Close Delay:</td>
                 <td>&nbsp;
-                  <input type="range" min="0" max="60" value="0" id="TTCseconds" name="TTCseconds" class="slider" style="width:150px;">
-                  <span style="vertical-align: middle; font-size: 0.8em"><span id="TTCsecondsValue"></span> Seconds</span>
+                  <input type="range" min="0" max="60" value="0" id="TTCseconds" name="TTCseconds" class="slider"
+                    style="width:150px;">
+                  <span style="vertical-align: middle; font-size: 0.8em"><span id="TTCsecondsValue"></span>
+                    Seconds</span>
                 </td>
               </tr>
               <tr>
@@ -224,7 +226,8 @@
               <tr>
                 <td class="label">WiFi Tx Power:</td>
                 <td>&nbsp;
-                  <input type="range" min="0" max="20" value="20" id="wifiPower" name="wifiPower" class="slider" style="width:100px;">
+                  <input type="range" min="0" max="20" value="20" id="wifiPower" name="wifiPower" class="slider"
+                    style="width:100px;">
                   <span style="vertical-align: middle; font-size: 0.8em"><span id="wifiPowerValue"></span> dBm</span>
                 </td>
               </tr>
@@ -275,12 +278,23 @@
             <td style="width: 30%; padding: 0px">minStack:&nbsp;<span id="minStack">0</span></td>
           </tr>
         </table>
-        lastReboot:&nbsp;<span id="lastreboot"></span>
-        <span id="crashactions" style="display:none;">
-          <br>crashCount:&nbsp;<span id="crashCount"></span>
-          &nbsp;(<a href="crashlog" target="_blank">display log</a>&nbsp;
-          <a href="#" onclick="return confirm('Clear crash log, are you sure?.') && clearCrashLog();">clear log</a>)
-        </span>
+        <table style="border-collapse: collapse">
+          <tr>
+            <td style="width: 40%; padding: 0px">lastDoorChange:&nbsp;</td>
+            <td style="width: 60%; padding: 0px" id="lastDoorUpdateAt"></td>
+          </tr>
+          <tr>
+            <td style="width: 40%; padding: 0px">lastReboot:&nbsp;</td>
+            <td style="width: 60%; padding: 0px" id="lastRebootAt"></td>
+          </tr>
+        </table>
+        <p style="margin:0px;">
+          <span id="crashactions" style="display:none;">
+            <br>crashCount:&nbsp;<span id="crashCount"></span>
+            &nbsp;(<a href="crashlog" target="_blank">display log</a>&nbsp;
+            <a href="#" onclick="return confirm('Clear crash log, are you sure?.') && clearCrashLog();">clear log</a>)
+          </span>
+        </p>
       </div>
     </footer>
   </div>
@@ -405,13 +419,13 @@
     WiFiSlider = document.getElementById("wifiPower");
     WiFiText = document.getElementById("wifiPowerValue");
     WiFiText.innerHTML = WiFiSlider.value;
-    WiFiSlider.oninput = function() {
+    WiFiSlider.oninput = function () {
       WiFiText.innerHTML = this.value;
     }
     TTCslider = document.getElementById("TTCseconds");
     TTCtext = document.getElementById("TTCsecondsValue");
     TTCtext.innerHTML = TTCslider.value;
-    TTCslider.oninput = function() {
+    TTCslider.oninput = function () {
       TTCtext.innerHTML = this.value;
     }
   </script>

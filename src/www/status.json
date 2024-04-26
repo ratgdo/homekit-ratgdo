@@ -24,5 +24,6 @@
   "crashCount": 1,
   "wifiPhyMode": 0,
   "wifiPower": 10,
-  "TTCseconds": 10
+  "TTCseconds": 10,
+  "lastDoorUpdateAt": 847155
 }
