@@ -33,6 +33,7 @@ function msToTime(duration) {
 
 // Update all elements on HTML page to reflect status
 function setElementsFromStatus(status) {
+    let date = new Date();
     for (const [key, value] of Object.entries(status)) {
         switch (key) {
             case "paired":
@@ -48,8 +49,8 @@ function setElementsFromStatus(status) {
                 break;
             case "upTime":
                 document.getElementById(key).innerHTML = msToTime(value);
-                const date = new Date(Date.now() - value);
-                document.getElementById("lastreboot").innerHTML = date.toLocaleString();
+                date.setTime(Date.now() - value);
+                document.getElementById("lastRebootAt").innerHTML = date.toLocaleString();
                 break;
             case "GDOSecurityType":
                 document.getElementById(key).innerHTML = (value == 1) ? "Sec+ " : "Sec+ 2.0";
@@ -87,6 +88,10 @@ function setElementsFromStatus(status) {
             case "wifiPower":
                 document.getElementById(key).value = value;
                 document.getElementById("wifiPowerValue").innerHTML = value;
+                break;
+            case "lastDoorUpdateAt":
+                date.setTime(Date.now() - value);
+                document.getElementById(key).innerHTML = date.toLocaleString();
                 break;
             default:
                 document.getElementById(key).innerHTML = value;
