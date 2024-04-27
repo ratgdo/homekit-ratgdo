@@ -33,6 +33,9 @@ extern bool updateUnderway;
 void setup() {
     disable_extra4k_at_link_time();
     Serial.begin(115200);
+    delay(1000);
+    RINFO("RATGDO setup starting");
+
     LittleFS.begin();
 
     wifi_connect();

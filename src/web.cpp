@@ -261,13 +261,16 @@ void setup_web()
     }
     last_reported_paired = homekit_is_paired();
     // www_credentials = server.credentialHash(www_username, www_realm, www_password);
-    read_string_from_file(credentials_file, www_credentials, www_credentials, 48);
+    read_string_from_file(credentials_file, www_credentials, www_credentials, sizeof(www_credentials));
     RINFO("WWW Credentials: %s", www_credentials);
     passwordReq = (read_int_from_file(www_pw_required_file) != 0);
     RINFO("WWW Password %s required", (passwordReq) ? "is" : "not");
     wifiPhyMode = (WiFiPhyMode_t)read_int_from_file(wifiPhyModeFile);
+    RINFO("wifiPhyMode: %d", wifiPhyMode);
     TTCdelay = read_int_from_file(TTCdelay_file);
+    RINFO("TTCdelay: %d", TTCdelay);
     wifiPower = (uint16_t)read_int_from_file(wifiPowerFile, 20);
+    RINFO("wifiPower: %d", wifiPower);
     lastDoorUpdateAt = 0;
     lastDoorState = (GarageDoorCurrentState)0xff;
 
@@ -970,6 +973,11 @@ void handle_update()
         // Error logged in _setUpdaterError
         server.send(400, F("text/plain"), _updaterError);
     }
+    else if (!ESP.checkFlashCRC())
+    {
+        // CRC error
+        server.send(400, F("text/plain"), "Flash CRC check failed. Update aborted");
+    }
     else
     {
         RINFO("Upload complete, received firmware MD5: %s", Update.md5String().c_str());
@@ -1007,8 +1015,9 @@ void handle_firmware_upload()
         else
         {
             uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+            RINFO("Available space for upload: %lu", maxSketchSpace);
             if (!Update.begin(maxSketchSpace, U_FLASH))
-            { // start with max available size
+            {
                 _setUpdaterError();
             }
             else if (strlen(firmwareMD5) > 0)
@@ -1070,7 +1079,8 @@ void handle_firmware_upload()
         }
         else
         {
-            _setUpdaterError();
+            Update.end();
+            RERROR("Flash CRC check failed. Update aborted");
         }
     }
     else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_ABORTED)
