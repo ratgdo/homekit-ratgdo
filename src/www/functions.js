@@ -91,7 +91,7 @@ function setElementsFromStatus(status) {
                 break;
             case "lastDoorUpdateAt":
                 date.setTime(Date.now() - value);
-                document.getElementById(key).innerHTML = date.toLocaleString();
+                document.getElementById(key).innerHTML = (document.getElementById("lastRebootAt").innerHTML == date.toLocaleString()) ? "Unknown" : date.toLocaleString();
                 break;
             default:
                 document.getElementById(key).innerHTML = value;
@@ -352,7 +352,7 @@ async function firmwareUpdate(github = true) {
         // Set initial percentage to zero
         let spanPercent = document.getElementById("updatePercent");
         spanPercent.style.display = 'initial';
-        spanPercent.innerHTML = '0%&nbsp';
+        spanPercent.innerHTML = '00%&nbsp';
         // Upload the file
         const formData = new FormData();
         formData.append("content", new Blob([bin]));
