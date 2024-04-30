@@ -48,6 +48,8 @@ void handle_crashlog();
 void handle_clearcrashlog();
 #ifdef CRASH_DEBUG
 void handle_forcecrash();
+void handle_crash_oom();
+void *crashptr;
 char *test_str = NULL;
 #endif
 void handle_update();
@@ -248,6 +250,7 @@ const std::unordered_multimap<std::string, std::pair<const HTTPMethod, void (*)(
     {"/clearcrashlog", {HTTP_GET, handle_clearcrashlog}},
 #ifdef CRASH_DEBUG
     {"/forcecrash", {HTTP_GET, handle_forcecrash}},
+    {"/crashoom", {HTTP_GET, handle_crash_oom}},
 #endif
     {"/rest/events/subscribe", {HTTP_GET, handle_subscribe}},
     {"/", {HTTP_GET, handle_everything}}};
@@ -912,6 +915,16 @@ void handle_clearcrashlog()
 }
 
 #ifdef CRASH_DEBUG
+void handle_crash_oom()
+{
+    RINFO("Attempting to use up all memory");
+    server.send(200, "text/plain", "Attempting to use up all memory");
+    delay(1000);
+    for (int i = 0; i < 30; i++) {
+        crashptr = malloc(1024);
+    }
+}
+
 void handle_forcecrash()
 {
     RINFO("Attempting to null ptr deref");
