@@ -91,10 +91,16 @@ jobs:
       - name: Build PlatformIO Project
         run: pio run -e ratgdo_esp8266_hV25
 
-      - name: Rename Firmware
+      - name : md5sum Firmware.bin
+        run: |
+          cd .pio/build/ratgdo_esp8266_hV25
+          md5sum firmware.bin | awk '{print $1}' > firmware.md5
+
+      - name: Rename Firmware Files
         run: |
           mv .pio/build/ratgdo_esp8266_hV25/firmware.bin .pio/build/ratgdo_esp8266_hV25/homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin
           mv .pio/build/ratgdo_esp8266_hV25/firmware.elf .pio/build/ratgdo_esp8266_hV25/homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.elf
+          mv .pio/build/ratgdo_esp8266_hV25/firmware.md5 .pio/build/ratgdo_esp8266_hV25/homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.md5
 
       - name: Attach Bundle - Firmware.bin
         uses: AButler/upload-release-assets@v3.0
@@ -122,6 +128,35 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.bin
+          path: |
+            docs/firmware/
+
+      - name: Attach Bundle - Firmware.md5
+        uses: AButler/upload-release-assets@v3.0
+        with:
+          files: ".pio/build/ratgdo_esp8266_hV25/*.md5"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          release-tag: ${{ steps.tag.outputs.latestTag }}
+    
+      - name: Upload Release Asset - Firmware.md5
+        uses: wow-actions/download-upload@v1
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          url: https://github.com/ratgdo/homekit-ratgdo/releases/download/${{ steps.tag.outputs.latestTag }}/homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.md5
+          dir: docs/firmware/
+          commit_message: "Upload Latest md5: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.md5"
+    
+      - name: Upload Firmware.bin
+        uses: actions/upload-artifact@v4
+        with:
+          name: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.md5
+          path: |
+            .pio/build/ratgdo_esp8266_hV25/*.md5
+
+      - name: Download Firmware.md5
+        uses: actions/download-artifact@v4
+        with:
+          name: homekit-ratgdo-${{ steps.tag.outputs.latestTag }}.md5
           path: |
             docs/firmware/
   
