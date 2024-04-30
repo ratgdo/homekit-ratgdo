@@ -162,8 +162,9 @@ select after adding it.
 
 > I get a message [Unable to Add Accessory: The setup code is incorrect.](https://github.com/ratgdo/homekit-ratgdo/issues/97)
 
-[!WARNING] We have had a number of users that have encountered this error that was a result of running HomeBrdige with the Bounjour-HAP mDNS backend. You can find
-more details in the issue thread, but the short story is to consider changing that backend to Avahi or Ciao.
+> [!WARNING]
+> We have had a number of users that have encountered this error that was a result of running HomeBrdige with the Bounjour-HAP mDNS backend. You can find
+> more details in the issue thread, but the short story is to consider changing that backend to Avahi or Ciao.
 
 ### How do I re-pair my ratgdo?
 
