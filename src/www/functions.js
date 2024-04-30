@@ -311,7 +311,7 @@ async function firmwareUpdate(github = true) {
                 }
             }
             else {
-                expectedMD5 = await response.text();
+                expectedMD5 = (await response.text()).trim().toLowerCase();
                 console.log(`Expected firmware MD5: ${expectedMD5}`);
             }
             response = await fetch(serverStatus.downloadURL, {
