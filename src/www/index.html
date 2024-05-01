@@ -314,6 +314,8 @@
             </tr>
           </table>
           <input type="button" value="Check for update" onclick="checkVersion('dotdot2');">
+          <input type="checkbox" id="prerelease" name="prerelease" value="no">
+          <span style="font-size: 0.8em;">Include pre-releases</span>
           <input type="button" value="Update" style="float: right;"
             onclick="return confirm('Update firmware from GitHub, are you sure? Do not close browser until complete.') && firmwareUpdate(true);">
         </fieldset>
