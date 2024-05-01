@@ -217,9 +217,19 @@ async function checkVersion(progress) {
         return;
     }
     // make sure we have newest release first
-    const latest = releases.sort((a, b) => {
-        return Date.parse(b.created_at) - Date.parse(a.created_at);
-    })[0];
+    let prerelease = false;
+    if (document.getElementById("prerelease").checkVisibility()) {
+        // Firmware update dialog is visible
+        prerelease = document.getElementById("prerelease").checked;
+    }
+    const latest = releases
+        .sort((a, b) => {
+            return Date.parse(b.created_at) - Date.parse(a.created_at);
+        })
+        .find((obj) => {
+            // if prerelease allowed, select first object.  Else select first object that not a prerelease.
+            return (prerelease || !obj.prerelease);
+        });
     serverStatus.latestVersion = latest;
     console.log("Newest version: " + latest.tag_name);
     const asset = latest.assets.find((obj) => {
