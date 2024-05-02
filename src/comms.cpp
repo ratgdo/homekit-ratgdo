@@ -43,7 +43,7 @@ SecPlus2Reader reader;
 uint32_t id_code = 0;
 uint32_t rolling_code = 0;
 uint32_t last_saved_code = 0;
-#define MAX_CODES_WITHOUT_FLASH_WRITE 100
+#define MAX_CODES_WITHOUT_FLASH_WRITE 10
 
 /******************************* SECURITY 1.0 *********************************/
 
