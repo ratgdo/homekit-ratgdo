@@ -189,6 +189,10 @@ jobs:
           path: |
             docs/firmware/
 
+      - name: Sleep for 2 minutes before pubhsing to Discord
+        run: sleep 120s
+        shell: bash
+
       - name: Latest Release
         if: ${{ github.event.release.prerelease == false }}
         uses: SethCohen/github-releases-to-discord@v1.13.1
