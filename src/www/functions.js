@@ -218,10 +218,9 @@ async function checkVersion(progress) {
     }
     // make sure we have newest release first
     let prerelease = false;
-    if (document.getElementById("prerelease").checkVisibility()) {
-        // Firmware update dialog is visible
-        prerelease = document.getElementById("prerelease").checked;
-    }
+    // Firmware update dialog is visible
+    prerelease = document.getElementById("prerelease").checked;
+
     const latest = releases
         .sort((a, b) => {
             return Date.parse(b.created_at) - Date.parse(a.created_at);
