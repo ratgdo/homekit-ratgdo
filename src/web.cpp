@@ -986,11 +986,13 @@ void handle_update()
         // Error logged in _setUpdaterError
         server.send(400, F("text/plain"), _updaterError);
     }
+#ifdef CRC_CHECK
     else if (!ESP.checkFlashCRC())
     {
         // CRC error
         server.send(400, F("text/plain"), "Flash CRC check failed. Update aborted");
     }
+#endif
     else
     {
         RINFO("Upload complete, received firmware MD5: %s", Update.md5String().c_str());
@@ -1079,8 +1081,10 @@ void handle_firmware_upload()
     else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_END && !_updaterError.length())
     {
         Serial.printf("\n"); // newline after last of the dot dot dots
+#ifdef CRC_CHECK
         if (ESP.checkFlashCRC())
         {
+#endif
             if (Update.end(true))
             { // true to set the size to the current progress
                 RINFO("Update Success, size: %zu, Rebooting...", upload.totalSize);
@@ -1089,12 +1093,14 @@ void handle_firmware_upload()
             {
                 _setUpdaterError();
             }
+#ifdef CRC_CHECK
         }
         else
         {
             Update.end();
             RERROR("Flash CRC check failed. Update aborted");
         }
+#endif
     }
     else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_ABORTED)
     {
