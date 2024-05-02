@@ -216,9 +216,8 @@ async function checkVersion(progress) {
         console.warn("Error retrieving status from GitHub" + releases.message);
         return;
     }
+
     // make sure we have newest release first
-    let prerelease = false;
-    // Firmware update dialog is visible
     prerelease = document.getElementById("prerelease").checked;
 
     const latest = releases
