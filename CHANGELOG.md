@@ -2,6 +2,20 @@
 
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v1.3.5 (2024-05-01)
+
+### What's Changed
+
+- Create CHANGELOG.md by @donavanbecker in #165
+- Add check for pre-releases in firmware update dialog by @dkerr64 in #166
+- Remove the visibility check as it was causing issues. by @jgstroud in #167
+## Hotfix:
+
+- New flash wear protection was causing problems with rolling code getting out of sync on some GDOs. Fix implemented
+- OTA Flash CRC check was causing false failures and blocking OTA upgrade. Removed this check. MD5 check still in place.
+
+Full Changelog: [v1.3.2...v1.3.5](https://github.com/ratgdo/homekit-ratgdo/compare/v1.3.2...v1.3.5)
+
 ## v1.3.2 (2024-04-30)
 
 ### What's Changed
