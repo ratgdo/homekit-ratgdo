@@ -250,8 +250,8 @@ const std::unordered_multimap<std::string, std::pair<const HTTPMethod, void (*)(
     {"/crashlog", {HTTP_GET, handle_crashlog}},
     {"/clearcrashlog", {HTTP_GET, handle_clearcrashlog}},
 #ifdef CRASH_DEBUG
-    {"/forcecrash", {HTTP_GET, handle_forcecrash}},
-    {"/crashoom", {HTTP_GET, handle_crash_oom}},
+    {"/forcecrash", {HTTP_POST, handle_forcecrash}},
+    {"/crashoom", {HTTP_POST, handle_crash_oom}},
 #endif
     {"/rest/events/subscribe", {HTTP_GET, handle_subscribe}},
     {"/", {HTTP_GET, handle_everything}}};
