@@ -67,17 +67,13 @@ void setup() {
 void loop() {
 
     improv_loop();
-
     if (!updateUnderway)
     {
         comms_loop();
-
         homekit_loop();
+        service_timer_loop();
     }
-
     web_loop();
-
-    service_timer_loop();
 }
 
 /*********************************** HELPER FUNCTIONS **************************************/
