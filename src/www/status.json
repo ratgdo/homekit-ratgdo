@@ -25,5 +25,6 @@
   "wifiPhyMode": 0,
   "wifiPower": 10,
   "TTCseconds": 10,
-  "lastDoorUpdateAt": 847155
+  "lastDoorUpdateAt": 847155,
+  "checkFlashCRC": false
 }
