@@ -113,6 +113,7 @@ bool updateUnderway = false;
 char firmwareMD5[36] = "";
 size_t firmwareSize = 0;
 WiFiClient *firmwareClient = NULL;
+bool flashCRC = true;
 
 // For Server Sent Events (SSE) support
 // Just reloading page causes register on new channel.  So we need a reasonable number
@@ -503,6 +504,7 @@ void handle_status()
     ADD_INT(json, "TTCseconds", TTCdelay);
     // We send milliseconds relative to current time... ie updated X milliseconds ago
     ADD_INT(json, "lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
+    ADD_BOOL(json, "checkFlashCRC", flashCRC);
     END_JSON(json);
 
     RINFO("Status requested. JSON length: %d", strlen(json));
@@ -920,7 +922,8 @@ void handle_crash_oom()
     RINFO("Attempting to use up all memory");
     server.send(200, "text/plain", "Attempting to use up all memory");
     delay(1000);
-    for (int i = 0; i < 30; i++) {
+    for (int i = 0; i < 30; i++)
+    {
         crashptr = malloc(1024);
     }
 }
@@ -986,13 +989,6 @@ void handle_update()
         // Error logged in _setUpdaterError
         server.send(400, F("text/plain"), _updaterError);
     }
-#ifdef CRC_CHECK
-    else if (!ESP.checkFlashCRC())
-    {
-        // CRC error
-        server.send(400, F("text/plain"), "Flash CRC check failed. Update aborted");
-    }
-#endif
     else
     {
         RINFO("Upload complete, received firmware MD5: %s", Update.md5String().c_str());
@@ -1081,26 +1077,14 @@ void handle_firmware_upload()
     else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_END && !_updaterError.length())
     {
         Serial.printf("\n"); // newline after last of the dot dot dots
-#ifdef CRC_CHECK
-        if (ESP.checkFlashCRC())
-        {
-#endif
-            if (Update.end(true))
-            { // true to set the size to the current progress
-                RINFO("Update Success, size: %zu, Rebooting...", upload.totalSize);
-            }
-            else
-            {
-                _setUpdaterError();
-            }
-#ifdef CRC_CHECK
+        if (Update.end(true))
+        { // true to set the size to the current progress
+            RINFO("Update Success, size: %zu, Rebooting...", upload.totalSize);
         }
         else
         {
-            Update.end();
-            RERROR("Flash CRC check failed. Update aborted");
+            _setUpdaterError();
         }
-#endif
     }
     else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_ABORTED)
     {

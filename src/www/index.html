@@ -288,11 +288,17 @@
             <td style="width: 60%; padding: 0px" id="lastRebootAt"></td>
           </tr>
         </table>
-        <p style="margin:0px;">
+        <p style="margin:0px; color:red;">
           <span id="crashactions" style="display:none;">
-            <br>crashCount:&nbsp;<span id="crashCount"></span>
-            &nbsp;(<a href="crashlog" target="_blank">display log</a>&nbsp;
-            <a href="#" onclick="return confirm('Clear crash log, are you sure?.') && clearCrashLog();">clear log</a>)
+            crashCount:&nbsp;<span id="crashCount"></span>
+            &nbsp;(<a href="crashlog" target="_blank" style="color: red;">display log</a>&nbsp;
+            <a href="#" style="color: red;"
+              onclick="return confirm('Clear crash log, are you sure?.') && clearCrashLog();">clear log</a>)
+          </span>
+        </p>
+        <p style="margin:0px; color:red;">
+          <span id="checkFlashCRC" style="display:none;">
+            checkFlashCRC() failed, reboot and/or flash new firmware
           </span>
         </p>
       </div>
@@ -423,7 +429,7 @@
     WiFiText.innerHTML = WiFiSlider.value;
     WiFiSlider.oninput = function () {
       WiFiText.innerHTML = this.value;
-    }
+    };
     TTCslider = document.getElementById("TTCseconds");
     TTCtext = document.getElementById("TTCsecondsValue");
     TTCtext.innerHTML = TTCslider.value;

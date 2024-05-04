@@ -93,6 +93,12 @@ function setElementsFromStatus(status) {
                 date.setTime(Date.now() - value);
                 document.getElementById(key).innerHTML = (document.getElementById("lastRebootAt").innerHTML == date.toLocaleString()) ? "Unknown" : date.toLocaleString();
                 break;
+            case "checkFlashCRC":
+                if (!value) {
+                    console.warn("WARNING: Server checkFlashCRC() failed, consider flashing new firmware");
+                    document.getElementById("checkFlashCRC").style.display = "initial";
+                }
+                break;
             default:
                 document.getElementById(key).innerHTML = value;
         }
@@ -218,8 +224,7 @@ async function checkVersion(progress) {
     }
 
     // make sure we have newest release first
-    prerelease = document.getElementById("prerelease").checked;
-
+    let prerelease = document.getElementById("prerelease").checked;
     const latest = releases
         .sort((a, b) => {
             return Date.parse(b.created_at) - Date.parse(a.created_at);
