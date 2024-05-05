@@ -8,6 +8,7 @@
 #include "secplus2.h"
 #include "comms.h"
 #include "web.h"
+#include <LittleFS.h>
 #include <umm_malloc/umm_malloc.h>
 #include <umm_malloc/umm_heap_select.h>
 
@@ -32,6 +33,7 @@ void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]) {}
 char *lineBuffer = NULL;
 logBuffer *msgBuffer = NULL;
 logBuffer *savedLogs = NULL;
+File logMessageFile;
 
 void logToBuffer_P(const char *fmt, ...)
 {
@@ -47,6 +49,9 @@ void logToBuffer_P(const char *fmt, ...)
         msgBuffer->wrapped = 0;
         msgBuffer->head = 0;
         savedLogs = (logBuffer *)malloc(sizeof(logBuffer));
+        // Open logMessageFile so we don't have to later.
+        logMessageFile = (LittleFS.exists(LOG_MSG_FILE)) ? LittleFS.open(LOG_MSG_FILE, "r+") : LittleFS.open(LOG_MSG_FILE, "w+");
+        Serial.printf("Opened log message file, size: %d\n", logMessageFile.size());
     }
 
     // parse the format string into lineBuffer
@@ -77,19 +82,22 @@ void logToBuffer_P(const char *fmt, ...)
 
 void crashCallback()
 {
-    if (!msgBuffer)
-        return;
-    write_data_to_file(LOG_MSG_FILE, msgBuffer, sizeof(logBuffer));
-    save_rolling_code();
+    if (msgBuffer && logMessageFile)
+    {
+        logMessageFile.seek(0, fs::SeekSet);
+        logMessageFile.write((const uint8_t *)msgBuffer, sizeof(logBuffer));
+        logMessageFile.close();
+    }
+    // We may not have enough memory to open the file and save the code
+    // save_rolling_code();
 }
 
 void printLogBuffer(Print &outputDev)
 {
-    if (!savedLogs)
-        return;
-
-    if (read_data_from_file(LOG_MSG_FILE, savedLogs, sizeof(logBuffer)))
+    if (savedLogs && logMessageFile && logMessageFile.size() > 0)
     {
+        logMessageFile.seek(0, fs::SeekSet);
+        logMessageFile.read((uint8_t *)savedLogs, sizeof(logBuffer));
         outputDev.println();
         if (savedLogs->wrapped != 0)
         {
