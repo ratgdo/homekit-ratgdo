@@ -33,9 +33,11 @@ extern bool flashCRC;
 
 void setup() {
     disable_extra4k_at_link_time();
-    Serial.begin(115200);
     flashCRC = ESP.checkFlashCRC();
+    Serial.begin(115200);
+    LittleFS.begin();
     updateUnderway = false;
+
     Serial.printf("\n"); // newline before we start
     RINFO("RATGDO setup starting");
     if (flashCRC)
@@ -46,8 +48,6 @@ void setup() {
     {
         RERROR("checkFlashCRC: false");
     }
-
-    LittleFS.begin();
 
     wifi_connect();
 

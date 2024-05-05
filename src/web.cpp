@@ -909,9 +909,6 @@ void handle_clearcrashlog()
     }
     RINFO("Clear saved crash log");
     saveCrash.clear();
-#ifdef LOG_MSG_BUFFER
-    delete_file(LOG_MSG_FILE);
-#endif
     crashCount = 0;
     server.send(200, "text/plain", "Crash log cleared");
 }
