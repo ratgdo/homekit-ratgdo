@@ -92,7 +92,7 @@ void crashCallback()
     // save_rolling_code();
 }
 
-void printLogBuffer(Print &outputDev)
+void printSavedLog(Print &outputDev)
 {
     if (savedLogs && logMessageFile && logMessageFile.size() > 0)
     {
@@ -108,4 +108,15 @@ void printLogBuffer(Print &outputDev)
     }
 }
 
+void printMessageLog(Print &outputDev)
+{
+    if (msgBuffer)
+    {
+        if (msgBuffer->wrapped != 0)
+        {
+            outputDev.write(&msgBuffer->buffer[msgBuffer->head], sizeof(msgBuffer->buffer) - msgBuffer->head);
+        }
+        outputDev.write(msgBuffer->buffer, msgBuffer->head);
+    }
+}
 #endif
