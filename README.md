@@ -145,6 +145,77 @@ Over-the-Air (OTA) updates are supported, either directly from GitHub or by sele
 
 Automatic updates are not supported (and probably will never be), so set a reminder to check back again in the future.
 
+## Command Line Interface
+
+It is possibile to query status, monitor and reboot/reset the ratgdo device from a command line.  The following have been tested on Ubuntu Linux and Apple macOS.
+
+### Retrieve ratgdo status
+
+```
+curl -s http://<ip-address>/status.json
+```
+Status is returned as JSON formatted text.
+
+### Reboot ratgdo device
+
+```
+curl -s -X POST http://<ip-address>/reboot
+```
+Allow at least 30 seconds for the device to reboot before attempting to reconnect.
+
+### Reset ratgdo device
+
+```
+curl -s -X POST http://<ip-address>/reset
+```
+Resets and reboots the device. This will delete HomeKit pairing.
+> [!NOTE]
+> Will not work if device set to require authentication
+
+### Show last crash log
+
+```
+curl -s http://<ip-address>/crashlog
+```
+Returns details of the last crash including stack trace and the message log leading up to the crash
+
+### Clear crash log
+
+```
+curl -s http://<ip-address>/clearcrashlog
+```
+Erase contents of the crash log
+
+### Show message log
+
+```
+curl -s http://<ip-address>/showlog
+```
+Returns recent history of message logs.
+
+### Monitor message log
+
+The following script is available in this repository as `viewlog.sh`
+```
+UUID=$(uuidgen)
+URL=$(curl -s "http://${1}/rest/events/subscribe?id=${UUID}&log")
+curl -s "http://${1}/showlog"
+curl -s -N "http://${1}${URL}?id=${UUID}" | sed -u -n '/event: logger/{n;p;}' | cut -c 7-
+```
+Run this script as `<path>/viewlog.sh <ip-address>`
+
+Displays recent history of message log and remains connected to the device.  Log messages are displayed as they occur.
+Use Ctrl-C keystroke to terminate and return to command line prompt. You will need to download this script file from github.
+
+### Upload new firmware
+
+```
+<path>/upload_firmware.sh <ip-address> <firmware_file.bin>
+```
+Uploads a new firmware binary file to the device and reboots.  It can take some time to complete the upload, you can monitor progress using the `viewlog.sh` script in a separate command line window. You will need to download this script file from github.
+> [!NOTE]
+> Will not work if device set to require authentication
+
 ## Help! aka the FAQs
 
 ### How can I tell if the ratgdo is paired to HomeKit?
