@@ -45,6 +45,7 @@ void handle_logout();
 void handle_auth();
 void handle_subscribe();
 void handle_crashlog();
+void handle_showlog();
 void handle_clearcrashlog();
 #ifdef CRASH_DEBUG
 void handle_forcecrash();
@@ -248,6 +249,7 @@ const std::unordered_multimap<std::string, std::pair<const HTTPMethod, void (*)(
     {"/logout", {HTTP_GET, handle_logout}},
     {"/auth", {HTTP_GET, handle_auth}},
     {"/crashlog", {HTTP_GET, handle_crashlog}},
+    {"/showlog", {HTTP_GET, handle_showlog}},
     {"/clearcrashlog", {HTTP_GET, handle_clearcrashlog}},
 #ifdef CRASH_DEBUG
     {"/forcecrash", {HTTP_POST, handle_forcecrash}},
@@ -334,7 +336,7 @@ void setup_web()
 void handle_notfound()
 {
     RINFO("Sending 404 Not Found for: %s", server.uri().c_str());
-    server.send(404, "text/plain", "Not Found");
+    server.send(404, "text/plain", "Not Found\n");
 }
 
 void handle_auth()
@@ -897,8 +899,23 @@ void handle_crashlog()
     client.print("\n");
     saveCrash.print(client);
 #ifdef LOG_MSG_BUFFER
-    printLogBuffer(client);
+    if (crashCount > 0)
+        printSavedLog(client);
 #endif
+    client.stop();
+}
+
+void handle_showlog()
+{
+    WiFiClient client = server.client();
+    client.print("HTTP/1.1 200 OK\n");
+    client.print("Content-Type: text/plain\n");
+    client.print("Connection: close\n");
+    client.print("\n");
+#ifdef LOG_MSG_BUFFER
+    printMessageLog(client);
+#endif
+    client.stop();
 }
 
 void handle_clearcrashlog()

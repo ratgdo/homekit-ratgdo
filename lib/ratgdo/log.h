@@ -23,7 +23,8 @@ typedef struct logBuffer
 } logBuffer;
 
 extern "C" void logToBuffer_P(const char *fmt, ...);
-void printLogBuffer(Print &outDevice = Serial);
+void printSavedLog(Print &outDevice = Serial);
+void printMessageLog(Print &outDevice = Serial);
 void crashCallback();
 
 #define RATGDO_PRINTF(message, ...) logToBuffer_P(PSTR(message), ##__VA_ARGS__)
