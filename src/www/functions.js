@@ -169,7 +169,7 @@ async function checkStatus() {
             console.log(event.data);
         });
         evtSource.addEventListener("uploadStatus", (event) => {
-            console.log(event.data);
+            //console.log(event.data);
             let msgJson = JSON.parse(event.data);
             let spanPercent = document.getElementById("updatePercent");
             spanPercent.style.display = 'initial';

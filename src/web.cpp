@@ -654,7 +654,7 @@ void handle_setgdo()
         }
         else if (!strcmp(key, "updateUnderway"))
         {
-            updateUnderway = true;
+            // updateUnderway = true; // Will set this when actual upload starts;
             firmwareSize = 0;
             firmwareClient = NULL;
             char *md5 = strstr(value, "md5");
@@ -990,6 +990,7 @@ void _setUpdaterError()
 
 void handle_update()
 {
+    updateUnderway = true;
     server.sendHeader("Access-Control-Allow-Headers", "*");
     server.sendHeader("Access-Control-Allow-Origin", "*");
     if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
@@ -1007,7 +1008,7 @@ void handle_update()
     {
         RINFO("Upload complete, received firmware MD5: %s", Update.md5String().c_str());
         server.client().setNoDelay(true);
-        server.send_P(200, PSTR("text/plain"), PSTR("Update Success! Rebooting..."));
+        server.send_P(200, PSTR("text/plain"), PSTR("Update Success! Rebooting...\n"));
     }
     // Whether error or success, reboot the device
     delay(100);
@@ -1021,6 +1022,7 @@ void handle_firmware_upload()
     // them through the Update object
     static size_t uploadProgress;
     static unsigned int nextPrintPercent;
+    updateUnderway = true;
     HTTPUpload &upload = server.upload();
     if (upload.status == UPLOAD_FILE_START)
     {
@@ -1055,7 +1057,7 @@ void handle_firmware_upload()
                 {
                     uploadProgress = 0;
                     nextPrintPercent = 10;
-                    Serial.printf("Progress: 00%%");
+                    RINFO("Progress: 00%%");
                 }
             }
         }
@@ -1070,7 +1072,8 @@ void handle_firmware_upload()
             unsigned int uploadPercent = (uploadProgress * 100) / firmwareSize;
             if (uploadPercent >= nextPrintPercent)
             {
-                Serial.printf("\nProgress: %i%%", uploadPercent);
+                Serial.printf("\n"); // newline after the dot dot dots
+                RINFO("Progress: %i%%", uploadPercent);
                 nextPrintPercent += 10;
                 // Report percentage to browser client if it is listening
                 if (firmwareClient && firmwareClient->connected())
