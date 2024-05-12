@@ -15,12 +15,17 @@ void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]);
 #ifdef LOG_MSG_BUFFER
 
 #define LOG_MSG_FILE "crash_log"
+#ifdef PIO_FRAMEWORK_ARDUINO_MMU_CACHE16_IRAM48_SECHEAP_SHARED
+#define MSG_BUFFER_SIZE (4096 - 20) // 4 Kbytes less other struct members
+#else
+#define MSG_BUFFER_SIZE (1024 - 20) // x Kbytes less other struct members
+#endif
 typedef struct logBuffer
 {
     uint16_t wrapped;  // two bytes
     uint16_t head;     // two bytes
     char version[16];  // to hold firmware version string
-    char buffer[4076]; // sized so whole struct is 4K (4096) bytes
+    char buffer[MSG_BUFFER_SIZE]; // sized so whole struct is 4K (4096) bytes
 } logBuffer;
 
 extern "C" void logToBuffer_P(const char *fmt, ...);
