@@ -17,9 +17,10 @@ void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]);
 #define LOG_MSG_FILE "crash_log"
 typedef struct logBuffer
 {
-    uint16_t wrapped;
-    uint16_t head;
-    char buffer[4092];
+    uint16_t wrapped;  // two bytes
+    uint16_t head;     // two bytes
+    char version[16];  // to hold firmware version string
+    char buffer[4076]; // sized so whole struct is 4K (4096) bytes
 } logBuffer;
 
 extern "C" void logToBuffer_P(const char *fmt, ...);

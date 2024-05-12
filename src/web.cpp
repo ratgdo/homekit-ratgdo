@@ -59,7 +59,7 @@ void SSEHandler(uint8_t);
 void handle_notfound();
 
 // Make device_name available
-extern "C" char device_name[];
+extern "C" char device_name[DEVICE_NAME_SIZE];
 // filename to save device name
 extern "C" const char device_name_file[] = "device_name";
 
@@ -404,7 +404,7 @@ void load_page(const char *page)
             server.sendHeader("ETag", crc32);
 
         if (server.hasHeader("If-None-Match"))
-            strlcpy(matchHdr, server.header("If-None-Match").c_str(), 8);
+            strlcpy(matchHdr, server.header("If-None-Match").c_str(), sizeof(matchHdr));
 
         if (strcmp(crc32, matchHdr))
         {
@@ -578,7 +578,7 @@ void handle_setgdo()
         }
         else if (!strcmp(key, "credentials"))
         {
-            strlcpy(www_credentials, value, 48);
+            strlcpy(www_credentials, value, sizeof(www_credentials));
             RINFO("Writing new www_credentials to file: %s", www_credentials);
             write_string_to_file(credentials_file, www_credentials);
         }
@@ -618,7 +618,7 @@ void handle_setgdo()
         {
             if (strlen(value) > 0)
             {
-                strlcpy(device_name, value, 32);
+                strlcpy(device_name, value, sizeof(device_name));
                 write_string_to_file(device_name_file, device_name);
             }
         }

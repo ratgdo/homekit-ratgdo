@@ -31,8 +31,8 @@ void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]) {}
 
 #ifdef LOG_MSG_BUFFER
 char *lineBuffer = NULL;
-logBuffer *msgBuffer = NULL;
-logBuffer *savedLogs = NULL;
+logBuffer *msgBuffer = NULL; // Buffer to save log messages as they occur
+logBuffer *savedLogs = NULL; // Buffer into which we can read log messages from file saved at crash time.
 File logMessageFile;
 
 void logToBuffer_P(const char *fmt, ...)
@@ -48,6 +48,7 @@ void logToBuffer_P(const char *fmt, ...)
         memset(msgBuffer->buffer, 0x20, sizeof(msgBuffer->buffer));
         msgBuffer->wrapped = 0;
         msgBuffer->head = 0;
+        strlcpy(msgBuffer->version, AUTO_VERSION, sizeof(msgBuffer->version));
         savedLogs = (logBuffer *)malloc(sizeof(logBuffer));
         // Open logMessageFile so we don't have to later.
         logMessageFile = (LittleFS.exists(LOG_MSG_FILE)) ? LittleFS.open(LOG_MSG_FILE, "r+") : LittleFS.open(LOG_MSG_FILE, "w+");
@@ -99,6 +100,10 @@ void printSavedLog(Print &outputDev)
         logMessageFile.seek(0, fs::SeekSet);
         logMessageFile.read((uint8_t *)savedLogs, sizeof(logBuffer));
         outputDev.println();
+        outputDev.write("Firmware Version: ");
+        outputDev.write(msgBuffer->version);
+        outputDev.println();
+        outputDev.println();
         if (savedLogs->wrapped != 0)
         {
             outputDev.write(&savedLogs->buffer[savedLogs->head], sizeof(savedLogs->buffer) - savedLogs->head);
@@ -112,6 +117,10 @@ void printMessageLog(Print &outputDev)
 {
     if (msgBuffer)
     {
+        outputDev.write("Firmware Version: ");
+        outputDev.write(msgBuffer->version);
+        outputDev.println();
+        outputDev.println();
         if (msgBuffer->wrapped != 0)
         {
             outputDev.write(&msgBuffer->buffer[msgBuffer->head], sizeof(msgBuffer->buffer) - msgBuffer->head);
