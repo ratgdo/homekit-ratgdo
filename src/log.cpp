@@ -9,8 +9,11 @@
 #include "comms.h"
 #include "web.h"
 #include <LittleFS.h>
+
+#ifdef PIO_FRAMEWORK_ARDUINO_MMU_CACHE16_IRAM48_SECHEAP_SHARED
 #include <umm_malloc/umm_malloc.h>
 #include <umm_malloc/umm_heap_select.h>
+#endif
 
 #ifndef UNIT_TEST
 
@@ -39,8 +42,10 @@ void logToBuffer_P(const char *fmt, ...)
 {
     if (!lineBuffer)
     {
-        // first time in we need to create the buffers
+#ifdef PIO_FRAMEWORK_ARDUINO_MMU_CACHE16_IRAM48_SECHEAP_SHARED
         HeapSelectIram ephemeral;
+#endif
+        // first time in we need to create the buffers
         lineBuffer = (char *)malloc(1024);
         msgBuffer = (logBuffer *)malloc(sizeof(logBuffer));
         // Fill the buffer with space chars... because if we crash and dump buffer before it fills

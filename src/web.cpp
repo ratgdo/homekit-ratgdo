@@ -26,8 +26,10 @@
 #include <ESP8266WebServer.h>
 #include <Ticker.h>
 
+#ifdef PIO_FRAMEWORK_ARDUINO_MMU_CACHE16_IRAM48_SECHEAP_SHARED
 #include <umm_malloc/umm_malloc.h>
 #include <umm_malloc/umm_heap_select.h>
+#endif
 
 #ifdef LOG_MSG_BUFFER
 EspSaveCrash saveCrash(1408, 1024, true, &crashCallback);
@@ -262,7 +264,9 @@ void setup_web()
 {
     RINFO("Starting server");
     {
+#ifdef PIO_FRAMEWORK_ARDUINO_MMU_CACHE16_IRAM48_SECHEAP_SHARED
         HeapSelectIram ephemeral;
+#endif
         json = (char *)malloc(1024);
     }
     last_reported_paired = homekit_is_paired();
