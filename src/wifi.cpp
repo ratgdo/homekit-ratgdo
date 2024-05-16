@@ -89,11 +89,12 @@ void wifi_connect() {
         RINFO("Setting WiFi version preference to automatic");
     }
     WiFi.setPhyMode(wifiPhyMode);
-    float dBm = (float)wifiPower;
-    if (dBm >= 20) dBm = 20.5;
-    else if (dBm < 0) dBm = 0;
-    RINFO("Setting WiFi power to %f", dBm);
-    WiFi.setOutputPower(dBm);
+    if (wifiPower < 20)
+    {
+        // Only set WiFi power if set to less than the maximum
+        RINFO("Setting WiFi power to %d", wifiPower);
+        WiFi.setOutputPower((float)wifiPower);
+    }
     WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
 
     // Set callbacks so we can monitor connection status
