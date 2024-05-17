@@ -13,4 +13,6 @@ enum BroadcastType : uint8_t {
 };
 void SSEBroadcastState(const char *data, BroadcastType type = RATGDO_STATUS);
 
+extern "C" int crashCount; // pull in number of times crashed.
+
 #endif // _WEB_H

@@ -10,7 +10,7 @@
 #include "web.h"
 #include <LittleFS.h>
 
-#ifdef PIO_FRAMEWORK_ARDUINO_MMU_CACHE16_IRAM48_SECHEAP_SHARED
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
 #include <umm_malloc/umm_malloc.h>
 #include <umm_malloc/umm_heap_select.h>
 #endif
@@ -33,20 +33,21 @@ void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]) {}
 #endif // UNIT_TEST
 
 #ifdef LOG_MSG_BUFFER
-char lineBuffer[256];
+#define LINE_BUFFER_SIZE 256
+char *lineBuffer = NULL;
 logBuffer *msgBuffer = NULL; // Buffer to save log messages as they occur
 File logMessageFile;
-extern "C" int crashCount; // pull in number of times crashed.
 
 void logToBuffer_P(const char *fmt, ...)
 {
     if (!msgBuffer)
     {
-#ifdef PIO_FRAMEWORK_ARDUINO_MMU_CACHE16_IRAM48_SECHEAP_SHARED
+        // first time in we need to create the buffers
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
         HeapSelectIram ephemeral;
 #endif
-        // first time in we need to create the buffers
         msgBuffer = (logBuffer *)malloc(sizeof(logBuffer));
+        lineBuffer = (char *)malloc(LINE_BUFFER_SIZE);
         // Fill the buffer with space chars... because if we crash and dump buffer before it fills
         // up, we want blank space not garbage! Nothing is null-terminated in this circular buffer.
         memset(msgBuffer->buffer, 0x20, sizeof(msgBuffer->buffer));
@@ -60,7 +61,7 @@ void logToBuffer_P(const char *fmt, ...)
     // parse the format string into lineBuffer
     va_list args;
     va_start(args, fmt);
-    vsnprintf_P(lineBuffer, sizeof(lineBuffer), fmt, args);
+    vsnprintf_P(lineBuffer, LINE_BUFFER_SIZE, fmt, args);
     va_end(args);
     // print line to the serial port
     Serial.print(lineBuffer);
@@ -101,11 +102,11 @@ void printSavedLog(Print &outputDev)
 {
     if (logMessageFile && logMessageFile.size() > 0)
     {
-        int num = sizeof(lineBuffer);
+        int num = LINE_BUFFER_SIZE;
         logMessageFile.seek(0, fs::SeekSet);
-        while (num == sizeof(lineBuffer))
+        while (num == LINE_BUFFER_SIZE)
         {
-            num = logMessageFile.read((uint8_t *)lineBuffer, sizeof(lineBuffer));
+            num = logMessageFile.read((uint8_t *)lineBuffer, LINE_BUFFER_SIZE);
             outputDev.write(lineBuffer, num);
         }
         outputDev.println();

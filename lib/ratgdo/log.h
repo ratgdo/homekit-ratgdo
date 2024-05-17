@@ -15,7 +15,7 @@ void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]);
 #ifdef LOG_MSG_BUFFER
 
 #define LOG_MSG_FILE "crash_log"
-#ifdef PIO_FRAMEWORK_ARDUINO_MMU_CACHE16_IRAM48_SECHEAP_SHARED
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
 #define LOG_BUFFER_SIZE 4096
 #else
 #define LOG_BUFFER_SIZE 1024
