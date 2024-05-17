@@ -26,11 +26,6 @@
 #include <ESP8266WebServer.h>
 #include <Ticker.h>
 
-#ifdef PIO_FRAMEWORK_ARDUINO_MMU_CACHE16_IRAM48_SECHEAP_SHARED
-#include <umm_malloc/umm_malloc.h>
-#include <umm_malloc/umm_heap_select.h>
-#endif
-
 #ifdef LOG_MSG_BUFFER
 EspSaveCrash saveCrash(1408, 1024, true, &crashCallback);
 #else
@@ -135,7 +130,7 @@ struct SSESubscription
 
 uint8_t subscriptionCount = 0;
 
-char *json; // Maximum length of JSON response
+char json[1024] = ""; // Maximum length of JSON response
 #define START_JSON(s)     \
     {                     \
         s[0] = 0;         \
@@ -263,12 +258,6 @@ const std::unordered_multimap<std::string, std::pair<const HTTPMethod, void (*)(
 void setup_web()
 {
     RINFO("Starting server");
-    {
-#ifdef PIO_FRAMEWORK_ARDUINO_MMU_CACHE16_IRAM48_SECHEAP_SHARED
-        HeapSelectIram ephemeral;
-#endif
-        json = (char *)malloc(1024);
-    }
     last_reported_paired = homekit_is_paired();
     // www_credentials = server.credentialHash(www_username, www_realm, www_password);
     read_string_from_file(credentials_file, www_credentials, www_credentials, sizeof(www_credentials));
@@ -387,8 +376,8 @@ void load_page(const char *page)
 {
     if (webcontent.count(page) > 0)
     {
-        const unsigned char *data = std::get<0>(webcontent.at(page));
-        const unsigned int length = std::get<1>(webcontent.at(page));
+        const char *data = (char *)std::get<0>(webcontent.at(page));
+        int length = std::get<1>(webcontent.at(page));
         const char *type = std::get<2>(webcontent.at(page));
         // Following for browser cache control...
         const char *crc32 = std::get<3>(webcontent.at(page)).c_str();
@@ -403,18 +392,47 @@ void load_page(const char *page)
             cache = true;
         }
 
-        server.sendHeader("Cache-Control", cacheHdr);
-        if (cache)
-            server.sendHeader("ETag", crc32);
-
         if (server.hasHeader("If-None-Match"))
             strlcpy(matchHdr, server.header("If-None-Match").c_str(), sizeof(matchHdr));
 
         if (strcmp(crc32, matchHdr))
         {
             RINFO("Sending gzip data for: %s (type %s, length %i)", page, type, length);
+#ifdef PIO_FRAMEWORK_ARDUINO_MMU_CACHE16_IRAM48_SECHEAP_SHARED
+            WiFiClient client = server.client();
+            client.print("HTTP/1.1 200 OK\n");
+            client.print("Content-Type: ");
+            client.print(type);
+            client.print("\n");
+            client.print("Content-Encoding: gzip\n");
+            client.print("Cache-Control: ");
+            client.print(cacheHdr);
+            client.print("\n");
+            if (cache)
+            {
+                client.print("ETag: ");
+                client.print(crc32);
+                client.print("\n");
+            }
+            client.print("Connection: close\n");
+            client.print("\n");
+            client.flush();
+#define CHUNK_SIZE 512
+            while (length > 0)
+            {
+                uint32_t sent;
+                sent = client.write_P(data, min(CHUNK_SIZE, length));
+                length -= sent;
+                data += sent;
+            }
+            client.stop();
+#else
             server.sendHeader("Content-Encoding", "gzip");
+            server.sendHeader("Cache-Control", cacheHdr);
+            if (cache)
+                server.sendHeader("ETag", crc32);
             server.send_P(200, type, (const char *)data, length);
+#endif
         }
         else
         {
@@ -848,7 +866,7 @@ void handle_subscribe()
             logViewer = true;
     }
 
-    if (subscriptionCount == SSE_MAX_CHANNELS - 1)
+    if (subscriptionCount == SSE_MAX_CHANNELS)
     {
         return handle_notfound(); // We ran out of channels
     }
