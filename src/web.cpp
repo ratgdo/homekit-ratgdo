@@ -417,11 +417,14 @@ void load_page(const char *page)
             client.print("Connection: close\n");
             client.print("\n");
             client.flush();
-#define CHUNK_SIZE 512
+#define CHUNK_SIZE 536
             while (length > 0)
             {
+                uint8_t buff[536];
                 uint32_t sent;
-                sent = client.write_P(data, min(CHUNK_SIZE, length));
+                uint32_t tx_size = min(CHUNK_SIZE, length);
+                memcpy_P(buff, data, tx_size); 
+                sent = client.write(buff, tx_size);
                 length -= sent;
                 data += sent;
             }
