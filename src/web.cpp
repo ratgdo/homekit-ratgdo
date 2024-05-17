@@ -26,6 +26,11 @@
 #include <ESP8266WebServer.h>
 #include <Ticker.h>
 
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
+#include <umm_malloc/umm_malloc.h>
+#include <umm_malloc/umm_heap_select.h>
+#endif
+
 #ifdef LOG_MSG_BUFFER
 EspSaveCrash saveCrash(1408, 1024, true, &crashCallback);
 #else
@@ -130,7 +135,9 @@ struct SSESubscription
 
 uint8_t subscriptionCount = 0;
 
-char json[1024] = ""; // Maximum length of JSON response
+#define JSON_BUFFER_SIZE 1024
+char *json = NULL;
+
 #define START_JSON(s)     \
     {                     \
         s[0] = 0;         \
@@ -258,6 +265,12 @@ const std::unordered_multimap<std::string, std::pair<const HTTPMethod, void (*)(
 void setup_web()
 {
     RINFO("Starting server");
+    {
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
+        HeapSelectIram ephemeral;
+#endif
+        json = (char *)malloc(JSON_BUFFER_SIZE);
+    }
     last_reported_paired = homekit_is_paired();
     // www_credentials = server.credentialHash(www_username, www_realm, www_password);
     read_string_from_file(credentials_file, www_credentials, www_credentials, sizeof(www_credentials));
@@ -284,6 +297,7 @@ void setup_web()
     {
         RINFO("System will reboot every %i seconds", rebootSeconds);
     }
+
     RINFO("Registering URI handlers");
     // Register URI handlers for URIs that have built-in handlers in this source file.
     for (auto uri : builtInUri)
@@ -291,7 +305,12 @@ void setup_web()
         HTTPMethod method = std::get<1>(uri).first;
         void (*handler)() = std::get<1>(uri).second;
         RINFO("Register: %s", uri.first.c_str());
-        server.on(uri.first.c_str(), method, handler);
+        {
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
+            HeapSelectIram ephemeral;
+#endif
+            server.on(uri.first.c_str(), method, handler);
+        }
     }
     // Register URI handlers for URIs that are "external" files
     for (auto uri : webcontent)
@@ -300,12 +319,22 @@ void setup_web()
         if (builtInUri.find(uri.first) == builtInUri.end())
         {
             RINFO("Register: %s", uri.first.c_str());
-            server.on(uri.first.c_str(), HTTP_GET, handle_everything);
+            {
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
+                HeapSelectIram ephemeral;
+#endif
+                server.on(uri.first.c_str(), HTTP_GET, handle_everything);
+            }
         }
     }
 
-    server.on("/update", HTTP_POST, handle_update, handle_firmware_upload);
-    server.onNotFound(handle_everything);
+    {
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
+        HeapSelectIram ephemeral;
+#endif
+        server.on("/update", HTTP_POST, handle_update, handle_firmware_upload);
+        server.onNotFound(handle_everything);
+    }
 
     // here the list of headers to be recorded
     const char *headerkeys[] = {"If-None-Match"};
@@ -398,7 +427,7 @@ void load_page(const char *page)
         if (strcmp(crc32, matchHdr))
         {
             RINFO("Sending gzip data for: %s (type %s, length %i)", page, type, length);
-#ifdef PIO_FRAMEWORK_ARDUINO_MMU_CACHE16_IRAM48_SECHEAP_SHARED
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
             WiFiClient client = server.client();
             client.print("HTTP/1.1 200 OK\n");
             client.print("Content-Type: ");
@@ -420,11 +449,9 @@ void load_page(const char *page)
 #define CHUNK_SIZE 536
             while (length > 0)
             {
-                uint8_t buff[536];
                 uint32_t sent;
                 uint32_t tx_size = min(CHUNK_SIZE, length);
-                memcpy_P(buff, data, tx_size); 
-                sent = client.write(buff, tx_size);
+                sent = client.write_P(data, tx_size);
                 length -= sent;
                 data += sent;
             }
@@ -763,14 +790,6 @@ void SSEheartbeat(uint8_t channel, SSESubscription *s)
     if (free_heap < min_heap)
         min_heap = free_heap;
 
-    START_JSON(json);
-    ADD_INT(json, "upTime", millis());
-    ADD_INT(json, "freeHeap", free_heap);
-    ADD_INT(json, "minHeap", min_heap);
-    ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm").c_str());
-    END_JSON(json);
-    REMOVE_NL(json);
-
     if (!(s->clientIP))
         return;
 
@@ -796,6 +815,13 @@ void SSEheartbeat(uint8_t channel, SSESubscription *s)
 
     if (s->client.connected())
     {
+        START_JSON(json);
+        ADD_INT(json, "upTime", millis());
+        ADD_INT(json, "freeHeap", free_heap);
+        ADD_INT(json, "minHeap", min_heap);
+        ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm").c_str());
+        END_JSON(json);
+        REMOVE_NL(json);
         s->client.printf("event: message\nretry: 15000\ndata: %s\n\n", json);
     }
     else
