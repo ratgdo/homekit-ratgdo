@@ -33,28 +33,25 @@ void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]) {}
 #endif // UNIT_TEST
 
 #ifdef LOG_MSG_BUFFER
-char *lineBuffer = NULL;
+char lineBuffer[256];
 logBuffer *msgBuffer = NULL; // Buffer to save log messages as they occur
-logBuffer *savedLogs = NULL; // Buffer into which we can read log messages from file saved at crash time.
 File logMessageFile;
+extern "C" int crashCount; // pull in number of times crashed.
 
 void logToBuffer_P(const char *fmt, ...)
 {
-    if (!lineBuffer)
+    if (!msgBuffer)
     {
 #ifdef PIO_FRAMEWORK_ARDUINO_MMU_CACHE16_IRAM48_SECHEAP_SHARED
         HeapSelectIram ephemeral;
 #endif
         // first time in we need to create the buffers
-        lineBuffer = (char *)malloc(1024);
         msgBuffer = (logBuffer *)malloc(sizeof(logBuffer));
         // Fill the buffer with space chars... because if we crash and dump buffer before it fills
         // up, we want blank space not garbage! Nothing is null-terminated in this circular buffer.
         memset(msgBuffer->buffer, 0x20, sizeof(msgBuffer->buffer));
         msgBuffer->wrapped = 0;
         msgBuffer->head = 0;
-        strlcpy(msgBuffer->version, AUTO_VERSION, sizeof(msgBuffer->version));
-        savedLogs = (logBuffer *)malloc(sizeof(logBuffer));
         // Open logMessageFile so we don't have to later.
         logMessageFile = (LittleFS.exists(LOG_MSG_FILE)) ? LittleFS.open(LOG_MSG_FILE, "r+") : LittleFS.open(LOG_MSG_FILE, "w+");
         Serial.printf("Opened log message file, size: %d\n", logMessageFile.size());
@@ -63,7 +60,7 @@ void logToBuffer_P(const char *fmt, ...)
     // parse the format string into lineBuffer
     va_list args;
     va_start(args, fmt);
-    vsnprintf_P(lineBuffer, 1024, fmt, args);
+    vsnprintf_P(lineBuffer, sizeof(lineBuffer), fmt, args);
     va_end(args);
     // print line to the serial port
     Serial.print(lineBuffer);
@@ -88,10 +85,12 @@ void logToBuffer_P(const char *fmt, ...)
 
 void crashCallback()
 {
-    if (msgBuffer && logMessageFile)
+    // Only save log if this is the first crash dump.  We don't save subsequent message logs
+    // because the space available for a stack dump may not be enough for more than the first crash.
+    if (crashCount < 1 && msgBuffer && logMessageFile)
     {
-        logMessageFile.seek(0, fs::SeekSet);
-        logMessageFile.write((const uint8_t *)msgBuffer, sizeof(logBuffer));
+        logMessageFile.truncate(0);
+        printMessageLog(logMessageFile);
         logMessageFile.close();
     }
     // We may not have enough memory to open the file and save the code
@@ -100,20 +99,15 @@ void crashCallback()
 
 void printSavedLog(Print &outputDev)
 {
-    if (savedLogs && logMessageFile && logMessageFile.size() > 0)
+    if (logMessageFile && logMessageFile.size() > 0)
     {
+        int num = sizeof(lineBuffer);
         logMessageFile.seek(0, fs::SeekSet);
-        logMessageFile.read((uint8_t *)savedLogs, sizeof(logBuffer));
-        outputDev.println();
-        outputDev.write("Firmware Version: ");
-        outputDev.write(msgBuffer->version);
-        outputDev.println();
-        outputDev.println();
-        if (savedLogs->wrapped != 0)
+        while (num == sizeof(lineBuffer))
         {
-            outputDev.write(&savedLogs->buffer[savedLogs->head], sizeof(savedLogs->buffer) - savedLogs->head);
+            num = logMessageFile.read((uint8_t *)lineBuffer, sizeof(lineBuffer));
+            outputDev.write(lineBuffer, num);
         }
-        outputDev.write(savedLogs->buffer, savedLogs->head);
         outputDev.println();
     }
 }
@@ -123,7 +117,7 @@ void printMessageLog(Print &outputDev)
     if (msgBuffer)
     {
         outputDev.write("Firmware Version: ");
-        outputDev.write(msgBuffer->version);
+        outputDev.write(AUTO_VERSION);
         outputDev.println();
         outputDev.println();
         if (msgBuffer->wrapped != 0)
@@ -133,4 +127,4 @@ void printMessageLog(Print &outputDev)
         outputDev.write(msgBuffer->buffer, msgBuffer->head);
     }
 }
-#endif
+#endif // LOG_MSG_BUFFER
