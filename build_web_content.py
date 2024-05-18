@@ -116,22 +116,24 @@ wf.flush()
 # Add possible MIME types to the file...
 wf.write(
     """
-const char type_svg[]  = "image/svg+xml";
-const char type_bmp[]  = "image/bmp";
-const char type_gif[]  = "image/gif";
-const char type_jpeg[] = "image/jpeg";
-const char type_jpg[]  = "image/jpeg";
-const char type_png[]  = "image/png";
-const char type_tiff[] = "image/tiff";
-const char type_tif[]  = "image/tiff";
-const char type_txt[]  = "text/plain";
-const char type_[]     = "text/plain";
-const char type_htm[]  = "text/html";
-const char type_html[] = "text/html";
-const char type_css[]  = "text/css";
-const char type_js[]   = "text/javascript";
-const char type_mjs[]  = "text/javascript";
-const char type_json[] = "application/json";
+const char type_svg[]  PROGMEM = "image/svg+xml";
+const char type_bmp[]  PROGMEM = "image/bmp";
+const char type_gif[]  PROGMEM = "image/gif";
+const char type_jpeg[] PROGMEM = "image/jpeg";
+const char type_jpg[]  PROGMEM = "image/jpeg";
+const char type_png[]  PROGMEM = "image/png";
+const char type_tiff[] PROGMEM = "image/tiff";
+const char type_tif[]  PROGMEM = "image/tiff";
+const char type_txt[]  PROGMEM = "text/plain";
+const char type_[]     PROGMEM = "text/plain";
+const char type_htm[]  PROGMEM = "text/html";
+const char type_html[] PROGMEM = "text/html";
+const char type_css[]  PROGMEM = "text/css";
+const char type_js[]   PROGMEM = "text/javascript";
+const char type_mjs[]  PROGMEM = "text/javascript";
+const char type_json[] PROGMEM = "application/json";
+// Must be at least one more than max string above...
+#define MAX_MIME_TYPE_LEN 20
 
 """
 )

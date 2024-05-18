@@ -55,7 +55,7 @@ void logToBuffer_P(const char *fmt, ...)
         msgBuffer->head = 0;
         // Open logMessageFile so we don't have to later.
         logMessageFile = (LittleFS.exists(LOG_MSG_FILE)) ? LittleFS.open(LOG_MSG_FILE, "r+") : LittleFS.open(LOG_MSG_FILE, "w+");
-        Serial.printf("Opened log message file, size: %d\n", logMessageFile.size());
+        Serial.printf_P(PSTR("Opened log message file, size: %d\n"), logMessageFile.size());
     }
 
     // parse the format string into lineBuffer
