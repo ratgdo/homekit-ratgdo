@@ -118,6 +118,13 @@ size_t firmwareSize = 0;
 WiFiClient *firmwareClient = NULL;
 bool flashCRC = true;
 
+// Common HTTP responses
+const char response400missing[] PROGMEM = "400: Bad Request, missing argument\n";
+const char response400invalid[] PROGMEM = "400: Bad Request, invalid argument\n";
+const char response404[] PROGMEM = "404: Not Found\n";
+const char response503[] PROGMEM = "503: Service Unavailable.\n";
+const char response200[] PROGMEM = "HTTP/1.1 200 OK\nContent-Type: text/plain\nConnection: close\n\n";
+
 // For Server Sent Events (SSE) support
 // Just reloading page causes register on new channel.  So we need a reasonable number
 // to accommodate "extra" until old one is detected as disconnected.
@@ -151,23 +158,23 @@ char *json = NULL;
 #define ADD_INT(s, k, v)                      \
     {                                         \
         strcat(s, "\"");                      \
-        strcat(s, (k));                       \
+        strcat_P(s, PSTR(k));                 \
         strcat(s, "\": ");                    \
         strcat(s, std::to_string(v).c_str()); \
         strcat(s, ",\n");                     \
     }
-#define ADD_STR(s, k, v)     \
-    {                        \
-        strcat(s, "\"");     \
-        strcat(s, (k));      \
-        strcat(s, "\": \""); \
-        strcat(s, (v));      \
-        strcat(s, "\",\n");  \
+#define ADD_STR(s, k, v)      \
+    {                         \
+        strcat(s, "\"");      \
+        strcat_P(s, PSTR(k)); \
+        strcat(s, "\": \"");  \
+        strcat(s, (v));       \
+        strcat(s, "\",\n");   \
     }
 #define ADD_BOOL(s, k, v)                  \
     {                                      \
         strcat(s, "\"");                   \
-        strcat(s, (k));                    \
+        strcat_P(s, PSTR(k));              \
         strcat(s, "\": ");                 \
         strcat(s, (v) ? "true" : "false"); \
         strcat(s, ",\n");                  \
@@ -358,7 +365,7 @@ void setup_web()
 void handle_notfound()
 {
     RINFO("Sending 404 Not Found for: %s", server.uri().c_str());
-    server.send(404, "text/plain", "Not Found\n");
+    server.send_P(404, type_txt, response404);
 }
 
 void handle_auth()
@@ -367,8 +374,7 @@ void handle_auth()
     {
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
     }
-    const char *resp = "Authenticated";
-    server.send(200, resp);
+    server.send_P(200, type_txt, PSTR("Authenticated"));
     return;
 }
 
@@ -379,9 +385,8 @@ void handle_reset()
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
     }
     RINFO("... reset requested");
-    const char *resp = "<p>This device has been un-paired from HomeKit.</p><p><a href=\"/\">Back</a></p>";
     homekit_storage_reset();
-    server.send(200, resp);
+    server.send_P(200, type_txt, PSTR("Device has been un-paired from HomeKit. Rebooting...\n"));
     delay(100);
     server.stop();
     sync_and_restart();
@@ -391,10 +396,7 @@ void handle_reset()
 void handle_reboot()
 {
     RINFO("... reboot requested");
-    const char *resp =
-        "<head><meta http-equiv=\"refresh\" content=\"30;url=/\" /></head>"
-        "<body><p>RATGDO restarting. Please wait. Reconnecting in 30 seconds...</p><p><a href=\"/\">Back</a></p></body>";
-    server.send(200, resp);
+    server.send_P(200, type_txt, PSTR("Rebooting...\n"));
     delay(100);
     server.stop();
     sync_and_restart();
@@ -407,22 +409,23 @@ void load_page(const char *page)
     {
         const char *data = (char *)std::get<0>(webcontent.at(page));
         int length = std::get<1>(webcontent.at(page));
-        const char *type = std::get<2>(webcontent.at(page));
+        const char *typeP = std::get<2>(webcontent.at(page));
+        // need local copy as strcmp_P cannot take two PSTR()'s
+        char type[MAX_MIME_TYPE_LEN];
+        strncpy_P(type, typeP, MAX_MIME_TYPE_LEN);
         // Following for browser cache control...
         const char *crc32 = std::get<3>(webcontent.at(page)).c_str();
         bool cache = false;
         char cacheHdr[24] = "no-cache, no-store";
         char matchHdr[8] = "";
-
         if ((CACHE_CONTROL > 0) &&
-            (!strcmp(type, "text/css") || !strcmp(type, "text/javascript") || strstr(type, "image")))
+            (!strcmp_P(type, type_css) || !strcmp_P(type, type_js) || strstr_P(type, PSTR("image"))))
         {
             sprintf(cacheHdr, "max-age=%i", CACHE_CONTROL);
             cache = true;
         }
-
-        if (server.hasHeader("If-None-Match"))
-            strlcpy(matchHdr, server.header("If-None-Match").c_str(), sizeof(matchHdr));
+        if (server.hasHeader(F("If-None-Match")))
+            strlcpy(matchHdr, server.header(F("If-None-Match")).c_str(), sizeof(matchHdr));
 
         if (strcmp(crc32, matchHdr))
         {
@@ -457,17 +460,17 @@ void load_page(const char *page)
             }
             client.stop();
 #else
-            server.sendHeader("Content-Encoding", "gzip");
-            server.sendHeader("Cache-Control", cacheHdr);
+            server.sendHeader(F("Content-Encoding"), F("gzip"));
+            server.sendHeader(F("Cache-Control"), cacheHdr);
             if (cache)
-                server.sendHeader("ETag", crc32);
-            server.send_P(200, type, (const char *)data, length);
+                server.sendHeader(F("ETag"), crc32);
+            server.send_P(200, type, data, length);
 #endif
         }
         else
         {
             RINFO("Sending 304 Not Modified for: %s (type %s)", page, type);
-            server.send(304, type, "", 0);
+            server.send_P(304, type, "", 0);
         }
     }
     else
@@ -482,7 +485,7 @@ void handle_everything()
     if (updateUnderway)
     {
         RINFO("Firmware update underway, reject request.");
-        server.send(503, "text/plain", "503: Service Unavailable.");
+        server.send_P(503, type_txt, response503);
         return;
     }
 
@@ -494,7 +497,7 @@ void handle_everything()
     else
     {
         const char *uri = server.uri().c_str();
-        const char *restEvents = "/rest/events/";
+        static const char *restEvents PROGMEM = "/rest/events/";
         if (!strncmp_P(uri, restEvents, strlen(restEvents)))
         {
             uri += strlen(restEvents); // Skip the "/rest/events/" and get to the channel number
@@ -513,7 +516,7 @@ void handle_status()
     if (updateUnderway)
     {
         RINFO("Firmware update underway, reject status request.");
-        server.send(503, "text/plain", "503: Service Unavailable.");
+        server.send_P(503, type_txt, response503);
         return;
     }
     unsigned long upTime = millis();
@@ -566,8 +569,8 @@ void handle_status()
     Serial.printf("%s\n", json);
     last_reported_garage_door = garage_door;
 
-    server.sendHeader("Cache-Control", "no-cache, no-store");
-    server.send(200, "application/json", json);
+    server.sendHeader(F("Cache-Control"), F("no-cache, no-store"));
+    server.send_P(200, type_json, json);
     return;
 }
 
@@ -588,7 +591,7 @@ void handle_setgdo()
     if (updateUnderway)
     {
         RINFO("Firmware update underway, reject setGDO request.");
-        server.send(503, "text/plain", "503: Service Unavailable.");
+        server.send_P(503, type_txt, response503);
         return;
     }
 
@@ -608,7 +611,7 @@ void handle_setgdo()
         if (strlen(key) == 0 || strlen(value) == 0)
         {
             RINFO("Sending 400 bad request, missing argument, for: %s", server.uri().c_str());
-            server.send(400, "text/plain", "400: Bad Request, missing argument");
+            server.send_P(400, type_txt, response400missing);
             return;
         }
 
@@ -756,14 +759,14 @@ void handle_setgdo()
     if (error)
     {
         RINFO("Sending 400 bad request, missing or invalid argument, for: %s", server.uri().c_str());
-        server.send(400, "text/plain", "400: Bad Request, invalid argument");
+        server.send_P(400, type_txt, response400invalid);
     }
     else
     {
         if (reboot)
-            server.send(200, "text/html", "<p>Success. Reboot.</p>");
+            server.send_P(200, type_html, PSTR("<p>Success. Reboot.</p>"));
         else
-            server.send(200, "text/html", "<p>Success.</p>");
+            server.send_P(200, type_html, PSTR("<p>Success.</p>"));
     }
     // Some settings require reboot to take effect...
     if (reboot)
@@ -842,7 +845,7 @@ void SSEHandler(uint8_t channel)
     if (server.args() != 1)
     {
         RINFO("Sending 400 bad request, missing argument, for: %s", server.uri().c_str());
-        server.send(400, "text/plain", "400: Bad Request, missing argument");
+        server.send_P(400, type_txt, response400missing);
         return;
     }
     WiFiClient client = server.client();
@@ -861,7 +864,7 @@ void SSEHandler(uint8_t channel)
     server.sendHeader("Connection", "keep-alive");
     server.sendHeader("Access-Control-Allow-Origin", "*");
     */
-    server.sendContent("HTTP/1.1 200 OK\nContent-Type: text/event-stream;\nConnection: keep-alive\nCache-Control: no-cache\nAccess-Control-Allow-Origin: *\n\n");
+    server.sendContent_P(PSTR("HTTP/1.1 200 OK\nContent-Type: text/event-stream;\nConnection: keep-alive\nCache-Control: no-cache\nAccess-Control-Allow-Origin: *\n\n"));
     s.SSEconnected = true;
     s.SSEfailCount = 0;
     s.heartbeatTimer.attach_scheduled(1.0, [channel, &s]
@@ -874,14 +877,14 @@ void handle_subscribe()
     if (updateUnderway)
     {
         RINFO("Firmware update underway, reject SSE subscripe request.");
-        server.send(503, "text/plain", "503: Service Unavailable.");
+        server.send_P(503, type_txt, response503);
         return;
     }
 
     if (server.args() < 1)
     {
         RINFO("Sending 400 bad request, missing argument, for: %s", server.uri().c_str());
-        server.send(400, "text/plain", "400: Bad Request, missing argument");
+        server.send_P(400, type_txt, response400missing);
         return;
     }
 
@@ -936,18 +939,15 @@ void handle_subscribe()
     subscription[channel] = {clientIP, server.client(), Ticker(), false, 0, server.arg(id), logViewer};
     SSEurl += channel;
     RINFO("Subscription for client %s with IP %s: event bus location: %s", server.arg(id).c_str(), clientIP.toString().c_str(), SSEurl.c_str());
-    server.sendHeader("Cache-Control", "no-cache, no-store");
-    server.send(200, "text/plain", SSEurl.c_str());
+    server.sendHeader(F("Cache-Control"), F("no-cache, no-store"));
+    server.send_P(200, type_txt, SSEurl.c_str());
 }
 
 void handle_crashlog()
 {
     RINFO("Request to display crash log...");
     WiFiClient client = server.client();
-    client.print("HTTP/1.1 200 OK\n");
-    client.print("Content-Type: text/plain\n");
-    client.print("Connection: close\n");
-    client.print("\n");
+    client.print(response200);
     saveCrash.print(client);
 #ifdef LOG_MSG_BUFFER
     if (crashCount > 0)
@@ -959,10 +959,7 @@ void handle_crashlog()
 void handle_showlog()
 {
     WiFiClient client = server.client();
-    client.print("HTTP/1.1 200 OK\n");
-    client.print("Content-Type: text/plain\n");
-    client.print("Connection: close\n");
-    client.print("\n");
+    client.print(response200);
 #ifdef LOG_MSG_BUFFER
     printMessageLog(client);
 #endif
@@ -978,14 +975,14 @@ void handle_clearcrashlog()
     RINFO("Clear saved crash log");
     saveCrash.clear();
     crashCount = 0;
-    server.send(200, "text/plain", "Crash log cleared");
+    server.send_P(200, type_txt, PSTR("Crash log cleared\n"));
 }
 
 #ifdef CRASH_DEBUG
 void handle_crash_oom()
 {
     RINFO("Attempting to use up all memory");
-    server.send(200, "text/plain", "Attempting to use up all memory");
+    server.send_P(200, type_txt, PSTR("Attempting to use up all memory\n"));
     delay(1000);
     for (int i = 0; i < 30; i++)
     {
@@ -996,7 +993,7 @@ void handle_crash_oom()
 void handle_forcecrash()
 {
     RINFO("Attempting to null ptr deref");
-    server.send(200, "text/plain", "Attempting to null ptr deref");
+    server.send_P(200, type_txt, PSTR("Attempting to null ptr deref\n"));
     delay(1000);
     RINFO("Result: %s", test_str);
 }
@@ -1016,14 +1013,14 @@ void SSEBroadcastState(const char *data, BroadcastType type)
             {
                 if (subscription[i].logViewer)
                 {
-                    subscription[i].client.printf("event: logger\ndata: %s\n\n", data);
+                    subscription[i].client.printf_P(PSTR("event: logger\ndata: %s\n\n"), data);
                 }
             }
             else if (type == RATGDO_STATUS && !updateUnderway)
             {
                 String IPaddrstr = IPAddress(subscription[i].clientIP).toString();
                 RINFO("broadcast status change to client IP %s on channel %d with new state %s", IPaddrstr.c_str(), i, data);
-                subscription[i].client.printf("event: message\ndata: %s\n\n", data);
+                subscription[i].client.printf_P(PSTR("event: message\ndata: %s\n\n"), data);
             }
         }
     }
@@ -1042,8 +1039,8 @@ void _setUpdaterError()
 void handle_update()
 {
     updateUnderway = true;
-    server.sendHeader("Access-Control-Allow-Headers", "*");
-    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.sendHeader(F("Access-Control-Allow-Headers"), "*");
+    server.sendHeader(F("Access-Control-Allow-Origin"), "*");
     if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
     {
         RINFO("In handle_update request authentication");
@@ -1053,13 +1050,13 @@ void handle_update()
     if (Update.hasError())
     {
         // Error logged in _setUpdaterError
-        server.send(400, F("text/plain"), _updaterError);
+        server.send(400, "text/plain", _updaterError);
     }
     else
     {
         RINFO("Upload complete, received firmware MD5: %s", Update.md5String().c_str());
         server.client().setNoDelay(true);
-        server.send_P(200, PSTR("text/plain"), PSTR("Update Success! Rebooting...\n"));
+        server.send_P(200, type_txt, PSTR("Update Success! Rebooting...\n"));
     }
     // Whether error or success, reboot the device
     delay(100);
@@ -1133,7 +1130,7 @@ void handle_firmware_upload()
                     ADD_INT(json, "uploadPercent", uploadPercent);
                     END_JSON(json);
                     REMOVE_NL(json);
-                    firmwareClient->printf("event: uploadStatus\ndata: %s\n\n", json);
+                    firmwareClient->printf_P(PSTR("event: uploadStatus\ndata: %s\n\n"), json);
                 }
             }
         }
