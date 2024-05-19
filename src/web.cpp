@@ -802,11 +802,11 @@ void SSEheartbeat(uint8_t channel, SSESubscription *s)
         {
             // 5 heartbeats have failed... assume client will not connect
             // and free up the slot
-            RINFO("SSEheartbeat - Timeout waiting for %s on channel %d to listen for events", s->clientIP.toString().c_str(), channel);
+            subscriptionCount--;
+            RINFO("SSEheartbeat - Timeout waiting for %s on channel %d to listen for events, remove subscription.  Total subscribed: %d", s->clientIP.toString().c_str(), channel, subscriptionCount);
             s->heartbeatTimer.detach();
             s->clientIP = INADDR_NONE;
             s->clientUUID.clear();
-            subscriptionCount--;
             // no need to stop client socket because it is not live yet.
         }
         else
@@ -829,14 +829,14 @@ void SSEheartbeat(uint8_t channel, SSESubscription *s)
     }
     else
     {
-        RINFO("SSEheartbeat - client not listening on channel %d, remove subscription", channel);
+        subscriptionCount--;
+        RINFO("SSEheartbeat - client not listening on channel %d, remove subscription. Total subscribed: %d", channel, subscriptionCount - 1);
         s->heartbeatTimer.detach();
         s->client.flush();
         s->client.stop();
         s->clientIP = INADDR_NONE;
         s->clientUUID.clear();
         s->SSEconnected = false;
-        subscriptionCount--;
     }
 }
 
@@ -881,6 +881,28 @@ void handle_subscribe()
         return;
     }
 
+    uint8_t channel;
+    IPAddress clientIP = server.client().remoteIP(); // get IP address of client
+    String SSEurl = "/rest/events/";
+
+    if (subscriptionCount == SSE_MAX_CHANNELS)
+    {
+        RINFO("SSE Subscription declined, subscription count: %d", subscriptionCount);
+        for (channel = 0; channel < SSE_MAX_CHANNELS; channel++)
+        {
+            RINFO("Client %d: %s at %s", channel, subscription[channel].clientUUID.c_str(), subscription[channel].clientIP.toString().c_str());
+        }
+        return handle_notfound(); // We ran out of channels
+    }
+
+    if (clientIP == INADDR_NONE)
+    {
+        RINFO("Sending 400 bad request, invalid argument, for: %s as clientIP missing", server.uri().c_str());
+        server.send_P(400, type_txt, response400invalid);
+        return;
+    }
+
+    // check we were passed at least one arguement
     if (server.args() < 1)
     {
         RINFO("Sending 400 bad request, missing argument, for: %s", server.uri().c_str());
@@ -888,6 +910,7 @@ void handle_subscribe()
         return;
     }
 
+    // find the UUID and whether client wants to receive log messages
     int id = 0;
     bool logViewer = false;
     for (int i = 0; i < server.args(); i++)
@@ -897,14 +920,6 @@ void handle_subscribe()
         else if (server.argName(i) == "log")
             logViewer = true;
     }
-
-    if (subscriptionCount == SSE_MAX_CHANNELS)
-    {
-        return handle_notfound(); // We ran out of channels
-    }
-    uint8_t channel;
-    IPAddress clientIP = server.client().remoteIP(); // get IP address of client
-    String SSEurl = "/rest/events/";
 
     // check if we already have a subscription for this UUID
     for (channel = 0; channel < SSE_MAX_CHANNELS; channel++)
@@ -938,7 +953,7 @@ void handle_subscribe()
     }
     subscription[channel] = {clientIP, server.client(), Ticker(), false, 0, server.arg(id), logViewer};
     SSEurl += channel;
-    RINFO("Subscription for client %s with IP %s: event bus location: %s", server.arg(id).c_str(), clientIP.toString().c_str(), SSEurl.c_str());
+    RINFO("SSE Subscription for client %s with IP %s: event bus location: %s, Total subscribed: %d", server.arg(id).c_str(), clientIP.toString().c_str(), SSEurl.c_str(), subscriptionCount);
     server.sendHeader(F("Cache-Control"), F("no-cache, no-store"));
     server.send_P(200, type_txt, SSEurl.c_str());
 }
