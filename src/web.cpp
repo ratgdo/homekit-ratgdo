@@ -38,6 +38,7 @@ EspSaveCrash saveCrash(1408, 1024, true);
 #endif
 ESP8266WebServer server(80);
 
+// Forward declare the internal URI handling functions...
 void handle_reset();
 void handle_reboot();
 void handle_status();
@@ -59,6 +60,25 @@ void handle_update();
 void handle_firmware_upload();
 void SSEHandler(uint8_t);
 void handle_notfound();
+
+// Built in URI handlers
+const char restEvents[] PROGMEM = "/rest/events/";
+typedef std::unordered_map<std::string, std::pair<const HTTPMethod, void (*)()>> BuiltInUriMap;
+const BuiltInUriMap builtInUri = {
+    {"/status.json", {HTTP_GET, handle_status}},
+    {"/reset", {HTTP_POST, handle_reset}},
+    {"/reboot", {HTTP_POST, handle_reboot}},
+    {"/setgdo", {HTTP_POST, handle_setgdo}},
+    {"/logout", {HTTP_GET, handle_logout}},
+    {"/auth", {HTTP_GET, handle_auth}},
+    {"/crashlog", {HTTP_GET, handle_crashlog}},
+    {"/showlog", {HTTP_GET, handle_showlog}},
+    {"/clearcrashlog", {HTTP_GET, handle_clearcrashlog}},
+#ifdef CRASH_DEBUG
+    {"/forcecrash", {HTTP_POST, handle_forcecrash}},
+    {"/crashoom", {HTTP_POST, handle_crash_oom}},
+#endif
+    {"/rest/events/subscribe", {HTTP_GET, handle_subscribe}}};
 
 // Make device_name available
 extern "C" char device_name[DEVICE_NAME_SIZE];
@@ -252,23 +272,6 @@ void web_loop()
     }
 }
 
-const std::unordered_multimap<std::string, std::pair<const HTTPMethod, void (*)()>> builtInUri = {
-    {"/status.json", {HTTP_GET, handle_status}},
-    {"/reset", {HTTP_POST, handle_reset}},
-    {"/reboot", {HTTP_POST, handle_reboot}},
-    {"/setgdo", {HTTP_POST, handle_setgdo}},
-    {"/logout", {HTTP_GET, handle_logout}},
-    {"/auth", {HTTP_GET, handle_auth}},
-    {"/crashlog", {HTTP_GET, handle_crashlog}},
-    {"/showlog", {HTTP_GET, handle_showlog}},
-    {"/clearcrashlog", {HTTP_GET, handle_clearcrashlog}},
-#ifdef CRASH_DEBUG
-    {"/forcecrash", {HTTP_POST, handle_forcecrash}},
-    {"/crashoom", {HTTP_POST, handle_crash_oom}},
-#endif
-    {"/rest/events/subscribe", {HTTP_GET, handle_subscribe}},
-    {"/", {HTTP_GET, handle_everything}}};
-
 void setup_web()
 {
     RINFO("Starting server");
@@ -306,35 +309,6 @@ void setup_web()
     }
 
     RINFO("Registering URI handlers");
-    // Register URI handlers for URIs that have built-in handlers in this source file.
-    for (auto uri : builtInUri)
-    {
-        HTTPMethod method = std::get<1>(uri).first;
-        void (*handler)() = std::get<1>(uri).second;
-        RINFO("Register: %s", uri.first.c_str());
-        {
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-            HeapSelectIram ephemeral;
-#endif
-            server.on(uri.first.c_str(), method, handler);
-        }
-    }
-    // Register URI handlers for URIs that are "external" files
-    for (auto uri : webcontent)
-    {
-        // Only register those that are not duplicates of built-in handlers.
-        if (builtInUri.find(uri.first) == builtInUri.end())
-        {
-            RINFO("Register: %s", uri.first.c_str());
-            {
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-                HeapSelectIram ephemeral;
-#endif
-                server.on(uri.first.c_str(), HTTP_GET, handle_everything);
-            }
-        }
-    }
-
     {
 #if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
         HeapSelectIram ephemeral;
@@ -364,7 +338,7 @@ void setup_web()
 /********* handlers **********/
 void handle_notfound()
 {
-    RINFO("Sending 404 Not Found for: %s", server.uri().c_str());
+    RINFO("Sending 404 Not Found for: %s with method: %d", server.uri().c_str(), server.method());
     server.send_P(404, type_txt, response404);
 }
 
@@ -489,26 +463,39 @@ void handle_everything()
         return;
     }
 
+    HTTPMethod method = server.method();
     String page = server.uri();
-    if (page == "/")
+    const char *uri = page.c_str();
+
+    if (builtInUri.count(uri) > 0)
     {
-        load_page("/index.html");
+        // requested page matches one of our built-in handlers
+        RINFO("Request for: %s with method: %d", uri, method);
+        if (method == builtInUri.at(uri).first)
+            return builtInUri.at(uri).second();
+        else
+            return handle_notfound();
     }
-    else
+    else if ((method == HTTP_GET) && (!strncmp_P(uri, restEvents, strlen(restEvents))))
     {
-        const char *uri = server.uri().c_str();
-        static const char *restEvents PROGMEM = "/rest/events/";
-        if (!strncmp_P(uri, restEvents, strlen(restEvents)))
-        {
-            uri += strlen(restEvents); // Skip the "/rest/events/" and get to the channel number
-            unsigned int channel = atoi(uri);
-            if (channel < SSE_MAX_CHANNELS)
-            {
-                return SSEHandler(channel);
-            }
-        }
-        load_page(page.c_str());
+        // Request for "/rest/events/" with a channel number appended
+        uri += strlen(restEvents);
+        unsigned int channel = atoi(uri);
+        if (channel < SSE_MAX_CHANNELS)
+            return SSEHandler(channel);
+        else
+            return handle_notfound();
     }
+    else if (method == HTTP_GET)
+    {
+        // HTTP_GET that does not match a built-in handler
+        if (page == "/")
+            return load_page("/index.html");
+        else
+            return load_page(uri);
+    }
+    // it is a HTTP_POST for unknown URI
+    return handle_notfound();
 }
 
 void handle_status()
@@ -587,7 +574,6 @@ void handle_setgdo()
     bool reboot = false;
     bool error = false;
 
-    RINFO("In setGDO");
     if (updateUnderway)
     {
         RINFO("Firmware update underway, reject setGDO request.");
