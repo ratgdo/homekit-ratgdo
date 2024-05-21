@@ -135,7 +135,6 @@ bool _authenticatedUpdate;
 bool updateUnderway = false;
 char firmwareMD5[36] = "";
 size_t firmwareSize = 0;
-WiFiClient *firmwareClient = NULL;
 bool flashCRC = true;
 
 // Common HTTP responses
@@ -158,7 +157,10 @@ struct SSESubscription
     int SSEfailCount;
     String clientUUID;
     bool logViewer;
-} subscription[SSE_MAX_CHANNELS];
+};
+SSESubscription subscription[SSE_MAX_CHANNELS];
+// During firmware update note which subscribed client is updating
+SSESubscription *firmwareUpdateSub = NULL;
 
 uint8_t subscriptionCount = 0;
 
@@ -697,7 +699,7 @@ void handle_setgdo()
         {
             // updateUnderway = true; // Will set this when actual upload starts;
             firmwareSize = 0;
-            firmwareClient = NULL;
+            firmwareUpdateSub = NULL;
             char *md5 = strstr(value, "md5");
             char *size = strstr(value, "size");
             char *uuid = strstr(value, "uuid");
@@ -723,7 +725,7 @@ void handle_setgdo()
                 {
                     if (subscription[channel].SSEconnected && subscription[channel].clientUUID == uuid && subscription[channel].client.connected())
                     {
-                        firmwareClient = &(subscription[channel].client);
+                        firmwareUpdateSub = &subscription[channel];
                         break;
                     }
                 }
@@ -765,16 +767,9 @@ void handle_setgdo()
     return;
 }
 
-void SSEheartbeat(uint8_t channel, SSESubscription *s)
+void SSEheartbeat(SSESubscription *s)
 {
-    // RINFO("SSEheartbeat - Client %s on channel %d", s->clientIP.toString().c_str(), channel);
-    if (updateUnderway)
-    {
-        RINFO("Firmware update underway, cancel heartbeat for channel %d", channel);
-        s->heartbeatTimer.detach();
-        return;
-    }
-
+    // Serial.printf("Heartbeat\n");
     uint32_t free_heap = system_get_free_heap_size();
     if (free_heap < min_heap)
         min_heap = free_heap;
@@ -789,7 +784,7 @@ void SSEheartbeat(uint8_t channel, SSESubscription *s)
             // 5 heartbeats have failed... assume client will not connect
             // and free up the slot
             subscriptionCount--;
-            RINFO("SSEheartbeat - Timeout waiting for %s on channel %d to listen for events, remove subscription.  Total subscribed: %d", s->clientIP.toString().c_str(), channel, subscriptionCount);
+            RINFO("SSEheartbeat - Timeout waiting for %s to listen for events, remove subscription.  Total subscribed: %d", s->clientIP.toString().c_str(), subscriptionCount);
             s->heartbeatTimer.detach();
             s->clientIP = INADDR_NONE;
             s->clientUUID.clear();
@@ -797,7 +792,7 @@ void SSEheartbeat(uint8_t channel, SSESubscription *s)
         }
         else
         {
-            RINFO("SSEheartbeat - Client %s on channel %d not yet listening for events", s->clientIP.toString().c_str(), channel);
+            RINFO("SSEheartbeat - Client %s not yet listening for events", s->clientIP.toString().c_str());
         }
         return;
     }
@@ -816,7 +811,7 @@ void SSEheartbeat(uint8_t channel, SSESubscription *s)
     else
     {
         subscriptionCount--;
-        RINFO("SSEheartbeat - client not listening on channel %d, remove subscription. Total subscribed: %d", channel, subscriptionCount - 1);
+        RINFO("SSEheartbeat - client %s not listening remove subscription. Total subscribed: %d", s->clientIP.toString().c_str(), subscriptionCount - 1);
         s->heartbeatTimer.detach();
         s->client.flush();
         s->client.stop();
@@ -854,7 +849,7 @@ void SSEHandler(uint8_t channel)
     s.SSEconnected = true;
     s.SSEfailCount = 0;
     s.heartbeatTimer.attach_scheduled(1.0, [channel, &s]
-                                      { SSEheartbeat(channel, &s); });
+                                      { SSEheartbeat(&s); });
     RINFO("SSEHandler - Client %s listening for events on channel %d", client.remoteIP().toString().c_str(), channel);
 }
 
@@ -1123,15 +1118,16 @@ void handle_firmware_upload()
             {
                 Serial.printf("\n"); // newline after the dot dot dots
                 RINFO("Progress: %i%%", uploadPercent);
+                SSEheartbeat(firmwareUpdateSub); // keep SSE connection alive.
                 nextPrintPercent += 10;
                 // Report percentage to browser client if it is listening
-                if (firmwareClient && firmwareClient->connected())
+                if (firmwareUpdateSub && firmwareUpdateSub->client.connected())
                 {
                     START_JSON(json);
                     ADD_INT(json, "uploadPercent", uploadPercent);
                     END_JSON(json);
                     REMOVE_NL(json);
-                    firmwareClient->printf_P(PSTR("event: uploadStatus\ndata: %s\n\n"), json);
+                    firmwareUpdateSub->client.printf_P(PSTR("event: uploadStatus\ndata: %s\n\n"), json);
                 }
             }
         }

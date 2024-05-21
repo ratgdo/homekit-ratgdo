@@ -156,7 +156,7 @@ async function checkStatus() {
             clearTimeout(checkHeartbeat);
             checkHeartbeat = setTimeout(() => {
                 // if no message received since last check then close connection and try again.
-                console.log(`SSE timeout, no message received in 5 seconds. Last upTime: ${serverStatus.upTime} (${msToTime(serverStatus.upTime)})`);
+                console.log(`SSE timeout, no message received in 30 seconds. Last upTime: ${serverStatus.upTime} (${msToTime(serverStatus.upTime)})`);
                 evtSource.close();
                 delayStatusFn.push(setTimeout(checkStatus, 1000));
             }, 30000);
