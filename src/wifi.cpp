@@ -51,11 +51,11 @@ WiFiEventHandler gotIPHandler;
 WiFiEventHandler dhcpTimeoutHandler;
 
 void onConnected(const WiFiEventStationModeConnected& evt) {
-  RINFO("WiFi connected SSID: %s, Channel: %d", evt.ssid, evt.channel);
+  RINFO("WiFi connected SSID: %s, Channel: %d", evt.ssid.c_str(), evt.channel);
 }
 
 void onDisconnected(const WiFiEventStationModeDisconnected& evt) {
-  RINFO("WiFi disconnected SSID: %s, Reason: %d", evt.ssid, evt.reason);
+  RINFO("WiFi disconnected SSID: %s, Reason: %d", evt.ssid.c_str(), evt.reason);
 }
 
 void onGotIP(const WiFiEventStationModeGotIP& evt) {
