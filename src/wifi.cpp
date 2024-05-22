@@ -55,7 +55,8 @@ void onConnected(const WiFiEventStationModeConnected& evt) {
 }
 
 void onDisconnected(const WiFiEventStationModeDisconnected& evt) {
-  RINFO("WiFi disconnected SSID: %s, Reason: %d", evt.ssid.c_str(), evt.reason);
+  RINFO("WiFi disconnected SSID: %s, BSSID: %02x:%02x:%02x:%02x:%02x:%02x, Reason: %d", evt.ssid.c_str(), 
+        evt.bssid[0], evt.bssid[1], evt.bssid[2], evt.bssid[3], evt.bssid[4], evt.bssid[5], evt.reason);
 }
 
 void onGotIP(const WiFiEventStationModeGotIP& evt) {
