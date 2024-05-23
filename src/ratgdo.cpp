@@ -26,7 +26,6 @@ struct obstruction_sensor_t {
 
 long unsigned int led_on_time = 0;     // Stores time when LED should turn back on
 
-extern bool updateUnderway;
 extern bool flashCRC;
 
 /********************************** MAIN LOOP CODE *****************************************/
@@ -36,7 +35,6 @@ void setup() {
     flashCRC = ESP.checkFlashCRC();
     Serial.begin(115200);
     LittleFS.begin();
-    updateUnderway = false;
 
     Serial.printf("\n"); // newline before we start
     RINFO("RATGDO setup starting");
@@ -67,12 +65,9 @@ void setup() {
 void loop() {
 
     improv_loop();
-    if (!updateUnderway)
-    {
-        comms_loop();
-        homekit_loop();
-        service_timer_loop();
-    }
+    comms_loop();
+    homekit_loop();
+    service_timer_loop();
     web_loop();
 }
 
