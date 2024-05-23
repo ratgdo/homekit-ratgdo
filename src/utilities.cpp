@@ -5,12 +5,19 @@
 #include "log.h"
 #include "LittleFS.h"
 #include "comms.h"
+#include <ESP8266WiFi.h>
 
 void sync_and_restart()
 {
+    WiFi.mode(WIFI_OFF);
+    WiFi.forceSleepBegin();
     save_rolling_code();
+    RINFO("checkFlashCRC: %s", ESP.checkFlashCRC() ? "true" : "false");
+    File file = LittleFS.open(REBOOT_LOG_MSG_FILE, "w");
+    printMessageLog(file);
+    file.close();
     LittleFS.end();
-    delay(10);
+    delay(100);
     ESP.restart();
 }
 
