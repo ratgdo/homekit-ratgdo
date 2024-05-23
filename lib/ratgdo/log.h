@@ -5,6 +5,7 @@
 #define _LOG_H
 
 #include <Arduino.h>
+#include <LittleFS.h>
 #include "secplus2.h"
 #include <esp_xpgm.h>
 
@@ -14,11 +15,12 @@ void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]);
 
 #ifdef LOG_MSG_BUFFER
 
-#define LOG_MSG_FILE "crash_log"
+#define CRASH_LOG_MSG_FILE "crash_log"
+#define REBOOT_LOG_MSG_FILE "reboot_log"
 #if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
 #define LOG_BUFFER_SIZE 4096
 #else
-#define LOG_BUFFER_SIZE 1024
+#define LOG_BUFFER_SIZE 2048
 #endif
 
 typedef struct logBuffer
@@ -29,6 +31,7 @@ typedef struct logBuffer
 } logBuffer;
 
 extern "C" void logToBuffer_P(const char *fmt, ...);
+void printSavedLog(File file, Print &outDevice = Serial);
 void printSavedLog(Print &outDevice = Serial);
 void printMessageLog(Print &outDevice = Serial);
 void crashCallback();

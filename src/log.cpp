@@ -8,7 +8,6 @@
 #include "secplus2.h"
 #include "comms.h"
 #include "web.h"
-#include <LittleFS.h>
 
 #if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
 #include <umm_malloc/umm_malloc.h>
@@ -54,7 +53,7 @@ void logToBuffer_P(const char *fmt, ...)
         msgBuffer->wrapped = 0;
         msgBuffer->head = 0;
         // Open logMessageFile so we don't have to later.
-        logMessageFile = (LittleFS.exists(LOG_MSG_FILE)) ? LittleFS.open(LOG_MSG_FILE, "r+") : LittleFS.open(LOG_MSG_FILE, "w+");
+        logMessageFile = (LittleFS.exists(CRASH_LOG_MSG_FILE)) ? LittleFS.open(CRASH_LOG_MSG_FILE, "r+") : LittleFS.open(CRASH_LOG_MSG_FILE, "w+");
         Serial.printf_P(PSTR("Opened log message file, size: %d\n"), logMessageFile.size());
     }
 
@@ -98,19 +97,24 @@ void crashCallback()
     // save_rolling_code();
 }
 
-void printSavedLog(Print &outputDev)
+void printSavedLog(File file, Print &outputDev)
 {
-    if (logMessageFile && logMessageFile.size() > 0)
+    if (file && file.size() > 0)
     {
         int num = LINE_BUFFER_SIZE;
-        logMessageFile.seek(0, fs::SeekSet);
+        file.seek(0, fs::SeekSet);
         while (num == LINE_BUFFER_SIZE)
         {
-            num = logMessageFile.read((uint8_t *)lineBuffer, LINE_BUFFER_SIZE);
+            num = file.read((uint8_t *)lineBuffer, LINE_BUFFER_SIZE);
             outputDev.write(lineBuffer, num);
         }
         outputDev.println();
     }
+}
+
+void printSavedLog(Print &outputDev)
+{
+    return printSavedLog(logMessageFile, outputDev);
 }
 
 void printMessageLog(Print &outputDev)
@@ -119,6 +123,8 @@ void printMessageLog(Print &outputDev)
     {
         outputDev.write("Firmware Version: ");
         outputDev.write(AUTO_VERSION);
+        outputDev.println();
+        outputDev.write(ESP.getFullVersion().c_str());
         outputDev.println();
         outputDev.println();
         if (msgBuffer->wrapped != 0)

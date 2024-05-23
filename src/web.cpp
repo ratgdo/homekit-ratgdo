@@ -49,6 +49,7 @@ void handle_auth();
 void handle_subscribe();
 void handle_crashlog();
 void handle_showlog();
+void handle_showrebootlog();
 void handle_clearcrashlog();
 #ifdef CRASH_DEBUG
 void handle_forcecrash();
@@ -73,6 +74,7 @@ const BuiltInUriMap builtInUri = {
     {"/auth", {HTTP_GET, handle_auth}},
     {"/crashlog", {HTTP_GET, handle_crashlog}},
     {"/showlog", {HTTP_GET, handle_showlog}},
+    {"/showrebootlog", {HTTP_GET, handle_showrebootlog}},
     {"/clearcrashlog", {HTTP_GET, handle_clearcrashlog}},
 #ifdef CRASH_DEBUG
     {"/forcecrash", {HTTP_POST, handle_forcecrash}},
@@ -380,77 +382,73 @@ void handle_reboot()
 
 void load_page(const char *page)
 {
-    if (webcontent.count(page) > 0)
-    {
-        const char *data = (char *)std::get<0>(webcontent.at(page));
-        int length = std::get<1>(webcontent.at(page));
-        const char *typeP = std::get<2>(webcontent.at(page));
-        // need local copy as strcmp_P cannot take two PSTR()'s
-        char type[MAX_MIME_TYPE_LEN];
-        strncpy_P(type, typeP, MAX_MIME_TYPE_LEN);
-        // Following for browser cache control...
-        const char *crc32 = std::get<3>(webcontent.at(page)).c_str();
-        bool cache = false;
-        char cacheHdr[24] = "no-cache, no-store";
-        char matchHdr[8] = "";
-        if ((CACHE_CONTROL > 0) &&
-            (!strcmp_P(type, type_css) || !strcmp_P(type, type_js) || strstr_P(type, PSTR("image"))))
-        {
-            sprintf(cacheHdr, "max-age=%i", CACHE_CONTROL);
-            cache = true;
-        }
-        if (server.hasHeader(F("If-None-Match")))
-            strlcpy(matchHdr, server.header(F("If-None-Match")).c_str(), sizeof(matchHdr));
+    if (webcontent.count(page) == 0)
+        return handle_notfound();
 
-        if (strcmp(crc32, matchHdr))
-        {
-            RINFO("Sending gzip data for: %s (type %s, length %i)", page, type, length);
+    const char *data = (char *)std::get<0>(webcontent.at(page));
+    int length = std::get<1>(webcontent.at(page));
+    const char *typeP = std::get<2>(webcontent.at(page));
+    // need local copy as strcmp_P cannot take two PSTR()'s
+    char type[MAX_MIME_TYPE_LEN];
+    strncpy_P(type, typeP, MAX_MIME_TYPE_LEN);
+    // Following for browser cache control...
+    const char *crc32 = std::get<3>(webcontent.at(page)).c_str();
+    bool cache = false;
+    char cacheHdr[24] = "no-cache, no-store";
+    char matchHdr[8] = "";
+    if ((CACHE_CONTROL > 0) &&
+        (!strcmp_P(type, type_css) || !strcmp_P(type, type_js) || strstr_P(type, PSTR("image"))))
+    {
+        sprintf(cacheHdr, "max-age=%i", CACHE_CONTROL);
+        cache = true;
+    }
+    if (server.hasHeader(F("If-None-Match")))
+        strlcpy(matchHdr, server.header(F("If-None-Match")).c_str(), sizeof(matchHdr));
+
+    if (strcmp(crc32, matchHdr))
+    {
+        RINFO("Sending gzip data for: %s (type %s, length %i)", page, type, length);
 #if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-            WiFiClient client = server.client();
-            client.print("HTTP/1.1 200 OK\n");
-            client.print("Content-Type: ");
-            client.print(type);
-            client.print("\n");
-            client.print("Content-Encoding: gzip\n");
-            client.print("Cache-Control: ");
-            client.print(cacheHdr);
-            client.print("\n");
-            if (cache)
-            {
-                client.print("ETag: ");
-                client.print(crc32);
-                client.print("\n");
-            }
-            client.print("Connection: close\n");
-            client.print("\n");
-            client.flush();
-#define CHUNK_SIZE 536
-            while (length > 0)
-            {
-                uint32_t sent;
-                uint32_t tx_size = min(CHUNK_SIZE, length);
-                sent = client.write_P(data, tx_size);
-                length -= sent;
-                data += sent;
-            }
-            client.stop();
-#else
-            server.sendHeader(F("Content-Encoding"), F("gzip"));
-            server.sendHeader(F("Cache-Control"), cacheHdr);
-            if (cache)
-                server.sendHeader(F("ETag"), crc32);
-            server.send_P(200, type, data, length);
-#endif
-        }
-        else
+        WiFiClient client = server.client();
+        client.print("HTTP/1.1 200 OK\n");
+        client.print("Content-Type: ");
+        client.print(type);
+        client.print("\n");
+        client.print("Content-Encoding: gzip\n");
+        client.print("Cache-Control: ");
+        client.print(cacheHdr);
+        client.print("\n");
+        if (cache)
         {
-            RINFO("Sending 304 Not Modified for: %s (type %s)", page, type);
-            server.send_P(304, type, "", 0);
+            client.print("ETag: ");
+            client.print(crc32);
+            client.print("\n");
         }
+        client.print("Connection: close\n");
+        client.print("\n");
+        client.flush();
+#define CHUNK_SIZE 536
+        while (length > 0)
+        {
+            uint32_t sent;
+            uint32_t tx_size = min(CHUNK_SIZE, length);
+            sent = client.write_P(data, tx_size);
+            length -= sent;
+            data += sent;
+        }
+        client.stop();
+#else
+        server.sendHeader(F("Content-Encoding"), F("gzip"));
+        server.sendHeader(F("Cache-Control"), cacheHdr);
+        if (cache)
+            server.sendHeader(F("ETag"), crc32);
+        server.send_P(200, type, data, length);
+#endif
     }
     else
     {
-        handle_notfound();
+        RINFO("Sending 304 Not Modified for: %s (type %s)", page, type);
+        server.send_P(304, type, "", 0);
     }
     return;
 }
@@ -929,6 +927,18 @@ void handle_showlog()
     client.print(response200);
 #ifdef LOG_MSG_BUFFER
     printMessageLog(client);
+#endif
+    client.stop();
+}
+
+void handle_showrebootlog()
+{
+    WiFiClient client = server.client();
+    client.print(response200);
+#ifdef LOG_MSG_BUFFER
+    File file = LittleFS.open(REBOOT_LOG_MSG_FILE, "r");
+    printSavedLog(file, client);
+    file.close();
 #endif
     client.stop();
 }
