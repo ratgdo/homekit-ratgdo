@@ -132,7 +132,6 @@ int crashCount = 0;
 // Based on ESP8266HTTPUpdateServer
 String _updaterError;
 bool _authenticatedUpdate;
-bool updateUnderway = false;
 char firmwareMD5[36] = "";
 size_t firmwareSize = 0;
 bool flashCRC = true;
@@ -458,13 +457,6 @@ void load_page(const char *page)
 
 void handle_everything()
 {
-    if (updateUnderway)
-    {
-        RINFO("Firmware update underway, reject request.");
-        server.send_P(503, type_txt, response503);
-        return;
-    }
-
     HTTPMethod method = server.method();
     String page = server.uri();
     const char *uri = page.c_str();
@@ -502,12 +494,6 @@ void handle_everything()
 
 void handle_status()
 {
-    if (updateUnderway)
-    {
-        RINFO("Firmware update underway, reject status request.");
-        server.send_P(503, type_txt, response503);
-        return;
-    }
     unsigned long upTime = millis();
 #define paired homekit_is_paired()
 #define accessoryID arduino_homekit_get_running_server()->accessory_id
@@ -575,13 +561,6 @@ void handle_setgdo()
     const char *value;
     bool reboot = false;
     bool error = false;
-
-    if (updateUnderway)
-    {
-        RINFO("Firmware update underway, reject setGDO request.");
-        server.send_P(503, type_txt, response503);
-        return;
-    }
 
     if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
     {
@@ -697,7 +676,6 @@ void handle_setgdo()
         }
         else if (!strcmp(key, "updateUnderway"))
         {
-            // updateUnderway = true; // Will set this when actual upload starts;
             firmwareSize = 0;
             firmwareUpdateSub = NULL;
             char *md5 = strstr(value, "md5");
@@ -811,7 +789,7 @@ void SSEheartbeat(SSESubscription *s)
     else
     {
         subscriptionCount--;
-        RINFO("SSEheartbeat - client %s not listening remove subscription. Total subscribed: %d", s->clientIP.toString().c_str(), subscriptionCount - 1);
+        RINFO("SSEheartbeat - client %s not listening remove subscription. Total subscribed: %d", s->clientIP.toString().c_str(), subscriptionCount);
         s->heartbeatTimer.detach();
         s->client.flush();
         s->client.stop();
@@ -855,13 +833,6 @@ void SSEHandler(uint8_t channel)
 
 void handle_subscribe()
 {
-    if (updateUnderway)
-    {
-        RINFO("Firmware update underway, reject SSE subscripe request.");
-        server.send_P(503, type_txt, response503);
-        return;
-    }
-
     uint8_t channel;
     IPAddress clientIP = server.client().remoteIP(); // get IP address of client
     String SSEurl = "/rest/events/";
@@ -1012,7 +983,7 @@ void SSEBroadcastState(const char *data, BroadcastType type)
                     subscription[i].client.printf_P(PSTR("event: logger\ndata: %s\n\n"), data);
                 }
             }
-            else if (type == RATGDO_STATUS && !updateUnderway)
+            else if (type == RATGDO_STATUS)
             {
                 String IPaddrstr = IPAddress(subscription[i].clientIP).toString();
                 RINFO("broadcast status change to client IP %s on channel %d with new state %s", IPaddrstr.c_str(), i, data);
@@ -1034,7 +1005,6 @@ void _setUpdaterError()
 
 void handle_update()
 {
-    updateUnderway = true;
     server.sendHeader(F("Access-Control-Allow-Headers"), "*");
     server.sendHeader(F("Access-Control-Allow-Origin"), "*");
     if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
@@ -1066,7 +1036,6 @@ void handle_firmware_upload()
     // them through the Update object
     static size_t uploadProgress;
     static unsigned int nextPrintPercent;
-    updateUnderway = true;
     HTTPUpload &upload = server.upload();
     if (upload.status == UPLOAD_FILE_START)
     {
