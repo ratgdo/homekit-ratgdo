@@ -28,6 +28,8 @@ long unsigned int led_on_time = 0;     // Stores time when LED should turn back 
 
 extern bool flashCRC;
 
+struct GarageDoor garage_door;
+
 /********************************** MAIN LOOP CODE *****************************************/
 
 void setup() {
@@ -53,6 +55,9 @@ void setup() {
 
     setup_comms();
 
+    // We can set current lock state to unknown as HomeKit has value for that.
+    // But we can't do the same for door state as HomeKit has no value for that.
+    garage_door.current_lock = CURR_UNKNOWN;
     setup_homekit();
 
     setup_web();
@@ -105,8 +110,6 @@ void setup_pins() {
 }
 
 /*********************************** MODEL **************************************/
-
-struct GarageDoor garage_door;
 
 /*************************** OBSTRUCTION DETECTION ***************************/
 void IRAM_ATTR isr_obstruction() {

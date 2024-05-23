@@ -515,7 +515,7 @@ void handle_status()
     ADD_STR(json, "wifiSSID", wifiSSID);
     ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm").c_str());
     ADD_STR(json, "GDOSecurityType", GDOSecurityType);
-    ADD_STR(json, "garageDoorState", DOOR_STATE(garage_door.current_state));
+    ADD_STR(json, "garageDoorState", garage_door.active ? DOOR_STATE(garage_door.current_state) : DOOR_STATE(255));
     ADD_STR(json, "garageLockState", LOCK_STATE(garage_door.current_lock));
     ADD_BOOL(json, "garageLightOn", garage_door.light);
     ADD_BOOL(json, "garageMotion", garage_door.motion);
