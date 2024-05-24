@@ -563,14 +563,17 @@ void comms_loop() {
                             }
 
                             RINFO("tgt %d curr %d", target_state, current_state);
-                            if (target_state != garage_door.target_state) {
-                                garage_door.target_state = target_state;
-                                notify_homekit_target_door_state_change();
-                            }
-                            if (current_state != garage_door.current_state) {
-                                garage_door.current_state = current_state;
-                                notify_homekit_current_door_state_change();
-                            }
+
+                            //Homekit seems to miss the closed state change so revert this check for now 
+                            //if (target_state != garage_door.target_state) {
+                            garage_door.target_state = target_state;
+                            notify_homekit_target_door_state_change();
+                            //}
+                            
+                            //if (current_state != garage_door.current_state) {
+                            garage_door.current_state = current_state;
+                            notify_homekit_current_door_state_change();
+                            //}
 
                             if (pkt.m_data.value.status.light != garage_door.light) {
                                 RINFO("Light Status %s", pkt.m_data.value.status.light ? "On" : "Off");
