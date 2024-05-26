@@ -145,6 +145,8 @@ const char response404[] PROGMEM = "404: Not Found\n";
 const char response503[] PROGMEM = "503: Service Unavailable.\n";
 const char response200[] PROGMEM = "HTTP/1.1 200 OK\nContent-Type: text/plain\nConnection: close\n\n";
 
+const char *http_methods[] PROGMEM = {"HTTP_ANY", "HTTP_GET", "HTTP_HEAD", "HTTP_POST", "HTTP_PUT", "HTTP_PATCH", "HTTP_DELETE", "HTTP_OPTIONS"};
+
 // For Server Sent Events (SSE) support
 // Just reloading page causes register on new channel.  So we need a reasonable number
 // to accommodate "extra" until old one is detected as disconnected.
@@ -341,7 +343,7 @@ void setup_web()
 /********* handlers **********/
 void handle_notfound()
 {
-    RINFO("Sending 404 Not Found for: %s with method: %d", server.uri().c_str(), server.method());
+    RINFO("Sending 404 Not Found for: %s with method: %s", server.uri().c_str(), http_methods[server.method()]);
     server.send_P(404, type_txt, response404);
 }
 
@@ -405,9 +407,9 @@ void load_page(const char *page)
     if (server.hasHeader(F("If-None-Match")))
         strlcpy(matchHdr, server.header(F("If-None-Match")).c_str(), sizeof(matchHdr));
 
+    HTTPMethod method = server.method();
     if (strcmp(crc32, matchHdr))
     {
-        RINFO("Sending gzip data for: %s (type %s, length %i)", page, type, length);
 #if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
         WiFiClient client = server.client();
         client.print("HTTP/1.1 200 OK\n");
@@ -442,12 +444,21 @@ void load_page(const char *page)
         server.sendHeader(F("Cache-Control"), cacheHdr);
         if (cache)
             server.sendHeader(F("ETag"), crc32);
-        server.send_P(200, type, data, length);
+        if (method == HTTP_HEAD)
+        {
+            RINFO("Client %s requesting: %s (HTTP_HEAD, type: %s)", server.client().remoteIP().toString().c_str(), page, type);
+            server.send_P(200, type, "", 0);
+        }
+        else
+        {
+            RINFO("Client %s requesting: %s (HTTP_GET, type: %s, length: %i)", server.client().remoteIP().toString().c_str(), page, type, length);
+            server.send_P(200, type, data, length);
+        }
 #endif
     }
     else
     {
-        RINFO("Sending 304 Not Modified for: %s (type %s)", page, type);
+        RINFO("Sending 304 not modified to client %s requesting: %s (method: %s, type: %s)", server.client().remoteIP().toString().c_str(), page, http_methods[method], type);
         server.send_P(304, type, "", 0);
     }
     return;
@@ -462,7 +473,7 @@ void handle_everything()
     if (builtInUri.count(uri) > 0)
     {
         // requested page matches one of our built-in handlers
-        RINFO("Request for: %s with method: %d", uri, method);
+        RINFO("Client %s requesting: %s (method: %s)", server.client().remoteIP().toString().c_str(), uri, http_methods[method]);
         if (method == builtInUri.at(uri).first)
             return builtInUri.at(uri).second();
         else
@@ -478,7 +489,7 @@ void handle_everything()
         else
             return handle_notfound();
     }
-    else if (method == HTTP_GET)
+    else if (method == HTTP_GET || method == HTTP_HEAD)
     {
         // HTTP_GET that does not match a built-in handler
         if (page == "/")
@@ -537,13 +548,13 @@ void handle_status()
     ADD_BOOL(json, "checkFlashCRC", flashCRC);
     END_JSON(json);
 
-    RINFO("Status requested. JSON length: %d", strlen(json));
     // send JSON straight to serial port
     Serial.printf("%s\n", json);
     last_reported_garage_door = garage_door;
 
     server.sendHeader(F("Cache-Control"), F("no-cache, no-store"));
     server.send_P(200, type_json, json);
+    RINFO("JSON length: %d", strlen(json));
     return;
 }
 
@@ -722,7 +733,7 @@ void handle_setgdo()
     // Simple error handling...
     if (error)
     {
-        RINFO("Sending 400 bad request, missing or invalid argument, for: %s", server.uri().c_str());
+        RINFO("Sending %s, for: %s", response400invalid, server.uri().c_str());
         server.send_P(400, type_txt, response400invalid);
     }
     else
@@ -760,7 +771,7 @@ void SSEheartbeat(SSESubscription *s)
             // 5 heartbeats have failed... assume client will not connect
             // and free up the slot
             subscriptionCount--;
-            RINFO("SSEheartbeat - Timeout waiting for %s to listen for events, remove subscription.  Total subscribed: %d", s->clientIP.toString().c_str(), subscriptionCount);
+            RINFO("Client %s timeout waiting to listen, remove SSE subscription.  Total subscribed: %d", s->clientIP.toString().c_str(), subscriptionCount);
             s->heartbeatTimer.detach();
             s->clientIP = INADDR_NONE;
             s->clientUUID.clear();
@@ -768,7 +779,7 @@ void SSEheartbeat(SSESubscription *s)
         }
         else
         {
-            RINFO("SSEheartbeat - Client %s not yet listening for events", s->clientIP.toString().c_str());
+            RINFO("Client %s not yet listening for SSE", s->clientIP.toString().c_str());
         }
         return;
     }
@@ -787,7 +798,7 @@ void SSEheartbeat(SSESubscription *s)
     else
     {
         subscriptionCount--;
-        RINFO("SSEheartbeat - client %s not listening remove subscription. Total subscribed: %d", s->clientIP.toString().c_str(), subscriptionCount);
+        RINFO("Client %s not listening, remove SSE subscription. Total subscribed: %d", s->clientIP.toString().c_str(), subscriptionCount);
         s->heartbeatTimer.detach();
         s->client.flush();
         s->client.stop();
@@ -801,7 +812,7 @@ void SSEHandler(uint8_t channel)
 {
     if (server.args() != 1)
     {
-        RINFO("Sending 400 bad request, missing argument, for: %s", server.uri().c_str());
+        RINFO("Sending %s, for: %s", response400missing, server.uri().c_str());
         server.send_P(400, type_txt, response400missing);
         return;
     }
@@ -809,7 +820,7 @@ void SSEHandler(uint8_t channel)
     SSESubscription &s = subscription[channel];
     if (s.clientUUID != server.arg(0))
     {
-        RINFO("SSEHandler - unregistered client %s with IP %s tries to listen", server.arg(0).c_str(), client.remoteIP().toString().c_str());
+        RINFO("Client %s with IP %s tries to listen for SSE but not subscribed", server.arg(0).c_str(), client.remoteIP().toString().c_str());
         return handle_notfound();
     }
     client.setNoDelay(true);
@@ -826,7 +837,7 @@ void SSEHandler(uint8_t channel)
     s.SSEfailCount = 0;
     s.heartbeatTimer.attach_scheduled(1.0, [channel, &s]
                                       { SSEheartbeat(&s); });
-    RINFO("SSEHandler - Client %s listening for events on channel %d", client.remoteIP().toString().c_str(), channel);
+    RINFO("Client %s listening for SSE events on channel %d", client.remoteIP().toString().c_str(), channel);
 }
 
 void handle_subscribe()
@@ -837,7 +848,7 @@ void handle_subscribe()
 
     if (subscriptionCount == SSE_MAX_CHANNELS)
     {
-        RINFO("SSE Subscription declined, subscription count: %d", subscriptionCount);
+        RINFO("Client %s SSE Subscription declined, subscription count: %d", clientIP.toString().c_str(), subscriptionCount);
         for (channel = 0; channel < SSE_MAX_CHANNELS; channel++)
         {
             RINFO("Client %d: %s at %s", channel, subscription[channel].clientUUID.c_str(), subscription[channel].clientIP.toString().c_str());
@@ -847,7 +858,7 @@ void handle_subscribe()
 
     if (clientIP == INADDR_NONE)
     {
-        RINFO("Sending 400 bad request, invalid argument, for: %s as clientIP missing", server.uri().c_str());
+        RINFO("Sending %s, for: %s as clientIP missing", response400invalid, server.uri().c_str());
         server.send_P(400, type_txt, response400invalid);
         return;
     }
@@ -855,7 +866,7 @@ void handle_subscribe()
     // check we were passed at least one arguement
     if (server.args() < 1)
     {
-        RINFO("Sending 400 bad request, missing argument, for: %s", server.uri().c_str());
+        RINFO("Sending %s, for: %s", response400missing, server.uri().c_str());
         server.send_P(400, type_txt, response400missing);
         return;
     }
@@ -996,7 +1007,7 @@ void SSEBroadcastState(const char *data, BroadcastType type)
             else if (type == RATGDO_STATUS)
             {
                 String IPaddrstr = IPAddress(subscription[i].clientIP).toString();
-                RINFO("broadcast status change to client IP %s on channel %d with new state %s", IPaddrstr.c_str(), i, data);
+                RINFO("SSE send to client %s on channel %d, data: %s", IPaddrstr.c_str(), i, data);
                 subscription[i].client.printf_P(PSTR("event: message\ndata: %s\n\n"), data);
             }
         }
