@@ -85,11 +85,13 @@ void logToBuffer_P(const char *fmt, ...)
 
 void crashCallback()
 {
-    // Only save log if this is the first crash dump.  We don't save subsequent message logs
-    // because the space available for a stack dump may not be enough for more than the first crash.
-    if (crashCount < 1 && msgBuffer && logMessageFile)
+    if (msgBuffer && logMessageFile)
     {
         logMessageFile.truncate(0);
+        logMessageFile.seek(0, fs::SeekSet);
+        logMessageFile.println();
+        logMessageFile.write(ESP.checkFlashCRC() ? "Flash CRC OK" : "Flash CRC BAD");
+        logMessageFile.println();
         printMessageLog(logMessageFile);
         logMessageFile.close();
     }
