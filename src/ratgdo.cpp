@@ -39,7 +39,11 @@ void setup() {
     LittleFS.begin();
 
     Serial.printf("\n"); // newline before we start
-    RINFO("RATGDO setup starting");
+    RINFO("Starting RATGDO Homekit version %s", AUTO_VERSION);
+    RINFO("%s", ESP.getFullVersion().c_str());
+    RINFO("Flash chip size 0x%X", ESP.getFlashChipSize());
+    RINFO("Flash chip mode 0x%X", ESP.getFlashChipMode());
+    RINFO("Flash chip speed 0x%X (%d MHz)", ESP.getFlashChipSpeed(), ESP.getFlashChipSpeed()/1000000);
     if (flashCRC)
     {
         RINFO("checkFlashCRC: true");
@@ -63,8 +67,6 @@ void setup() {
     setup_web();
 
     RINFO("RATGDO setup completed");
-    RINFO("Starting RATGDO Homekit version %s", AUTO_VERSION);
-    RINFO("%s", ESP.getFullVersion().c_str());
 }
 
 void loop() {

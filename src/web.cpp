@@ -1077,7 +1077,8 @@ void handle_firmware_upload()
         {
             uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
             RINFO("Available space for upload: %lu", maxSketchSpace);
-            if (!Update.begin(maxSketchSpace, U_FLASH))
+            RINFO("Flash chip speed %d MHz", ESP.getFlashChipSpeed() / 1000000);
+            if (!Update.begin((firmwareSize > 0) ? firmwareSize : maxSketchSpace, U_FLASH))
             {
                 _setUpdaterError();
             }

@@ -126,8 +126,6 @@ void printMessageLog(Print &outputDev)
         outputDev.write("Firmware Version: ");
         outputDev.write(AUTO_VERSION);
         outputDev.println();
-        outputDev.write(ESP.getFullVersion().c_str());
-        outputDev.println();
         outputDev.println();
         if (msgBuffer->wrapped != 0)
         {
