@@ -59,9 +59,6 @@ void setup() {
 
     setup_comms();
 
-    // We can set current lock state to unknown as HomeKit has value for that.
-    // But we can't do the same for door state as HomeKit has no value for that.
-    garage_door.current_lock = CURR_UNKNOWN;
     setup_homekit();
 
     setup_web();

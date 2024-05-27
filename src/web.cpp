@@ -25,6 +25,7 @@
 #include <arduino_homekit_server.h>
 #include <ESP8266WebServer.h>
 #include <Ticker.h>
+#include <eboot_command.h>
 
 #if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
 #include <umm_malloc/umm_malloc.h>
@@ -722,7 +723,6 @@ void handle_setgdo()
                 // old implementation... before JSON form of parameter.
                 strlcpy(firmwareMD5, value, sizeof(firmwareMD5));
             }
-            arduino_homekit_close();
         }
         else
         {
@@ -1034,21 +1034,31 @@ void handle_update()
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
     }
 
+    server.client().setNoDelay(true);
     if (Update.hasError())
     {
         // Error logged in _setUpdaterError
+        RERROR("Firmware upload error. Aborting update, not rebooting");
         server.send(400, "text/plain", _updaterError);
+        return;
     }
     else
     {
-        RINFO("Upload complete, received firmware MD5: %s", Update.md5String().c_str());
-        server.client().setNoDelay(true);
+        RINFO("Received firmware MD5: %s", Update.md5String().c_str());
+        flashCRC = ESP.checkFlashCRC();
+        RINFO("checkFlashCRC: %s", flashCRC ? "true" : "false");
+        if (!flashCRC)
+        {
+            eboot_command_clear();
+            RERROR("Flash CRC error after firmware upload. Aborting update, not rebooting");
+            server.send(400, "text/plain", "Flash CRC error after firmware upload, aborting.");
+            return;
+        }
         server.send_P(200, type_txt, PSTR("Update Success! Rebooting...\n"));
+        delay(100);
+        server.stop();
+        sync_and_restart();
     }
-    // Whether error or success, reboot the device
-    delay(100);
-    server.stop();
-    sync_and_restart();
 }
 
 void handle_firmware_upload()
@@ -1069,31 +1079,31 @@ void handle_firmware_upload()
             return;
         }
         RINFO("Update: %s", upload.filename.c_str());
-        if (upload.name == "filesystem")
+        uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+        struct eboot_command ebootCmd;
+        RINFO("Available space for upload: %lu", maxSketchSpace);
+        RINFO("Flash chip speed %d MHz", ESP.getFlashChipSpeed() / 1000000);
+        flashCRC = ESP.checkFlashCRC();
+        RINFO("checkFlashCRC: %s", flashCRC ? "true" : "false");
+        eboot_command_read(&ebootCmd);
+        RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[3], ebootCmd.args[4], ebootCmd.args[5]);
+        // close HomeKit server so we don't have to handle HomeKit network traffic during update
+        // arduino_homekit_close(); // Commented out because if we fail we don't reboot to restart the HomeKit server
+        if (!Update.begin((firmwareSize > 0) ? firmwareSize : maxSketchSpace, U_FLASH))
         {
-            RINFO("Update from filesystem not supported");
+            _setUpdaterError();
         }
-        else
+        else if (strlen(firmwareMD5) > 0)
         {
-            uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-            RINFO("Available space for upload: %lu", maxSketchSpace);
-            RINFO("Flash chip speed %d MHz", ESP.getFlashChipSpeed() / 1000000);
-            if (!Update.begin((firmwareSize > 0) ? firmwareSize : maxSketchSpace, U_FLASH))
+            // uncomment for testing...
+            // char firmwareMD5[] = "675cbfa11d83a792293fdc3beb199cXX";
+            RINFO("Set expected MD5 for uploaded firmware to: %s", firmwareMD5);
+            Update.setMD5(firmwareMD5);
+            if (firmwareSize > 0)
             {
-                _setUpdaterError();
-            }
-            else if (strlen(firmwareMD5) > 0)
-            {
-                // uncomment for testing...
-                // char firmwareMD5[] = "675cbfa11d83a792293fdc3beb199cXX";
-                RINFO("Set expected MD5 for uploaded firmware to: %s", firmwareMD5);
-                Update.setMD5(firmwareMD5);
-                if (firmwareSize > 0)
-                {
-                    uploadProgress = 0;
-                    nextPrintPercent = 10;
-                    RINFO("Progress: 00%%");
-                }
+                uploadProgress = 0;
+                nextPrintPercent = 10;
+                RINFO("Progress: 00%%");
             }
         }
     }
@@ -1131,8 +1141,11 @@ void handle_firmware_upload()
     {
         Serial.printf("\n"); // newline after last of the dot dot dots
         if (Update.end(true))
-        { // true to set the size to the current progress
-            RINFO("Update Success, size: %zu, Rebooting...", upload.totalSize);
+        {
+            struct eboot_command ebootCmd;
+            RINFO("Upload size: %zu", upload.totalSize);
+            eboot_command_read(&ebootCmd);
+            RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[3], ebootCmd.args[4], ebootCmd.args[5]);
         }
         else
         {
