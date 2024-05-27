@@ -193,6 +193,15 @@ curl -s http://<ip-address>/showlog
 ```
 Returns recent history of message logs.
 
+### Show last reboot log
+
+```
+curl -s http://<ip-address>/showrebootlog
+```
+Returns log of messages that immediately preceeded the last clean reboot (e.g. not a crash or power failure).
+> [!NOTE]
+> This may be older than the most recent crash log.
+
 ### Monitor message log
 
 The following script is available in this repository as `viewlog.sh`
@@ -209,6 +218,8 @@ Use Ctrl-C keystroke to terminate and return to command line prompt. You will ne
 
 ### Upload new firmware
 
+> [!WARNING]
+> This should be used with extreme caution, updating from USB serial or web browser is strongly preferred.  Before using this script you should check that embedded commands like `md5` or `md5sum` and `stat` work correctly on your system. Monitoring the message log (see above) is recommended and no other browser should be connected to the ratgdo device.
 ```
 <path>/upload_firmware.sh <ip-address> <firmware_file.bin>
 ```
