@@ -9,10 +9,10 @@
 
 void sync_and_restart()
 {
+    RINFO("checkFlashCRC: %s", ESP.checkFlashCRC() ? "true" : "false");
     WiFi.mode(WIFI_OFF);
     WiFi.forceSleepBegin();
     save_rolling_code();
-    RINFO("checkFlashCRC: %s", ESP.checkFlashCRC() ? "true" : "false");
     File file = LittleFS.open(REBOOT_LOG_MSG_FILE, "w");
     printMessageLog(file);
     file.close();
