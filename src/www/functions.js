@@ -380,6 +380,10 @@ async function firmwareUpdate(github = true) {
         } else {
             rebootMsg = await response.text();
             console.error(`Firmware update error: ${rebootMsg}`);
+            showRebootMsg = false;
+            alert(`ERROR: ${rebootMsg}`);
+            location.href = "/";
+            return;
         }
     }
     finally {
