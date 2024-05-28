@@ -60,6 +60,8 @@ char *test_str = NULL;
 #endif
 void handle_update();
 void handle_firmware_upload();
+void handle_verify();
+void handle_firmware_verify();
 void SSEHandler(uint8_t);
 void handle_notfound();
 
@@ -320,6 +322,7 @@ void setup_web()
         HeapSelectIram ephemeral;
 #endif
         server.on("/update", HTTP_POST, handle_update, handle_firmware_upload);
+        server.on("/verify", HTTP_POST, handle_verify, handle_firmware_verify);
         server.onNotFound(handle_everything);
     }
 
@@ -1057,7 +1060,7 @@ void handle_update()
         server.send_P(200, type_txt, PSTR("Update Success! Rebooting...\n"));
         delay(100);
         server.stop();
-        sync_and_restart();
+        //sync_and_restart();
     }
 }
 
@@ -1157,6 +1160,119 @@ void handle_firmware_upload()
     {
         Update.end();
         RINFO("Update was aborted");
+    }
+    esp_yield();
+}
+
+void handle_verify()
+{
+    server.sendHeader(F("Access-Control-Allow-Headers"), "*");
+    server.sendHeader(F("Access-Control-Allow-Origin"), "*");
+    if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
+    {
+        RINFO("In handle_update request authentication");
+        return server.requestAuthentication(DIGEST_AUTH, www_realm);
+    }
+
+    if (Update.hasError())
+    {
+        // Error logged in _setUpdaterError
+        server.send(400, "text/plain", _updaterError);
+    }
+    else
+    {
+        RINFO("verify complete, received firmware MD5: %s", Update.md5String().c_str());
+        server.client().setNoDelay(true);
+        server.send_P(200, type_txt, PSTR("Update Success! Rebooting...\n"));
+    }
+}
+
+void handle_firmware_verify()
+{
+    // handler for the file upload, gets the sketch bytes, and writes
+    // them through the Update object
+    static size_t uploadProgress;
+    static unsigned int nextPrintPercent;
+    HTTPUpload &upload = server.upload();
+    if (upload.status == UPLOAD_FILE_START)
+    {
+        _updaterError.clear();
+
+        RINFO("Update: %s", upload.filename.c_str());
+        if (upload.name == "filesystem")
+        {
+            RINFO("Update from filesystem not supported");
+        }
+        else
+        {
+            uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+            RINFO("Available space for upload: %lu", maxSketchSpace);
+            if (!Update.begin((firmwareSize > 0) ? firmwareSize : maxSketchSpace, U_FLASH))
+            {
+                _setUpdaterError();
+            }
+            else if (strlen(firmwareMD5) > 0)
+            {
+                // uncomment for testing...
+                // char firmwareMD5[] = "675cbfa11d83a792293fdc3beb199cXX";
+                RINFO("Set expected MD5 for uploaded firmware to: %s", firmwareMD5);
+                Update.setMD5(firmwareMD5);
+                if (firmwareSize > 0)
+                {
+                    uploadProgress = 0;
+                    nextPrintPercent = 10;
+                    RINFO("Progress: 00%%");
+                }
+            }
+        }
+    }
+    else if (upload.status == UPLOAD_FILE_WRITE && !_updaterError.length())
+    {
+        // Progress dot dot dot
+        Serial.printf(".");
+        if (firmwareSize > 0)
+        {
+            uploadProgress += upload.currentSize;
+            unsigned int uploadPercent = (uploadProgress * 100) / firmwareSize;
+            if (uploadPercent >= nextPrintPercent)
+            {
+                Serial.printf("\n"); // newline after the dot dot dots
+                RINFO("Progress: %i%%", uploadPercent);
+                if (firmwareUpdateSub)
+                    SSEheartbeat(firmwareUpdateSub); // keep SSE connection alive.
+                nextPrintPercent += 10;
+                // Report percentage to browser client if it is listening
+                if (firmwareUpdateSub && firmwareUpdateSub->client.connected())
+                {
+                    START_JSON(json);
+                    ADD_INT(json, "uploadPercent", uploadPercent);
+                    END_JSON(json);
+                    REMOVE_NL(json);
+                    firmwareUpdateSub->client.printf_P(PSTR("event: uploadStatus\ndata: %s\n\n"), json);
+                }
+            }
+        }
+        if (Update.rawVerify(upload.buf, upload.currentSize) != upload.currentSize)
+        {
+            _setUpdaterError();
+        }
+    }
+    else if (upload.status == UPLOAD_FILE_END && !_updaterError.length())
+    {
+        Serial.printf("\n"); // newline after last of the dot dot dots
+        if (Update.end(true))
+        { // true to set the size to the current progress
+            RINFO("Verify Success, size: %zu", upload.totalSize);
+        }
+        else
+        {
+            _setUpdaterError();
+        }
+    }
+    else if (upload.status == UPLOAD_FILE_ABORTED)
+    {
+        Update.end();
+        RINFO("Verify was aborted");
     }
     esp_yield();
 }
