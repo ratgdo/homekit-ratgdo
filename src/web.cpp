@@ -1119,7 +1119,8 @@ void handle_firmware_upload()
             {
                 Serial.printf("\n"); // newline after the dot dot dots
                 RINFO("Progress: %i%%", uploadPercent);
-                SSEheartbeat(firmwareUpdateSub); // keep SSE connection alive.
+                if(firmwareUpdateSub)
+                    SSEheartbeat(firmwareUpdateSub); // keep SSE connection alive.
                 nextPrintPercent += 10;
                 // Report percentage to browser client if it is listening
                 if (firmwareUpdateSub && firmwareUpdateSub->client.connected())
