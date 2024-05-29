@@ -68,7 +68,7 @@ void onDHCPTimeout() {
 }
 
 void wifi_connect() {
-    WiFi.persistent(true);       // enable connection by default after future boots if improv has succeeded
+    WiFi.persistent(false);
     WiFi.mode(WIFI_STA);
     WiFi.setSleepMode(WIFI_NONE_SLEEP);
     wifiSettingsChanged = (read_int_from_file(wifiSettingsChangedFile) != 0);
@@ -145,7 +145,9 @@ void improv_loop() {
 bool connect_wifi(std::string ssid, std::string password) {
     uint8_t count = 0;
 
+    WiFi.persistent(true); // Set persist to store wifi credentials
     WiFi.begin(ssid.c_str(), password.c_str());
+    WiFi.persistent(false);  // clear the persist flag so other settings do not get written to flash
 
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
