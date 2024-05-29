@@ -6,6 +6,7 @@ from enum import Enum
    
 improv_header="IMPROV"
 improv_version=1
+verbose=False
 
 class improv_type(Enum):
     curr_state=1
@@ -39,7 +40,8 @@ def send_improv_cmd(ser, cmd):
             tx_cmd.append(ord(i))
 
     tx_cmd[-1] = cksum & 0xff
-    #print(bytearray(tx_cmd))
+    if verbose:
+        print(bytearray(tx_cmd))
     ser.write(bytearray(tx_cmd))
     ser.write(bytearray([ord('\n')]))
     ser.flush()
@@ -91,7 +93,8 @@ def monitor(ser):
     rx_header=""
     while True:
         bs = ser.read(1)
-        #print(bs, end="")
+        #if verbose > 1:
+        #    print(bs, end="")
         ch=int.from_bytes(bs, "big")
        
         if state == states.gethdr:
@@ -112,12 +115,14 @@ def monitor(ser):
                 state=states.gethdr
 
         elif state == states.gettype:
-            #print("type", ch)
+            if verbose:
+                print("type", ch)
             imp_type=ch
             state=states.getlen
 
         elif state == states.getlen:
-            #print("len", ch)
+            if verbose:
+                print("len", ch)
             cmdlen=ch
             if cmdlen > 0:
                 if imp_type == improv_type.rpc_result.value:
@@ -128,19 +133,22 @@ def monitor(ser):
                 state=states.gethdr
 
         elif state == states.getrpcresp:
-            #print("response to command", ch)
+            if verbose:
+                print("response to command", ch)
             resp_cmd=ch
             state=state.getdatlen
 
         elif state == states.getdatlen:
-            #print("datlen", ch)
+            if verbose:
+                print("datlen", ch)
             datlen=ch
             if datlen == 0:
                 return
             state=state.getstrlen
 
         elif state == states.getstrlen:
-            #print("strlen", ch)
+            if verbose:
+                print("strlen", ch)
             datlen -= 1
             strlen=ch
             state=state.getrpcdat
@@ -191,12 +199,13 @@ def monitor(ser):
             else:
                 state=states.gethdr
         
-        #else:
-            #try:
-            #    print(bs.decode(), end="")
-            #except:
-            #    print(bs, end="")
-        #sys.stdout.flush()    
+        else:
+            if verbose:
+                try:
+                    print(bs.decode(), end="")
+                except:
+                    print(bs, end="")
+                sys.stdout.flush()    
 
 
 if __name__ == '__main__':
@@ -207,7 +216,10 @@ if __name__ == '__main__':
     parser.add_argument('-S', dest='scan', default=False, action=argparse.BooleanOptionalAction, help="Scan Wifi Networks")
     parser.add_argument('-i', dest='info', default=False, action=argparse.BooleanOptionalAction, help="Get device information")
     parser.add_argument('-g', dest='getstate', default=False, action=argparse.BooleanOptionalAction, help="Get current state")
+    parser.add_argument('-v', dest='verbose', default=False, action=argparse.BooleanOptionalAction, help="Verbose")
     args = parser.parse_args()
+
+    verbose = args.verbose
 
     if (not args.dev):
         print("Must select serial device")
