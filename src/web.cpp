@@ -1105,23 +1105,11 @@ void handle_firmware_upload()
         size = atoi(server.arg("size").c_str());
         md5 = server.arg("md5").c_str();
 
-        if (verify)
-        {
-            // proceed only if MD5 passed in matches MD5 of previously uploaded firmware
-            if (strcmp(firmwareMD5, md5) || (size != firmwareSize))
-            {
-                RINFO("MD5 do not match, abort");
-                return;
-            }
-        }
-        else
-        {
-            // We are updating.  If size and MD5 provided, save them
-            if (size > 0)
-                firmwareSize = size;
-            if (strlen(md5) > 0)
-                strlcpy(firmwareMD5, md5, sizeof(firmwareMD5));
-        }
+        // We are updating.  If size and MD5 provided, save them
+        if (size > 0)
+            firmwareSize = size;
+        if (strlen(md5) > 0)
+            strlcpy(firmwareMD5, md5, sizeof(firmwareMD5));
 
         uint32_t maxSketchSpace = ESP.getFreeSketchSpace();
         struct eboot_command ebootCmd;
