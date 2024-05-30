@@ -293,6 +293,7 @@ async function firmwareUpdate(github = true) {
     const aniDots = dotDotDot(spanDots);
     try {
         document.getElementById("updateDialog").style.display = "none";
+        document.getElementById("updateMsg").innerHTML = "Do not close browser until update completes. Device will reboot when complete.<br><br>Uploading...";
         document.getElementById("updateDotDot").style.display = "block";
         let bin;
         let binMD5;
@@ -304,6 +305,7 @@ async function firmwareUpdate(github = true) {
                 return;
             }
             console.log("Download firmware from: " + serverStatus.downloadURL);
+            document.getElementById("updateMsg").innerHTML = "Do not close browser until update completes. Device will reboot when complete.<br><br>Downloading from GitHub...";
             // For GitHub we will check integrity of downloaded file with MD5 hash.
             const regex = /\.bin$/;
             let response = await fetch(serverStatus.downloadURL.replace(regex, ".md5"), {
@@ -362,6 +364,7 @@ async function firmwareUpdate(github = true) {
             size: bin.byteLength,
             uuid: clientUUID
         }));
+        document.getElementById("updateMsg").innerHTML = "Do not close browser until update completes. Device will reboot when complete.<br><br>Uploading...";
         // Set initial percentage to zero
         let spanPercent = document.getElementById("updatePercent");
         spanPercent.style.display = 'initial';
@@ -377,28 +380,36 @@ async function firmwareUpdate(github = true) {
         if (response.status !== 200) {
             rebootMsg = await response.text();
             console.error(`Firmware upload error: ${rebootMsg}`);
-            //showRebootMsg = false;
-            //alert(`ERROR: ${rebootMsg}`);
-            //location.href = "/";
+            if (confirm(`Firmware upload error: ${rebootMsg}\nExisting firmware not replaced. Proceed to reboot device?\nNOTE: Reboot is required to re-enable HomeKit services.`)) {
+                await rebootRATGDO(false);
+            }
+            else {
+                showRebootMsg = false;
+                location.href = "/";
+            }
             return;
         }
         console.log("Firmware upload complete, now verify...");
+        spanPercent.innerHTML = '00%&nbsp';
+        document.getElementById("updateMsg").innerHTML = "Do not close browser until update completes. Device will reboot when complete.<br><br>Verifying... ";
         response = await fetch(`update?action=verify&size=${bin.byteLength}&md5=${binMD5}`, {
             method: "POST",
             body: formData,
         });
         if (response.status !== 200) {
             rebootMsg = await response.text();
-            console.error(`Firmware verify error: ${rebootMsg}`);
+            console.error(`Upload verification error: ${rebootMsg}`);
+            if (confirm(`Upload verification error: ${rebootMsg}\nExisting firmware not replaced. Proceed to reboot device?\nNOTE: Reboot is required to re-enable HomeKit services.`)) {
+                await rebootRATGDO(false);
+            }
+            else {
+                showRebootMsg = false;
+                location.href = "/";
+            }
             return;
         }
-        response = await fetch("reboot", {
-            method: "POST",
-        });
-        if (response.status !== 200) {
-            console.warn("Error attempting to reboot RATGDO");
-            return;
-        }
+        // Upload and verify suceeded, so reboot...
+        await rebootRATGDO(false);
         rebootMsg = "Update complete...";
     }
     finally {
@@ -412,7 +423,7 @@ async function firmwareUpdate(github = true) {
     }
 }
 
-async function rebootRATGDO() {
+async function rebootRATGDO(dialog = true) {
     var response = await fetch("reboot", {
         method: "POST",
     });
@@ -420,7 +431,7 @@ async function rebootRATGDO() {
         console.warn("Error attempting to reboot RATGDO");
         return;
     }
-    countdown(30, "RATGDO device rebooting...&nbsp;");
+    if (dialog) countdown(30, "RATGDO device rebooting...&nbsp;");
 }
 
 async function unpairRATGDO() {
