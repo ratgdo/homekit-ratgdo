@@ -504,7 +504,7 @@ void handle_status()
 {
     unsigned long upTime = millis();
 #define paired homekit_is_paired()
-#define accessoryID arduino_homekit_get_running_server()->accessory_id
+#define accessoryID (arduino_homekit_get_running_server() ? arduino_homekit_get_running_server()->accessory_id : "Inactive")
 #define IPaddr WiFi.localIP().toString().c_str()
 #define subnetMask WiFi.subnetMask().toString().c_str()
 #define gatewayIP WiFi.gatewayIP().toString().c_str()
@@ -1106,8 +1106,7 @@ void handle_firmware_upload()
         md5 = server.arg("md5").c_str();
 
         // We are updating.  If size and MD5 provided, save them
-        if (size > 0)
-            firmwareSize = size;
+        firmwareSize = size;
         if (strlen(md5) > 0)
             strlcpy(firmwareMD5, md5, sizeof(firmwareMD5));
 
@@ -1121,8 +1120,13 @@ void handle_firmware_upload()
         eboot_command_read(&ebootCmd);
         RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[3], ebootCmd.args[4], ebootCmd.args[5]);
 
-        // close HomeKit server so we don't have to handle HomeKit network traffic during update
-        // arduino_homekit_close(); // Commented out because if we fail we don't reboot to restart the HomeKit server
+        if (!verify)
+        {
+            // Close HomeKit server so we don't have to handle HomeKit network traffic during update
+            // Only if not verifying as either will have been shutdown on immediately prior upload, or we
+            // just want to verify without disrupting operation of the HomeKit service.
+            arduino_homekit_close();
+        }
 
         if (!Update.begin((firmwareSize > 0) ? firmwareSize : maxSketchSpace, U_FLASH))
         {
