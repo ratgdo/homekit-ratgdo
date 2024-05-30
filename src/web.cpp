@@ -60,8 +60,6 @@ char *test_str = NULL;
 #endif
 void handle_update();
 void handle_firmware_upload();
-void handle_verify();
-void handle_firmware_verify();
 void SSEHandler(uint8_t);
 void handle_notfound();
 
@@ -322,7 +320,6 @@ void setup_web()
         HeapSelectIram ephemeral;
 #endif
         server.on("/update", HTTP_POST, handle_update, handle_firmware_upload);
-        server.on("/verify", HTTP_POST, handle_verify, handle_firmware_verify);
         server.onNotFound(handle_everything);
     }
 
@@ -370,7 +367,6 @@ void handle_reset()
     RINFO("... reset requested");
     homekit_storage_reset();
     server.send_P(200, type_txt, PSTR("Device has been un-paired from HomeKit. Rebooting...\n"));
-    delay(100);
     server.stop();
     sync_and_restart();
     return;
@@ -380,7 +376,6 @@ void handle_reboot()
 {
     RINFO("... reboot requested");
     server.send_P(200, type_txt, PSTR("Rebooting...\n"));
-    delay(100);
     server.stop();
     sync_and_restart();
     return;
@@ -750,7 +745,6 @@ void handle_setgdo()
     if (reboot)
     {
         RINFO("SetGDO Restart required");
-        delay(100);
         server.stop();
         sync_and_restart();
     }
@@ -760,6 +754,8 @@ void handle_setgdo()
 void SSEheartbeat(SSESubscription *s)
 {
     // Serial.printf("Heartbeat\n");
+    if (!s)
+        return;
     uint32_t free_heap = system_get_free_heap_size();
     if (free_heap < min_heap)
         min_heap = free_heap;
@@ -1029,6 +1025,8 @@ void _setUpdaterError()
 
 void handle_update()
 {
+    bool verify = !strcmp(server.arg("action").c_str(), "verify");
+
     server.sendHeader(F("Access-Control-Allow-Headers"), "*");
     server.sendHeader(F("Access-Control-Allow-Origin"), "*");
     if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
@@ -1037,30 +1035,47 @@ void handle_update()
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
     }
 
-    server.client().setNoDelay(true);
     if (Update.hasError())
     {
         // Error logged in _setUpdaterError
+        eboot_command_clear();
         RERROR("Firmware upload error. Aborting update, not rebooting");
         server.send(400, "text/plain", _updaterError);
         return;
     }
     else
     {
-        RINFO("Received firmware MD5: %s", Update.md5String().c_str());
-        flashCRC = ESP.checkFlashCRC();
-        RINFO("checkFlashCRC: %s", flashCRC ? "true" : "false");
-        if (!flashCRC)
+        if (verify)
         {
-            eboot_command_clear();
-            RERROR("Flash CRC error after firmware upload. Aborting update, not rebooting");
-            server.send(400, "text/plain", "Flash CRC error after firmware upload, aborting.");
-            return;
+            RINFO("Verify complete, received firmware MD5: %s", Update.md5String().c_str());
+            server.client().setNoDelay(true);
+            server.send_P(200, type_txt, PSTR("Verify Success.\n"));
         }
-        server.send_P(200, type_txt, PSTR("Update Success! Rebooting...\n"));
-        delay(100);
+        else
+        {
+            RINFO("Received firmware MD5: %s", Update.md5String().c_str());
+            flashCRC = ESP.checkFlashCRC();
+            RINFO("checkFlashCRC: %s", flashCRC ? "true" : "false");
+            if (!flashCRC)
+            {
+                eboot_command_clear();
+                RERROR("Flash CRC error after firmware upload. Aborting update, not rebooting");
+                server.send(400, "text/plain", "Flash CRC error after firmware upload, aborting.");
+                return;
+            }
+        }
+    }
+    if (server.args() > 0)
+    {
+        // Don't reboot, user/client must explicity request reboot.
+        server.send_P(200, type_txt, PSTR("Upload Success.\n"));
+    }
+    else
+    {
+        // Legacy... no query string args, so automatically reboot...
+        server.send_P(200, type_txt, PSTR("Upload Success. Rebooting...\n"));
         server.stop();
-        //sync_and_restart();
+        sync_and_restart();
     }
 }
 
@@ -1071,6 +1086,10 @@ void handle_firmware_upload()
     static size_t uploadProgress;
     static unsigned int nextPrintPercent;
     HTTPUpload &upload = server.upload();
+    static bool verify = false;
+    static size_t size = 0;
+    static const char *md5 = NULL;
+
     if (upload.status == UPLOAD_FILE_START)
     {
         _updaterError.clear();
@@ -1082,16 +1101,41 @@ void handle_firmware_upload()
             return;
         }
         RINFO("Update: %s", upload.filename.c_str());
-        uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+        verify = !strcmp(server.arg("action").c_str(), "verify");
+        size = atoi(server.arg("size").c_str());
+        md5 = server.arg("md5").c_str();
+
+        if (verify)
+        {
+            // proceed only if MD5 passed in matches MD5 of previously uploaded firmware
+            if (strcmp(firmwareMD5, md5) || (size != firmwareSize))
+            {
+                RINFO("MD5 do not match, abort");
+                return;
+            }
+        }
+        else
+        {
+            // We are updating.  If size and MD5 provided, save them
+            if (size > 0)
+                firmwareSize = size;
+            if (strlen(md5) > 0)
+                strlcpy(firmwareMD5, md5, sizeof(firmwareMD5));
+        }
+
+        uint32_t maxSketchSpace = ESP.getFreeSketchSpace();
         struct eboot_command ebootCmd;
         RINFO("Available space for upload: %lu", maxSketchSpace);
+        RINFO("Firmware size: %s", (firmwareSize > 0) ? std::to_string(firmwareSize).c_str() : "Unknown");
         RINFO("Flash chip speed %d MHz", ESP.getFlashChipSpeed() / 1000000);
         flashCRC = ESP.checkFlashCRC();
         RINFO("checkFlashCRC: %s", flashCRC ? "true" : "false");
         eboot_command_read(&ebootCmd);
         RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[3], ebootCmd.args[4], ebootCmd.args[5]);
+
         // close HomeKit server so we don't have to handle HomeKit network traffic during update
         // arduino_homekit_close(); // Commented out because if we fail we don't reboot to restart the HomeKit server
+
         if (!Update.begin((firmwareSize > 0) ? firmwareSize : maxSketchSpace, U_FLASH))
         {
             _setUpdaterError();
@@ -1106,7 +1150,7 @@ void handle_firmware_upload()
             {
                 uploadProgress = 0;
                 nextPrintPercent = 10;
-                RINFO("Progress: 00%%");
+                RINFO("%s progress: 00%%", verify ? "Verify" : "Update");
             }
         }
     }
@@ -1121,9 +1165,8 @@ void handle_firmware_upload()
             if (uploadPercent >= nextPrintPercent)
             {
                 Serial.printf("\n"); // newline after the dot dot dots
-                RINFO("Progress: %i%%", uploadPercent);
-                if(firmwareUpdateSub)
-                    SSEheartbeat(firmwareUpdateSub); // keep SSE connection alive.
+                RINFO("%s progress: %i%%", verify ? "Verify" : "Update", uploadPercent);
+                SSEheartbeat(firmwareUpdateSub); // keep SSE connection alive.
                 nextPrintPercent += 10;
                 // Report percentage to browser client if it is listening
                 if (firmwareUpdateSub && firmwareUpdateSub->client.connected())
@@ -1136,9 +1179,15 @@ void handle_firmware_upload()
                 }
             }
         }
-        if (Update.write(upload.buf, upload.currentSize) != upload.currentSize)
+        if (verify)
         {
-            _setUpdaterError();
+            if (Update.rawVerify(upload.buf, upload.currentSize) != upload.currentSize)
+                _setUpdaterError();
+        }
+        else
+        {
+            if (Update.write(upload.buf, upload.currentSize) != upload.currentSize)
+                _setUpdaterError();
         }
     }
     else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_END && !_updaterError.length())
@@ -1146,10 +1195,17 @@ void handle_firmware_upload()
         Serial.printf("\n"); // newline after last of the dot dot dots
         if (Update.end(true))
         {
-            struct eboot_command ebootCmd;
-            RINFO("Upload size: %zu", upload.totalSize);
-            eboot_command_read(&ebootCmd);
-            RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[3], ebootCmd.args[4], ebootCmd.args[5]);
+            if (verify)
+            {
+                RINFO("Verify Success, size: %zu", upload.totalSize);
+            }
+            else
+            {
+                struct eboot_command ebootCmd;
+                RINFO("Upload size: %zu", upload.totalSize);
+                eboot_command_read(&ebootCmd);
+                RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[3], ebootCmd.args[4], ebootCmd.args[5]);
+            }
         }
         else
         {
@@ -1159,120 +1215,7 @@ void handle_firmware_upload()
     else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_ABORTED)
     {
         Update.end();
-        RINFO("Update was aborted");
-    }
-    esp_yield();
-}
-
-void handle_verify()
-{
-    server.sendHeader(F("Access-Control-Allow-Headers"), "*");
-    server.sendHeader(F("Access-Control-Allow-Origin"), "*");
-    if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
-    {
-        RINFO("In handle_update request authentication");
-        return server.requestAuthentication(DIGEST_AUTH, www_realm);
-    }
-
-    if (Update.hasError())
-    {
-        // Error logged in _setUpdaterError
-        server.send(400, "text/plain", _updaterError);
-    }
-    else
-    {
-        RINFO("verify complete, received firmware MD5: %s", Update.md5String().c_str());
-        server.client().setNoDelay(true);
-        server.send_P(200, type_txt, PSTR("Update Success! Rebooting...\n"));
-    }
-}
-
-void handle_firmware_verify()
-{
-    // handler for the file upload, gets the sketch bytes, and writes
-    // them through the Update object
-    static size_t uploadProgress;
-    static unsigned int nextPrintPercent;
-    HTTPUpload &upload = server.upload();
-    if (upload.status == UPLOAD_FILE_START)
-    {
-        _updaterError.clear();
-
-        RINFO("Update: %s", upload.filename.c_str());
-        if (upload.name == "filesystem")
-        {
-            RINFO("Update from filesystem not supported");
-        }
-        else
-        {
-            uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-            RINFO("Available space for upload: %lu", maxSketchSpace);
-            if (!Update.begin((firmwareSize > 0) ? firmwareSize : maxSketchSpace, U_FLASH))
-            {
-                _setUpdaterError();
-            }
-            else if (strlen(firmwareMD5) > 0)
-            {
-                // uncomment for testing...
-                // char firmwareMD5[] = "675cbfa11d83a792293fdc3beb199cXX";
-                RINFO("Set expected MD5 for uploaded firmware to: %s", firmwareMD5);
-                Update.setMD5(firmwareMD5);
-                if (firmwareSize > 0)
-                {
-                    uploadProgress = 0;
-                    nextPrintPercent = 10;
-                    RINFO("Progress: 00%%");
-                }
-            }
-        }
-    }
-    else if (upload.status == UPLOAD_FILE_WRITE && !_updaterError.length())
-    {
-        // Progress dot dot dot
-        Serial.printf(".");
-        if (firmwareSize > 0)
-        {
-            uploadProgress += upload.currentSize;
-            unsigned int uploadPercent = (uploadProgress * 100) / firmwareSize;
-            if (uploadPercent >= nextPrintPercent)
-            {
-                Serial.printf("\n"); // newline after the dot dot dots
-                RINFO("Progress: %i%%", uploadPercent);
-                if (firmwareUpdateSub)
-                    SSEheartbeat(firmwareUpdateSub); // keep SSE connection alive.
-                nextPrintPercent += 10;
-                // Report percentage to browser client if it is listening
-                if (firmwareUpdateSub && firmwareUpdateSub->client.connected())
-                {
-                    START_JSON(json);
-                    ADD_INT(json, "uploadPercent", uploadPercent);
-                    END_JSON(json);
-                    REMOVE_NL(json);
-                    firmwareUpdateSub->client.printf_P(PSTR("event: uploadStatus\ndata: %s\n\n"), json);
-                }
-            }
-        }
-        if (Update.rawVerify(upload.buf, upload.currentSize) != upload.currentSize)
-        {
-            _setUpdaterError();
-        }
-    }
-    else if (upload.status == UPLOAD_FILE_END && !_updaterError.length())
-    {
-        Serial.printf("\n"); // newline after last of the dot dot dots
-        if (Update.end(true))
-        { // true to set the size to the current progress
-            RINFO("Verify Success, size: %zu", upload.totalSize);
-        }
-        else
-        {
-            _setUpdaterError();
-        }
-    }
-    else if (upload.status == UPLOAD_FILE_ABORTED)
-    {
-        Update.end();
-        RINFO("Verify was aborted");
+        RINFO("%s was aborted", verify ? "Verify" : "Update");
     }
     esp_yield();
 }
