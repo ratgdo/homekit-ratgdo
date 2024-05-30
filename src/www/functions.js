@@ -369,22 +369,37 @@ async function firmwareUpdate(github = true) {
         // Upload the file
         const formData = new FormData();
         formData.append("content", new Blob([bin]));
-        const response = await fetch("update", {
+        var response = await fetch(`update?action=update&size=${bin.byteLength}&md5=${binMD5}`, {
             method: "POST",
             body: formData,
         });
         showRebootMsg = true;
-        if (response.status == 200) {
-            console.log("Firmware upload complete");
-            rebootMsg = "Update complete...";
-        } else {
+        if (response.status !== 200) {
             rebootMsg = await response.text();
-            console.error(`Firmware update error: ${rebootMsg}`);
-            showRebootMsg = false;
-            alert(`ERROR: ${rebootMsg}`);
-            location.href = "/";
+            console.error(`Firmware upload error: ${rebootMsg}`);
+            //showRebootMsg = false;
+            //alert(`ERROR: ${rebootMsg}`);
+            //location.href = "/";
             return;
         }
+        console.log("Firmware upload complete, now verify...");
+        response = await fetch(`update?action=verify&size=${bin.byteLength}&md5=${binMD5}`, {
+            method: "POST",
+            body: formData,
+        });
+        if (response.status !== 200) {
+            rebootMsg = await response.text();
+            console.error(`Firmware verify error: ${rebootMsg}`);
+            return;
+        }
+        response = await fetch("reboot", {
+            method: "POST",
+        });
+        if (response.status !== 200) {
+            console.warn("Error attempting to reboot RATGDO");
+            return;
+        }
+        rebootMsg = "Update complete...";
     }
     finally {
         clearInterval(aniDots);
