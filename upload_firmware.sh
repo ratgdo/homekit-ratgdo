@@ -16,9 +16,12 @@ if [ -z "${MD5}" ]; then
 fi
 echo "Calculated MD5 hash for file ${FILE}: ${MD5}, Size: ${SIZE} bytes"
 JSON="{\"md5\":\"${MD5}\",\"size\":${SIZE},\"uuid\":\"n/a\"}"
-echo "Inform host of file size and MD5 hash..."
-curl -s -X POST -F "updateUnderway=${JSON}" "http://${IP}/setgdo" > /dev/null
+#echo "Inform host of file size and MD5 hash..."
+#curl -s -X POST -F "updateUnderway=${JSON}" "http://${IP}/setgdo" > /dev/null
 echo "Uploading file..."
-curl -s -F "content=@${FILE}" "http://${IP}/update"
-echo "Upload complete"
+curl -s -F "content=@${FILE}" "http://${IP}/update?action=update&size=${SIZE}&md5=${MD5}"
+echo "Upload complete, verifying... "
+curl -s -F "content=@${FILE}" "http://${IP}/update?action=verify&size=${SIZE}&md5=${MD5}"
+echo "Reboot RATGDO..."
+curl -s -X POST "http://${IP}/reboot"
 exit 0
