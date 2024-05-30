@@ -16,9 +16,10 @@ if [ -z "${MD5}" ]; then
 fi
 echo "Calculated MD5 hash for file ${FILE}: ${MD5}, Size: ${SIZE} bytes"
 JSON="{\"md5\":\"${MD5}\",\"size\":${SIZE},\"uuid\":\"n/a\"}"
-echo "Inform host of file size and MD5 hash..."
-curl -s -X POST -F "updateUnderway=${JSON}" "http://${IP}/setgdo" > /dev/null
+#echo "Inform host of file size and MD5 hash..."
+#curl -s -X POST -F "updateUnderway=${JSON}" "http://${IP}/setgdo" > /dev/null
 echo "Verifying file..."
-curl -s -F "content=@${FILE}" "http://${IP}/verify"
+#curl -s -F "content=@${FILE}" "http://${IP}/verify"
+curl -s -F "content=@${FILE}" "http://${IP}/update?action=verify&size=${SIZE}&md5=${MD5}"
 echo "Verify complete"
 exit 0
