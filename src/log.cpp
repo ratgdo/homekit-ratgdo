@@ -83,6 +83,7 @@ void logToBuffer_P(const char *fmt, ...)
     SSEBroadcastState(lineBuffer, LOG_MESSAGE);
 }
 
+#ifdef ENABLE_CRASH_LOG
 void crashCallback()
 {
     if (msgBuffer && logMessageFile)
@@ -98,6 +99,7 @@ void crashCallback()
     // We may not have enough memory to open the file and save the code
     // save_rolling_code();
 }
+#endif
 
 void printSavedLog(File file, Print &outputDev)
 {

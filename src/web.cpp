@@ -21,7 +21,9 @@
 #include "web.h"
 #include "utilities.h"
 
+#ifdef ENABLE_CRASH_LOG
 #include "EspSaveCrash.h"
+#endif
 #include <arduino_homekit_server.h>
 #include <ESP8266WebServer.h>
 #include <Ticker.h>
@@ -32,11 +34,14 @@
 #include <umm_malloc/umm_heap_select.h>
 #endif
 
+#ifdef ENABLE_CRASH_LOG
 #ifdef LOG_MSG_BUFFER
 EspSaveCrash saveCrash(1408, 1024, true, &crashCallback);
 #else
 EspSaveCrash saveCrash(1408, 1024, true);
 #endif
+#endif
+
 ESP8266WebServer server(80);
 
 // Forward declare the internal URI handling functions...
@@ -48,10 +53,12 @@ void handle_setgdo();
 void handle_logout();
 void handle_auth();
 void handle_subscribe();
-void handle_crashlog();
 void handle_showlog();
 void handle_showrebootlog();
+#ifdef ENABLE_CRASH_LOG
+void handle_crashlog();
 void handle_clearcrashlog();
+#endif
 #ifdef CRASH_DEBUG
 void handle_forcecrash();
 void handle_crash_oom();
@@ -73,10 +80,12 @@ const BuiltInUriMap builtInUri = {
     {"/setgdo", {HTTP_POST, handle_setgdo}},
     {"/logout", {HTTP_GET, handle_logout}},
     {"/auth", {HTTP_GET, handle_auth}},
-    {"/crashlog", {HTTP_GET, handle_crashlog}},
     {"/showlog", {HTTP_GET, handle_showlog}},
     {"/showrebootlog", {HTTP_GET, handle_showrebootlog}},
+#ifdef ENABLE_CRASH_LOG
+    {"/crashlog", {HTTP_GET, handle_crashlog}},
     {"/clearcrashlog", {HTTP_GET, handle_clearcrashlog}},
+#endif
 #ifdef CRASH_DEBUG
     {"/forcecrash", {HTTP_POST, handle_forcecrash}},
     {"/crashoom", {HTTP_POST, handle_crash_oom}},
@@ -302,12 +311,14 @@ void setup_web()
     lastDoorUpdateAt = 0;
     lastDoorState = (GarageDoorCurrentState)0xff;
 
+#ifdef ENABLE_CRASH_LOG
     crashCount = saveCrash.count();
     if (crashCount == 255)
     {
         saveCrash.clear();
         crashCount = 0;
     }
+#endif
     rebootSeconds = read_int_from_file(system_reboot_timer, REBOOT_SECONDS);
     if (rebootSeconds > 0)
     {
@@ -918,6 +929,7 @@ void handle_subscribe()
     server.send_P(200, type_txt, SSEurl.c_str());
 }
 
+#ifdef ENABLE_CRASH_LOG
 void handle_crashlog()
 {
     RINFO("Request to display crash log...");
@@ -930,6 +942,7 @@ void handle_crashlog()
 #endif
     client.stop();
 }
+#endif
 
 void handle_showlog()
 {
@@ -953,6 +966,8 @@ void handle_showrebootlog()
     client.stop();
 }
 
+
+#ifdef ENABLE_CRASH_LOG
 void handle_clearcrashlog()
 {
     if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
@@ -964,6 +979,7 @@ void handle_clearcrashlog()
     crashCount = 0;
     server.send_P(200, type_txt, PSTR("Crash log cleared\n"));
 }
+#endif
 
 #ifdef CRASH_DEBUG
 void handle_crash_oom()
