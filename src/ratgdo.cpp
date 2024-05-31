@@ -17,22 +17,26 @@ void service_timer_loop();
 
 /********************************* RUNTIME STORAGE *****************************************/
 
-struct obstruction_sensor_t {
-    unsigned int low_count = 0;        // count obstruction low pulses
+struct obstruction_sensor_t
+{
+    unsigned int low_count = 0; // count obstruction low pulses
     bool detected = false;
-    unsigned long last_high = 0;       // count time between high pulses from the obst ISR
+    unsigned long last_high = 0; // count time between high pulses from the obst ISR
 } obstruction_sensor;
 
-
-long unsigned int led_on_time = 0;     // Stores time when LED should turn back on
+long unsigned int led_on_time = 0; // Stores time when LED should turn back on
 
 extern bool flashCRC;
 
 struct GarageDoor garage_door;
 
+extern "C" uint32_t __crc_len;
+extern "C" uint32_t __crc_val;
+
 /********************************** MAIN LOOP CODE *****************************************/
 
-void setup() {
+void setup()
+{
     disable_extra4k_at_link_time();
     flashCRC = ESP.checkFlashCRC();
     Serial.begin(115200);
@@ -43,7 +47,12 @@ void setup() {
     RINFO("%s", ESP.getFullVersion().c_str());
     RINFO("Flash chip size 0x%X", ESP.getFlashChipSize());
     RINFO("Flash chip mode 0x%X", ESP.getFlashChipMode());
-    RINFO("Flash chip speed 0x%X (%d MHz)", ESP.getFlashChipSpeed(), ESP.getFlashChipSpeed()/1000000);
+    RINFO("Flash chip speed 0x%X (%d MHz)", ESP.getFlashChipSpeed(), ESP.getFlashChipSpeed() / 1000000);
+    // CRC checking starts at memory location 0x40200000, and proceeds until the address of __crc_len and __crc_val...
+    // For CRC calculation purposes, those two long (32 bit) values are assumed to be zero.
+    // The CRC calculation then proceeds until it get to 0x4020000 plus __crc_len.
+    // Any memory writes/corruption within these blocks will cause checkFlashCRC() to fail.
+    RINFO("Firmware CRC value: 0x%08X, CRC length: 0x%X (%d), Memory address of __crc_len,__crc_val: 0x%08X,0x%08X", __crc_val, __crc_len, __crc_len, &__crc_len, &__crc_val);
     if (flashCRC)
     {
         RINFO("checkFlashCRC: true");
@@ -66,7 +75,8 @@ void setup() {
     RINFO("RATGDO setup completed");
 }
 
-void loop() {
+void loop()
+{
 
     improv_loop();
     comms_loop();
@@ -77,10 +87,12 @@ void loop() {
 
 /*********************************** HELPER FUNCTIONS **************************************/
 
-void setup_pins() {
+void setup_pins()
+{
     RINFO("Setting up pins");
 
-    if (UART_TX_PIN != LED_BUILTIN) {
+    if (UART_TX_PIN != LED_BUILTIN)
+    {
         RINFO("enabling built-in LED");
         pinMode(LED_BUILTIN, OUTPUT);
         digitalWrite(LED_BUILTIN, LOW);
@@ -111,16 +123,21 @@ void setup_pins() {
 /*********************************** MODEL **************************************/
 
 /*************************** OBSTRUCTION DETECTION ***************************/
-void IRAM_ATTR isr_obstruction() {
-    if (digitalRead(INPUT_OBST_PIN)) {
+void IRAM_ATTR isr_obstruction()
+{
+    if (digitalRead(INPUT_OBST_PIN))
+    {
         obstruction_sensor.last_high = millis();
-    } else {
+    }
+    else
+    {
         obstruction_sensor.detected = true;
         obstruction_sensor.low_count++;
     }
 }
 
-void obstruction_timer() {
+void obstruction_timer()
+{
     if (!obstruction_sensor.detected)
         return;
     unsigned long current_millis = millis();
@@ -133,27 +150,34 @@ void obstruction_timer() {
     // If at least 3 low pulses are counted within 50ms, the door is awake, not obstructed and we don't have to check anything else
 
     // Every 50ms
-    if (current_millis - last_millis > 50) {
+    if (current_millis - last_millis > 50)
+    {
         // check to see if we got between 3 and 8 low pulses on the line
-        if (obstruction_sensor.low_count >= 3 && obstruction_sensor.low_count <= 8) {
+        if (obstruction_sensor.low_count >= 3 && obstruction_sensor.low_count <= 8)
+        {
             // Only update if we are changing state
-            if (garage_door.obstructed) {
+            if (garage_door.obstructed)
+            {
                 RINFO("Obstruction Clear");
                 garage_door.obstructed = false;
                 notify_homekit_obstruction();
-                digitalWrite(STATUS_OBST_PIN,garage_door.obstructed);
+                digitalWrite(STATUS_OBST_PIN, garage_door.obstructed);
             }
 
             // if there have been no pulses the line is steady high or low
-        } else if (obstruction_sensor.low_count == 0) {
+        }
+        else if (obstruction_sensor.low_count == 0)
+        {
             // if the line is high and the last high pulse was more than 70ms ago, then there is an obstruction present
-            if (digitalRead(INPUT_OBST_PIN) && current_millis - obstruction_sensor.last_high > 70) {
+            if (digitalRead(INPUT_OBST_PIN) && current_millis - obstruction_sensor.last_high > 70)
+            {
                 // Only update if we are changing state
-                if (!garage_door.obstructed) {
+                if (!garage_door.obstructed)
+                {
                     RINFO("Obstruction Detected");
                     garage_door.obstructed = true;
                     notify_homekit_obstruction();
-                    digitalWrite(STATUS_OBST_PIN,garage_door.obstructed);
+                    digitalWrite(STATUS_OBST_PIN, garage_door.obstructed);
                 }
             }
         }
@@ -163,19 +187,22 @@ void obstruction_timer() {
     }
 }
 
-void service_timer_loop() {
+void service_timer_loop()
+{
     // Service the Obstruction Timer
     obstruction_timer();
 
     unsigned long current_millis = millis();
 
     // LED Timer
-    if (digitalRead(LED_BUILTIN) && (current_millis > led_on_time)) {
+    if (digitalRead(LED_BUILTIN) && (current_millis > led_on_time))
+    {
         digitalWrite(LED_BUILTIN, LOW);
     }
 
     // Motion Clear Timer
-    if (garage_door.motion && (current_millis > garage_door.motion_timer)) {
+    if (garage_door.motion && (current_millis > garage_door.motion_timer))
+    {
         RINFO("Motion Cleared");
         garage_door.motion = false;
         notify_homekit_motion();
