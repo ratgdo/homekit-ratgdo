@@ -95,7 +95,7 @@ function setElementsFromStatus(status) {
                 break;
             case "checkFlashCRC":
                 if (!value) {
-                    console.warn("WARNING: Server checkFlashCRC() failed, consider flashing new firmware");
+                    console.warn("WARNING: Server checkFlashCRC() failed. Flash new firmware to recover.");
                     document.getElementById("checkFlashCRC").style.display = "initial";
                 }
                 break;
