@@ -1201,7 +1201,8 @@ void handle_firmware_upload()
     else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_END && !_updaterError.length())
     {
         Serial.printf("\n"); // newline after last of the dot dot dots
-        if (Update.end(true))
+        // Only update the ebcmd on after a good verify cycle
+        if (Update.end(true, verify))
         {
             if (verify)
             {
