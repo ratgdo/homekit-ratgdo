@@ -1070,15 +1070,6 @@ void handle_update()
         else
         {
             RINFO("Received firmware MD5: %s", Update.md5String().c_str());
-            flashCRC = ESP.checkFlashCRC();
-            RINFO("checkFlashCRC: %s", flashCRC ? "true" : "false");
-            if (!flashCRC)
-            {
-                eboot_command_clear();
-                RERROR("Flash CRC error after firmware upload. Aborting update, not rebooting");
-                server.send(400, "text/plain", "Flash CRC error after firmware upload, aborting.");
-                return;
-            }
         }
     }
     if (server.args() > 0)
