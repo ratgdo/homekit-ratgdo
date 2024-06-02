@@ -28,6 +28,7 @@
 #include <ESP8266WebServer.h>
 #include <Ticker.h>
 #include <eboot_command.h>
+#include <MD5Builder.h>
 
 #if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
 #include <umm_malloc/umm_malloc.h>
@@ -379,6 +380,7 @@ void handle_reset()
     }
     RINFO("... reset requested");
     homekit_storage_reset();
+    server.client().setNoDelay(true);
     server.send_P(200, type_txt, PSTR("Device has been un-paired from HomeKit. Rebooting...\n"));
     server.stop();
     sync_and_restart();
@@ -388,6 +390,7 @@ void handle_reset()
 void handle_reboot()
 {
     RINFO("... reboot requested");
+    server.client().setNoDelay(true);
     server.send_P(200, type_txt, PSTR("Rebooting...\n"));
     server.stop();
     sync_and_restart();
@@ -398,6 +401,7 @@ void handle_checkflash()
 {
     flashCRC = ESP.checkFlashCRC();
     RINFO("checkFlashCRC: %s", flashCRC ? "true" : "false");
+    server.client().setNoDelay(true);
     server.send_P(200, type_txt, flashCRC ? "true\n" : "false\n");
     return;
 }
@@ -1049,6 +1053,25 @@ void _setUpdaterError()
     RINFO("Update error: %s", str.c_str());
 }
 
+bool check_flash_md5(uint32_t size, const char *expectedMD5)
+{
+    MD5Builder md5 = MD5Builder();
+    uint8_t buffer[128];
+    uint32_t pos = 0;
+
+    md5.begin();
+    while (pos < size)
+    {
+        size_t read_size = ((size - pos) > sizeof(buffer)) ? sizeof(buffer) : size - pos;
+        ESP.flashRead(pos, buffer, read_size);
+        md5.add(buffer, read_size);
+        pos += sizeof(buffer);
+    }
+    md5.calculate();
+    RINFO("Flash MD5: %s", md5.toString().c_str());
+    return strcmp(md5.toString().c_str(), expectedMD5);
+}
+
 void handle_update()
 {
     bool verify = !strcmp(server.arg("action").c_str(), "verify");
@@ -1061,7 +1084,8 @@ void handle_update()
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
     }
 
-    if (Update.hasError())
+    server.client().setNoDelay(true);
+    if (!verify && Update.hasError())
     {
         // Error logged in _setUpdaterError
         eboot_command_clear();
@@ -1071,17 +1095,17 @@ void handle_update()
     }
     else
     {
-        if (verify)
+        RINFO("Received MD5: %s", Update.md5String().c_str());
+        if (check_flash_md5(firmwareSize, firmwareMD5) != 0)
         {
-            RINFO("Verify complete, received firmware MD5: %s", Update.md5String().c_str());
-            server.client().setNoDelay(true);
-            server.send_P(200, type_txt, PSTR("Verify Success.\n"));
-        }
-        else
-        {
-            RINFO("Received firmware MD5: %s", Update.md5String().c_str());
+            // MD5 of flash does not match expected MD5
+            eboot_command_clear();
+            RERROR("Flash MD5 does not match expected MD5. Aborting update, not rebooting");
+            server.send(400, "text/plain", "Flash MD5 does not match expected MD5.");
+            return;
         }
     }
+
     if (server.args() > 0)
     {
         // Don't reboot, user/client must explicity request reboot.
@@ -1128,12 +1152,12 @@ void handle_firmware_upload()
             strlcpy(firmwareMD5, md5, sizeof(firmwareMD5));
 
         uint32_t maxSketchSpace = ESP.getFreeSketchSpace();
-        struct eboot_command ebootCmd;
         RINFO("Available space for upload: %lu", maxSketchSpace);
         RINFO("Firmware size: %s", (firmwareSize > 0) ? std::to_string(firmwareSize).c_str() : "Unknown");
         RINFO("Flash chip speed %d MHz", ESP.getFlashChipSpeed() / 1000000);
-        eboot_command_read(&ebootCmd);
-        RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X (%d)]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[2]);
+        // struct eboot_command ebootCmd;
+        // eboot_command_read(&ebootCmd);
+        // RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X (%d)]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[2]);
         if (!verify)
         {
             // Close HomeKit server so we don't have to handle HomeKit network traffic during update
@@ -1141,8 +1165,7 @@ void handle_firmware_upload()
             // just want to verify without disrupting operation of the HomeKit service.
             arduino_homekit_close();
         }
-
-        if (!Update.begin((firmwareSize > 0) ? firmwareSize : maxSketchSpace, U_FLASH))
+        if (!verify && !Update.begin((firmwareSize > 0) ? firmwareSize : maxSketchSpace, U_FLASH))
         {
             _setUpdaterError();
         }
@@ -1150,7 +1173,7 @@ void handle_firmware_upload()
         {
             // uncomment for testing...
             // char firmwareMD5[] = "675cbfa11d83a792293fdc3beb199cXX";
-            RINFO("Set expected MD5 for uploaded firmware to: %s", firmwareMD5);
+            RINFO("Expected MD5: %s", firmwareMD5);
             Update.setMD5(firmwareMD5);
             if (firmwareSize > 0)
             {
@@ -1185,13 +1208,9 @@ void handle_firmware_upload()
                 }
             }
         }
-        if (verify)
+        if (!verify)
         {
-            if (Update.rawVerify(upload.buf, upload.currentSize) != upload.currentSize)
-                _setUpdaterError();
-        }
-        else
-        {
+            // Don't write if verifying... we will just check MD5 of the flash at the end.
             if (Update.write(upload.buf, upload.currentSize) != upload.currentSize)
                 _setUpdaterError();
         }
@@ -1199,29 +1218,25 @@ void handle_firmware_upload()
     else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_END && !_updaterError.length())
     {
         Serial.printf("\n"); // newline after last of the dot dot dots
-        // Only update the ebcmd on after a good verify cycle
-        if (Update.end(true, verify))
+        if (!verify)
         {
-            if (verify)
+            if (Update.end(true))
             {
-                RINFO("Verify Success, size: %zu", upload.totalSize);
+                RINFO("Upload size: %zu", upload.totalSize);
+                // struct eboot_command ebootCmd;
+                // eboot_command_read(&ebootCmd);
+                // RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X (%d)]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[2]);
             }
             else
             {
-                struct eboot_command ebootCmd;
-                RINFO("Upload size: %zu", upload.totalSize);
-                eboot_command_read(&ebootCmd);
-                RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X (%d)]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[2]);
+                _setUpdaterError();
             }
-        }
-        else
-        {
-            _setUpdaterError();
         }
     }
     else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_ABORTED)
     {
-        Update.end();
+        if (!verify)
+            Update.end();
         RINFO("%s was aborted", verify ? "Verify" : "Update");
     }
     esp_yield();
