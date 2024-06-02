@@ -65,6 +65,7 @@ void handle_crash_oom();
 void *crashptr;
 char *test_str = NULL;
 #endif
+void handle_checkflash();
 void handle_update();
 void handle_firmware_upload();
 void SSEHandler(uint8_t);
@@ -82,6 +83,7 @@ const BuiltInUriMap builtInUri = {
     {"/auth", {HTTP_GET, handle_auth}},
     {"/showlog", {HTTP_GET, handle_showlog}},
     {"/showrebootlog", {HTTP_GET, handle_showrebootlog}},
+    {"/checkflash", {HTTP_GET, handle_checkflash}},
 #ifdef ENABLE_CRASH_LOG
     {"/crashlog", {HTTP_GET, handle_crashlog}},
     {"/clearcrashlog", {HTTP_GET, handle_clearcrashlog}},
@@ -392,6 +394,14 @@ void handle_reboot()
     return;
 }
 
+void handle_checkflash()
+{
+    flashCRC = ESP.checkFlashCRC();
+    RINFO("checkFlashCRC: %s", flashCRC ? "true" : "false");
+    server.send_P(200, type_txt, flashCRC ? "true\n" : "false\n");
+    return;
+}
+
 void load_page(const char *page)
 {
     if (webcontent.count(page) == 0)
@@ -522,8 +532,6 @@ void handle_status()
 #define macAddress WiFi.macAddress().c_str()
 #define wifiSSID WiFi.SSID().c_str()
 #define GDOSecurityType std::to_string(gdoSecurityType).c_str()
-    flashCRC = ESP.checkFlashCRC();
-    RINFO("checkFlashCRC: %s", flashCRC ? "true" : "false");
     // Build the JSON string
     START_JSON(json);
     ADD_INT(json, "upTime", upTime);
@@ -1124,8 +1132,6 @@ void handle_firmware_upload()
         RINFO("Available space for upload: %lu", maxSketchSpace);
         RINFO("Firmware size: %s", (firmwareSize > 0) ? std::to_string(firmwareSize).c_str() : "Unknown");
         RINFO("Flash chip speed %d MHz", ESP.getFlashChipSpeed() / 1000000);
-        flashCRC = ESP.checkFlashCRC();
-        RINFO("checkFlashCRC: %s", flashCRC ? "true" : "false");
         eboot_command_read(&ebootCmd);
         RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X (%d)]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[2]);
         if (!verify)
