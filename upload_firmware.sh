@@ -18,6 +18,12 @@ echo "Calculated MD5 hash for file ${FILE}: ${MD5}, Size: ${SIZE} bytes"
 JSON="{\"md5\":\"${MD5}\",\"size\":${SIZE},\"uuid\":\"n/a\"}"
 #echo "Inform host of file size and MD5 hash..."
 #curl -s -X POST -F "updateUnderway=${JSON}" "http://${IP}/setgdo" > /dev/null
+echo "Checking RATGGO flash CRC..."
+RESPONSE=$(curl -s "http://${IP}/checkflash")
+if [ "${RESPONSE}" != "true" ]; then
+    echo "checkFlashCRC failed on server ${IP}. You must flash new firmware by USB cable to recover. See documentation."
+    exit 1
+fi
 echo "Uploading file..."
 RESPONSE=$(curl -s -w ">>>>>%{http_code}" -F "content=@${FILE}" "http://${IP}/update?action=update&size=${SIZE}&md5=${MD5}")
 BODY=$(echo ${RESPONSE} | awk -F'>>>>>' '{print $1}')

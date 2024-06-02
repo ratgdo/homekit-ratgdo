@@ -96,9 +96,8 @@
         </div>
         <div class="fullwidth" style="padding: 0px;">
           <div class="serverstatus" style="padding: 0px; padding-bottom: 5px;">
-            <input type="button" value="Reboot RATGDO"
-              onclick="return confirm('Reboot RATGDO, are you sure?') && rebootRATGDO()">
-            <input type="button" value="Firmware Update" onclick="modal.style.display = 'block'">
+            <input type="button" value="Reboot RATGDO" onclick="rebootRATGDO(true)">
+            <input type="button" value="Firmware Update" onclick="showUpdateDialog()">
           </div>
           <div class="qrcode center">
             <input type="button" id="unpair" value="Reset HomeKit"
@@ -298,7 +297,7 @@
         </p>
         <p style="margin:0px; color:red;">
           <span id="checkFlashCRC" style="display:none;">
-            checkFlashCRC() failed. Flash new firmware to recover.
+            checkFlashCRC() failed. Flash new firmware by USB cable to recover.
           </span>
         </p>
       </div>
@@ -311,6 +310,7 @@
       <span id="modalClose" class="close" onclick="modal.style.display = 'none'">&times;</span>
       <span id="modalTitle">Installed Firmware:&nbsp;<span id="firmwareVersion2">xxx</span><br></span><br>
       <div id="updateDialog" style="float: none; padding:0px">
+        <span id="modalFlashCRC" style="font-size: 0.8em; display: block">xxx</span><br>
         <fieldset>
           <legend>Update from GitHub</legend>
           <table>
@@ -340,6 +340,14 @@
       </div>
     </div>
   </div>
+
+  <!-- Simple please wait dialog --------------------------------------------------------------->
+  <div id="pleaseWait" class="modal">
+    <div class="modal-content">
+      Checking flash CRC. please wait...
+    </div>
+  </div>
+
   <!-- Initialization scripts ------------------------------------------------------------------>
   <script>
     console.log('Client UUID: ' + clientUUID);

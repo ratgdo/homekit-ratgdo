@@ -95,7 +95,7 @@ function setElementsFromStatus(status) {
                 break;
             case "checkFlashCRC":
                 if (!value) {
-                    console.warn("WARNING: Server checkFlashCRC() failed. Flash new firmware to recover.");
+                    console.warn("WARNING: Server checkFlashCRC() failed. Flash new firmware by USB cable to recover.");
                     document.getElementById("checkFlashCRC").style.display = "initial";
                 }
                 break;
@@ -280,6 +280,25 @@ function countdown(secs, msg) {
     }, 1000);
 }
 
+async function showUpdateDialog() {
+    const modalFlashCRC = document.getElementById("modalFlashCRC");
+    modalFlashCRC.innerHTML = "Checking Flash CRC..."
+    modalFlashCRC.style.color = '';
+    document.getElementById("myModal").style.display = 'block';
+    const response = await fetch("checkflash", {
+        method: "GET",
+        cache: "no-cache"
+    });
+    const result = (await response.text()).trim().toLowerCase();
+    if (result === 'true') {
+        modalFlashCRC.style.color = '';
+        modalFlashCRC.innerHTML = "Flash CRC okay.";
+    } else {
+        modalFlashCRC.style.color = 'red';
+        modalFlashCRC.innerHTML = "WARNING: Flash CRC check failed. You must flash new firmware by USB cable to recover, please consult <a href='https://github.com/ratgdo/homekit-ratgdo?tab=readme-ov-file#flash-crc-errors' style='color:red'>documentation.</a> RATGDO device may not restart if you reboot now.";
+    }
+}
+
 // Handles request to update server firmware from either GitHub (default) or from
 // a user provided file.
 async function firmwareUpdate(github = true) {
@@ -424,6 +443,20 @@ async function firmwareUpdate(github = true) {
 }
 
 async function rebootRATGDO(dialog = true) {
+    if (dialog) {
+        document.getElementById("pleaseWait").style.display = "block";
+        const response = await fetch("checkflash", {
+            method: "GET",
+            cache: "no-cache"
+        });
+        const result = (await response.text()).trim().toLowerCase();
+        document.getElementById("pleaseWait").style.display = "none";
+        let txt = "Reboot RATGDO, are you sure?";
+        if (result !== 'true') {
+            txt = "WARNING: Flash CRC check failed. You must flash new firmware by USB cable to recover, please consult documentation. RATGDO device may not restart if you reboot now. Reboot anyway?";
+        }
+        if (!confirm(txt)) return;
+    }
     var response = await fetch("reboot", {
         method: "POST",
     });

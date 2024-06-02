@@ -145,6 +145,13 @@ Over-the-Air (OTA) updates are supported, either directly from GitHub or by sele
 
 Automatic updates are not supported (and probably will never be), so set a reminder to check back again in the future.
 
+## Flash CRC Errors
+
+When displaying the Firmware Update dialog, or requesting a reboot, the integrity of the RATGDO device is checked by running a CRC check on the flash memory. If an error is detected
+then it is highly likely that a reboot will fail and you will only be able to recover by flashing new firmware using a USB cable.
+
+MORE DOCUMENTATION TO BE ADDED
+
 ## Command Line Interface
 
 It is possibile to query status, monitor and reboot/reset the ratgdo device from a command line.  The following have been tested on Ubuntu Linux and Apple macOS.
