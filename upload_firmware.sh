@@ -30,16 +30,9 @@ BODY=$(echo ${RESPONSE} | awk -F'>>>>>' '{print $1}')
 RC=$(echo ${RESPONSE} | awk -F'>>>>>' '{print $2}')
 echo ${BODY}
 if [ "${RC}" = "200" ]; then
-    echo "Upload complete, verifying... "
-    RESPONSE=$(curl -s -w ">>>>>%{http_code}" -F "content=@${FILE}" "http://${IP}/update?action=verify&size=${SIZE}&md5=${MD5}")
-    BODY=$(echo ${RESPONSE} | awk -F'>>>>>' '{print $1}')
-    RC=$(echo ${RESPONSE} | awk -F'>>>>>' '{print $2}')
-    echo ${BODY}
-    if [ "${RC}" = "200" ]; then
-        echo "Success, reboot RATGDO, please allow 30 seconds to complete..."
-        curl -s -X POST "http://${IP}/reboot"
-        exit 0
-    fi
+    echo "Success, reboot RATGDO, please allow 30 seconds to complete..."
+    curl -s -X POST "http://${IP}/reboot"
+    exit 0
 fi
 echo "Upload failure, RATGDO device NOT rebooted..."
 echo "To reboot device issue command: curl -s -X POST http://${IP}/reboot"

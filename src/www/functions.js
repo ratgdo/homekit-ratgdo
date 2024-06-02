@@ -291,7 +291,7 @@ async function showUpdateDialog() {
     });
     const result = (await response.text()).trim().toLowerCase();
     if (result === 'true') {
-        modalFlashCRC.style.color = '';
+        modalFlashCRC.style.color = 'green';
         modalFlashCRC.innerHTML = "Flash CRC okay.";
     } else {
         modalFlashCRC.style.color = 'red';
@@ -399,8 +399,8 @@ async function firmwareUpdate(github = true) {
         if (response.status !== 200) {
             rebootMsg = await response.text();
             console.error(`Firmware upload error: ${rebootMsg}`);
-            if (confirm(`Firmware upload error: ${rebootMsg}\nExisting firmware not replaced. Proceed to reboot device?\nNOTE: Reboot is required to re-enable HomeKit services.`)) {
-                await rebootRATGDO(false);
+            if (confirm(`Firmware upload error: ${rebootMsg} Existing firmware not replaced. Proceed to reboot device? NOTE: Reboot is required to re-enable HomeKit services.`)) {
+                rebootRATGDO(false);
             }
             else {
                 showRebootMsg = false;
@@ -408,6 +408,7 @@ async function firmwareUpdate(github = true) {
             }
             return;
         }
+        /*
         console.log("Firmware upload complete, now verify...");
         spanPercent.innerHTML = '00%&nbsp';
         document.getElementById("updateMsg").innerHTML = "Do not close browser until update completes. Device will reboot when complete.<br><br>Verifying... ";
@@ -419,7 +420,7 @@ async function firmwareUpdate(github = true) {
             rebootMsg = await response.text();
             console.error(`Upload verification error: ${rebootMsg}`);
             if (confirm(`Upload verification error: ${rebootMsg}\nExisting firmware not replaced. Proceed to reboot device?\nNOTE: Reboot is required to re-enable HomeKit services.`)) {
-                await rebootRATGDO(false);
+                rebootRATGDO(false);
             }
             else {
                 showRebootMsg = false;
@@ -427,8 +428,9 @@ async function firmwareUpdate(github = true) {
             }
             return;
         }
+        */
         // Upload and verify suceeded, so reboot...
-        await rebootRATGDO(false);
+        rebootRATGDO(false);
         rebootMsg = "Update complete...";
     }
     finally {
