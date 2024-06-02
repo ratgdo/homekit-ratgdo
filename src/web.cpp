@@ -522,6 +522,8 @@ void handle_status()
 #define macAddress WiFi.macAddress().c_str()
 #define wifiSSID WiFi.SSID().c_str()
 #define GDOSecurityType std::to_string(gdoSecurityType).c_str()
+    flashCRC = ESP.checkFlashCRC();
+    RINFO("checkFlashCRC: %s", flashCRC ? "true" : "false");
     // Build the JSON string
     START_JSON(json);
     ADD_INT(json, "upTime", upTime);
@@ -801,6 +803,7 @@ void SSEheartbeat(SSESubscription *s)
         ADD_INT(json, "freeHeap", free_heap);
         ADD_INT(json, "minHeap", min_heap);
         ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm").c_str());
+        ADD_BOOL(json, "checkFlashCRC", flashCRC);
         END_JSON(json);
         REMOVE_NL(json);
         s->client.printf("event: message\nretry: 15000\ndata: %s\n\n", json);
@@ -966,7 +969,6 @@ void handle_showrebootlog()
     client.stop();
 }
 
-
 #ifdef ENABLE_CRASH_LOG
 void handle_clearcrashlog()
 {
@@ -1125,8 +1127,7 @@ void handle_firmware_upload()
         flashCRC = ESP.checkFlashCRC();
         RINFO("checkFlashCRC: %s", flashCRC ? "true" : "false");
         eboot_command_read(&ebootCmd);
-        RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[3], ebootCmd.args[4], ebootCmd.args[5]);
-
+        RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X (%d)]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[2]);
         if (!verify)
         {
             // Close HomeKit server so we don't have to handle HomeKit network traffic during update
@@ -1204,7 +1205,7 @@ void handle_firmware_upload()
                 struct eboot_command ebootCmd;
                 RINFO("Upload size: %zu", upload.totalSize);
                 eboot_command_read(&ebootCmd);
-                RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[3], ebootCmd.args[4], ebootCmd.args[5]);
+                RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X (%d)]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[2]);
             }
         }
         else
