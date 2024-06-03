@@ -1053,7 +1053,7 @@ void _setUpdaterError()
     RINFO("Update error: %s", str.c_str());
 }
 
-bool check_flash_md5(uint32_t size, const char *expectedMD5)
+bool check_flash_md5(uint32_t flashAddr, uint32_t size, const char *expectedMD5)
 {
     MD5Builder md5 = MD5Builder();
     uint8_t buffer[128];
@@ -1063,7 +1063,7 @@ bool check_flash_md5(uint32_t size, const char *expectedMD5)
     while (pos < size)
     {
         size_t read_size = ((size - pos) > sizeof(buffer)) ? sizeof(buffer) : size - pos;
-        ESP.flashRead(pos, buffer, read_size);
+        ESP.flashRead(flashAddr + pos, buffer, read_size);
         md5.add(buffer, read_size);
         pos += sizeof(buffer);
     }
@@ -1096,7 +1096,10 @@ void handle_update()
     else
     {
         RINFO("Received MD5: %s", Update.md5String().c_str());
-        if (check_flash_md5(firmwareSize, firmwareMD5) != 0)
+        struct eboot_command ebootCmd;
+        eboot_command_read(&ebootCmd);
+        // RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X (%d)]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[2]);
+        if (check_flash_md5(ebootCmd.args[0], firmwareSize, firmwareMD5) != 0)
         {
             // MD5 of flash does not match expected MD5
             eboot_command_clear();
@@ -1223,9 +1226,6 @@ void handle_firmware_upload()
             if (Update.end(true))
             {
                 RINFO("Upload size: %zu", upload.totalSize);
-                // struct eboot_command ebootCmd;
-                // eboot_command_read(&ebootCmd);
-                // RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X (%d)]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[2]);
             }
             else
             {
