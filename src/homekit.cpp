@@ -44,11 +44,13 @@ extern "C" char serial_number[SERIAL_NAME_SIZE];
 
 /********************************** MAIN LOOP CODE *****************************************/
 
-void homekit_loop() {
+void homekit_loop()
+{
     arduino_homekit_loop();
 }
 
-void setup_homekit() {
+void setup_homekit()
+{
     snprintf(device_name, DEVICE_NAME_SIZE, "Garage Door %06X", ESP.getChipId());
     read_string_from_file(device_name_file, device_name, device_name, DEVICE_NAME_SIZE);
     String macAddress = WiFi.macAddress();
@@ -66,7 +68,8 @@ void setup_homekit() {
     light_state.setter = light_state_set;
 
     garage_door.has_motion_sensor = (bool)read_int_from_file("has_motion");
-    if (!garage_door.has_motion_sensor) {
+    if (!garage_door.has_motion_sensor)
+    {
         RINFO("Motion Sensor not detected.  Disabling Service");
         config.accessories[0]->services[3] = NULL;
     }
@@ -78,135 +81,168 @@ void setup_homekit() {
 
 /******************************** GETTERS AND SETTERS ***************************************/
 
-homekit_value_t current_door_state_get() {
+homekit_value_t current_door_state_get()
+{
     RINFO("get current door state: %d", garage_door.current_state);
 
     return HOMEKIT_UINT8_CPP(garage_door.current_state);
 }
 
-homekit_value_t target_door_state_get() {
+homekit_value_t target_door_state_get()
+{
     RINFO("get target door state: %d", garage_door.target_state);
 
     return HOMEKIT_UINT8_CPP(garage_door.target_state);
 }
 
-void target_door_state_set(const homekit_value_t value) {
+void target_door_state_set(const homekit_value_t value)
+{
     RINFO("set door state: %d", value.uint8_value);
 
-    switch (value.uint8_value) {
-        case TGT_OPEN:
-            open_door();
-            break;
-        case TGT_CLOSED:
-            close_door();
-            break;
-        default:
-            ERROR("invalid target door state set requested: %d", value.uint8_value);
-            break;
+    switch (value.uint8_value)
+    {
+    case TGT_OPEN:
+        open_door();
+        break;
+    case TGT_CLOSED:
+        close_door();
+        break;
+    default:
+        ERROR("invalid target door state set requested: %d", value.uint8_value);
+        break;
     }
-
 }
 
-homekit_value_t obstruction_detected_get() {
+homekit_value_t obstruction_detected_get()
+{
     RINFO("get obstruction: %d", garage_door.obstructed);
     return HOMEKIT_BOOL_CPP(garage_door.obstructed);
 }
 
-homekit_value_t active_state_get() {
+homekit_value_t active_state_get()
+{
     RINFO("get active: %d", garage_door.active);
     return HOMEKIT_BOOL_CPP(garage_door.active);
 }
 
-homekit_value_t current_lock_state_get() {
+homekit_value_t current_lock_state_get()
+{
     RINFO("get current lock state: %d", garage_door.current_lock);
 
     return HOMEKIT_UINT8_CPP(garage_door.current_lock);
 }
 
-homekit_value_t target_lock_state_get() {
+homekit_value_t target_lock_state_get()
+{
     RINFO("get target lock state: %d", garage_door.target_lock);
 
     return HOMEKIT_UINT8_CPP(garage_door.target_lock);
 }
 
-void target_lock_state_set(const homekit_value_t value) {
+void target_lock_state_set(const homekit_value_t value)
+{
     RINFO("set lock state: %d", value.uint8_value);
 
     set_lock(value.uint8_value);
 }
 
-
-void notify_homekit_target_door_state_change() {
-    homekit_characteristic_notify(
-        &target_door_state,
-        HOMEKIT_UINT8_CPP(garage_door.target_state)
-    );
+void notify_homekit_target_door_state_change()
+{
+    if (arduino_homekit_get_running_server())
+    {
+        homekit_characteristic_notify(
+            &target_door_state,
+            HOMEKIT_UINT8_CPP(garage_door.target_state));
+    }
 }
 
-void notify_homekit_current_door_state_change() {
-    homekit_characteristic_notify(
-        &current_door_state,
-        HOMEKIT_UINT8_CPP(garage_door.current_state)
-    );
+void notify_homekit_current_door_state_change()
+{
+    if (arduino_homekit_get_running_server())
+    {
+        homekit_characteristic_notify(
+            &current_door_state,
+            HOMEKIT_UINT8_CPP(garage_door.current_state));
+    }
 }
 
-void notify_homekit_active() {
-    homekit_characteristic_notify(
-        &active_state,
-        HOMEKIT_BOOL_CPP(true)
-    );
+void notify_homekit_active()
+{
+    if (arduino_homekit_get_running_server())
+    {
+        homekit_characteristic_notify(
+            &active_state,
+            HOMEKIT_BOOL_CPP(true));
+    }
 }
 
-homekit_value_t light_state_get() {
+homekit_value_t light_state_get()
+{
     RINFO("get light state: %s", garage_door.light ? "On" : "Off");
 
     return HOMEKIT_BOOL_CPP(garage_door.light);
 }
 
-void light_state_set(const homekit_value_t value) {
-    RINFO("set light: %s", value.bool_value ? "On": "Off");
+void light_state_set(const homekit_value_t value)
+{
+    RINFO("set light: %s", value.bool_value ? "On" : "Off");
 
     set_light(value.bool_value);
 }
 
-void notify_homekit_obstruction() {
-    homekit_characteristic_notify(
-        &obstruction_detected,
-        HOMEKIT_BOOL_CPP(garage_door.obstructed)
-    );
+void notify_homekit_obstruction()
+{
+    if (arduino_homekit_get_running_server())
+    {
+        homekit_characteristic_notify(
+            &obstruction_detected,
+            HOMEKIT_BOOL_CPP(garage_door.obstructed));
+    }
 }
 
-void notify_homekit_current_lock() {
-    homekit_characteristic_notify(
-        &current_lock_state,
-        HOMEKIT_UINT8_CPP(garage_door.current_lock)
-    );
+void notify_homekit_current_lock()
+{
+    if (arduino_homekit_get_running_server())
+    {
+        homekit_characteristic_notify(
+            &current_lock_state,
+            HOMEKIT_UINT8_CPP(garage_door.current_lock));
+    }
 }
 
-void notify_homekit_target_lock() {
-    homekit_characteristic_notify(
-        &target_lock_state,
-        HOMEKIT_UINT8_CPP(garage_door.target_lock)
-    );
+void notify_homekit_target_lock()
+{
+    if (arduino_homekit_get_running_server())
+    {
+        homekit_characteristic_notify(
+            &target_lock_state,
+            HOMEKIT_UINT8_CPP(garage_door.target_lock));
+    }
 }
 
-void notify_homekit_light() {
-    homekit_characteristic_notify(
-        &light_state,
-        HOMEKIT_BOOL_CPP(garage_door.light)
-    );
+void notify_homekit_light()
+{
+    if (arduino_homekit_get_running_server())
+    {
+        homekit_characteristic_notify(
+            &light_state,
+            HOMEKIT_BOOL_CPP(garage_door.light));
+    }
 }
 
-void enable_service_homekit_motion() {
+void enable_service_homekit_motion()
+{
     uint32_t data = 1;
     write_int_to_file("has_motion", &data);
     sync_and_restart();
 }
 
-void notify_homekit_motion() {
-    homekit_characteristic_notify(
-        &motion_detected,
-        HOMEKIT_BOOL_CPP(garage_door.motion)
-    );
+void notify_homekit_motion()
+{
+    if (arduino_homekit_get_running_server())
+    {
+        homekit_characteristic_notify(
+            &motion_detected,
+            HOMEKIT_BOOL_CPP(garage_door.motion));
+    }
 }
-

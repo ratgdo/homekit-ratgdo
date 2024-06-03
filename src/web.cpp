@@ -1069,7 +1069,7 @@ bool check_flash_md5(uint32_t flashAddr, uint32_t size, const char *expectedMD5)
     }
     md5.calculate();
     RINFO("Flash MD5: %s", md5.toString().c_str());
-    return strcmp(md5.toString().c_str(), expectedMD5);
+    return (strcmp(md5.toString().c_str(), expectedMD5) == 0);
 }
 
 void handle_update()
@@ -1099,7 +1099,7 @@ void handle_update()
         struct eboot_command ebootCmd;
         eboot_command_read(&ebootCmd);
         // RINFO("eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X (%d)]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[2]);
-        if (check_flash_md5(ebootCmd.args[0], firmwareSize, firmwareMD5) != 0)
+        if (!check_flash_md5(ebootCmd.args[0], firmwareSize, firmwareMD5))
         {
             // MD5 of flash does not match expected MD5
             eboot_command_clear();
