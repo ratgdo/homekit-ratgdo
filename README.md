@@ -8,18 +8,6 @@ Homebridge, MQTT, etc, and connects to your garage door opener with as few as th
 This firmware supports Security+ and Security+ 2.0 enabled garage door openers and RATGDO v2.5-series
 ESP8266-based hardware.
 
-> [!IMPORTANT]
-> As of release v1.0.0, we believe this code is stable enough to call this a release build. You may
-> still encounter issues.  Please review the [Issues](https://github.com/ratgdo/homekit-ratgdo/issues)
-> and open a new one if necessary.
->
-> See the section below on where to get help.
-
-> [!WARNING]
-> Delayed close feature is disabled by default. You can enable a delay of up-to 60 seconds on the
-> settings page. During the delay period the garage door lights will flash and you may hear the
-> relay clicking, but there is no audible beep.
-
 > [!NOTE]
 > Many thanks to the original author @thenewwazoo.
 > [Why I'm leaving](https://thenewwazoo.github.io/bye-bye-ratgdo.html#whats-next).
@@ -51,7 +39,7 @@ That's it!
 
 ## Using ratgdo Webpage
 
-Before pairing to HomeKit / Apple Home you should open up the ratgdo webpage and configure basic settings.  Simply enter the local IP address of the ratgdo device to access the page. While this is optional, it is a good idea to set a more appropriate device name and check that your door protocol is correct.
+Before pairing to HomeKit / Apple Home you should open up the ratgdo webpage and configure basic settings.  Simply enter the local IP address of the ratgdo device to access the settings page to set a more appropriate device name and check that your door protocol is correct.
 
 [![webpage](docs/webpage/webpage.png)](#webpage)
 
@@ -59,7 +47,10 @@ The webpage comprises three sections, HomeKit and ratgdo device status, garage d
 
 ### HomeKit and ratgdo status
 
-If you ratgdo device is not yet paired to HomeKit then a QR code is displayed for you to scan and add the garage door to HomeKit. If the device is already paired then this is replaced with a statement that you must first un-pair the device.  A Reset or Un-pair HomeKit button is provided for this.  Note: if you will repair to the same HomeKit home you must also delete the accessory from HomeKit as well as un-pairing at the ratgdo device.
+If you ratgdo device is not yet paired to HomeKit then a QR code is displayed for you to scan and add the garage door to HomeKit. If the device is already paired then this is replaced with a statement that you must first un-pair the device if you wish to use it with another HomeKit home.  A Reset or Un-pair HomeKit button is provided for this.
+
+> [!NOTE]
+> if you will re-pair to the same HomeKit home you must also delete the accessory from HomeKit as well as un-pairing at the ratgdo device.
 
 This section also displays the current firmware version, with a statement on whether an update is available, the uptime of the device in days/hours/minutes/seconds and WiFi connection status.
 
@@ -80,7 +71,7 @@ By default authentication is not required for any action on this web page.  Howe
 > [!NOTE]
 > The device uses _Digest Authentication_ supported in all web browsers, this is not cryptographically secure but is sufficient to protect against unauthorized or inadvertant access. Note that web browsers remember the username and password for a period of time so you will not be prompted to authenticate for every access.
 
-You can change the default password by clicking into the settings gear:
+You can change the default password by clicking into the settings page:
 
 [![settings](docs/webpage/settings.png)](#settings)
 
@@ -90,7 +81,7 @@ You can change the default password by clicking into the settings gear:
 
 The settings page allows you to input a new password (but username cannot be changed, it is always _admin_). Saving a new password will return you to the main webpage from which point you will have to authenticate with the new password to access the settings page or any of the action buttons (except for reboot).
 
-If you save any settings from this page the ratgdo device will reboot and after a 30-second countdown you will return to the main webpage.
+When you save settings from this page the ratgdo device will either return immediately to the main page or, if required, reboot return to the main page and after a 30-second countdown.
 
 ### Name
 
@@ -129,28 +120,53 @@ During early devlopment there were several reports that the ratgdo device would 
 Over-the-Air (OTA) updates are supported, either directly from GitHub or by selecting a firmware binary file on your computer. Follow the steps below to update:
 
 * Navigate to your ratgdo's ip address where you will see the devices webpage, Click `Firmware Update`
-* Update from Github
-  * To check for updates, click `Check for update`
-  * If update is available, Click `Update`
+  > When you open Firmware Update the ratgdo device performs a flash memory CRC check. If this fails a warning message is shown. Please see the Flash CRC Errors section below before proceeding.
+
 [![ota](docs/ota/ota.png)](#ota)
-* Update from local file
-  * Download the latest release, by download the `.bin` file on the [latest release](https://github.com/ratgdo/homekit-ratgdo/releases)
+* Update from Github
+  * To check for updates, click `Check for update`.
+    Select the _Include pre-releases_ box to include pre- or beta-release versions in the check. 
+  * If update is available, Click `Update`.
+* Update from local file.
+  * Download the latest release, by download the `.bin` file from the [latest release](https://github.com/ratgdo/homekit-ratgdo/releases) page.
 [![firmware](docs/ota/firmware.png)](#firmware)
   * Upload the firmware that was downloaded in step 1, by clicking `Choose File` under `Update from local file`.
-[![ota](docs/ota/ota.png)](#ota)
-  * Click `Update` to proceed with upgrading
-[![uploaded](docs/ota/uploaded.png)](#uploaded)
-  * Once the update is Successful, ratgdo will now Reboot
+  * Click `Update` to proceed with upgrading.
+  * Once the update is Successful, ratgdo will now Reboot.
   * After a firmware update, you _may_ have to go through the process of re-pairing your device to HomeKit.  If your device is showing up as unresponsive in HomeKit, please try un-pairing, reboot, and re-pairing.
 
 Automatic updates are not supported (and probably will never be), so set a reminder to check back again in the future.
 
+## Upgrade failures
+
+If the OTA firmware update fails the following message will be displayed and you are given the option to reboot or cancel. If you reboot, the device will reload the same firmware as previously installed.  If you cancel then the device remains open, but the HomeKit service will be shutdown.  This may be helpful for debuging, see Troubleshooting section below.
+
+[![updatefail](docs/ota/updatefail.png)](#updatefail)
+
 ## Flash CRC Errors
 
-When displaying the Firmware Update dialog, or requesting a reboot, the integrity of the RATGDO device is checked by running a CRC check on the flash memory. If an error is detected
-then it is highly likely that a reboot will fail and you will only be able to recover by flashing new firmware using a USB cable.
+When requesting a reboot or displaying the firmware update dialog, the integrity of the ratgdo device is checked by running a CRC check on the flash memory. A CRC error is a strong indicator of a problem in the ratgdo firmware and it is highly likely that the device will fail to reboot.
 
-MORE DOCUMENTATION TO BE ADDED
+[![rebootcrc](docs/webpage/rebootcrc.png)](#rebootcrc)
+[![updatecrc](docs/ota/updatecrc.png)](#updatecrc)
+
+If you encounter a flash CRC error then please [open an issue](https://github.com/ratgdo/homekit-ratgdo/issues) on GitHub so that developers can assist with debugging.  Recovering from a flash CRC error will require flashing new firmware using a USB cable, but it may be possible to capture valuable information using esptool to assist with debugging.
+
+### esptool
+
+[Espressif](https://www.espressif.com) publishes [esptool](https://docs.espressif.com/projects/esptool/en/latest/esp8266/index.html), a command line utility built with python.  Esptool requires that you connect a USB serial cable to the ratgdo device. If you are able to install and run this tool then the following commands may be useful...
+
+```
+sudo python3 -m esptool -b 115200 -p <serial_device> verify_flash --diff yes 0x0000 <firmware.bin>
+```
+The above command verifies that the flash memory on the ratgdo has an exact image of the contents of the provided firmware binary file. If a flash CRC error was reported then this command will fail and list out the memory locations that are corrupt. This information will be useful to the developers to assist with debugging. Please copy it into the GitHub issue.
+
+```
+sudo python3 -m esptool -b 115200 -p <serial_device> write_flash 0x0000 <firmware.bin>
+```
+The above command will upload a new firmware binary file to the ratgdo device which will recover from the flash CRC error. This is an alternative to using the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo/flash.html) described above.
+
+Replace _<serial_device>_ with the identifier of the USB serial port.  On Apple MacOS this will be something like _/dev/cu.usbserial-10_ and on Linux will be like _/dev/ttyUSB0_. You should not use a baud rate higher than 115200 as that may introduce serial communication errrors.
 
 ## Command Line Interface
 
@@ -249,18 +265,18 @@ select after adding it.
 
 ### Unable to Pair
 
-> I get a message [Unable to Add Accessory: The setup code is incorrect.](https://github.com/ratgdo/homekit-ratgdo/issues/97)
+I get a message [Unable to Add Accessory: The setup code is incorrect.](https://github.com/ratgdo/homekit-ratgdo/issues/97)
 
 > [!WARNING]
-We have had a number of users that have encountered this error that was a result of running HomeBrdige with the Bounjour-HAP mDNS backend. You can find
+We have had a number of users that have encountered this error that was a result of running HomeBridge with the Bounjour-HAP mDNS backend. You can find
 more details in the issue thread, but the short story is to consider changing that backend to Avahi or Ciao.
 
 ### How do I re-pair my ratgdo?
 
 Use the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo/flash.html), and follow the
-"Visit Device" link. If you see a big QR code, the ratgdo is *not* paired. Click the "Un-pair
-HomeKit" button, and then delete the garage door from within the HomeKit app (or vice versa, order
-does not matter). It is also recommended that you reboot the RATGDO after un-pairing.  You can then re-pair the
+"Visit Device" link. If you see a big QR code, the ratgdo is *not* paired. Click the _Reset HomeKit_ or _Un-pair
+HomeKit_ button, and then delete the garage door from within the HomeKit app (or vice versa, order
+does not matter). Reseting or Un-pairing HomeKit will cause the ratgdo device to reboot.  You can then re-pair the
 device by adding it again as normal.
 
 ### Where can I get help?
@@ -286,6 +302,8 @@ Great reliability improvements have been made in recent versions of the firmware
 The footer of the webpage displays useful information that can help project contributors assist with diagnosing a problem. The ESP8266 is a low-memory device so monitoring actual memory usage is first place to start. Whenever you connect to the webpage, the firmware reports memory utilization every second... current available free heap, the lowest value that free heap has reached since last reboot, and the minimum available stack reached since last reboot.
 
 In addition the last reboot date and time is reported (calculated by subtracting up-time from current time). If the last reboot was caused by a system crash then an additonal line will display the number of times it crashed with options to display the crash log, and to clear the crash log.
+
+The _lastDoorChange_ will show the date and time that the door was last opened or closed.  This is not saved across reboots, so it will show as unknown after a reboot.
 
 ### Display log
 
@@ -330,3 +348,5 @@ Special credit goes to the Chamberlain Group, without whose irredeemably stupid 
 this firmware would never have been necessary.
 
 [Garage icons](https://www.flaticon.com/free-icons/garage) created by Creative Squad - Flaticon
+
+Copyright (c) 2023-24 HomeKit-RATGDO [contributors](https://github.com/ratgdo/homekit-ratgdo/graphs/contributors).
