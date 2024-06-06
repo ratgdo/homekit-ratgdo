@@ -10,7 +10,6 @@ ESP8266-based hardware.
 
 > [!NOTE]
 > Many thanks to the original author @thenewwazoo.
-> [Why I'm leaving](https://thenewwazoo.github.io/bye-bye-ratgdo.html#whats-next).
 
 ## What does this firmware support?
 
