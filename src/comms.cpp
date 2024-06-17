@@ -140,6 +140,11 @@ void setup_comms() {
 
         RINFO("Syncing rolling code counter after reboot...");
         sync();
+
+        // Get the initial state of the door
+        if (!digitalRead(UART_RX_PIN)) {
+            send_get_status();
+        }
     }
 }
 
