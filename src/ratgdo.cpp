@@ -20,8 +20,7 @@ void service_timer_loop();
 struct obstruction_sensor_t
 {
     unsigned int low_count = 0; // count obstruction low pulses
-    bool detected = false;
-    unsigned long last_high = 0; // count time between high pulses from the obst ISR
+    unsigned long last_asleep = 0; // count time between high pulses from the obst ISR
 } obstruction_sensor;
 
 long unsigned int led_on_time = 0; // Stores time when LED should turn back on
@@ -125,21 +124,11 @@ void setup_pins()
 /*************************** OBSTRUCTION DETECTION ***************************/
 void IRAM_ATTR isr_obstruction()
 {
-    if (digitalRead(INPUT_OBST_PIN))
-    {
-        obstruction_sensor.last_high = millis();
-    }
-    else
-    {
-        obstruction_sensor.detected = true;
-        obstruction_sensor.low_count++;
-    }
+    obstruction_sensor.low_count++;
 }
 
 void obstruction_timer()
 {
-    if (!obstruction_sensor.detected)
-        return;
     unsigned long current_millis = millis();
     static unsigned long last_millis = 0;
 
@@ -148,12 +137,13 @@ void obstruction_timer()
     // and is high without pulses when waking up
 
     // If at least 3 low pulses are counted within 50ms, the door is awake, not obstructed and we don't have to check anything else
-
-    // Every 50ms
-    if (current_millis - last_millis > 50)
+    
+    const long CHECK_PERIOD = 50;
+    const long PULSES_LOWER_LIMIT = 3;
+    if (current_millis - last_millis > CHECK_PERIOD)
     {
-        // check to see if we got between 3 and 8 low pulses on the line
-        if (obstruction_sensor.low_count >= 3 && obstruction_sensor.low_count <= 8)
+        // check to see if we got more then PULSES_LOWER_LIMIT pulses
+        if (obstruction_sensor.low_count > PULSES_LOWER_LIMIT)
         {
             // Only update if we are changing state
             if (garage_door.obstructed)
@@ -164,20 +154,25 @@ void obstruction_timer()
                 digitalWrite(STATUS_OBST_PIN, garage_door.obstructed);
             }
 
-            // if there have been no pulses the line is steady high or low
         }
         else if (obstruction_sensor.low_count == 0)
         {
-            // if the line is high and the last high pulse was more than 70ms ago, then there is an obstruction present
-            if (digitalRead(INPUT_OBST_PIN) && current_millis - obstruction_sensor.last_high > 70)
+            // if there have been no pulses the line is steady high or low
+            if (!digitalRead(INPUT_OBST_PIN))
             {
-                // Only update if we are changing state
-                if (!garage_door.obstructed)
-                {
-                    RINFO("Obstruction Detected");
-                    garage_door.obstructed = true;
-                    notify_homekit_obstruction();
-                    digitalWrite(STATUS_OBST_PIN, garage_door.obstructed);
+                // asleep
+                obstruction_sensor.last_asleep = current_millis;
+            } else {
+                // if the line is high and was last asleep more than 700ms ago, then there is an obstruction present
+                if (current_millis - obstruction_sensor.last_asleep > 700) {
+                    // Only update if we are changing state
+                    if (!garage_door.obstructed)
+                    {
+                        RINFO("Obstruction Detected");
+                        garage_door.obstructed = true;
+                        notify_homekit_obstruction();
+                        digitalWrite(STATUS_OBST_PIN, garage_door.obstructed);
+                    }
                 }
             }
         }
