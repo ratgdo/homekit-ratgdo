@@ -155,50 +155,62 @@ void save_rolling_code() {
 
 void wallPlate_Emulation() {
     
-	if (wallPanelDetected) return;
+    if (wallPanelDetected) return;
 
-	unsigned long currentMillis = millis();
-	static unsigned long lastRequestMillis = 0;
-	static bool emulateWallPanel = false;
-	static unsigned long serialDetected = 0;
-	static uint8_t stateIndex = 0;
+    unsigned long currentMillis = millis();
+    static unsigned long lastRequestMillis = 0;
+    static bool emulateWallPanel = false;
+    static unsigned long serialDetected = 0;
+    static uint8_t stateIndex = 0;
 
-	if (!serialDetected) {
-		if (sw_serial.available()) {
-			serialDetected = currentMillis;
-		}
+    if (!serialDetected) {
+        if (sw_serial.available()) {
+            serialDetected = currentMillis;
+        }
 
-		return;
-	}
+        return;
+    }
 
     // wait up to 15 seconds to look for an existing wallplate or it could be booting, so need to wait
-	if (currentMillis - serialDetected < 15000 || wallplateBooting == true) {
-		if (currentMillis - lastRequestMillis > 1000) {
-			Serial.println("Looking for security+ 1.0 wall panel...");
-			lastRequestMillis = currentMillis;
-		}
+    if (currentMillis - serialDetected < 15000 || wallplateBooting == true) {
+        if (currentMillis - lastRequestMillis > 1000) {
+            RINFO("Looking for security+ 1.0 DIGITAL wall panel...");
+            lastRequestMillis = currentMillis;
+        }
 
-		if(!wallPanelDetected && (doorState != DoorState::Unknown || lightState != 2)){
-			wallPanelDetected = true;
+        if(!wallPanelDetected && (doorState != DoorState::Unknown || lightState != 2)){
+            wallPanelDetected = true;
             wallplateBooting = false;
-			Serial.println("Wall panel detected.");
-			return;
-		}
-	}else{
-		if (!emulateWallPanel && !wallPanelDetected){
-			emulateWallPanel = true;
-			Serial.println("No wall panel detected. Switching to emulation mode.");
-		}
+            RINFO("DIGITAL Wall panel detected.");
+            return;
+        }
+    } else {
+        if (!emulateWallPanel && !wallPanelDetected){
+            emulateWallPanel = true;
+            RINFO("No DIGITAL wall panel detected. Switching to emulation mode.");
+        }
 
-		if (emulateWallPanel && currentMillis - lastRequestMillis > 250){
-			lastRequestMillis = currentMillis;
-			
+        // transmit every 250ms
+        if (emulateWallPanel && (currentMillis - lastRequestMillis) > 250){
+            lastRequestMillis = currentMillis;
+            
             byte secplus1ToSend = byte(secplus1States[stateIndex]);
-			transmitSec1(secplus1ToSend);
+
+            // send through queue
+            PacketData data;
+            data.type = PacketDataType::Status;
+            data.value.cmd = secplus1ToSend;
+            Packet pkt = Packet(PacketCommand::GetStatus, data, id_code);
+            PacketAction pkt_ac = {pkt, true, 20}; // 20ms delay for SECURITY1.0 (which is minimum delay)
+            q_push(&pkt_q, &pkt_ac);
+
+            // send direct
+            //transmitSec1(secplus1ToSend);
+
             stateIndex++;
-			if (stateIndex == sizeof(secplus1States)) stateIndex = sizeof(secplus1States) - 3;
-		}
-	}
+            if (stateIndex == sizeof(secplus1States)) { stateIndex = sizeof(secplus1States) - 3; }
+        }
+    }
 }
 
 void comms_loop() {
@@ -209,7 +221,6 @@ void comms_loop() {
         static uint16_t byte_count = 0;
         static RxPacket rx_packet;
         bool gotMessage = false;
-
         
         if (sw_serial.available()) {
             uint8_t ser_byte = sw_serial.read();
@@ -282,7 +293,7 @@ void comms_loop() {
             // its the byte sent out by the wallplate + the byte transmitted by the opener
             if (key == secplus1Codes::DoorStatus || key == secplus1Codes::ObstructionStatus || key == secplus1Codes::LightLockStatus) {
                 
-               // RINFO("MSG: %X%02X",key,val);
+               //RINFO("SEC1 STATUS MSG: %X%02X",key,val);
 
                 switch (key) {
                     // door status
@@ -466,18 +477,28 @@ void comms_loop() {
         PacketAction pkt_ac;
         static unsigned long cmdDelay = 0;
         unsigned long now;
-        bool okToSend;
+        bool okToSend = false;
         
         if (!q_isEmpty(&pkt_q)) {
      
             now = millis();
-            
-            okToSend  = (now - last_rx > 20);       // after 20ms since last rx
-            okToSend &= (now - last_rx < 200);      // before 200ms since last rx
-            okToSend &= (now - last_tx > 20);       // after 20ms since last tx
-            okToSend &= (now - last_tx > cmdDelay); // after any command delays
 
-            // OK to send after a complete message comes in and 20ms elapses but not more than 100ms
+            // if there is no wall panel, no need to check 200ms since last rx
+            // (yes some duped code here, but its clearer)
+            if (!wallPanelDetected) {      
+                // no wall panel         
+                okToSend  = (now - last_rx > 20);       // after 20ms since last rx
+                okToSend &= (now - last_tx > 20);       // after 20ms since last tx
+                okToSend &= (now - last_tx > cmdDelay); // after any command delays
+            } else {
+                // digitial wall pnael
+                okToSend  = (now - last_rx > 20);       // after 20ms since last rx
+                okToSend &= (now - last_rx < 200);      // before 200ms since last rx
+                okToSend &= (now - last_tx > 20);       // after 20ms since last tx
+                okToSend &= (now - last_tx > cmdDelay); // after any command delays
+            }
+
+            // OK to send based on above rules
             if (okToSend) {
                 if (q_peek(&pkt_q, &pkt_ac)) {
                     if (process_PacketAction(pkt_ac)) {
@@ -704,17 +725,22 @@ bool transmitSec1(byte toSend) {
     if (digitalRead(UART_RX_PIN) || sw_serial.available()) {
         return false;
     }
-    
-    // if no wall panel, we can disable rx while we transmit
-    if (!wallPanelDetected) {
+
+    // sending a poll?
+    bool poll_cmd = (toSend == 0x38) || (toSend == 0x39) || (toSend == 0x3A);
+    // if not a poll command (and polls only with wall planel emulation), 
+    // disable disable rx (allows for cleaner tx, and no echo)
+    if (!poll_cmd) {
         sw_serial.enableRx(false);
     }
 
     sw_serial.write(toSend);
     last_tx = millis();
 
-    // if no wall panel, we need to enable rx, since we disabled above
-    if (!wallPanelDetected) {
+    //RINFO("SEC1 SEND BYTE: %02X",toSend);
+
+    // re-enable rx
+    if (!poll_cmd) {
         sw_serial.enableRx(true);
     }
 
@@ -764,6 +790,20 @@ bool process_PacketAction(PacketAction& pkt_ac) {
         // check which action
         switch (pkt_ac.pkt.m_data.type)
         {
+            // using this type for emaulation of wall panel
+            case PacketDataType::Status:
+            {
+                // 0x38 || 0x39 || 0x3A
+                if (pkt_ac.pkt.m_data.value.cmd)
+                {
+                    success = transmitSec1(pkt_ac.pkt.m_data.value.cmd);
+                    if (success) {
+                        last_tx = millis();
+                        //RINFO("sending 0x%02X query", pkt_ac.pkt.m_data.value.cmd);
+                    }
+                }
+                break;
+            }
             case PacketDataType::DoorAction:
             {
                 if (pkt_ac.pkt.m_data.value.door_action.pressed == true)
