@@ -121,12 +121,24 @@ void printSavedLog(Print &outputDev)
     return printSavedLog(logMessageFile, outputDev);
 }
 
+// These are defined in the linker script, and filled in by the elf2bin.py util
+extern "C" uint32_t __crc_len;
+extern "C" uint32_t __crc_val;
 void printMessageLog(Print &outputDev)
 {
     if (msgBuffer)
     {
+        static char buf[20] = "";
         outputDev.write("Firmware Version: ");
         outputDev.write(AUTO_VERSION);
+        outputDev.println();
+        outputDev.write("Flash CRC: ");
+        sprintf(buf, " 0x%08X", __crc_val);
+        outputDev.write(buf);
+        outputDev.println();
+        outputDev.write("Flash Length: ");
+        sprintf(buf, "0x%X (%u)", __crc_len, __crc_len);
+        outputDev.write(buf);
         outputDev.println();
         outputDev.println();
         if (msgBuffer->wrapped != 0)
