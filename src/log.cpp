@@ -124,23 +124,29 @@ void printSavedLog(Print &outputDev)
 // These are defined in the linker script, and filled in by the elf2bin.py util
 extern "C" uint32_t __crc_len;
 extern "C" uint32_t __crc_val;
+// Memory stats from the web.cpp file
+extern "C" uint32_t free_heap;
+extern "C" uint32_t max_block;
+extern "C" uint8_t max_frag;
 void printMessageLog(Print &outputDev)
 {
+    ESP.getHeapStats(&free_heap, &max_block, &max_frag);
+    outputDev.write("Firmware Version: ");
+    outputDev.write(AUTO_VERSION);
+    outputDev.println();
+    outputDev.write("Flash CRC: 0x");
+    outputDev.println(__crc_val, 16);
+    outputDev.write("Flash Length: ");
+    outputDev.println(__crc_len);
+    outputDev.write("Free heap: ");
+    outputDev.println(free_heap);
+    outputDev.write("Max malloc size: ");
+    outputDev.println(max_block);
+    outputDev.write("Fragmentation pct: ");
+    outputDev.println(max_frag);
+    outputDev.println();
     if (msgBuffer)
     {
-        static char buf[20] = "";
-        outputDev.write("Firmware Version: ");
-        outputDev.write(AUTO_VERSION);
-        outputDev.println();
-        outputDev.write("Flash CRC: ");
-        sprintf(buf, " 0x%08X", __crc_val);
-        outputDev.write(buf);
-        outputDev.println();
-        outputDev.write("Flash Length: ");
-        sprintf(buf, "0x%X (%u)", __crc_len, __crc_len);
-        outputDev.write(buf);
-        outputDev.println();
-        outputDev.println();
         if (msgBuffer->wrapped != 0)
         {
             outputDev.write(&msgBuffer->buffer[msgBuffer->head], sizeof(msgBuffer->buffer) - msgBuffer->head);
