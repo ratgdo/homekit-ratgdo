@@ -271,10 +271,14 @@
         </p>
         <br>
         <table style="border-collapse: collapse">
-          <tr>
-            <td style="width: 30%; padding: 0px">freeHeap:&nbsp;<span id="freeHeap">0</span></td>
-            <td style="width: 30%; padding: 0px">minHeap:&nbsp;<span id="minHeap">0</span></td>
-            <td style="width: 30%; padding: 0px">minStack:&nbsp;<span id="minStack">0</span></td>
+          <tr id="freeMemRow">
+            <td colspan="2" style="width: 100%; padding: 0px">freeHeap:&nbsp;<span id="freeHeap">0</span>&nbsp;</td>
+            <td colspan="2" style="width: 100%; padding: 0px; text-align: center;">minHeap:&nbsp;<span id="minHeap">0</span>&nbsp;</td>
+            <td colspan="2" style="width: 100%; padding: 0px; text-align: right;">minStack:&nbsp;<span id="minStack">0</span>&nbsp;</td>
+          </tr>
+          <tr id="memFragRow" style="display: none;">
+            <td colspan="3" style="width: 100%; padding: 0px">maxBlock:&nbsp;<span id="maxBlock">0</span>&nbsp;(<span id="maxFrag">0</span>%)&nbsp;</td>
+            <td colspan="3" style="width: 100%; padding: 0px; text-align: right;">minBlock:&nbsp;<span id="minBlock">0</span>&nbsp;(<span id="minFrag">0</span>%)&nbsp;</td>
           </tr>
         </table>
         <table style="border-collapse: collapse">
