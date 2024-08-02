@@ -130,7 +130,8 @@ extern "C" uint32_t max_block;
 extern "C" uint8_t max_frag;
 void printMessageLog(Print &outputDev)
 {
-    ESP.getHeapStats(&free_heap, &max_block, &max_frag);
+    // Not a good idea to call this im middle of a crash?
+    //ESP.getHeapStats(&free_heap, &max_block, &max_frag);
     outputDev.write("Firmware Version: ");
     outputDev.write(AUTO_VERSION);
     outputDev.println();
