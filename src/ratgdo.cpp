@@ -1,6 +1,7 @@
 
 #include <Arduino.h>
-#include "LittleFS.h"
+#include <user_interface.h>
+#include <LittleFS.h>
 
 #include "ratgdo.h"
 #include "wifi.h"
@@ -19,7 +20,7 @@ void service_timer_loop();
 
 struct obstruction_sensor_t
 {
-    unsigned int low_count = 0; // count obstruction low pulses
+    unsigned int low_count = 0;    // count obstruction low pulses
     unsigned long last_asleep = 0; // count time between high pulses from the obst ISR
 } obstruction_sensor;
 
@@ -31,6 +32,11 @@ struct GarageDoor garage_door;
 
 extern "C" uint32_t __crc_len;
 extern "C" uint32_t __crc_val;
+
+// Track our memory usage
+uint32_t free_heap = 65535;
+uint32_t min_heap = 65535;
+unsigned long next_heap_check = 0;
 
 /********************************** MAIN LOOP CODE *****************************************/
 
@@ -137,7 +143,7 @@ void obstruction_timer()
     // and is high without pulses when waking up
 
     // If at least 3 low pulses are counted within 50ms, the door is awake, not obstructed and we don't have to check anything else
-    
+
     const long CHECK_PERIOD = 50;
     const long PULSES_LOWER_LIMIT = 3;
     if (current_millis - last_millis > CHECK_PERIOD)
@@ -153,7 +159,6 @@ void obstruction_timer()
                 notify_homekit_obstruction();
                 digitalWrite(STATUS_OBST_PIN, garage_door.obstructed);
             }
-
         }
         else if (obstruction_sensor.low_count == 0)
         {
@@ -162,9 +167,12 @@ void obstruction_timer()
             {
                 // asleep
                 obstruction_sensor.last_asleep = current_millis;
-            } else {
+            }
+            else
+            {
                 // if the line is high and was last asleep more than 700ms ago, then there is an obstruction present
-                if (current_millis - obstruction_sensor.last_asleep > 700) {
+                if (current_millis - obstruction_sensor.last_asleep > 700)
+                {
                     // Only update if we are changing state
                     if (!garage_door.obstructed)
                     {
@@ -201,5 +209,17 @@ void service_timer_loop()
         RINFO("Motion Cleared");
         garage_door.motion = false;
         notify_homekit_motion();
+    }
+
+    // Check heap
+    if (current_millis > next_heap_check)
+    {
+        next_heap_check = current_millis + 1000;
+        free_heap = system_get_free_heap_size();
+        if (free_heap < min_heap)
+        {
+            min_heap = free_heap;
+            RINFO("Minimum free heap dropped to %d", min_heap);
+        }
     }
 }

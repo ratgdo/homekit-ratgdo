@@ -132,13 +132,8 @@ const char www_pw_required_file[] = "www_pw_required_file";
 uint32_t rebootSeconds; // seconds between reboots
 const char system_reboot_timer[] = "system_reboot_timer";
 // Track our memory usage
-Ticker memoryMonitor;
-uint32_t free_heap = 65535;
-uint32_t min_heap = 65535;
-uint32_t max_block = 65535;
-uint8_t max_frag = 0;
-uint32_t min_block = 65535;
-uint8_t min_frag = 0;
+extern "C" uint32_t free_heap;
+extern "C" uint32_t min_heap;
 
 // Control WiFi physical layer mode
 WiFiPhyMode_t wifiPhyMode = (WiFiPhyMode_t)0;
@@ -290,22 +285,6 @@ void web_loop()
     server.handleClient();
 }
 
-void memory_ticker()
-{
-    ESP.getHeapStats(&free_heap, &max_block, &max_frag);
-    if (free_heap < min_heap)
-    {
-        min_heap = free_heap;
-        RINFO("Minimum free heap dropped to %d", min_heap);
-    }
-    if (max_block < min_block)
-    {
-        min_block = max_block;
-        min_frag = max_frag;
-        RINFO("Maximum malloc block size dropped to %d (%d%% fragmented)", min_block, min_frag);
-    }
-}
-
 void setup_web()
 {
     RINFO("Starting server");
@@ -367,8 +346,6 @@ void setup_web()
         subscription[i].clientIP = INADDR_NONE;
         subscription[i].clientUUID.clear();
     }
-    // monitor memory heap once a second...
-    memoryMonitor.attach_scheduled(1.0, memory_ticker);
     RINFO("HTTP server started");
     return;
 }
@@ -578,10 +555,6 @@ void handle_status()
     ADD_INT(json, "freeHeap", free_heap);
     ADD_INT(json, "minHeap", min_heap);
     ADD_INT(json, "minStack", ESP.getFreeContStack());
-    ADD_INT(json, "maxBlock", max_block);
-    ADD_INT(json, "maxFrag", max_frag);
-    ADD_INT(json, "minBlock", min_block);
-    ADD_INT(json, "minFrag", min_frag);
     ADD_INT(json, "crashCount", crashCount);
     ADD_INT(json, "wifiPhyMode", wifiPhyMode);
     ADD_INT(json, "wifiPower", wifiPower);
@@ -831,10 +804,6 @@ void SSEheartbeat(SSESubscription *s)
         ADD_INT(json, "freeHeap", free_heap);
         ADD_INT(json, "minHeap", min_heap);
         ADD_INT(json, "minStack", ESP.getFreeContStack());
-        ADD_INT(json, "maxBlock", max_block);
-        ADD_INT(json, "maxFrag", max_frag);
-        ADD_INT(json, "minBlock", min_block);
-        ADD_INT(json, "minFrag", min_frag);
         ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm").c_str());
         ADD_BOOL(json, "checkFlashCRC", flashCRC);
         END_JSON(json);
