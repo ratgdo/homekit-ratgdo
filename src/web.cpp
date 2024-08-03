@@ -377,6 +377,8 @@ void handle_reset()
     homekit_storage_reset();
     server.client().setNoDelay(true);
     server.send_P(200, type_txt, PSTR("Device has been un-paired from HomeKit. Rebooting...\n"));
+    // Allow time to process send() before terminating web server...
+    delay(500);
     server.stop();
     sync_and_restart();
     return;
@@ -387,6 +389,8 @@ void handle_reboot()
     RINFO("... reboot requested");
     server.client().setNoDelay(true);
     server.send_P(200, type_txt, PSTR("Rebooting...\n"));
+    // Allow time to process send() before terminating web server...
+    delay(500);
     server.stop();
     sync_and_restart();
     return;
@@ -762,6 +766,8 @@ void handle_setgdo()
     if (reboot)
     {
         RINFO("SetGDO Restart required");
+        // Allow time to process send() before terminating web server...
+        delay(500);
         server.stop();
         sync_and_restart();
     }
@@ -1108,6 +1114,8 @@ void handle_update()
     {
         // Legacy... no query string args, so automatically reboot...
         server.send_P(200, type_txt, PSTR("Upload Success. Rebooting...\n"));
+        // Allow time to process send() before terminating web server...
+        delay(500);
         server.stop();
         sync_and_restart();
     }
