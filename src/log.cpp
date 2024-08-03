@@ -124,14 +124,11 @@ void printSavedLog(Print &outputDev)
 // These are defined in the linker script, and filled in by the elf2bin.py util
 extern "C" uint32_t __crc_len;
 extern "C" uint32_t __crc_val;
-// Memory stats from the web.cpp file
+// Memory stats
 extern "C" uint32_t free_heap;
-extern "C" uint32_t max_block;
-extern "C" uint8_t max_frag;
+extern "C" uint32_t min_heap;
 void printMessageLog(Print &outputDev)
 {
-    // Not a good idea to call this im middle of a crash?
-    //ESP.getHeapStats(&free_heap, &max_block, &max_frag);
     outputDev.write("Firmware Version: ");
     outputDev.write(AUTO_VERSION);
     outputDev.println();
@@ -141,10 +138,8 @@ void printMessageLog(Print &outputDev)
     outputDev.println(__crc_len);
     outputDev.write("Free heap: ");
     outputDev.println(free_heap);
-    outputDev.write("Max malloc size: ");
-    outputDev.println(max_block);
-    outputDev.write("Fragmentation pct: ");
-    outputDev.println(max_frag);
+    outputDev.write("Minimum heap: ");
+    outputDev.println(min_heap);
     outputDev.println();
     if (msgBuffer)
     {
