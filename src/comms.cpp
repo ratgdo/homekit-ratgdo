@@ -418,7 +418,7 @@ void comms_loop() {
 
                         break;
                     
-                    // objstruction states (not confired)
+                    // objstruction states (not confirmed)
                     case secplus1Codes::ObstructionStatus:
                         // currently not using
                         break;
@@ -687,6 +687,7 @@ void comms_loop() {
                             if (!garage_door.has_motion_sensor) {
                                 RINFO("Detected new Motion Sensor. Enabling Service");
                                 garage_door.has_motion_sensor = true;
+                                // this causes a reboot...
                                 enable_service_homekit_motion();
                             }
 

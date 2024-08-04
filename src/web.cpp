@@ -128,6 +128,10 @@ const char credentials_file[] = "www_credentials";
 bool passwordReq = false;
 const char www_pw_required_file[] = "www_pw_required_file";
 
+// What trigger motion...
+const char motionTriggersFile[] = "motion_triggers";
+motionTriggersUnion motionTriggers = {{0}};
+
 // Control automatic reboot
 uint32_t rebootSeconds; // seconds between reboots
 const char system_reboot_timer[] = "system_reboot_timer";
@@ -306,6 +310,24 @@ void setup_web()
     RINFO("TTCdelay: %d", TTCdelay);
     wifiPower = (uint16_t)read_int_from_file(wifiPowerFile, 20);
     RINFO("wifiPower: %d", wifiPower);
+    motionTriggers.asInt = (uint8_t)read_int_from_file(motionTriggersFile);
+    if (motionTriggers.asInt == 0)
+    {
+        // maybe just initialized. If we have motion sensor then set that and write back to file
+        if (garage_door.has_motion_sensor)
+        {
+            motionTriggers.bit.motion = 1;
+            uint32_t value = motionTriggers.asInt;
+            write_int_to_file(motionTriggersFile, &value);
+        }
+    }
+    RINFO("Motion triggers, motion : %d, obstruction: %d, light key: %d, door key: %d, lock key: %d, asInt: %d",
+          motionTriggers.bit.motion,
+          motionTriggers.bit.obstruction,
+          motionTriggers.bit.lightKey,
+          motionTriggers.bit.dooorKey,
+          motionTriggers.bit.lockKey,
+          motionTriggers.asInt);
     lastDoorUpdateAt = 0;
     lastDoorState = (GarageDoorCurrentState)0xff;
 
@@ -563,6 +585,7 @@ void handle_status()
     ADD_INT(json, "wifiPhyMode", wifiPhyMode);
     ADD_INT(json, "wifiPower", wifiPower);
     ADD_INT(json, "TTCseconds", TTCdelay);
+    ADD_INT(json, "motionTriggers", motionTriggers.asInt);
     // We send milliseconds relative to current time... ie updated X milliseconds ago
     ADD_INT(json, "lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
     ADD_BOOL(json, "checkFlashCRC", flashCRC);
@@ -702,6 +725,12 @@ void handle_setgdo()
             uint32_t seconds = atoi(value);
             TTCdelay = (uint8_t)seconds;
             write_int_to_file(TTCdelay_file, &seconds);
+        }
+        else if (!strcmp(key, "motionTriggers"))
+        {
+            uint32_t bitset = atoi(value);
+            write_int_to_file(motionTriggersFile, &bitset);
+            reboot = true;
         }
         else if (!strcmp(key, "updateUnderway"))
         {
