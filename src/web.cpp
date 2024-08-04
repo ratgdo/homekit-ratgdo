@@ -317,8 +317,7 @@ void setup_web()
         if (garage_door.has_motion_sensor)
         {
             motionTriggers.bit.motion = 1;
-            uint32_t value = motionTriggers.asInt;
-            write_int_to_file(motionTriggersFile, &value);
+            write_int_to_file(motionTriggersFile, motionTriggers.asInt);
         }
     }
     RINFO("Motion triggers, motion : %d, obstruction: %d, light key: %d, door key: %d, lock key: %d, asInt: %d",
@@ -666,7 +665,7 @@ void handle_setgdo()
                 delete_file("rolling");
                 delete_file("id_code");
                 // Write to flash and reboot
-                write_int_to_file("gdo_security", &type);
+                write_int_to_file("gdo_security", type);
                 reboot = true;
             }
             else
@@ -676,15 +675,13 @@ void handle_setgdo()
         }
         else if (!strcmp(key, "passwordRequired"))
         {
-            uint32_t required = atoi(value);
-            passwordReq = (required != 0);
-            write_int_to_file(www_pw_required_file, &required);
+            passwordReq = (atoi(value) != 0);
+            write_int_to_file(www_pw_required_file, (passwordReq) ? 1 : 0);
         }
         else if (!strcmp(key, "rebootSeconds"))
         {
-            uint32_t seconds = atoi(value);
-            rebootSeconds = seconds;
-            write_int_to_file(system_reboot_timer, &seconds);
+            rebootSeconds = atoi(value);
+            write_int_to_file(system_reboot_timer, rebootSeconds);
             // only reboot if setting to non-zero
             reboot = (rebootSeconds != 0);
         }
@@ -698,13 +695,12 @@ void handle_setgdo()
         }
         else if (!strcmp(key, "wifiPhyMode"))
         {
-            WiFiPhyMode_t wifiPhyMode = (WiFiPhyMode_t)atoi(value);
-            if (read_int_from_file(wifiPhyModeFile) != (uint32_t)wifiPhyMode)
+            uint32_t wifiPhyMode = (uint32_t)atoi(value);
+            if (read_int_from_file(wifiPhyModeFile) != wifiPhyMode)
             {
                 // Setting has changed.  Write new value and note that change has taken place
-                write_int_to_file(wifiPhyModeFile, (uint32_t *)&wifiPhyMode);
-                uint32_t changed = 1;
-                write_int_to_file(wifiSettingsChangedFile, &changed);
+                write_int_to_file(wifiPhyModeFile, wifiPhyMode);
+                write_int_to_file(wifiSettingsChangedFile, 1);
                 reboot = true;
             }
         }
@@ -714,22 +710,19 @@ void handle_setgdo()
             if (read_int_from_file(wifiPowerFile) != wifiPower)
             {
                 // Setting has changed.  Write new value and note that change has taken place
-                write_int_to_file(wifiPowerFile, &wifiPower);
-                uint32_t changed = 1;
-                write_int_to_file(wifiSettingsChangedFile, &changed);
+                write_int_to_file(wifiPowerFile, wifiPower);
+                write_int_to_file(wifiSettingsChangedFile, 1);
                 reboot = true;
             }
         }
         else if (!strcmp(key, "TTCseconds"))
         {
-            uint32_t seconds = atoi(value);
-            TTCdelay = (uint8_t)seconds;
-            write_int_to_file(TTCdelay_file, &seconds);
+            TTCdelay = (uint8_t)atoi(value);
+            write_int_to_file(TTCdelay_file, TTCdelay);
         }
         else if (!strcmp(key, "motionTriggers"))
         {
-            uint32_t bitset = atoi(value);
-            write_int_to_file(motionTriggersFile, &bitset);
+            write_int_to_file(motionTriggersFile, (uint32_t)atoi(value));
             reboot = true;
         }
         else if (!strcmp(key, "updateUnderway"))
