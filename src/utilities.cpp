@@ -29,7 +29,7 @@ uint32_t read_int_from_file(const char *filename, uint32_t defaultValue)
     if (!file)
     {
         RINFO("%s doesn't exist. creating...", filename);
-        write_int_to_file(filename, &value);
+        write_int_to_file(filename, value);
     }
     else
     {
@@ -39,11 +39,11 @@ uint32_t read_int_from_file(const char *filename, uint32_t defaultValue)
     return value;
 }
 
-void write_int_to_file(const char *filename, uint32_t *value)
+void write_int_to_file(const char *filename, uint32_t value)
 {
     File file = LittleFS.open(filename, "w");
-    RINFO("writing %lu to file %s", *value, filename);
-    file.print(*value);
+    RINFO("writing %lu to file %s", value, filename);
+    file.print(value);
     file.close();
 }
 

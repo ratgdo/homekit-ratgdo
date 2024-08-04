@@ -233,8 +233,7 @@ void notify_homekit_light()
 
 void enable_service_homekit_motion()
 {
-    uint32_t data = 1;
-    write_int_to_file("has_motion", &data);
+    write_int_to_file("has_motion", 1);
     sync_and_restart();
 }
 

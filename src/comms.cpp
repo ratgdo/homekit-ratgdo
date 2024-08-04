@@ -126,7 +126,7 @@ void setup_comms() {
         if (!id_code) {
             RINFO("id code not found");
             id_code = (random(0x1, 0xFFF) << 12) | 0x539;
-            write_int_to_file("id_code", &id_code);
+            write_int_to_file("id_code", id_code);
         }
         RINFO("id code %02X", id_code);
 
@@ -149,7 +149,7 @@ void setup_comms() {
 }
 
 void save_rolling_code() {
-    write_int_to_file("rolling", &rolling_code);
+    write_int_to_file("rolling", rolling_code);
     last_saved_code = rolling_code;
 }
 
