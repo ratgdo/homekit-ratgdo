@@ -158,6 +158,11 @@ void obstruction_timer()
                 garage_door.obstructed = false;
                 notify_homekit_obstruction();
                 digitalWrite(STATUS_OBST_PIN, garage_door.obstructed);
+                if (motionTriggers.bit.obstruction)
+                {
+                    garage_door.motion = false;
+                    notify_homekit_motion();
+                }
             }
         }
         else if (obstruction_sensor.low_count == 0)
@@ -180,6 +185,11 @@ void obstruction_timer()
                         garage_door.obstructed = true;
                         notify_homekit_obstruction();
                         digitalWrite(STATUS_OBST_PIN, garage_door.obstructed);
+                        if (motionTriggers.bit.obstruction)
+                        {
+                            garage_door.motion = true;
+                            notify_homekit_motion();
+                        }
                     }
                 }
             }

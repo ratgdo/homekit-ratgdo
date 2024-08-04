@@ -8,6 +8,7 @@
 #include <ESP8266WiFi.h>
 #include "utilities.h"
 #include "homekit_decl.h"
+#include "web.h"
 
 // Bring in config and characteristics defined in homekit_decl.c
 extern "C" homekit_server_config_t config;
@@ -68,7 +69,7 @@ void setup_homekit()
     light_state.setter = light_state_set;
 
     garage_door.has_motion_sensor = (bool)read_int_from_file("has_motion");
-    if (!garage_door.has_motion_sensor)
+    if (!garage_door.has_motion_sensor || read_int_from_file(motionTriggersFile) == 0)
     {
         RINFO("Motion Sensor not detected.  Disabling Service");
         config.accessories[0]->services[3] = NULL;

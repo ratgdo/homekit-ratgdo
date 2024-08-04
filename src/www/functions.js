@@ -99,6 +99,9 @@ function setElementsFromStatus(status) {
                     document.getElementById("checkFlashCRC").style.display = "initial";
                 }
                 break;
+            case "motionTriggers":
+                setMotionTriggers(value);
+                break;
             default:
                 document.getElementById(key).innerHTML = value;
         }
@@ -282,7 +285,7 @@ function countdown(secs, msg) {
 
 async function showUpdateDialog() {
     const modalFlashCRC = document.getElementById("modalFlashCRC");
-    modalFlashCRC.innerHTML = "Checking Flash CRC..."
+    modalFlashCRC.innerHTML = "Checking Flash CRC...";
     modalFlashCRC.style.color = '';
     document.getElementById("myModal").style.display = 'block';
     const response = await fetch("checkflash", {
@@ -580,9 +583,22 @@ async function changePassword() {
     return;
 }
 
+function getMotionTriggers() {
+    let bitset = 0;
+    bitset += (document.getElementById("motionMotion").checked) ? 1 : 0;
+    bitset += (document.getElementById("motionObstruction").checked) ? 2 : 0;
+    return bitset;
+}
+
+function setMotionTriggers(bitset) {
+    document.getElementById("motionMotion").checked = (bitset & 1) ? true : false;
+    document.getElementById("motionObstruction").checked = (bitset & 2) ? true : false;
+}
+
 async function saveSettings() {
     const gdoSec = (document.getElementById("gdosec1").checked) ? '1' : '2';
     const pwReq = (document.getElementById("pwreq").checked) ? '1' : '0';
+    const motionTriggers = getMotionTriggers();
     let rebootHours = Math.max(Math.min(parseInt(document.getElementById("rebootHours").value), 72), 0);
     if (isNaN(rebootHours)) rebootHours = 0;
     let newDeviceName = document.getElementById("newDeviceName").value.substring(0, 30);
@@ -602,7 +618,8 @@ async function saveSettings() {
         "deviceName", newDeviceName,
         "wifiPhyMode", wifiPhyMode,
         "wifiPower", wifiPower,
-        "TTCseconds", TTCseconds);
+        "TTCseconds", TTCseconds,
+        "motionTriggers", motionTriggers);
     if (reboot) {
         countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");
     }
