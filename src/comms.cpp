@@ -12,6 +12,7 @@
 #include "cQueue.h"
 #include "utilities.h"
 #include "comms.h"
+#include "web.h"
 
 #include <Ticker.h>
 
@@ -518,6 +519,12 @@ void comms_loop()
 
                         garage_door.light = (bool)lightState;
                         notify_homekit_light();
+                        if (motionTriggers.bit.lightKey)
+                        {
+                            garage_door.motion_timer = millis() + 5000;
+                            garage_door.motion = true;
+                            notify_homekit_motion();
+                        }
                     }
 
                     // lock status
@@ -782,6 +789,12 @@ void comms_loop()
                         RINFO("Light Cmd %s", l ? "On" : "Off");
                         garage_door.light = l;
                         notify_homekit_light();
+                        if (motionTriggers.bit.lightKey)
+                        {
+                            garage_door.motion_timer = millis() + 5000;
+                            garage_door.motion = true;
+                            notify_homekit_motion();
+                        }
                     }
                     // Send a get status to make sure we are in sync
                     // Should really only need to do this on a toggle,
