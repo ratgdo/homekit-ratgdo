@@ -324,7 +324,7 @@ void setup_web()
           motionTriggers.bit.motion,
           motionTriggers.bit.obstruction,
           motionTriggers.bit.lightKey,
-          motionTriggers.bit.dooorKey,
+          motionTriggers.bit.doorKey,
           motionTriggers.bit.lockKey,
           motionTriggers.asInt);
     lastDoorUpdateAt = 0;
