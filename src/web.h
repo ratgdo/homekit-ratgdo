@@ -12,7 +12,7 @@ typedef struct
     uint8_t motion : 1;
     uint8_t obstruction : 1;
     uint8_t lightKey : 1;
-    uint8_t dooorKey : 1;
+    uint8_t doorKey : 1;
     uint8_t lockKey : 1;
     uint8_t undef : 3;
 } motionTriggerBitset;

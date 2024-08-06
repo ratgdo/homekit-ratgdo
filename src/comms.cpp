@@ -310,6 +310,12 @@ void comms_loop()
             if (key == secplus1Codes::DoorButtonPress)
             {
                 RINFO("0x30 RX (door press)");
+                if (motionTriggers.bit.doorKey)
+                {
+                    garage_door.motion_timer = millis() + 5000;
+                    garage_door.motion = true;
+                    notify_homekit_motion();
+                }
             }
             // wall panel is sending out 0x31 (Door Button Release) when it starts up
             // but also on release of door button
@@ -547,6 +553,12 @@ void comms_loop()
                         }
                         notify_homekit_target_lock();
                         notify_homekit_current_lock();
+                        if (motionTriggers.bit.lockKey)
+                        {
+                            garage_door.motion_timer = millis() + 5000;
+                            garage_door.motion = true;
+                            notify_homekit_motion();
+                        }
                     }
 
                     break;
@@ -762,6 +774,12 @@ void comms_loop()
                         RINFO("Lock Cmd %d", lock);
                         garage_door.target_lock = lock;
                         notify_homekit_target_lock();
+                        if (motionTriggers.bit.lockKey)
+                        {
+                            garage_door.motion_timer = millis() + 5000;
+                            garage_door.motion = true;
+                            notify_homekit_motion();
+                        }
                     }
                     // Send a get status to make sure we are in sync
                     send_get_status();
@@ -827,6 +845,18 @@ void comms_loop()
                     }
                     // Update status because things like light may have changed states
                     send_get_status();
+                    break;
+                }
+
+                case PacketCommand::DoorAction:
+                {
+                    RINFO("Door Action");
+                    if (pkt.m_data.value.door_action.pressed && motionTriggers.bit.doorKey)
+                    {
+                        garage_door.motion_timer = millis() + 5000;
+                        garage_door.motion = true;
+                        notify_homekit_motion();
+                    }
                     break;
                 }
 

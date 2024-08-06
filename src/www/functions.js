@@ -587,14 +587,20 @@ function getMotionTriggers() {
     let bitset = 0;
     bitset += (document.getElementById("motionMotion").checked) ? 1 : 0;
     bitset += (document.getElementById("motionObstruction").checked) ? 2 : 0;
-    bitset += (document.getElementById("motionLight").checked) ? 4 : 0;
+    //bitset += (document.getElementById("motionLight").checked) ? 4 : 0;
+    //bitset += (document.getElementById("motionDoor").checked) ? 8 : 0;
+    //bitset += (document.getElementById("motionLock").checked) ? 16 : 0;
+    bitset += (document.getElementById("motionWallPanel").checked) ? 28 : 0;
     return bitset;
 }
 
 function setMotionTriggers(bitset) {
     document.getElementById("motionMotion").checked = (bitset & 1) ? true : false;
     document.getElementById("motionObstruction").checked = (bitset & 2) ? true : false;
-    document.getElementById("motionLight").checked = (bitset & 4) ? true : false;
+    //document.getElementById("motionLight").checked = (bitset & 4) ? true : false;
+    //document.getElementById("motionDoor").checked = (bitset & 8) ? true : false;
+    //document.getElementById("motionLock").checked = (bitset & 16) ? true : false;
+    document.getElementById("motionWallPanel").checked = (bitset & 28) ? true : false;
 }
 
 async function saveSettings() {
