@@ -161,6 +161,14 @@ void save_rolling_code()
     last_saved_code = rolling_code;
 }
 
+void reset_door()
+{
+    rolling_code = 0; // because sync_and_reboot writes this.
+    delete_file("rolling");
+    delete_file("id_code");
+    delete_file("has_motion");
+}
+
 void wallPlate_Emulation()
 {
 
@@ -830,8 +838,10 @@ void comms_loop()
                     {
                         RINFO("Detected new Motion Sensor. Enabling Service");
                         garage_door.has_motion_sensor = true;
-                        // this causes a reboot...
-                        enable_service_homekit_motion();
+                        motionTriggers.bit.motion = 1;
+                        write_int_to_file(motionTriggersFile, motionTriggers.asInt);
+                        // Only reboot if we had not already other motionTriggers (which would have enabled service already)
+                        enable_service_homekit_motion(motionTriggers.asInt == 1);
                     }
 
                     /* When we get the motion detect message, notify HomeKit. Motion sensor

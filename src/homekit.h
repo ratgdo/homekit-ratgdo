@@ -12,5 +12,5 @@ void notify_homekit_target_lock();
 void notify_homekit_current_lock();
 void notify_homekit_obstruction();
 void notify_homekit_light();
-void enable_service_homekit_motion();
+void enable_service_homekit_motion(bool);
 void notify_homekit_motion();

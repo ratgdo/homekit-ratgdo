@@ -22,7 +22,7 @@ extern "C" homekit_characteristic_t light_state;
 extern "C" homekit_characteristic_t motion_detected;
 
 // Bring in the garage door state storage in ratgdo.c
-extern struct GarageDoor garage_door;
+extern GarageDoor garage_door;
 
 // Forward-declare setters used by characteristics
 homekit_value_t current_door_state_get();
@@ -69,7 +69,7 @@ void setup_homekit()
     light_state.setter = light_state_set;
 
     garage_door.has_motion_sensor = (bool)read_int_from_file("has_motion");
-    if (!garage_door.has_motion_sensor || read_int_from_file(motionTriggersFile) == 0)
+    if (!garage_door.has_motion_sensor && (read_int_from_file(motionTriggersFile) == 0))
     {
         RINFO("Motion Sensor not detected.  Disabling Service");
         config.accessories[0]->services[3] = NULL;
@@ -231,10 +231,12 @@ void notify_homekit_light()
     }
 }
 
-void enable_service_homekit_motion()
+void enable_service_homekit_motion(bool reboot)
 {
     write_int_to_file("has_motion", 1);
-    sync_and_restart();
+    if (reboot) {
+        sync_and_restart();
+    }
 }
 
 void notify_homekit_motion()
