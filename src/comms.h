@@ -14,4 +14,5 @@ void set_lock(uint8_t value);
 void set_light(bool value);
 
 void save_rolling_code();
+void reset_door();
 #endif // _COMMS_H

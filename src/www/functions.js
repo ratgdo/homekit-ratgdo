@@ -638,6 +638,12 @@ async function saveSettings() {
     return;
 }
 
+async function resetDoor() {
+    await setGDO("resetDoor", true);
+    countdown(30, "Door reset, RATGDO device rebooting...&nbsp;");
+    return;
+}
+
 // Functions to support mobile device swipe-down to reload...
 let pStart = { x: 0, y: 0 };
 let pStop = { x: 0, y: 0 };

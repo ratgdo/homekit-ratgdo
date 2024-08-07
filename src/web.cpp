@@ -320,6 +320,13 @@ void setup_web()
             write_int_to_file(motionTriggersFile, motionTriggers.asInt);
         }
     }
+    else if (garage_door.has_motion_sensor != (bool)motionTriggers.bit.motion)
+    {
+        // sync up web page tracking of whether we have motion sensor or not.
+        RINFO("Motion trigger mismatch, reset to %d", (uint8_t)garage_door.has_motion_sensor);
+        motionTriggers.bit.motion = (uint8_t)garage_door.has_motion_sensor;
+        write_int_to_file(motionTriggersFile, motionTriggers.asInt);
+    }
     RINFO("Motion triggers, motion : %d, obstruction: %d, light key: %d, door key: %d, lock key: %d, asInt: %d",
           motionTriggers.bit.motion,
           motionTriggers.bit.obstruction,
@@ -661,9 +668,8 @@ void handle_setgdo()
             if ((type == 1) || (type == 2))
             {
                 RINFO("SetGDO security type to %i", type);
-                // reset the door opener ID and rolling codes.
-                delete_file("rolling");
-                delete_file("id_code");
+                // reset the door opener ID, rolling code and presence of motion sensor.
+                reset_door();
                 // Write to flash and reboot
                 write_int_to_file("gdo_security", type);
                 reboot = true;
@@ -672,6 +678,13 @@ void handle_setgdo()
             {
                 error = true;
             }
+        }
+        else if (!strcmp(key, "resetDoor"))
+        {
+            RINFO("Request to reset door rolling codes");
+            // reset the door opener ID, rolling code and presence of motion sensor.
+            reset_door();
+            reboot = true;
         }
         else if (!strcmp(key, "passwordRequired"))
         {
