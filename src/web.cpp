@@ -132,6 +132,9 @@ const char www_pw_required_file[] = "www_pw_required_file";
 const char motionTriggersFile[] = "motion_triggers";
 motionTriggersUnion motionTriggers = {{0}};
 
+// What is LED idle state (on or off);
+const char ledIdleStateFile[] = "led_idle_state";
+
 // Control automatic reboot
 uint32_t rebootSeconds; // seconds between reboots
 const char system_reboot_timer[] = "system_reboot_timer";
@@ -310,6 +313,8 @@ void setup_web()
     RINFO("TTCdelay: %d", TTCdelay);
     wifiPower = (uint16_t)read_int_from_file(wifiPowerFile, 20);
     RINFO("wifiPower: %d", wifiPower);
+    led.setIdleState((uint8_t)read_int_from_file(ledIdleStateFile, LOW));
+    RINFO("LED Idle State: %s", (led.getIdleState() == LOW) ? "on" : "off");
     motionTriggers.asInt = (uint8_t)read_int_from_file(motionTriggersFile);
     if (motionTriggers.asInt == 0)
     {
@@ -592,6 +597,7 @@ void handle_status()
     ADD_INT(json, "wifiPower", wifiPower);
     ADD_INT(json, "TTCseconds", TTCdelay);
     ADD_INT(json, "motionTriggers", motionTriggers.asInt);
+    ADD_INT(json, "LEDidle", (led.getIdleState() == LOW) ? 1 : 0);
     // We send milliseconds relative to current time... ie updated X milliseconds ago
     ADD_INT(json, "lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
     ADD_BOOL(json, "checkFlashCRC", flashCRC);
@@ -735,8 +741,17 @@ void handle_setgdo()
         }
         else if (!strcmp(key, "motionTriggers"))
         {
-            write_int_to_file(motionTriggersFile, (uint32_t)atoi(value));
-            reboot = true;
+            uint8_t triggers = (uint8_t)atoi(value);
+            write_int_to_file(motionTriggersFile, (uint32_t)triggers);
+            // Only reboot if need for motion sensor accessory changes...
+            reboot = (((triggers == 0) && (motionTriggers.asInt != 0)) || ((triggers != 0) && (motionTriggers.asInt == 0)));
+            motionTriggers.asInt = triggers;
+        }
+        else if (!strcmp(key, "LEDidle"))
+        {
+            bool idleStateOn = (atoi(value) != 0);
+            write_int_to_file(ledIdleStateFile, (idleStateOn) ? LOW : HIGH);
+            led.setIdleState((idleStateOn) ? LOW : HIGH);
         }
         else if (!strcmp(key, "updateUnderway"))
         {
@@ -1049,6 +1064,9 @@ void handle_forcecrash()
 
 void SSEBroadcastState(const char *data, BroadcastType type)
 {
+    // Flash LED to signal activity
+    led.flash(FLASH_MS);
+
     // if nothing subscribed, then return
     if (subscriptionCount == 0)
         return;

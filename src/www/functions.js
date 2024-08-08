@@ -64,6 +64,9 @@ function setElementsFromStatus(status) {
             case "passwordRequired":
                 document.getElementById("pwreq").checked = value;
                 break;
+            case "LEDidle":
+                document.getElementById("LEDidle").checked = (value == 1);
+                break;
             case "rebootSeconds":
                 document.getElementById("rebootHours").value = value / 60 / 60;
                 break;
@@ -607,6 +610,7 @@ async function saveSettings() {
     const gdoSec = (document.getElementById("gdosec1").checked) ? '1' : '2';
     const pwReq = (document.getElementById("pwreq").checked) ? '1' : '0';
     const motionTriggers = getMotionTriggers();
+    const LEDidle = (document.getElementById("LEDidle").checked) ? 1 : 0;
     let rebootHours = Math.max(Math.min(parseInt(document.getElementById("rebootHours").value), 72), 0);
     if (isNaN(rebootHours)) rebootHours = 0;
     let newDeviceName = document.getElementById("newDeviceName").value.substring(0, 30);
@@ -627,7 +631,8 @@ async function saveSettings() {
         "wifiPhyMode", wifiPhyMode,
         "wifiPower", wifiPower,
         "TTCseconds", TTCseconds,
-        "motionTriggers", motionTriggers);
+        "motionTriggers", motionTriggers,
+        "LEDidle", LEDidle);
     if (reboot) {
         countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");
     }
