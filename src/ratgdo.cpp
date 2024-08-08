@@ -1,5 +1,4 @@
 
-#include <Arduino.h>
 #include <user_interface.h>
 #include <LittleFS.h>
 
@@ -24,7 +23,10 @@ struct obstruction_sensor_t
     unsigned long last_asleep = 0; // count time between high pulses from the obst ISR
 } obstruction_sensor;
 
-long unsigned int led_on_time = 0; // Stores time when LED should turn back on
+//long unsigned int led_reset_time = 0; // Stores time when LED should return to idle state
+//uint8_t led_active_state = LOW;       // LOW == LED on, HIGH == LED off
+//uint8_t led_idle_state = HIGH;        // opposite of active
+LED led;
 
 extern bool flashCRC;
 
@@ -48,6 +50,7 @@ void setup()
     LittleFS.begin();
 
     Serial.printf("\n"); // newline before we start
+    led = LED();
     RINFO("Starting RATGDO Homekit version %s", AUTO_VERSION);
     RINFO("%s", ESP.getFullVersion().c_str());
     RINFO("Flash chip size 0x%X", ESP.getFlashChipSize());
@@ -68,15 +71,12 @@ void setup()
     }
 
     wifi_connect();
-
     setup_pins();
-
     setup_comms();
-
     setup_homekit();
-
     setup_web();
 
+    led.idle();
     RINFO("RATGDO setup completed");
 }
 
@@ -95,13 +95,6 @@ void loop()
 void setup_pins()
 {
     RINFO("Setting up pins");
-
-    if (UART_TX_PIN != LED_BUILTIN)
-    {
-        RINFO("enabling built-in LED");
-        pinMode(LED_BUILTIN, OUTPUT);
-        digitalWrite(LED_BUILTIN, LOW);
-    }
 
     pinMode(UART_TX_PIN, OUTPUT);
     pinMode(UART_RX_PIN, INPUT_PULLUP);
@@ -207,11 +200,8 @@ void service_timer_loop()
 
     unsigned long current_millis = millis();
 
-    // LED Timer
-    if (digitalRead(LED_BUILTIN) && (current_millis > led_on_time))
-    {
-        digitalWrite(LED_BUILTIN, LOW);
-    }
+    // LED flash timer
+    led.flash();
 
     // Motion Clear Timer
     if (garage_door.motion && (current_millis > garage_door.motion_timer))
@@ -231,5 +221,50 @@ void service_timer_loop()
             min_heap = free_heap;
             RINFO("Minimum free heap dropped to %d", min_heap);
         }
+    }
+}
+
+// Constructor for LED class
+LED::LED()
+{
+    if (UART_TX_PIN != LED_BUILTIN)
+    {
+        Serial.printf("Enabling built-in LED object\n");
+        pinMode(LED_BUILTIN, OUTPUT);
+        on();
+    }
+}
+
+void LED::on()
+{
+    digitalWrite(LED_BUILTIN, LOW);
+}
+
+void LED::off()
+{
+    digitalWrite(LED_BUILTIN, HIGH);
+}
+
+void LED::idle()
+{
+    digitalWrite(LED_BUILTIN, idleState);
+}
+
+void LED::setIdleState(uint8_t state)
+{
+    idleState = state;
+    activeState = (state == HIGH) ? LOW : HIGH;
+}
+
+void LED::flash(unsigned long ms)
+{
+    if (ms)
+    {
+        digitalWrite(LED_BUILTIN, activeState);
+        resetTime = millis() + ms;
+    }
+    else if ((digitalRead(LED_BUILTIN) == activeState) && (millis() > resetTime))
+    {
+        digitalWrite(LED_BUILTIN, idleState);
     }
 }

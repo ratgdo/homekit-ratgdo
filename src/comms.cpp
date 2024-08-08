@@ -27,7 +27,6 @@ struct PacketAction
 
 Queue_t pkt_q;
 SoftwareSerial sw_serial;
-extern long unsigned int led_on_time;
 
 extern struct GarageDoor garage_door;
 
@@ -963,9 +962,8 @@ bool process_PacketAction(PacketAction &pkt_ac)
 
     bool success = false;
 
-    // Turn off LED
-    digitalWrite(LED_BUILTIN, HIGH);
-    led_on_time = millis() + 500;
+    // Use LED to signal activity
+    led.flash(FLASH_MS);
 
     if (gdoSecurityType == 1)
     {
