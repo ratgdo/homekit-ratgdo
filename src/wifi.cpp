@@ -124,19 +124,18 @@ void improv_loop() {
         bool connected = (WiFi.status() == WL_CONNECTED);
         RINFO("30 seconds since WiFi version change, connected: %s", (connected) ? "true" : "false");
         // reset flag
-        uint32_t changed = 0;
         wifiSettingsChanged = false;
-        write_int_to_file(wifiSettingsChangedFile, &changed);
+        write_int_to_file(wifiSettingsChangedFile, 0);
         // If not connected, reset to auto.
         // Not sure if setPhyMode() works immediately or if reboot required???
         if (!connected) {
             wifiPhyMode = (WiFiPhyMode_t)0;
             RINFO("Reset WiFiPhyMode to: %d", wifiPhyMode);
-            write_int_to_file(wifiPhyModeFile, (uint32_t *)&wifiPhyMode);
+            write_int_to_file(wifiPhyModeFile, (uint32_t)wifiPhyMode);
             WiFi.setPhyMode(wifiPhyMode);
             wifiPower = 20;
             RINFO("Reset WiFi Power to 20.5dBm");
-            write_int_to_file(wifiPowerFile, (uint32_t *)&wifiPower);
+            write_int_to_file(wifiPowerFile, (uint32_t)wifiPower);
             WiFi.setOutputPower(20.5);
         }
     }

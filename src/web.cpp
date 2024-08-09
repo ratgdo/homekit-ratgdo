@@ -128,17 +128,19 @@ const char credentials_file[] = "www_credentials";
 bool passwordReq = false;
 const char www_pw_required_file[] = "www_pw_required_file";
 
+// What trigger motion...
+const char motionTriggersFile[] = "motion_triggers";
+motionTriggersUnion motionTriggers = {{0}};
+
+// What is LED idle state (on or off);
+const char ledIdleStateFile[] = "led_idle_state";
+
 // Control automatic reboot
 uint32_t rebootSeconds; // seconds between reboots
 const char system_reboot_timer[] = "system_reboot_timer";
 // Track our memory usage
-Ticker memoryMonitor;
-uint32_t free_heap = 65535;
-uint32_t min_heap = 65535;
-uint32_t max_block = 65535;
-uint8_t max_frag = 0;
-uint32_t min_block = 65535;
-uint8_t min_frag = 0;
+extern "C" uint32_t free_heap;
+extern "C" uint32_t min_heap;
 
 // Control WiFi physical layer mode
 WiFiPhyMode_t wifiPhyMode = (WiFiPhyMode_t)0;
@@ -290,22 +292,6 @@ void web_loop()
     server.handleClient();
 }
 
-void memory_ticker()
-{
-    ESP.getHeapStats(&free_heap, &max_block, &max_frag);
-    if (free_heap < min_heap)
-    {
-        min_heap = free_heap;
-        RINFO("Minimum free heap dropped to %d", min_heap);
-    }
-    if (max_block < min_block)
-    {
-        min_block = max_block;
-        min_frag = max_frag;
-        RINFO("Maximum malloc block size dropped to %d (%d%% fragmented)", min_block, min_frag);
-    }
-}
-
 void setup_web()
 {
     RINFO("Starting server");
@@ -327,6 +313,32 @@ void setup_web()
     RINFO("TTCdelay: %d", TTCdelay);
     wifiPower = (uint16_t)read_int_from_file(wifiPowerFile, 20);
     RINFO("wifiPower: %d", wifiPower);
+    led.setIdleState((uint8_t)read_int_from_file(ledIdleStateFile, LOW));
+    RINFO("LED Idle State: %s", (led.getIdleState() == LOW) ? "on" : "off");
+    motionTriggers.asInt = (uint8_t)read_int_from_file(motionTriggersFile);
+    if (motionTriggers.asInt == 0)
+    {
+        // maybe just initialized. If we have motion sensor then set that and write back to file
+        if (garage_door.has_motion_sensor)
+        {
+            motionTriggers.bit.motion = 1;
+            write_int_to_file(motionTriggersFile, motionTriggers.asInt);
+        }
+    }
+    else if (garage_door.has_motion_sensor != (bool)motionTriggers.bit.motion)
+    {
+        // sync up web page tracking of whether we have motion sensor or not.
+        RINFO("Motion trigger mismatch, reset to %d", (uint8_t)garage_door.has_motion_sensor);
+        motionTriggers.bit.motion = (uint8_t)garage_door.has_motion_sensor;
+        write_int_to_file(motionTriggersFile, motionTriggers.asInt);
+    }
+    RINFO("Motion triggers, motion : %d, obstruction: %d, light key: %d, door key: %d, lock key: %d, asInt: %d",
+          motionTriggers.bit.motion,
+          motionTriggers.bit.obstruction,
+          motionTriggers.bit.lightKey,
+          motionTriggers.bit.doorKey,
+          motionTriggers.bit.lockKey,
+          motionTriggers.asInt);
     lastDoorUpdateAt = 0;
     lastDoorState = (GarageDoorCurrentState)0xff;
 
@@ -367,8 +379,6 @@ void setup_web()
         subscription[i].clientIP = INADDR_NONE;
         subscription[i].clientUUID.clear();
     }
-    // monitor memory heap once a second...
-    memoryMonitor.attach_scheduled(1.0, memory_ticker);
     RINFO("HTTP server started");
     return;
 }
@@ -400,6 +410,8 @@ void handle_reset()
     homekit_storage_reset();
     server.client().setNoDelay(true);
     server.send_P(200, type_txt, PSTR("Device has been un-paired from HomeKit. Rebooting...\n"));
+    // Allow time to process send() before terminating web server...
+    delay(500);
     server.stop();
     sync_and_restart();
     return;
@@ -410,6 +422,8 @@ void handle_reboot()
     RINFO("... reboot requested");
     server.client().setNoDelay(true);
     server.send_P(200, type_txt, PSTR("Rebooting...\n"));
+    // Allow time to process send() before terminating web server...
+    delay(500);
     server.stop();
     sync_and_restart();
     return;
@@ -578,14 +592,12 @@ void handle_status()
     ADD_INT(json, "freeHeap", free_heap);
     ADD_INT(json, "minHeap", min_heap);
     ADD_INT(json, "minStack", ESP.getFreeContStack());
-    ADD_INT(json, "maxBlock", max_block);
-    ADD_INT(json, "maxFrag", max_frag);
-    ADD_INT(json, "minBlock", min_block);
-    ADD_INT(json, "minFrag", min_frag);
     ADD_INT(json, "crashCount", crashCount);
     ADD_INT(json, "wifiPhyMode", wifiPhyMode);
     ADD_INT(json, "wifiPower", wifiPower);
     ADD_INT(json, "TTCseconds", TTCdelay);
+    ADD_INT(json, "motionTriggers", motionTriggers.asInt);
+    ADD_INT(json, "LEDidle", (led.getIdleState() == LOW) ? 1 : 0);
     // We send milliseconds relative to current time... ie updated X milliseconds ago
     ADD_INT(json, "lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
     ADD_BOOL(json, "checkFlashCRC", flashCRC);
@@ -662,11 +674,10 @@ void handle_setgdo()
             if ((type == 1) || (type == 2))
             {
                 RINFO("SetGDO security type to %i", type);
-                // reset the door opener ID and rolling codes.
-                delete_file("rolling");
-                delete_file("id_code");
+                // reset the door opener ID, rolling code and presence of motion sensor.
+                reset_door();
                 // Write to flash and reboot
-                write_int_to_file("gdo_security", &type);
+                write_int_to_file("gdo_security", type);
                 reboot = true;
             }
             else
@@ -674,17 +685,22 @@ void handle_setgdo()
                 error = true;
             }
         }
+        else if (!strcmp(key, "resetDoor"))
+        {
+            RINFO("Request to reset door rolling codes");
+            // reset the door opener ID, rolling code and presence of motion sensor.
+            reset_door();
+            reboot = true;
+        }
         else if (!strcmp(key, "passwordRequired"))
         {
-            uint32_t required = atoi(value);
-            passwordReq = (required != 0);
-            write_int_to_file(www_pw_required_file, &required);
+            passwordReq = (atoi(value) != 0);
+            write_int_to_file(www_pw_required_file, (passwordReq) ? 1 : 0);
         }
         else if (!strcmp(key, "rebootSeconds"))
         {
-            uint32_t seconds = atoi(value);
-            rebootSeconds = seconds;
-            write_int_to_file(system_reboot_timer, &seconds);
+            rebootSeconds = atoi(value);
+            write_int_to_file(system_reboot_timer, rebootSeconds);
             // only reboot if setting to non-zero
             reboot = (rebootSeconds != 0);
         }
@@ -698,13 +714,12 @@ void handle_setgdo()
         }
         else if (!strcmp(key, "wifiPhyMode"))
         {
-            WiFiPhyMode_t wifiPhyMode = (WiFiPhyMode_t)atoi(value);
-            if (read_int_from_file(wifiPhyModeFile) != (uint32_t)wifiPhyMode)
+            uint32_t wifiPhyMode = (uint32_t)atoi(value);
+            if (read_int_from_file(wifiPhyModeFile) != wifiPhyMode)
             {
                 // Setting has changed.  Write new value and note that change has taken place
-                write_int_to_file(wifiPhyModeFile, (uint32_t *)&wifiPhyMode);
-                uint32_t changed = 1;
-                write_int_to_file(wifiSettingsChangedFile, &changed);
+                write_int_to_file(wifiPhyModeFile, wifiPhyMode);
+                write_int_to_file(wifiSettingsChangedFile, 1);
                 reboot = true;
             }
         }
@@ -714,17 +729,29 @@ void handle_setgdo()
             if (read_int_from_file(wifiPowerFile) != wifiPower)
             {
                 // Setting has changed.  Write new value and note that change has taken place
-                write_int_to_file(wifiPowerFile, &wifiPower);
-                uint32_t changed = 1;
-                write_int_to_file(wifiSettingsChangedFile, &changed);
+                write_int_to_file(wifiPowerFile, wifiPower);
+                write_int_to_file(wifiSettingsChangedFile, 1);
                 reboot = true;
             }
         }
         else if (!strcmp(key, "TTCseconds"))
         {
-            uint32_t seconds = atoi(value);
-            TTCdelay = (uint8_t)seconds;
-            write_int_to_file(TTCdelay_file, &seconds);
+            TTCdelay = (uint8_t)atoi(value);
+            write_int_to_file(TTCdelay_file, TTCdelay);
+        }
+        else if (!strcmp(key, "motionTriggers"))
+        {
+            uint8_t triggers = (uint8_t)atoi(value);
+            write_int_to_file(motionTriggersFile, (uint32_t)triggers);
+            // Only reboot if need for motion sensor accessory changes...
+            reboot = (((triggers == 0) && (motionTriggers.asInt != 0)) || ((triggers != 0) && (motionTriggers.asInt == 0)));
+            motionTriggers.asInt = triggers;
+        }
+        else if (!strcmp(key, "LEDidle"))
+        {
+            bool idleStateOn = (atoi(value) != 0);
+            write_int_to_file(ledIdleStateFile, (idleStateOn) ? LOW : HIGH);
+            led.setIdleState((idleStateOn) ? LOW : HIGH);
         }
         else if (!strcmp(key, "updateUnderway"))
         {
@@ -789,6 +816,8 @@ void handle_setgdo()
     if (reboot)
     {
         RINFO("SetGDO Restart required");
+        // Allow time to process send() before terminating web server...
+        delay(500);
         server.stop();
         sync_and_restart();
     }
@@ -831,10 +860,6 @@ void SSEheartbeat(SSESubscription *s)
         ADD_INT(json, "freeHeap", free_heap);
         ADD_INT(json, "minHeap", min_heap);
         ADD_INT(json, "minStack", ESP.getFreeContStack());
-        ADD_INT(json, "maxBlock", max_block);
-        ADD_INT(json, "maxFrag", max_frag);
-        ADD_INT(json, "minBlock", min_block);
-        ADD_INT(json, "minFrag", min_frag);
         ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm").c_str());
         ADD_BOOL(json, "checkFlashCRC", flashCRC);
         END_JSON(json);
@@ -1039,6 +1064,9 @@ void handle_forcecrash()
 
 void SSEBroadcastState(const char *data, BroadcastType type)
 {
+    // Flash LED to signal activity
+    led.flash(FLASH_MS);
+
     // if nothing subscribed, then return
     if (subscriptionCount == 0)
         return;
@@ -1139,6 +1167,8 @@ void handle_update()
     {
         // Legacy... no query string args, so automatically reboot...
         server.send_P(200, type_txt, PSTR("Upload Success. Rebooting...\n"));
+        // Allow time to process send() before terminating web server...
+        delay(500);
         server.stop();
         sync_and_restart();
     }

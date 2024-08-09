@@ -186,7 +186,14 @@
                 <td class="label">Require Password:</td>
                 <td>&nbsp;
                   <input type="checkbox" id="pwreq" name="pwreq" value="no">
-                  <span style="font-size: 0.8em;">(default: admin/password)</span>
+                  <span style="font-size: 0.8em;">default: admin/password</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="label">LED on when idle:</td>
+                <td>&nbsp;
+                  <input type="checkbox" id="LEDidle" name="LEDidle" value="yes">
+                  <span style="font-size: 0.8em;">LED will flash on activity</span>
                 </td>
               </tr>
               <tr id="serverLogRow" style="display:none">
@@ -194,6 +201,29 @@
                 <td>&nbsp;
                   <input type="checkbox" id="serverLog" name="serverLog" value="no">
                   <span style="font-size: 0.8em;">Server logs to javascript console</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="font-size: 0.65em;"><br><u>Reboot may be required:</u></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td class="label">Motion Triggers:</td>
+                <td>&nbsp;
+                  <input type="checkbox" id="motionMotion" name="motionMotion" value="no" disabled>
+                  <label for="motionMotion">Motion</label>
+                  <input type="checkbox" id="motionObstruction" name="motionObstruction" value="no">
+                  <label for="motionObstruction">Obstruction</label>
+                  <!--
+                  <input type="checkbox" id="motionLight" name="motionLight" value="no">
+                  <label for="motionLight">Light</label>
+                  <input type="checkbox" id="motionDoor" name="motionDoor" value="no">
+                  <label for="motionDoor">Door</label>
+                  <input type="checkbox" id="motionLock" name="motionLock" value="no">
+                  <label for="motionLock">Lock</label>
+                  -->
+                  <input type="checkbox" id="motionWallPanel" name="motionWallPanel" value="no">
+                  <label for="motionWallPanel">Wall Panel</label>
                 </td>
               </tr>
               <tr>
@@ -252,6 +282,10 @@
                   <input type="button" value="Save Settings"
                     onclick="return confirm('Save Settings. Reboot may be required, are you sure?') && saveSettings()">
                 </td>
+                <td>
+                  <input type="button" value="Reset Door"
+                    onclick="return confirm('Reset door rolling codes and presence of motion sensor. Settings will not change but device will reboot, are you sure?') && resetDoor()">
+                </td>
               </tr>
             </table>
           </div>
@@ -273,12 +307,10 @@
         <table style="border-collapse: collapse">
           <tr id="freeMemRow">
             <td colspan="2" style="width: 100%; padding: 0px">freeHeap:&nbsp;<span id="freeHeap">0</span>&nbsp;</td>
-            <td colspan="2" style="width: 100%; padding: 0px; text-align: center;">minHeap:&nbsp;<span id="minHeap">0</span>&nbsp;</td>
-            <td colspan="2" style="width: 100%; padding: 0px; text-align: right;">minStack:&nbsp;<span id="minStack">0</span>&nbsp;</td>
-          </tr>
-          <tr id="memFragRow" style="display: none;">
-            <td colspan="3" style="width: 100%; padding: 0px">maxBlock:&nbsp;<span id="maxBlock">0</span>&nbsp;(<span id="maxFrag">0</span>%)&nbsp;</td>
-            <td colspan="3" style="width: 100%; padding: 0px; text-align: right;">minBlock:&nbsp;<span id="minBlock">0</span>&nbsp;(<span id="minFrag">0</span>%)&nbsp;</td>
+            <td colspan="2" style="width: 100%; padding: 0px; text-align: center;">minHeap:&nbsp;<span
+                id="minHeap">0</span>&nbsp;</td>
+            <td colspan="2" style="width: 100%; padding: 0px; text-align: right;">minStack:&nbsp;<span
+                id="minStack">0</span>&nbsp;</td>
           </tr>
         </table>
         <table style="border-collapse: collapse">
