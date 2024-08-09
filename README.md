@@ -94,13 +94,25 @@ You can select up-to 60 second delay before door starts closing. During the dela
 
 If selected then all the action buttons _except reboot_, and access to the settings page, will require authentication.  Default is not required.
 
+### LED on when idle
+
+If selected then the LED light on the ratgdo device will remain illuminated when the device is idle and flash off when there is activity.  If you prefer the LED to remain off while idle then unselect this checkbox and the LED to flash on with activity.
+
+### Motion Triggers
+
+This allows you to select what causes the HomeKit motion sensor accessory to trigger.  The default is to use the motion sensor built into the garage door opener, if it exists.  This checkbox is not selectable because presence of the motion sensor is detected automatically... based on detecting motion in the garage.  If your door opener does not have a motion sensor then the checkbox will show as un-checked.
+
+Motion can also be triggered by the obstruction sensor and by pressing the door, light or lock buttons on the door opener wall panel.  These are disabled by default but may be selected on the web page.
+
+Changing this setting will cause a reboot only if changing from no motion sensor to any selection that triggers motion, or vis versa.
+
 ### Receive Logs
 
 This option is not available on mobile devices. On a desktop browser all server firmware logs can be displayed in the javascript console log. On some browsers you may need to enable developer mode before you can open the javascript console.
 
 ### Door Protocol
 
-Set the protocol for your model of garage door opener.  This defaults to Security+ 2.0 and you should only change this if necessary.
+Set the protocol for your model of garage door opener.  This defaults to Security+ 2.0 and you should only change this if necessary.  Note that the changing the door protocol also resets the door opener rolling codes and whether there is a motion sensor (this will be automatically detected after reset).
 
 ### WiFi Version
 
@@ -113,6 +125,10 @@ You can set the WiFi transmit power to between 0 and 20 dBm. It defaults to the 
 ### Reboot Every
 
 During early devlopment there were several reports that the ratgdo device would reset itself and loose its pairing with HomeKit. To reduce the chance of this occuring a regular (e.g. daily) reboot of the device provided a work-around. The firmware is far more stable now and it is hoped that this is no longer required. This setting may be removed in future versions.
+
+### Reset Door
+
+This button resets the Sec+ 2.0 rolling codes and whether your door opener has a motion sensor. This may be necessary if the ratgdo device gets out-of-sync with what the door opener expects.  Selecting this button requires the ratgdo to reboot and does not save any new settings.
 
 ## How do I upgrade?
 
