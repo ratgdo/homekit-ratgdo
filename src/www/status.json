@@ -26,6 +26,7 @@
   "wifiPower": 10,
   "TTCseconds": 10,
   "motionTriggers": 3,
+  "LEDidle": 1,
   "lastDoorUpdateAt": 847155,
   "checkFlashCRC": false
 }

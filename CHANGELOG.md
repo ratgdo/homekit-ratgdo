@@ -2,6 +2,73 @@
 
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v1.7.0 (2024-08-10)
+
+### What's Changed
+
+* Removed the heap fragmentation tracking introduced in v1.6.1... it was occasionally crashing inside Arduino library.
+* Bugfix... device reboot countdown timer from 30 seconds to zero was not always displaying.
+* New feature... add _reset door_ button. This resets the Sec+ 2.0 rolling code and whether the door has a motion sensor or not.
+* New feature... add option to trigger motion sensor on user pressing wall panel buttons (door open/close, light and/or lock).
+* New feature... add option to trigger motion sensor on door obstruction.
+* New feature... add option for user to select whether the LED light remains on while device is idle or turns off.  Any activity causes the LED to flash.
+
+### Known Issues
+* Random crashes inside the MDNSresponder code which usually occur shortly after booting or when something significant changes on the network that causes a strom of mDNS messages. Ratgdo always recovers. Tracked in https://github.com/ratgdo/homekit-ratgdo/issues/211, https://github.com/ratgdo/homekit-ratgdo/issues/223
+* Random crashes inside the WiFi stack possibly associated with failing to connect to WiFi access point.  Tracked in https://github.com/ratgdo/homekit-ratgdo/issues/215, https://github.com/ratgdo/homekit-ratgdo/issues/218, https://github.com/ratgdo/homekit-ratgdo/issues/223
+* Occasional failure to connect to WiFi. Tracked in https://github.com/ratgdo/homekit-ratgdo/issues/217
+
+## v1.6.1 (2024-07-28)
+
+### What's Changed
+* Fixes to SEC1.0 when no DIGITAL wall panel connected by @mitchjs in https://github.com/ratgdo/homekit-ratgdo/pull/208
+* Improve memory heap usage tracking and logging to assist with future debugging
+* Cleaned up numerous compiler warnings
+
+The only functional change in this release is to better support Sec+ 1.0 garage door openers when there is no digital wall panel.  Upgrading is therefore optional if your GDO is Sec+ 2.0.
+
+## v1.6.0 (2024-06-17)
+
+### What's Changed
+* Documentation updates and test HomeKit server running by @dkerr64 in https://github.com/ratgdo/homekit-ratgdo/pull/197
+* Fix a bug in HomeKit library was not not always correctly updating characteristics by @jgstroud in https://github.com/ratgdo/homekit-ratgdo/pull/204 Thanks @hjdhjd for pointing me in the right direction
+* Get status on boot by @jgstroud in https://github.com/ratgdo/homekit-ratgdo/pull/205
+* Make obstruction detection ignore spurrious detections by @jgstroud in https://github.com/ratgdo/homekit-ratgdo/pull/206
+
+## v1.5.0 (2024-06-03)
+
+### What's Changed
+* Firmware verification working branch by @dkerr64 in https://github.com/ratgdo/homekit-ratgdo/pull/193
+
+Fixes several critical bugs.  Recommended for all users to upgrade.  @dak64 identified some storage issues in the homekit library and corrected them.  This should address #194 #189 #184
+
+**NOTE: You will need to re-pair with HomeKit after installing this update.**
+The most reliable way to do this is 1) erase from Apple Home, 2) reset/re-pair button on ratgdo, 3) kill Apple Home and restart it and 4) scan the QR code.
+
+## v1.4.0 (2024-05-30)
+
+### What's Changed
+* Fixes / features for next release. by @dkerr64 and @jgstroud in https://github.com/ratgdo/homekit-ratgdo/pull/191
+* Remove old redundant code
+* Save logs on clean shutdown
+* Check flash CRC on upload complete
+* Add a full flash verify on upload to make sure contents are written properly to flash
+* Change wifi persist to false.  was writing wifi settings to flash multiple times on each boot.  known to cause issues.  #192
+
+Lots of changes mainly focuses on trying to prevent flash corruptions.
+
+## v1.4.0 (2024-05-21)
+
+### What's Changed
+* Fixes and features for next release by @dkerr64 in https://github.com/ratgdo/homekit-ratgdo/pull/175
+  - Back out usage of secondary IRAM heap. This was causing some users to not be able to access the webUI.  Fixes #173 
+  - Change webUI structure for memory optimization
+  - Add script to remotely monitor logs
+  - Document CLI control in the README
+* New prerelease check by @jgstroud in https://github.com/ratgdo/homekit-ratgdo/pull/170
+* v1.3.5 in changeling by @donavanbecker in https://github.com/ratgdo/homekit-ratgdo/pull/169
+* Wait before publishing release to discord by @donavanbecker in https://github.com/ratgdo/homekit-ratgdo/pull/168
+
 ## v1.3.5 (2024-05-01)
 
 ### What's Changed
