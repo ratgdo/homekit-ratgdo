@@ -70,7 +70,7 @@ By default authentication is not required for any action on this web page.  Howe
 > [!NOTE]
 > The device uses _Digest Authentication_ supported in all web browsers, this is not cryptographically secure but is sufficient to protect against unauthorized or inadvertant access. Note that web browsers remember the username and password for a period of time so you will not be prompted to authenticate for every access.
 
-You can change the default password by clicking into the settings page:
+You can change the user name and password by clicking into the settings page:
 
 [![settings](docs/webpage/settings.png)](#settings)
 
@@ -78,7 +78,7 @@ You can change the default password by clicking into the settings page:
 
 [![password](docs/webpage/password.png)](#password)
 
-The settings page allows you to input a new password (but username cannot be changed, it is always _admin_). Saving a new password will return you to the main webpage from which point you will have to authenticate with the new password to access the settings page or any of the action buttons (except for reboot).
+The settings page allows you to input a new user name and password. Saving a new password will return you to the main webpage from which point you will have to authenticate with the new password to access the settings page or any of the action buttons (except for reboot).
 
 When you save settings from this page the ratgdo device will either return immediately to the main page or, if required, reboot return to the main page and after a 30-second countdown.
 

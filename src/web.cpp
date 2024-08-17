@@ -116,7 +116,8 @@ extern uint8_t TTCdelay;
 const char TTCdelay_file[] = "TTC_delay";
 
 // userid/password
-const char www_username[] = "admin";
+char www_username[32] = "admin";
+const char username_file[] = "www_username";
 const char www_password[] = "password";
 const char www_realm[] = "RATGDO Login Required";
 
@@ -305,6 +306,8 @@ void setup_web()
     // www_credentials = server.credentialHash(www_username, www_realm, www_password);
     read_string_from_file(credentials_file, www_credentials, www_credentials, sizeof(www_credentials));
     RINFO("WWW Credentials: %s", www_credentials);
+    read_string_from_file(username_file, www_username, www_username, sizeof(www_username));
+    RINFO("WWW Username: %s", www_username);
     passwordReq = (read_int_from_file(www_pw_required_file) != 0);
     RINFO("WWW Password %s required", (passwordReq) ? "is" : "not");
     wifiPhyMode = (WiFiPhyMode_t)read_int_from_file(wifiPhyModeFile);
@@ -572,6 +575,7 @@ void handle_status()
     START_JSON(json);
     ADD_INT(json, "upTime", upTime);
     ADD_STR(json, "deviceName", device_name);
+    ADD_STR(json, "userName", www_username);
     ADD_BOOL(json, "paired", paired);
     ADD_STR(json, "firmwareVersion", std::string(AUTO_VERSION).c_str());
     ADD_STR(json, "accessoryID", accessoryID);
@@ -664,9 +668,34 @@ void handle_setgdo()
         }
         else if (!strcmp(key, "credentials"))
         {
-            strlcpy(www_credentials, value, sizeof(www_credentials));
-            RINFO("Writing new www_credentials to file: %s", www_credentials);
-            write_string_to_file(credentials_file, www_credentials);
+            char *newUsername = strstr(value, "username");
+            char *newCredentials = strstr(value, "credentials");
+            if (newUsername && newCredentials)
+            {
+                // JSON string of passed in.
+                // Very basic parsing, not using library functions to save memory
+                // find the colon after the key string
+                newUsername = strchr(newUsername, ':') + 1;
+                newCredentials = strchr(newCredentials, ':') + 1;
+                // for strings find the double quote
+                newUsername = strchr(newUsername, '"') + 1;
+                newCredentials = strchr(newCredentials, '"') + 1;
+                // null terminate the strings (at closing quote).
+                *strchr(newUsername, '"') = (char)0;
+                *strchr(newCredentials, '"') = (char)0;
+                // RINFO("Username: %s, Credentials: %s", newUsername, newCredentials);
+                // save values...
+                strlcpy(www_credentials, newCredentials, sizeof(www_credentials));
+                strlcpy(www_username, newUsername, sizeof(www_username));
+                write_string_to_file(username_file, www_username);
+                write_string_to_file(credentials_file, www_credentials);
+            }
+            else
+            {
+                // old implementation... before JSON form of parameter.
+                strlcpy(www_credentials, value, sizeof(www_credentials));
+                write_string_to_file(credentials_file, www_credentials);
+            }
         }
         else if (!strcmp(key, "GDOSecurityType"))
         {

@@ -139,25 +139,32 @@
       <!-- Settings section of page ------------------------------------------------------------------>
       <div id="settings-page" style="display: none; padding-left: 0px; padding-right: 0px;">
         <div class="fullwidth" style="padding-top: 0px; padding-bottom: 0px;">
-          <div style="padding-top: 0px; padding-bottom: 0px;">
+          <div>
             <table class="password">
               <tr>
+                <td class="label">Username:</td>
+                <td>&nbsp;
+                  <input id="newUserName" type="text" placeholder="admin" maxlength="30" minlength="1">
+                </td>
+                <td></td>
+              </tr>
+              <tr>
                 <td class="label">Password:</td>
-                <td><input id="newPassword" type="password" placeholder="new password" autocomplete="new-password"></td>
+                <td>&nbsp;
+                  <input id="newPassword" type="password" placeholder="new password" autocomplete="new-password">
+                </td>
+                <td></td>
               </tr>
               <tr>
                 <td class="label">Confirm:</td>
-                <td><input id="confirmPassword" type="password" placeholder="confirm new password"></td>
-              </tr>
-              <tr>
-                <td></td>
-                <td id="matchMsg" style="font-size: 0.6em;"><br></td>
+                <td>&nbsp;
+                  <input id="confirmPassword" type="password" placeholder="confirm new password">
+                </td>
+                <td>&nbsp;&nbsp;&nbsp;&nbsp;
+                  <input type="button" value="Save User/Password" onclick="changePassword();">
+                </td>
               </tr>
             </table>
-          </div>
-          <div>
-            <br>
-            <input type="button" value="Save Password" onclick="changePassword();">
           </div>
         </div>
         <div class="fullwidth" style="padding-top: 0px; padding-bottom: 0px;">
@@ -306,11 +313,15 @@
         <br>
         <table style="border-collapse: collapse">
           <tr id="freeMemRow">
-            <td colspan="2" style="width: 100%; padding: 0px">freeHeap:&nbsp;<span id="freeHeap">0</span>&nbsp;</td>
-            <td colspan="2" style="width: 100%; padding: 0px; text-align: center;">minHeap:&nbsp;<span
-                id="minHeap">0</span>&nbsp;</td>
-            <td colspan="2" style="width: 100%; padding: 0px; text-align: right;">minStack:&nbsp;<span
-                id="minStack">0</span>&nbsp;</td>
+            <td colspan="2" style="width: 30%; padding: 0px">
+              freeHeap:&nbsp;<span id="freeHeap">0</span>&nbsp;
+            </td>
+            <td colspan="2" style="width: 30%; padding: 0px; text-align: center;">
+              minHeap:&nbsp;<span id="minHeap">0</span>&nbsp;
+            </td>
+            <td colspan="2" style="width: 30%; padding: 0px; text-align: right;">
+              minStack:&nbsp;<span id="minStack">0</span>&nbsp;
+            </td>
           </tr>
         </table>
         <table style="border-collapse: collapse">

@@ -61,6 +61,9 @@ function setElementsFromStatus(status) {
                 document.getElementById(key).innerHTML = value;
                 document.getElementById("newDeviceName").placeholder = value;
                 break;
+            case "userName":
+                document.getElementById("newUserName").placeholder = value;
+                break;
             case "passwordRequired":
                 document.getElementById("pwreq").checked = value;
                 break;
@@ -565,6 +568,7 @@ async function setGDO(...args) {
 }
 
 async function changePassword() {
+    // newPW defined in index.html
     if (newPW.value === "") {
         alert("New password cannot be blank");
         return;
@@ -573,12 +577,17 @@ async function changePassword() {
         alert("Passwords do not match");
         return;
     }
-    const www_username = "admin";
+    let www_username = document.getElementById("newUserName").value.substring(0, 30);
+    if (www_username.length == 0) www_username = serverStatus.userName ?? "admin";
     const www_realm = "RATGDO Login Required";
     // MD5() function expects a Uint8Array typed ArrayBuffer...
-    passwordHash = MD5((new TextEncoder).encode(www_username + ":" + www_realm + ":" + newPW.value));
+    const passwordHash = MD5((new TextEncoder).encode(www_username + ":" + www_realm + ":" + newPW.value));
     console.log("Set new credentials to: " + passwordHash);
-    await setGDO("credentials", passwordHash);
+    // await setGDO("credentials", passwordHash);
+    await setGDO("credentials", JSON.stringify({
+        username: www_username,
+        credentials: passwordHash
+    }));
     clearTimeout(checkHeartbeat);
     // On success, go to home page.
     // User will have to re-authenticate to get back to settings.
