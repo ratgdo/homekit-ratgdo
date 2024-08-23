@@ -73,3 +73,21 @@ Flash: [======    ]  56.9% (used 594272 bytes from 1044464 bytes)
 git checkout v1.4.1
 RAM:   [=====     ]  52.8% (used 43216 bytes from 81920 bytes)
 Flash: [======    ]  56.9% (used 594072 bytes from 1044464 bytes)
+
+git checkout v1.4.2
+git checkout v1.4.3
+git checkout v1.4.4
+git checkout v1.5.0
+
+git checkout v1.6.0
+RAM:   [=====     ]  53.1% (used 43476 bytes from 81920 bytes)
+Flash: [======    ]  57.2% (used 596936 bytes from 1044464 bytes)
+
+git checkout v1.6.1
+RAM:   [=====     ]  53.1% (used 43520 bytes from 81920 bytes)
+Flash: [======    ]  57.6% (used 601284 bytes from 1044464 bytes)
+
+
+git checkout v1.7.0
+RAM:   [=====     ]  53.2% (used 43544 bytes from 81920 bytes)
+Flash: [======    ]  57.5% (used 600500 bytes from 1044464 bytes)
