@@ -142,6 +142,9 @@ const char system_reboot_timer[] = "system_reboot_timer";
 // Track our memory usage
 extern "C" uint32_t free_heap;
 extern "C" uint32_t min_heap;
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
+uint32_t free_iram_heap = 65535;
+#endif
 
 // Control WiFi physical layer mode
 WiFiPhyMode_t wifiPhyMode = (WiFiPhyMode_t)0;
@@ -295,12 +298,17 @@ void web_loop()
 
 void setup_web()
 {
-    RINFO("Starting server");
+    RINFO("Starting HTTP web server");
     {
 #if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
         HeapSelectIram ephemeral;
 #endif
         json = (char *)malloc(JSON_BUFFER_SIZE);
+        RINFO("Allocated buffer for JSON, size: %d", JSON_BUFFER_SIZE);
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
+        free_iram_heap = ESP.getFreeHeap();
+        RINFO("Free IRAM heap: %d", free_iram_heap);
+#endif
     }
     last_reported_paired = homekit_is_paired();
     // www_credentials = server.credentialHash(www_username, www_realm, www_password);
@@ -366,6 +374,10 @@ void setup_web()
 #endif
         server.on("/update", HTTP_POST, handle_update, handle_firmware_upload);
         server.onNotFound(handle_everything);
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
+        free_iram_heap = ESP.getFreeHeap();
+        RINFO("Free IRAM heap: %d", free_iram_heap);
+#endif
     }
 
     // here the list of headers to be recorded
@@ -382,7 +394,7 @@ void setup_web()
         subscription[i].clientIP = INADDR_NONE;
         subscription[i].clientUUID.clear();
     }
-    RINFO("HTTP server started");
+    RINFO("HTTP server started. Free heap: %d", ESP.getFreeHeap());
     return;
 }
 
@@ -469,7 +481,7 @@ void load_page(const char *page)
     HTTPMethod method = server.method();
     if (strcmp(crc32, matchHdr))
     {
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
+#if defined(CHUNK_WEB_PAGES)
         WiFiClient client = server.client();
         client.print("HTTP/1.1 200 OK\n");
         client.print("Content-Type: ");
@@ -595,6 +607,9 @@ void handle_status()
     ADD_INT(json, "rebootSeconds", rebootSeconds);
     ADD_INT(json, "freeHeap", free_heap);
     ADD_INT(json, "minHeap", min_heap);
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
+    ADD_INT(json, "freeIramHeap", free_iram_heap);
+#endif
     ADD_INT(json, "minStack", ESP.getFreeContStack());
     ADD_INT(json, "crashCount", crashCount);
     ADD_INT(json, "wifiPhyMode", wifiPhyMode);
@@ -888,6 +903,10 @@ void SSEheartbeat(SSESubscription *s)
         ADD_INT(json, "upTime", millis());
         ADD_INT(json, "freeHeap", free_heap);
         ADD_INT(json, "minHeap", min_heap);
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
+        // Not needed on heartbeat as all allocated during startup so never changes.
+        // ADD_INT(json, "freeIramHeap", free_iram_heap);
+#endif
         ADD_INT(json, "minStack", ESP.getFreeContStack());
         ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm").c_str());
         ADD_BOOL(json, "checkFlashCRC", flashCRC);
