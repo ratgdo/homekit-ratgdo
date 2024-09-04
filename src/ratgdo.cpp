@@ -215,11 +215,11 @@ void service_timer_loop()
     if (current_millis > next_heap_check)
     {
         next_heap_check = current_millis + 1000;
-        free_heap = system_get_free_heap_size();
+        free_heap = ESP.getFreeHeap();
         if (free_heap < min_heap)
         {
             min_heap = free_heap;
-            RINFO("Minimum free heap dropped to %d", min_heap);
+            RINFO("Free heap dropped to %d", min_heap);
         }
     }
 }
@@ -229,7 +229,7 @@ LED::LED()
 {
     if (UART_TX_PIN != LED_BUILTIN)
     {
-        Serial.printf("Enabling built-in LED object\n");
+        //Serial.printf("Enabling built-in LED object\n");
         pinMode(LED_BUILTIN, OUTPUT);
         on();
     }

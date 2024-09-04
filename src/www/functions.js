@@ -108,8 +108,15 @@ function setElementsFromStatus(status) {
             case "motionTriggers":
                 setMotionTriggers(value);
                 break;
+            case "freeIramHeap":
+                // Unused... remove this case statement when/if we add to html.
+                break;
             default:
-                document.getElementById(key).innerHTML = value;
+                try {
+                    document.getElementById(key).innerHTML = value;
+                } catch (error) {
+                    console.error(`Server sent unrecognized status key: ${key}`);
+                }
         }
     }
 }

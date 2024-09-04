@@ -18,7 +18,10 @@ void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]);
 #define CRASH_LOG_MSG_FILE "crash_log"
 #define REBOOT_LOG_MSG_FILE "reboot_log"
 #if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-#define LOG_BUFFER_SIZE 4096
+// This can be large, but not too large.  IRAM heap is approx 18KB, we also need
+// space for other data in here, so during development monitor logs and adjust
+// this smaller if necessary.  IRAM malloc's are all done during startup.
+#define LOG_BUFFER_SIZE 12288
 #else
 #define LOG_BUFFER_SIZE 2048
 #endif
