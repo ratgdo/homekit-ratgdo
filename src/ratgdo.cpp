@@ -8,6 +8,7 @@
 #include "comms.h"
 #include "log.h"
 #include "web.h"
+#include "utilities.h"
 
 /********************************* FWD DECLARATIONS *****************************************/
 
@@ -51,7 +52,7 @@ void setup()
 
     Serial.printf("\n"); // newline before we start
     led = LED();
-    RINFO("Starting RATGDO Homekit version %s", AUTO_VERSION);
+    RINFO("=== Starting RATGDO Homekit version %s", AUTO_VERSION);
     RINFO("%s", ESP.getFullVersion().c_str());
     RINFO("Flash chip size 0x%X", ESP.getFlashChipSize());
     RINFO("Flash chip mode 0x%X", ESP.getFlashChipMode());
@@ -70,6 +71,7 @@ void setup()
         RERROR("checkFlashCRC: false");
     }
 
+    load_all_config_settings();
     wifi_connect();
     setup_pins();
     setup_comms();
@@ -77,7 +79,8 @@ void setup()
     setup_web();
 
     led.idle();
-    RINFO("RATGDO setup completed");
+    RINFO("=== RATGDO setup completed ===");
+    RINFO("==============================");
 }
 
 void loop()
