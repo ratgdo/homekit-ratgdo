@@ -79,8 +79,8 @@ void setup()
     setup_web();
 
     led.idle();
-    RINFO("=== RATGDO setup completed ===");
-    RINFO("==============================");
+    RINFO("=== RATGDO setup complete ===");
+    RINFO("=============================");
 }
 
 void loop()

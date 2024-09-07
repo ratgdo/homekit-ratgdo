@@ -84,7 +84,7 @@ When you save settings from this page the ratgdo device will either return immed
 
 ### Name
 
-This updates the name reported to HomeKit and for mDNS device discovery.  The default name is _Garage Door ABCDEF_ where the last 6 characters are set to the MAC address of the ratgdo device. Changing the name after pairing with HomeKit does not change the name within HomeKit or Apple Home.
+This updates the name reported to HomeKit and for mDNS device discovery.  The default name is _Garage Door ABCDEF_ where the last 6 characters are set to the MAC address of the ratgdo device. Changing the name after pairing with HomeKit does not change the name within HomeKit or Apple Home.  The maximum length is 31 characters.  For IP host name the length is truncated to 23 characters and all spaces are replaced with a hyphen.
 
 ### Door Close Delay
 
@@ -122,12 +122,18 @@ If the device faile to connect reliably and consistently to your WiFi network it
 
 You can set the WiFi transmit power to between 0 and 20 dBm. It defaults to the maximum (20.5 dBm, displayed as 20 dBm) but you may wish to fine tune this to control how the device connects to available WiFi access points.
 
+> [!NOTE]
+> If the ratgdo device fails to connect to a WiFi access point by approximately 40 seconds after a reboot from a setting change, then the device will reset all the WiFi settings and will then attempt to reconnect to the server.
+
 ### Static IP
 
-If selected then you can enter a static IP address, network mask and gateway IP.  Note that if the address changes after reboot then the web page will not automatically reload from the new IP address... you will need to manually connect to the ratgdo device at its new address.
+If selected then you can enter a static IP address, network mask, gateway IP and DNS server IP.  Note that if the address changes, then after reboot the web page will not automatically reload from the new IP address... you will need to manually connect to the ratgdo device at its new address. __Most users should NOT select static IP__ as it is far safer to use DHCP to automatically configure the device.
 
 > [!NOTE]
-> For any WiFi or IP changes, if the ratgdo device fails to connect to WiFi network by 30 seconds after a reboot from a setting change, then the device will reset all the WiFi settings including disabling static IP and will then attempt to reconnect to the server.
+> You must provide a DNS server IP address, this is used to test that the network is working by attempting to access the DNS server approximately 40 seconds after a reboot from a setting change. If this fails then the device will disable static IP and will attempt to reconnect to the network using DHCP. Most household gateway routers act as DNS servers so you could use the same IP address as the gateway. If the DNS is on the same subnet as the gateway then we attempt to resolve for "localhost" otherwise we test for "google.com".
+
+> [!WARNING]
+> If you enter an IP address that is not valid on your network then you will not be able to access the device by web browser or from HomeKit. If the device fails to automatically recover by resetting to DHCP, then the only recovery is to flash the ratgdo over the USB port using the web installer AND select the option to erase the device.  This will factory reset the device and you will have to remove the garage door accessory from HomeKit and then add it again.
 
 ### Reboot Every
 

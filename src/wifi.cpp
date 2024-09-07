@@ -54,10 +54,11 @@ void onDisconnected(const WiFiEventStationModeDisconnected& evt) {
 }
 
 void onGotIP(const WiFiEventStationModeGotIP& evt) {
-  RINFO("WiFi Got IP: %s, Mask: %s, Gateway: %s", evt.ip.toString().c_str(), evt.mask.toString().c_str(), evt.gw.toString().c_str());
+  RINFO("WiFi Got IP: %s, Mask: %s, Gateway: %s, DNS: %s", evt.ip.toString().c_str(), evt.mask.toString().c_str(), evt.gw.toString().c_str(), WiFi.dnsIP().toString().c_str());
   write_string_to_file(IPaddressFile,evt.ip.toString().c_str());
   write_string_to_file(IPnetmaskFile,evt.mask.toString().c_str());
   write_string_to_file(IPgatewayFile,evt.gw.toString().c_str());
+  write_string_to_file(IPnameserverFile, (WiFi.dnsIP().isSet()) ? WiFi.dnsIP().toString().c_str() : evt.gw.toString().c_str());
 }
 
 void onDHCPTimeout() {
@@ -114,9 +115,10 @@ void wifi_connect() {
         IPAddress ip;
         IPAddress gw;
         IPAddress nm;
-        if (ip.fromString(IPaddress) && gw.fromString(IPgateway) && nm.fromString(IPnetmask))
+        IPAddress dns;
+        if (ip.fromString(IPaddress) && gw.fromString(IPgateway) && nm.fromString(IPnetmask) && dns.fromString(IPnameserver))
         {
-            WiFi.config(ip,gw,nm);
+            WiFi.config(ip, gw, nm, dns);
         }
         else
         {
@@ -148,10 +150,7 @@ void improv_loop() {
 
     if (wifiSettingsChanged && (millis() > wifiConnectTimeout)) {
         bool connected = (WiFi.status() == WL_CONNECTED);
-        RINFO("30 seconds since WiFi version change, connected: %s", (connected) ? "true" : "false");
-        // reset flag
-        wifiSettingsChanged = false;
-        write_int_to_file(wifiSettingsChangedFile, 0);
+        RINFO("30 seconds since WiFi settings change, connected to access point: %s", (connected) ? "true" : "false");
         // If not connected, reset to auto.
         if (!connected) {
             wifiPhyMode = (WiFiPhyMode_t)0;
@@ -162,15 +161,51 @@ void improv_loop() {
             RINFO("Reset WiFi Power to 20.5dBm");
             write_int_to_file(wifiPowerFile, (uint32_t)wifiPower);
             WiFi.setOutputPower(20.5);
-            RINFO("Reset IP to DHCP");
-            staticIP = false;
-            write_int_to_file(staticIPfile, 0);
-            IPAddress ip;
-            ip.fromString("0.0.0.0");
-            WiFi.config(ip, ip, ip);
             // Now try and reconnect...
+            wifiConnectTimeout = millis() + 30000;
             WiFi.reconnect();
+            return;
         }
+        else {
+            RINFO("Connected, test network DNS reachable");
+            if (WiFi.dnsIP().isSet())
+            {
+                IPAddress ip;
+                ip_addr_t dns = (ip_addr_t)WiFi.dnsIP();
+                ip_addr_t gw = (ip_addr_t)WiFi.gatewayIP();
+                ip_addr_t nm = (ip_addr_t)WiFi.subnetMask();
+                if (ip4_addr_netcmp(&dns, &gw, &nm))
+                {
+                    RINFO("DNS server in same subnet as gateway)");
+                    WiFi.hostByName("localhost", ip);
+                }
+                else
+                {
+                    WiFi.hostByName("google.com", ip);
+                }
+                RINFO("Resolved IP address: %s", ip.toString().c_str());
+                if (!ip.isSet())
+                {
+                    RINFO("DNS not working, reset to DHCP to acquire IP address and reconnect");
+                    staticIP = false;
+                    write_int_to_file(staticIPfile, 0);
+                    IPAddress ip;
+                    ip.fromString("0.0.0.0");
+                    WiFi.config(ip, ip, ip);
+                    // Now try and reconnect...
+                    wifiConnectTimeout = millis() + 30000;
+                    WiFi.reconnect();
+                    return;
+                }
+            }
+            else
+            {
+                RINFO("No DNS Server address, cannot confirm network is working");
+            }
+        }
+        // reset flag
+        wifiSettingsChanged = false;
+        write_int_to_file(wifiSettingsChangedFile, 0);
     }
 }
 
