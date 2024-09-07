@@ -107,6 +107,9 @@ function setElementsFromStatus(status) {
                 document.getElementById(key).innerHTML = value;
                 document.getElementById("IPgateway").placeholder = value;
                 break;
+            case "nameserverIP":
+                document.getElementById("IPnameserver").placeholder = value;
+                break;
             case "staticIP":
                 document.getElementById(key).checked = value;
                 document.getElementById("staticIPtable").style.display = (value) ? "table" : "none";
@@ -663,12 +666,14 @@ async function saveSettings() {
     if (subnetMask.length == 0) subnetMask = serverStatus.subnetMask;
     let gatewayIP = document.getElementById("IPgateway").value.substring(0, 15);
     if (gatewayIP.length == 0) gatewayIP = serverStatus.gatewayIP;
+    let nameserverIP = document.getElementById("IPnameserver").value.substring(0, 15);
+    if (nameserverIP.length == 0) nameserverIP = serverStatus.nameserverIP;
 
     // check IP addresses valid
     const regexIPv4 = /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/i;
-    if (!(regexIPv4.test(localIP) && regexIPv4.test(subnetMask) && regexIPv4.test(gatewayIP))) {
-        console.error(`Invalid IP address(s): ${localIP} / ${subnetMask} / ${gatewayIP}`);
-        alert(`Invalid IP address(s): ${localIP} / ${subnetMask} / ${gatewayIP}`);
+    if (!(regexIPv4.test(localIP) && regexIPv4.test(subnetMask) && regexIPv4.test(gatewayIP) && regexIPv4.test(nameserverIP))) {
+        console.error(`Invalid IP address(s): ${localIP} / ${subnetMask} / ${gatewayIP} / ${nameserverIP}`);
+        alert(`Invalid IP address(s): ${localIP} / ${subnetMask} / ${gatewayIP} / ${nameserverIP}`);
         return;
     }
 
@@ -684,7 +689,8 @@ async function saveSettings() {
         "staticIP", staticIP,
         "localIP", localIP,
         "subnetMask", subnetMask,
-        "gatewayIP", gatewayIP
+        "gatewayIP", gatewayIP,
+        "nameserverIP", nameserverIP
     );
     if (reboot) {
         countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");

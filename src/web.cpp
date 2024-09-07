@@ -515,6 +515,7 @@ void handle_status()
 #define IPaddr WiFi.localIP().toString().c_str()
 #define subnetMask WiFi.subnetMask().toString().c_str()
 #define gatewayIP WiFi.gatewayIP().toString().c_str()
+#define nameserverIP WiFi.dnsIP().toString().c_str()
 #define macAddress WiFi.macAddress().c_str()
 #define wifiSSID WiFi.SSID().c_str()
 #define GDOSecurityType std::to_string(gdoSecurityType).c_str()
@@ -529,6 +530,7 @@ void handle_status()
     ADD_STR(json, "localIP", IPaddr);
     ADD_STR(json, "subnetMask", subnetMask);
     ADD_STR(json, "gatewayIP", gatewayIP);
+    ADD_STR(json, "nameserverIP", nameserverIP);
     ADD_STR(json, "macAddress", macAddress);
     ADD_STR(json, "wifiSSID", wifiSSID);
     ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm").c_str());
@@ -734,6 +736,15 @@ void handle_setgdo()
             {
                 strlcpy(IPgateway, value, sizeof(IPgateway));
                 write_string_to_file(IPgatewayFile, IPgateway);
+                wifiChange = true;
+            }
+        }
+        else if (!strcmp(key, "nameserverIP"))
+        {
+            if (strlen(value) > 0)
+            {
+                strlcpy(IPnameserver, value, sizeof(IPnameserver));
+                write_string_to_file(IPnameserverFile, IPnameserver);
                 wifiChange = true;
             }
         }

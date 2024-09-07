@@ -11,10 +11,12 @@ bool staticIP = false;
 char IPaddress[IP_ADDRESS_SIZE] = "0.0.0.0";
 char IPnetmask[IP_ADDRESS_SIZE] = "0.0.0.0";
 char IPgateway[IP_ADDRESS_SIZE] = "0.0.0.0";
+char IPnameserver[IP_ADDRESS_SIZE] = "0.0.0.0";
 const char staticIPfile[] = "static_ip_file";
 const char IPaddressFile[] = "ip_address_file";
 const char IPnetmaskFile[] = "ip_netmask_file";
 const char IPgatewayFile[] = "ip_gateway_file";
+const char IPnameserverFile[] = "ip_nameserver_file";
 
 uint16_t wifiPower = 20; // maximum
 const char wifiPowerFile[] = "wifiPower";
@@ -69,9 +71,11 @@ void load_all_config_settings()
         read_string_from_file(IPaddressFile, IPaddress, IPaddress, sizeof(IPaddress));
         read_string_from_file(IPnetmaskFile, IPnetmask, IPnetmask, sizeof(IPnetmask));
         read_string_from_file(IPgatewayFile, IPgateway, IPgateway, sizeof(IPgateway));
-        RINFO("Static IP address configured... IP: %s, Mask: %s, Gateway: %s", IPaddress, IPnetmask, IPgateway);
+        read_string_from_file(IPnameserverFile, IPnameserver, IPnameserver, sizeof(IPnameserver));
+        RINFO("Static IP address configured... IP: %s, Mask: %s, Gateway: %s, DNS: %s", IPaddress, IPnetmask, IPgateway, IPnameserver);
     }
-    else {
+    else
+    {
         RINFO("IP address obtained by DHCP");
     }
     gdoSecurityType = (uint8_t)read_int_from_file(gdoSecurityTypeFile, gdoSecurityType);

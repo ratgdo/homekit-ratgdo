@@ -11,10 +11,12 @@ extern bool staticIP;
 extern char IPaddress[IP_ADDRESS_SIZE];
 extern char IPnetmask[IP_ADDRESS_SIZE];
 extern char IPgateway[IP_ADDRESS_SIZE];
+extern char IPnameserver[IP_ADDRESS_SIZE];
 extern const char staticIPfile[];
 extern const char IPaddressFile[];
 extern const char IPnetmaskFile[];
 extern const char IPgatewayFile[];
+extern const char IPnameserverFile[];
 
 // For WiFi physical connection...
 extern uint16_t wifiPower;
