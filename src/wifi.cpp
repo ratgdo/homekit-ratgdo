@@ -34,6 +34,19 @@ unsigned long wifiConnectTimeout = 0;
 extern uint16_t wifiPower;
 extern "C" const char wifiPowerFile[];
 
+extern bool staticIP;
+extern char IPaddress[16];
+extern char IPnetmask[16];
+extern char IPgateway[16];
+extern const char staticIPfile[];
+extern const char IPaddressFile[];
+extern const char IPnetmaskFile[];
+extern const char IPgatewayFile[];
+
+// Make device_name available
+extern "C" char device_name[DEVICE_NAME_SIZE];
+extern "C" const char device_name_file[];
+
 #define MAX_ATTEMPTS_WIFI_CONNECTION 20
 uint8_t x_buffer[128];
 uint8_t x_position = 0;
@@ -60,7 +73,10 @@ void onDisconnected(const WiFiEventStationModeDisconnected& evt) {
 }
 
 void onGotIP(const WiFiEventStationModeGotIP& evt) {
-  RINFO("WiFi Got IP: %s, Mask: %s, Gateway: %s", evt.ip.toString().c_str(), evt.mask.toString().c_str() ,evt.gw.toString().c_str());
+  RINFO("WiFi Got IP: %s, Mask: %s, Gateway: %s", evt.ip.toString().c_str(), evt.mask.toString().c_str(), evt.gw.toString().c_str());
+  write_string_to_file(IPaddressFile,evt.ip.toString().c_str());
+  write_string_to_file(IPnetmaskFile,evt.mask.toString().c_str());
+  write_string_to_file(IPgatewayFile,evt.gw.toString().c_str());
 }
 
 void onDHCPTimeout() {
@@ -98,6 +114,43 @@ void wifi_connect() {
     }
     WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
 
+    read_string_from_file(device_name_file, "", device_name, DEVICE_NAME_SIZE);
+    if (strlen(device_name) > 0)
+    {
+        // We don't want any space characters in host name...
+        // Maximum length permitted is 24 characters.
+        char str[24];
+        int i = 0;
+        while (i < 24 && device_name[i] != 0)
+        {
+            str[i] = (isspace((unsigned char)device_name[i])) ? '-' : device_name[i];
+            i++;
+        }
+        str[min(i,23)] = 0; // null terminate string
+        RINFO("Set WiFi Host Name: %s", str);
+        WiFi.hostname((const char *)str);
+    }
+
+    staticIP = (read_int_from_file(staticIPfile) != 0);
+    if (staticIP)
+    {
+        read_string_from_file(IPaddressFile, "", IPaddress, sizeof(IPaddress));
+        read_string_from_file(IPnetmaskFile, "", IPnetmask, sizeof(IPnetmask));
+        read_string_from_file(IPgatewayFile, "", IPgateway, sizeof(IPgateway));
+        RINFO("Static IP requested... IP: %s, Mask: %s, Gateway: %s", IPaddress, IPnetmask, IPgateway);
+        IPAddress ip;
+        IPAddress gw;
+        IPAddress nm;
+        if (ip.fromString(IPaddress) && gw.fromString(IPgateway) && nm.fromString(IPnetmask))
+        {
+            WiFi.config(ip,gw,nm);
+        }
+        else
+        {
+            RINFO("Failed to set static IP address, error parsing addresses");
+        }
+    }
+
     // Set callbacks so we can monitor connection status
     connectedHandler = WiFi.onStationModeConnected(&onConnected);
     disconnectedHandler = WiFi.onStationModeDisconnected(&onDisconnected);
@@ -127,7 +180,6 @@ void improv_loop() {
         wifiSettingsChanged = false;
         write_int_to_file(wifiSettingsChangedFile, 0);
         // If not connected, reset to auto.
-        // Not sure if setPhyMode() works immediately or if reboot required???
         if (!connected) {
             wifiPhyMode = (WiFiPhyMode_t)0;
             RINFO("Reset WiFiPhyMode to: %d", wifiPhyMode);
@@ -137,6 +189,14 @@ void improv_loop() {
             RINFO("Reset WiFi Power to 20.5dBm");
             write_int_to_file(wifiPowerFile, (uint32_t)wifiPower);
             WiFi.setOutputPower(20.5);
+            RINFO("Reset IP to DHCP");
+            staticIP = false;
+            write_int_to_file(staticIPfile, 0);
+            IPAddress ip;
+            ip.fromString("0.0.0.0");
+            WiFi.config(ip, ip, ip);
+            // Now try and reconnect...
+            WiFi.reconnect();
         }
     }
 }

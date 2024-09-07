@@ -24,8 +24,8 @@ void identify(homekit_value_t _value) {
     printf("accessory identify\n");
 }
 
-char device_name[DEVICE_NAME_SIZE];
-char serial_number[SERIAL_NAME_SIZE];
+char device_name[DEVICE_NAME_SIZE] = "";
+char serial_number[SERIAL_NAME_SIZE] = "";
 
 homekit_characteristic_t active_state = HOMEKIT_CHARACTERISTIC_(
         STATUS_ACTIVE, false,

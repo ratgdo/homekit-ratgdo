@@ -95,6 +95,22 @@ function setElementsFromStatus(status) {
                 document.getElementById(key).value = value;
                 document.getElementById("wifiPowerValue").innerHTML = value;
                 break;
+            case "localIP":
+                document.getElementById(key).innerHTML = value;
+                document.getElementById("IPaddress").placeholder = value;
+                break;
+            case "subnetMask":
+                document.getElementById(key).innerHTML = value;
+                document.getElementById("IPnetmask").placeholder = value;
+                break;
+            case "gatewayIP":
+                document.getElementById(key).innerHTML = value;
+                document.getElementById("IPgateway").placeholder = value;
+                break;
+            case "staticIP":
+                document.getElementById(key).checked = value;
+                document.getElementById("staticIPtable").style.display = (value) ? "table" : "none";
+                break;
             case "lastDoorUpdateAt":
                 date.setTime(Date.now() - value);
                 document.getElementById(key).innerHTML = (document.getElementById("lastRebootAt").innerHTML == date.toLocaleString()) ? "Unknown" : date.toLocaleString();
@@ -640,6 +656,22 @@ async function saveSettings() {
     if (isNaN(TTCseconds)) TTCseconds = 0;
     localStorage.setItem("logger", (document.getElementById("serverLog").checked) ? "true" : "false");
 
+    const staticIP = (document.getElementById("staticIP").checked) ? '1' : '0';
+    let localIP = document.getElementById("IPaddress").value.substring(0, 15);
+    if (localIP.length == 0) localIP = serverStatus.localIP;
+    let subnetMask = document.getElementById("IPnetmask").value.substring(0, 15);
+    if (subnetMask.length == 0) subnetMask = serverStatus.subnetMask;
+    let gatewayIP = document.getElementById("IPgateway").value.substring(0, 15);
+    if (gatewayIP.length == 0) gatewayIP = serverStatus.gatewayIP;
+
+    // check IP addresses valid
+    const regexIPv4 = /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/i;
+    if (!(regexIPv4.test(localIP) && regexIPv4.test(subnetMask) && regexIPv4.test(gatewayIP))) {
+        console.error(`Invalid IP address(s): ${localIP} / ${subnetMask} / ${gatewayIP}`);
+        alert(`Invalid IP address(s): ${localIP} / ${subnetMask} / ${gatewayIP}`);
+        return;
+    }
+
     const reboot = await setGDO("GDOSecurityType", gdoSec,
         "passwordRequired", pwReq,
         "rebootSeconds", (rebootHours * 60 * 60),
@@ -648,7 +680,12 @@ async function saveSettings() {
         "wifiPower", wifiPower,
         "TTCseconds", TTCseconds,
         "motionTriggers", motionTriggers,
-        "LEDidle", LEDidle);
+        "LEDidle", LEDidle,
+        "staticIP", staticIP,
+        "localIP", localIP,
+        "subnetMask", subnetMask,
+        "gatewayIP", gatewayIP
+    );
     if (reboot) {
         countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");
     }

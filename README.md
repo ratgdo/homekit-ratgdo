@@ -116,11 +116,18 @@ Set the protocol for your model of garage door opener.  This defaults to Securit
 
 ### WiFi Version
 
-If the device faile to connect reliably and consistently to your WiFi network it may help to lock it to a specific WiFi version. The ratgdo supports 802.11b, 802.11g and 802.11n on the 2.4GHz WiFi band and by default will auto-select. If it helps in your network, select the specific version you wish to use.  Note: If you select a version that your network does not support then the ratgdo will revert to auto-select and reboot itself after 30 seconds.
+If the device faile to connect reliably and consistently to your WiFi network it may help to lock it to a specific WiFi version. The ratgdo supports 802.11b, 802.11g and 802.11n on the 2.4GHz WiFi band and by default will auto-select. If it helps in your network, select the specific version you wish to use.
 
 ### WiFi Tx Power
 
 You can set the WiFi transmit power to between 0 and 20 dBm. It defaults to the maximum (20.5 dBm, displayed as 20 dBm) but you may wish to fine tune this to control how the device connects to available WiFi access points.
+
+### Static IP
+
+If selected then you can enter a static IP address, network mask and gateway IP.  Note that if the address changes after reboot then the web page will not automatically reload from the new IP address... you will need to manually connect to the ratgdo device at its new address.
+
+> [!NOTE]
+> For any WiFi or IP changes, if the ratgdo device fails to connect to WiFi network by 30 seconds after a reboot from a setting change, then the device will reset all the WiFi settings including disabling static IP and will then attempt to reconnect to the server.
 
 ### Reboot Every
 
