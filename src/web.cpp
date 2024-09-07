@@ -153,6 +153,20 @@ extern "C" const char wifiSettingsChangedFile[] = "wifiSettingsChanged";
 uint16_t wifiPower = 20; // maximum
 extern "C" const char wifiPowerFile[] = "wifiPower";
 
+extern const char staticIPfile[];
+extern const char IPaddressFile[];
+extern const char IPnetmaskFile[];
+extern const char IPgatewayFile[];
+
+bool staticIP = false;
+char IPaddress[16];
+char IPnetmask[16];
+char IPgateway[16];
+const char staticIPfile[] = "static_ip_file";
+const char IPaddressFile[] = "ip_address_file";
+const char IPnetmaskFile[] = "ip_netmask_file";
+const char IPgatewayFile[] = "ip_gateway_file";
+
 // number of times the device has crashed
 int crashCount = 0;
 
@@ -614,6 +628,7 @@ void handle_status()
     ADD_INT(json, "crashCount", crashCount);
     ADD_INT(json, "wifiPhyMode", wifiPhyMode);
     ADD_INT(json, "wifiPower", wifiPower);
+    ADD_BOOL(json, "staticIP", staticIP);
     ADD_INT(json, "TTCseconds", TTCdelay);
     ADD_INT(json, "motionTriggers", motionTriggers.asInt);
     ADD_INT(json, "LEDidle", (led.getIdleState() == LOW) ? 1 : 0);
@@ -644,6 +659,7 @@ void handle_setgdo()
     const char *value;
     bool reboot = false;
     bool error = false;
+    bool wifiChange = false;
 
     if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
     {
@@ -763,8 +779,7 @@ void handle_setgdo()
             {
                 // Setting has changed.  Write new value and note that change has taken place
                 write_int_to_file(wifiPhyModeFile, wifiPhyMode);
-                write_int_to_file(wifiSettingsChangedFile, 1);
-                reboot = true;
+                wifiChange = true;
             }
         }
         else if (!strcmp(key, "wifiPower"))
@@ -774,8 +789,40 @@ void handle_setgdo()
             {
                 // Setting has changed.  Write new value and note that change has taken place
                 write_int_to_file(wifiPowerFile, wifiPower);
-                write_int_to_file(wifiSettingsChangedFile, 1);
-                reboot = true;
+                wifiChange = true;
+            }
+        }
+        else if (!strcmp(key, "staticIP"))
+        {
+            staticIP = (atoi(value) != 0);
+            write_int_to_file(staticIPfile, (staticIP) ? 1 : 0);
+            wifiChange = true;
+        }
+        else if (!strcmp(key, "subnetMask"))
+        {
+            if (strlen(value) > 0)
+            {
+                strlcpy(IPnetmask, value, sizeof(IPnetmask));
+                write_string_to_file(IPnetmaskFile, IPnetmask);
+                wifiChange = true;
+            }
+        }
+        else if (!strcmp(key, "gatewayIP"))
+        {
+            if (strlen(value) > 0)
+            {
+                strlcpy(IPgateway, value, sizeof(IPgateway));
+                write_string_to_file(IPgatewayFile, IPgateway);
+                wifiChange = true;
+            }
+        }
+        else if (!strcmp(key, "localIP"))
+        {
+            if (strlen(value) > 0)
+            {
+                strlcpy(IPaddress, value, sizeof(IPaddress));
+                write_string_to_file(IPaddressFile, IPaddress);
+                wifiChange = true;
             }
         }
         else if (!strcmp(key, "TTCseconds"))
@@ -851,6 +898,11 @@ void handle_setgdo()
     }
     else
     {
+        if (wifiChange)
+        {
+            write_int_to_file(wifiSettingsChangedFile, 1);
+            reboot = true;
+        }
         if (reboot)
             server.send_P(200, type_html, PSTR("<p>Success. Reboot.</p>"));
         else

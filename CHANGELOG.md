@@ -7,7 +7,9 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 ### What's Changed
 
 * Bugfix... alignment of minHeap and minStack was wrong on chrome browsers.
-* New feature... allow user to set custome username for the webpage.
+* Bugfix... set WiFi hostname based on user input device name.
+* New feature... allow user to set custom username for the webpage.
+* New feature... allow user to set static IP address.
 
 ### Known Issues
 

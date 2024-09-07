@@ -268,6 +268,39 @@
                 </td>
               </tr>
               <tr>
+                <td class="label">Static IP:</td>
+                <td>&nbsp;
+                  <input type="checkbox" id="staticIP" name="staticIP" value="no" onchange="toggleStaticIP()">
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td>
+                  <table class="settings" id="staticIPtable" style="display: none;">
+                    <tr>
+                      <td class="staticIPlabel">IP Address:</td>
+                      <td>&nbsp;
+                        <input class="staticIPinput" id="IPaddress" type="text" placeholder="0.0.0.0" minlength="7"
+                          maxlength="15" size="15">
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="staticIPlabel">Net Mask:</td>
+                      <td>&nbsp;
+                        <input class="staticIPinput" id="IPnetmask" type="text" placeholder="0.0.0.0" minlength="7"
+                          maxlength="15" size="15">
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="staticIPlabel">Gateway:</td>
+                      <td>&nbsp;
+                        <input class="staticIPinput" id="IPgateway" type="text" placeholder="0.0.0.0" minlength="7"
+                          maxlength="15" size="15">
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              <tr>
                 <td class="label">Reboot Every:</td>
                 <td>&nbsp;
                   <input type="number" id="rebootHours" name="rebootHours" value="0" , min="0" , max="72" , step="1">
@@ -477,6 +510,27 @@
         event.preventDefault();
       }
     });
+
+    // Allow only numeric and dot keystrokes into staticIP fields
+    Array.from(document.getElementsByClassName("staticIPinput")).forEach(function (inputField) {
+      inputField.addEventListener("keypress", (event) => {
+        if ((event.which < 48 || event.which > 57) && (event.which != 46)) {
+          event.preventDefault();
+        }
+      });
+    });
+
+    // Show or hide the static IP fields
+    function toggleStaticIP() {
+      let staticIP = this.event.target.checked;
+      document.getElementById("staticIPtable").style.display = (staticIP) ? "table" : "none";
+      if (!staticIP) {
+        // If hiding (turning off static IP) then erase any addresses that may be set.
+        Array.from(document.getElementsByClassName("staticIPinput")).forEach(function (inputField) {
+          inputField.value = "";
+        });
+      }
+    }
 
     // This handles user control of sliders
     WiFiSlider = document.getElementById("wifiPower");
