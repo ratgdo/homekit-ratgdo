@@ -30,11 +30,8 @@ SoftwareSerial sw_serial;
 
 extern struct GarageDoor garage_door;
 
-uint8_t gdoSecurityType;
-
 // For Time-to-close control
 Ticker TTCtimer = Ticker();
-uint8_t TTCdelay = 0;
 uint8_t TTCcountdown = 0;
 bool TTCwasLightOn = false;
 
@@ -101,13 +98,10 @@ void setup_comms()
     // init queue
     q_init(&pkt_q, sizeof(PacketAction), 8, FIFO, false);
 
-    // read from flash, default of 2 (SECURITY+2.0) if file not exist
-    gdoSecurityType = (uint8_t)read_int_from_file("gdo_security", 2);
-
     if (gdoSecurityType == 1)
     {
 
-        RINFO("Setting up comms for Secuirty+1.0 protocol");
+        RINFO("=== Setting up comms for Secuirty+1.0 protocol");
 
         sw_serial.begin(1200, SWSERIAL_8E1, UART_RX_PIN, UART_TX_PIN, true);
 
@@ -119,7 +113,7 @@ void setup_comms()
     }
     else
     {
-        RINFO("Setting up comms for Secuirty+2.0 protocol");
+        RINFO("=== Setting up comms for Secuirty+2.0 protocol");
 
         sw_serial.begin(9600, SWSERIAL_8N1, UART_RX_PIN, UART_TX_PIN, true);
         sw_serial.enableIntTx(false);

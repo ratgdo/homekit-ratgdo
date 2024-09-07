@@ -7,6 +7,94 @@
 #include "comms.h"
 #include <ESP8266WiFi.h>
 
+bool staticIP = false;
+char IPaddress[IP_ADDRESS_SIZE] = "0.0.0.0";
+char IPnetmask[IP_ADDRESS_SIZE] = "0.0.0.0";
+char IPgateway[IP_ADDRESS_SIZE] = "0.0.0.0";
+const char staticIPfile[] = "static_ip_file";
+const char IPaddressFile[] = "ip_address_file";
+const char IPnetmaskFile[] = "ip_netmask_file";
+const char IPgatewayFile[] = "ip_gateway_file";
+
+uint16_t wifiPower = 20; // maximum
+const char wifiPowerFile[] = "wifiPower";
+WiFiPhyMode_t wifiPhyMode = (WiFiPhyMode_t)0;
+const char wifiPhyModeFile[] = "wifiPhyMode";
+bool wifiSettingsChanged = false;
+const char wifiSettingsChangedFile[] = "wifiSettingsChanged";
+
+const char device_name_file[] = "device_name";
+
+uint32_t rebootSeconds; // seconds between reboots
+const char system_reboot_timer[] = "system_reboot_timer";
+
+uint8_t gdoSecurityType = 2;
+const char gdoSecurityTypeFile[] = "gdo_security";
+uint8_t TTCdelay = 0;
+const char TTCdelay_file[] = "TTC_delay";
+
+char www_username[32] = "admin";
+const char username_file[] = "www_username";
+const char www_password[] = "password";
+const char www_realm[] = "RATGDO Login Required";
+// MD5 Hash of "user:realm:password"
+// www_credentials = server.credentialHash(www_username, www_realm, www_password);
+char www_credentials[48] = "10d3c00fa1e09696601ef113b99f8a87";
+const char credentials_file[] = "www_credentials";
+bool passwordReq = false;
+const char www_pw_required_file[] = "www_pw_required_file";
+
+// What is LED idle state (on or off);
+const char ledIdleStateFile[] = "led_idle_state";
+
+// What trigger motion...
+motionTriggersUnion motionTriggers = {{0}};
+const char motionTriggersFile[] = "motion_triggers";
+
+void load_all_config_settings()
+{
+    snprintf(device_name, DEVICE_NAME_SIZE, "Garage Door %06X", ESP.getChipId());
+    RINFO("=== Load all config settings for %s", device_name);
+    read_string_from_file(device_name_file, device_name, device_name, DEVICE_NAME_SIZE);
+    RINFO("Configured device name: %s", device_name);
+    wifiSettingsChanged = (read_int_from_file(wifiSettingsChangedFile) != 0);
+    RINFO("WiFi settings have %schanged", (wifiSettingsChanged) ? "" : "not ");
+    wifiPower = (uint16_t)read_int_from_file(wifiPowerFile, wifiPower);
+    RINFO("wifiPower: %d", wifiPower);
+    wifiPhyMode = (WiFiPhyMode_t)read_int_from_file(wifiPhyModeFile);
+    RINFO("wifiPhyMode: %d", wifiPhyMode);
+    staticIP = (read_int_from_file(staticIPfile) != 0);
+    if (staticIP)
+    {
+        read_string_from_file(IPaddressFile, IPaddress, IPaddress, sizeof(IPaddress));
+        read_string_from_file(IPnetmaskFile, IPnetmask, IPnetmask, sizeof(IPnetmask));
+        read_string_from_file(IPgatewayFile, IPgateway, IPgateway, sizeof(IPgateway));
+        RINFO("Static IP address configured... IP: %s, Mask: %s, Gateway: %s", IPaddress, IPnetmask, IPgateway);
+    }
+    else {
+        RINFO("IP address obtained by DHCP");
+    }
+    gdoSecurityType = (uint8_t)read_int_from_file(gdoSecurityTypeFile, gdoSecurityType);
+    RINFO("Garage door security type: %d", gdoSecurityType);
+    TTCdelay = read_int_from_file(TTCdelay_file);
+    RINFO("Door close delay: %d seconds", TTCdelay);
+    read_string_from_file(credentials_file, www_credentials, www_credentials, sizeof(www_credentials));
+    RINFO("WWW Credentials: %s", www_credentials);
+    read_string_from_file(username_file, www_username, www_username, sizeof(www_username));
+    RINFO("WWW Username: %s", www_username);
+    passwordReq = (read_int_from_file(www_pw_required_file) != 0);
+    RINFO("WWW Password %s required", (passwordReq) ? "is" : "not");
+    rebootSeconds = read_int_from_file(system_reboot_timer, REBOOT_SECONDS);
+    if (rebootSeconds > 0)
+    {
+        RINFO("System will reboot every %i seconds", rebootSeconds);
+    }
+    led.setIdleState((uint8_t)read_int_from_file(ledIdleStateFile, LOW));
+    RINFO("LED Idle State: %s", (led.getIdleState() == LOW) ? "on" : "off");
+    motionTriggers.asInt = (uint8_t)read_int_from_file(motionTriggersFile);
+    RINFO("Motion sensor trigger setting: %d", motionTriggers.asInt);
+}
+
 void sync_and_restart()
 {
     RINFO("checkFlashCRC: %s", ESP.checkFlashCRC() ? "true" : "false");

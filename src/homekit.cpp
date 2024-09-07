@@ -36,10 +36,6 @@ void target_lock_state_set(const homekit_value_t new_value);
 homekit_value_t light_state_get();
 void light_state_set(const homekit_value_t value);
 
-// Make device_name available
-extern "C" char device_name[DEVICE_NAME_SIZE];
-extern "C" const char device_name_file[];
-
 // Make serial_number available
 extern "C" char serial_number[SERIAL_NAME_SIZE];
 
@@ -52,6 +48,7 @@ void homekit_loop()
 
 void setup_homekit()
 {
+    RINFO("=== Starting HomeKit Server");
     snprintf(device_name, DEVICE_NAME_SIZE, "Garage Door %06X", ESP.getChipId());
     read_string_from_file(device_name_file, device_name, device_name, DEVICE_NAME_SIZE);
     String macAddress = WiFi.macAddress();

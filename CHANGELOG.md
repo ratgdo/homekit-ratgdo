@@ -10,6 +10,7 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 * Bugfix... set WiFi hostname based on user input device name.
 * New feature... allow user to set custom username for the webpage.
 * New feature... allow user to set static IP address.
+* Cleanup... consolidated all code for retrieving user configured settings into one file (utilities.cpp).
 
 ### Known Issues
 

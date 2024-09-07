@@ -6,9 +6,6 @@
 // This is used for CSS, JS and IMAGE file types.  Set to 30 days !!
 #define CACHE_CONTROL (60 * 60 * 24 * 30)
 
-// Reboot the system every X seconds, defaults to disabled
-#define REBOOT_SECONDS (0)
-
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -95,11 +92,6 @@ const BuiltInUriMap builtInUri = {
 #endif
     {"/rest/events/subscribe", {HTTP_GET, handle_subscribe}}};
 
-// Make device_name available
-extern "C" char device_name[DEVICE_NAME_SIZE];
-// filename to save device name
-extern "C" const char device_name_file[] = "device_name";
-
 // Garage door status
 extern struct GarageDoor garage_door;
 // Local copy of door status
@@ -108,64 +100,12 @@ bool last_reported_paired = false;
 uint32_t lastDoorUpdateAt = 0;
 GarageDoorCurrentState lastDoorState = (GarageDoorCurrentState)0xff;
 
-// Garage door security type
-extern uint8_t gdoSecurityType;
-
-// For time-to-close control
-extern uint8_t TTCdelay;
-const char TTCdelay_file[] = "TTC_delay";
-
-// userid/password
-char www_username[32] = "admin";
-const char username_file[] = "www_username";
-const char www_password[] = "password";
-const char www_realm[] = "RATGDO Login Required";
-
-// MD5 Hash of "user:realm:password"
-char www_credentials[48] = "10d3c00fa1e09696601ef113b99f8a87";
-const char credentials_file[] = "www_credentials";
-
-// Whether password required
-bool passwordReq = false;
-const char www_pw_required_file[] = "www_pw_required_file";
-
-// What trigger motion...
-const char motionTriggersFile[] = "motion_triggers";
-motionTriggersUnion motionTriggers = {{0}};
-
-// What is LED idle state (on or off);
-const char ledIdleStateFile[] = "led_idle_state";
-
-// Control automatic reboot
-uint32_t rebootSeconds; // seconds between reboots
-const char system_reboot_timer[] = "system_reboot_timer";
 // Track our memory usage
 extern "C" uint32_t free_heap;
 extern "C" uint32_t min_heap;
 #if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
 uint32_t free_iram_heap = 65535;
 #endif
-
-// Control WiFi physical layer mode
-WiFiPhyMode_t wifiPhyMode = (WiFiPhyMode_t)0;
-extern "C" const char wifiPhyModeFile[] = "wifiPhyMode";
-extern "C" const char wifiSettingsChangedFile[] = "wifiSettingsChanged";
-uint16_t wifiPower = 20; // maximum
-extern "C" const char wifiPowerFile[] = "wifiPower";
-
-extern const char staticIPfile[];
-extern const char IPaddressFile[];
-extern const char IPnetmaskFile[];
-extern const char IPgatewayFile[];
-
-bool staticIP = false;
-char IPaddress[16];
-char IPnetmask[16];
-char IPgateway[16];
-const char staticIPfile[] = "static_ip_file";
-const char IPaddressFile[] = "ip_address_file";
-const char IPnetmaskFile[] = "ip_netmask_file";
-const char IPgatewayFile[] = "ip_gateway_file";
 
 // number of times the device has crashed
 int crashCount = 0;
@@ -312,7 +252,7 @@ void web_loop()
 
 void setup_web()
 {
-    RINFO("Starting HTTP web server");
+    RINFO("=== Starting HTTP web server ===");
     {
 #if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
         HeapSelectIram ephemeral;
@@ -325,22 +265,7 @@ void setup_web()
 #endif
     }
     last_reported_paired = homekit_is_paired();
-    // www_credentials = server.credentialHash(www_username, www_realm, www_password);
-    read_string_from_file(credentials_file, www_credentials, www_credentials, sizeof(www_credentials));
-    RINFO("WWW Credentials: %s", www_credentials);
-    read_string_from_file(username_file, www_username, www_username, sizeof(www_username));
-    RINFO("WWW Username: %s", www_username);
-    passwordReq = (read_int_from_file(www_pw_required_file) != 0);
-    RINFO("WWW Password %s required", (passwordReq) ? "is" : "not");
-    wifiPhyMode = (WiFiPhyMode_t)read_int_from_file(wifiPhyModeFile);
-    RINFO("wifiPhyMode: %d", wifiPhyMode);
-    TTCdelay = read_int_from_file(TTCdelay_file);
-    RINFO("TTCdelay: %d", TTCdelay);
-    wifiPower = (uint16_t)read_int_from_file(wifiPowerFile, 20);
-    RINFO("wifiPower: %d", wifiPower);
-    led.setIdleState((uint8_t)read_int_from_file(ledIdleStateFile, LOW));
-    RINFO("LED Idle State: %s", (led.getIdleState() == LOW) ? "on" : "off");
-    motionTriggers.asInt = (uint8_t)read_int_from_file(motionTriggersFile);
+ 
     if (motionTriggers.asInt == 0)
     {
         // maybe just initialized. If we have motion sensor then set that and write back to file
@@ -375,11 +300,7 @@ void setup_web()
         crashCount = 0;
     }
 #endif
-    rebootSeconds = read_int_from_file(system_reboot_timer, REBOOT_SECONDS);
-    if (rebootSeconds > 0)
-    {
-        RINFO("System will reboot every %i seconds", rebootSeconds);
-    }
+
 
     RINFO("Registering URI handlers");
     {
@@ -737,7 +658,7 @@ void handle_setgdo()
                 // reset the door opener ID, rolling code and presence of motion sensor.
                 reset_door();
                 // Write to flash and reboot
-                write_int_to_file("gdo_security", type);
+                write_int_to_file(gdoSecurityTypeFile, type);
                 reboot = true;
             }
             else

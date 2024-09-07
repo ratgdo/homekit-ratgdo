@@ -26,26 +26,7 @@
 #include "utilities.h"
 
 // support for changeing WiFi settings
-extern WiFiPhyMode_t wifiPhyMode;
-extern "C" const char wifiPhyModeFile[];
-extern "C" const char wifiSettingsChangedFile[];
-bool wifiSettingsChanged = false;
 unsigned long wifiConnectTimeout = 0;
-extern uint16_t wifiPower;
-extern "C" const char wifiPowerFile[];
-
-extern bool staticIP;
-extern char IPaddress[16];
-extern char IPnetmask[16];
-extern char IPgateway[16];
-extern const char staticIPfile[];
-extern const char IPaddressFile[];
-extern const char IPnetmaskFile[];
-extern const char IPgatewayFile[];
-
-// Make device_name available
-extern "C" char device_name[DEVICE_NAME_SIZE];
-extern "C" const char device_name_file[];
 
 #define MAX_ATTEMPTS_WIFI_CONNECTION 20
 uint8_t x_buffer[128];
@@ -84,15 +65,13 @@ void onDHCPTimeout() {
 }
 
 void wifi_connect() {
+    RINFO("=== Initialize WiFi station");
     WiFi.persistent(false);
     WiFi.mode(WIFI_STA);
     WiFi.setSleepMode(WIFI_NONE_SLEEP);
-    wifiSettingsChanged = (read_int_from_file(wifiSettingsChangedFile) != 0);
     if (wifiSettingsChanged) {
         RINFO("WARNING: WiFi settings changed. Will check for connection after 30 seconds.");
     }
-    wifiPower = (uint16_t)read_int_from_file(wifiPowerFile, 20);
-    wifiPhyMode = (WiFiPhyMode_t)read_int_from_file(wifiPhyModeFile);
     if (wifiPhyMode == WIFI_PHY_MODE_11B) {
         RINFO("Setting WiFi preference to 802.11b (Wi-Fi 1)");
     }
@@ -114,7 +93,6 @@ void wifi_connect() {
     }
     WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
 
-    read_string_from_file(device_name_file, "", device_name, DEVICE_NAME_SIZE);
     if (strlen(device_name) > 0)
     {
         // We don't want any space characters in host name...
@@ -131,13 +109,8 @@ void wifi_connect() {
         WiFi.hostname((const char *)str);
     }
 
-    staticIP = (read_int_from_file(staticIPfile) != 0);
     if (staticIP)
     {
-        read_string_from_file(IPaddressFile, "", IPaddress, sizeof(IPaddress));
-        read_string_from_file(IPnetmaskFile, "", IPnetmask, sizeof(IPnetmask));
-        read_string_from_file(IPgatewayFile, "", IPgateway, sizeof(IPgateway));
-        RINFO("Static IP requested... IP: %s, Mask: %s, Gateway: %s", IPaddress, IPnetmask, IPgateway);
         IPAddress ip;
         IPAddress gw;
         IPAddress nm;
