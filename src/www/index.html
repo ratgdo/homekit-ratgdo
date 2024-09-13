@@ -19,6 +19,7 @@
 <body>
   <!-- Title section of page ------------------------------------------------------------------>
   <div class="fullpage">
+    <div id="loader" class="ldrcenter"></div>
     <main>
       <div class="header">
         <div class="logo">
@@ -33,7 +34,7 @@
         <div class="name">
           <p id="deviceName" style="margin:0px;">Garage Door</p>
         </div>
-        <div style="float:right;vertical-align: middle; padding-left: 0; padding-right: 0;">
+        <div style="float:right;vertical-align: middle; padding-left: 0; padding-right: 0; cursor: pointer;">
           <img id="settings-icon" src="settings-sliders.svg?v=CRC-32" alt="Settings" style="width:1.5em;height:1.5em;">
           <img id="main-icon" src="garage-car.svg?v=CRC-32" alt="Homepage" onclick="history.back()"
             style="display:none; width:1.5em;height:1.5em;">
@@ -374,13 +375,8 @@
             <td style="width: 60%; padding: 0px" id="lastRebootAt"></td>
           </tr>
         </table>
-        <p style="margin:0px; color:red;">
-          <span id="crashactions" style="display:none;">
-            crashCount:&nbsp;<span id="crashCount"></span>
-            &nbsp;(<a href="crashlog" target="_blank" style="color: red;">display log</a>&nbsp;
-            <a href="#" style="color: red;"
-              onclick="return confirm('Clear crash log, are you sure?.') && clearCrashLog();">clear log</a>)
-          </span>
+        <p style="margin:0px;">
+          <a href="logs.html" target="_blank">Show system logs</a>&nbsp;(crashCount:&nbsp;<span id="crashCount"></span>)
         </p>
         <p style="margin:0px; color:red;">
           <span id="checkFlashCRC" style="display:none;">
@@ -438,14 +434,24 @@
   <!-- Initialization scripts ------------------------------------------------------------------>
   <script>
     console.log('Client UUID: ' + clientUUID);
+    const loaderElem = document.getElementById("loader"); // Spinner while pages load
+
+    loaderElem.style.visibility = "visible";
     checkStatus()
-      .then(() => checkVersion("dotdot1"));
+      .then(() => {
+        loaderElem.style.visibility = "hidden";
+        checkVersion("dotdot1");
+      });
 
     // reload status if visibility change
     window.addEventListener("visibilitychange", (event) => {
       if (document.visibilityState === "visible") {
+        loaderElem.style.visibility = "visible";
         checkStatus()
-          .then(() => checkVersion("dotdot1"));
+          .then(() => {
+            loaderElem.style.visibility = "hidden";
+            checkVersion("dotdot1");
+          });
       }
     });
 

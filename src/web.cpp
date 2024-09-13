@@ -130,7 +130,7 @@ const char *http_methods[] PROGMEM = {"HTTP_ANY", "HTTP_GET", "HTTP_HEAD", "HTTP
 // For Server Sent Events (SSE) support
 // Just reloading page causes register on new channel.  So we need a reasonable number
 // to accommodate "extra" until old one is detected as disconnected.
-#define SSE_MAX_CHANNELS 4
+#define SSE_MAX_CHANNELS 8
 struct SSESubscription
 {
     IPAddress clientIP;

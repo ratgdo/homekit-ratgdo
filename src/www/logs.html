@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <!--  Copyright (c) 2024 David Kerr, https://github.com/dkerr64 -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=1">
+  <meta name="apple-mobile-web-app-title" content="RATDGO">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>HomeKit Garage Door Logs</title>
+  <link rel="stylesheet" href="style.css?v=CRC-32">
+  <link rel="icon" href="favicon.png?v=CRC-32" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=CRC-32" type="image/png">
+</head>
+
+<body>
+  <!-- Title section of page ------------------------------------------------------------------>
+  <div class="fullpage" style="max-width: 100%; height: 98vh; display:flex; flex-flow: column;">
+    <div id="loader" class="ldrcenter"></div>
+    <div class="header logheader">
+      <div class="logo">
+        <pre class="logo">
+ _____ _____ _____ _____ ____  _____
+| __  |  _  |_   _|   __|    \|     |
+|    -|     | | | |  |  |  |  |  |  |
+|__|__|__|__| |_| |_____|____/|_____|
+          </pre>
+        <p class="logo"> for HomeKit</p>
+      </div>
+      <div class="name">
+        <p id="deviceName" style="margin:0px;">Garage Door</p>
+      </div>
+    </div>
+    <!-- view selection tabs ------------------------------------------------------------------->
+    <div class="tab">
+      <button class="tablinks" id="defaultOpen" onclick="openTab(event, 'logTab')">System Log</button>
+      <button class="tablinks" onclick="openTab(event, 'statusTab')">Status</button>
+      <button class="tablinks" onclick="openTab(event, 'rebootTab')">Reboot Log</button>
+      <button class="tablinks" onclick="openTab(event, 'crashTab')">Crash Log</button>
+      <input id="clearBtn" type="button" value="Clear crash log"
+        style="display: none; margin-left: 2em; margin-top: 0.8em;"
+        onclick="return confirm('Clear crash log, are you sure?.') && clearCrashLog();">
+    </div>
+    <!-- Main section of page ------------------------------------------------------------------>
+    <div id="statusTab" class="tabcontent">
+      <p style="margin: 0px;">RATGDO device status...</p>
+      <pre id="statusjson">
+Loading...
+        </pre>
+    </div>
+    <div id="logTab" class="tabcontent">
+      <p id="firstLoad" style="margin: 0px;">Loading...</p>
+      <pre id="showlog"></pre>
+    </div>
+    <div id="rebootTab" class="tabcontent">
+      <p style="margin: 0px;">Messages logged immediately before last user requested reboot or reset...</p>
+      <pre id="rebootlog">
+Loading...
+        </pre>
+    </div>
+    <div id="crashTab" class="tabcontent">
+      <p style="margin: 0px;">Messages logged immediately before last system crash...</p>
+      <pre id="crashlog">
+Loading...
+        </pre>
+    </div>
+    <!-- Footer section of page ------------------------------------------------------------------>
+    <div class="footer" style="flex: 0 1 0;">
+      <p style="margin:0px;">For documentation and support see the <a
+          href="https://github.com/ratgdo/homekit-ratgdo">GitHub</a>
+        page.<br>Copyright (c) 2023-24 <a
+          href="https://github.com/ratgdo/homekit-ratgdo/graphs/contributors">homekit-ratgdo
+          contributors.</a><br>Licensed under terms of the <a
+          href="https://www.gnu.org/licenses/gpl-3.0.en.html">GPL-3.0
+          License.</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- Simple please wait dialog --------------------------------------------------------------->
+  <div id="pleaseWait" class="modal">
+    <div class="modal-content">
+      Checking flash CRC. please wait...
+    </div>
+  </div>
+
+  <!-- Initialization scripts ------------------------------------------------------------------>
+  <script>
+    var evtSource = undefined;      // for Server Sent Events (SSE)
+    var msgJson = undefined;        // for status
+    const clientUUID = uuidv4();    // uniquely identify this session
+    console.log('Client UUID: ' + clientUUID);
+    const loaderElem = document.getElementById("loader");
+
+    document.getElementById("defaultOpen").click();
+    loadLogs();
+
+    function openTab(evt, tabName) {
+      var i, tabcontent, tablinks;
+      // Get all elements with class="tabcontent" and hide them
+      tabcontent = document.getElementsByClassName("tabcontent");
+      for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+      }
+      document.getElementById("clearBtn").style.display = "none";
+      // Get all elements with class="tablinks" and remove the class "active"
+      tablinks = document.getElementsByClassName("tablinks");
+      for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+      }
+      // Show the current tab, and add an "active" class to the button that opened the tab
+      document.getElementById(tabName).style.display = "block";
+      evt.currentTarget.className += " active";
+      if (tabName === "crashTab") {
+        if (msgJson?.crashCount > 0) {
+          document.getElementById("clearBtn").style.display = "inline-block";
+        }
+      } else if (tabName === "statusTab") {
+        // Refresh status from the server
+        loaderElem.style.visibility = "visible";
+        document.getElementById("statusjson").innerText = "";
+        fetch("status.json")
+          .then((response) => {
+            if (!response.ok || response.status !== 200) {
+              reject(`Error requsting status.json, RC: ${response.status}`);
+            } else {
+              return response.text();
+            }
+          })
+          .then((text) => {
+            msgJson = JSON.parse(text);
+            document.getElementById("statusjson").innerText = text;
+            loaderElem.style.visibility = "hidden";
+          })
+          .catch(error => console.warn(error))
+      }
+    }
+
+    async function loadLogs() {
+      // Load all the logs in parallel, showing progress indicator while we do...
+      loaderElem.style.visibility = "visible";
+      console.log("Start loading server logs and status");
+      Promise.allSettled([
+        fetch("status.json")
+          .then((response) => {
+            if (!response.ok || response.status !== 200) {
+              reject(`Error requsting status.json, RC: ${response.status}`);
+            } else {
+              return response.text();
+            }
+          })
+          .then((text) => {
+            msgJson = JSON.parse(text);
+            document.getElementById("deviceName").innerHTML = msgJson.deviceName + " Logs";
+            document.title = msgJson.deviceName + " Logs";
+            document.getElementById("statusjson").innerText = text;
+          })
+          .catch(error => console.warn(error)),
+
+        fetch("showrebootlog")
+          .then((response) => {
+            if (!response.ok || response.status !== 200) {
+              reject(`Error requsting reboot logs, RC: ${response.status}`);
+            } else {
+              return response.text();
+            }
+          })
+          .then((text) => {
+            document.getElementById("rebootlog").innerText = text;
+          })
+          .catch(error => console.warn(error)),
+
+        fetch("crashlog")
+          .then((response) => {
+            if (!response.ok || response.status !== 200) {
+              reject(`Error requsting crash logs, RC: ${response.status}`);
+            } else {
+              return response.text();
+            }
+          })
+          .then((text) => {
+            document.getElementById("crashlog").innerText = text;
+          })
+          .catch(error => console.warn(error)),
+
+        fetch("rest/events/subscribe?id=" + clientUUID + "&log=1")
+          .then((response) => {
+            if (!response.ok || response.status !== 200) {
+              reject(`Error registering for Server Sent Events, RC: ${response.status}`);
+            } else {
+              return response.text();
+            }
+          })
+          .then((text) => {
+            const evtUrl = text + '?id=' + clientUUID;
+            console.log(`Register for server sent events at ${evtUrl}`);
+            evtSource = new EventSource(evtUrl);
+            evtSource.addEventListener("logger", (event) => {
+              let divElem = document.getElementById("logTab");
+              let scroll = (divElem.scrollHeight - divElem.scrollTop - divElem.clientHeight) < 10;
+              document.getElementById("showlog").insertAdjacentText('beforeend', event.data + "\n\r");
+              // Only scroll the page if we are already at bottom of the page
+              if (scroll) divElem.scrollTop = divElem.scrollHeight;
+            });
+            evtSource.addEventListener("error", (event) => {
+              // If an error occurs close the connection.
+              console.log(`SSE error occurred while attempting to connect to ${evtSource.url}`);
+              evtSource.close();
+            });
+          })
+          .catch(error => console.warn(error)),
+
+        fetch("showlog")
+          .then((response) => {
+            if (!response.ok || response.status !== 200) {
+              reject(`Error requsting logs, RC: ${response.status}`);
+            } else {
+              return response.text();
+            }
+          })
+          .then((text) => {
+            document.getElementById("firstLoad").style.display = "none";
+            document.getElementById("showlog").insertAdjacentText('afterbegin', text);
+            let divElem = document.getElementById("logTab");
+            // Scroll to the bottom
+            divElem.scrollTop = divElem.scrollHeight;
+          })
+          .catch(error => console.warn(error))
+      ])
+        .then((results) => {
+          // Once all loaded reset the progress indicator
+          loaderElem.style.visibility = "hidden";
+          console.log("All logs loaded");
+          //console.log(results);
+        });
+    }
+
+    async function clearCrashLog() {
+      loaderElem.style.visibility = "visible";
+      await fetch('clearcrashlog');
+      document.getElementById("clearBtn").style.display = "none";
+      if (msgJson) msgJson.crashCount = 0;
+      document.getElementById("crashlog").innerText = "No crashes saved";
+      loaderElem.style.visibility = "hidden";
+    }
+    // Generate a UUID.  Cannot use crypto.randomUUID() because that will only run
+    // in a secure environment, which is not possible with ratgdo.
+    function uuidv4() {
+      return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
+        (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
+      );
+    }
+  </script>
+</body>
+
+</html>
