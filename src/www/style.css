@@ -32,6 +32,7 @@ input[type="file"]::file-selector-button {
     font-weight: bold;
     font-size: 2vw;
     padding: 5px;
+    cursor: pointer;
 }
 
 input[type="radio"],
@@ -51,10 +52,12 @@ input.slider {
     background-color: transparent;
     border-radius: 5px;
 }
+
 input.slider::-webkit-slider-runnable-track {
     height: 3px;
-    background-color:#B0B0B0;
+    background-color: #B0B0B0;
 }
+
 input.slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
@@ -65,12 +68,14 @@ input.slider::-webkit-slider-thumb {
     margin-top: -7px;
     background: darkgoldenrod;
     cursor: pointer;
-  }
-  input.slider::-moz-range-track {
-    height: 3px;
-    background-color:#B0B0B0;
 }
-  input.slider::-moz-range-thumb {
+
+input.slider::-moz-range-track {
+    height: 3px;
+    background-color: #B0B0B0;
+}
+
+input.slider::-moz-range-thumb {
     width: 17px;
     height: 17px;
     border-radius: 50%;
@@ -78,7 +83,7 @@ input.slider::-webkit-slider-thumb {
     margin-top: -7px;
     background: darkgoldenrod;
     cursor: pointer;
-  }
+}
 
 
 select {
@@ -258,9 +263,108 @@ fieldset {
     width: 100%;
 }
 
+/* Style the tab */
+div.tab {
+    overflow: hidden;
+    height: initial;
+    width: 100%;
+    position: relative;
+    border-bottom-style: solid;
+    border-bottom-width: 1px;
+    padding-left: 0px;
+    padding-right: 0px;
+    padding-top: 5px;
+    padding-bottom: 1px;
+    flex-grow: 0;
+    flex-shrink: 1;
+    flex-basis: auto;
+}
+
+/* Style the buttons that are used to open the tab content */
+div.tab button {
+    background-color: darkgoldenrod;
+    font-weight: bold;
+    color: white;
+    float: left;
+    border-color: transparent;
+    margin: 1px;
+    outline: none;
+    cursor: pointer;
+    padding: 2vw 1vw;
+    transition: 0.3s;
+    font-size: 2vw;
+}
+
+/* Change background color of buttons on hover */
+div.tab button:hover {
+    background-color: lightgray;
+    color: black;
+}
+
+/* Create an active/current tablink class */
+div.tab button.active {
+    background-color: silver;
+    color: black;
+}
+
+/* Style the tab content */
+div.tabcontent {
+    display: none;
+    width: 100%;
+    height: 0px;
+    overflow: auto;
+    position: relative;
+    border-bottom-style: solid;
+    border-bottom-width: 1px;
+    padding: 0px;
+    margin-bottom: 10px;
+    margin-top: 10px;
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: auto;
+}
+
+div.logheader {
+    max-width: 100%;
+    height: initial;
+    flex: 0 1 auto;
+    border-bottom-style: none;
+}
+
+#loader {
+    border: 12px solid whitesmoke;
+    border-radius: 50%;
+    border-top: 12px solid dimgray;
+    width: 70px;
+    height: 70px;
+    animation: spin 1s linear infinite;
+    visibility: hidden;
+    z-index: 99;
+}
+
+.ldrcenter {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: auto;
+}
+
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
 @media only screen and (min-width: 660px) {
     body {
         font-size: 19.8px;
+    }
+
+    div.tab button {
+        padding: 14px 6px;
+        font-size: 13.2px;
     }
 
     input,

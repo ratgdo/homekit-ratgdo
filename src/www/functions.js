@@ -59,6 +59,7 @@ function setElementsFromStatus(status) {
                 break;
             case "deviceName":
                 document.getElementById(key).innerHTML = value;
+                document.title = value;
                 document.getElementById("newDeviceName").placeholder = value;
                 break;
             case "userName":
@@ -80,10 +81,6 @@ function setElementsFromStatus(status) {
             case "firmwareVersion":
                 document.getElementById(key).innerHTML = value;
                 document.getElementById("firmwareVersion2").innerHTML = value;
-                break;
-            case "crashCount":
-                document.getElementById(key).innerHTML = value;
-                document.getElementById("crashactions").style.display = (value > 0) ? "initial" : "none";
                 break;
             case "wifiPhyMode":
                 document.getElementById("wifiPhyMode0").checked = (value == 0) ? true : false;
@@ -320,6 +317,7 @@ async function showUpdateDialog() {
     modalFlashCRC.innerHTML = "Checking Flash CRC...";
     modalFlashCRC.style.color = '';
     document.getElementById("myModal").style.display = 'block';
+    loaderElem.style.visibility = "visible";
     const response = await fetch("checkflash", {
         method: "GET",
         cache: "no-cache"
@@ -332,6 +330,7 @@ async function showUpdateDialog() {
         modalFlashCRC.style.color = 'red';
         modalFlashCRC.innerHTML = "WARNING: Flash CRC check failed. You must flash new firmware by USB cable to recover, please consult <a href='https://github.com/ratgdo/homekit-ratgdo?tab=readme-ov-file#flash-crc-errors' style='color:red'>documentation.</a> RATGDO device may not restart if you reboot now.";
     }
+    loaderElem.style.visibility = "hidden";
 }
 
 // Handles request to update server firmware from either GitHub (default) or from
@@ -443,27 +442,6 @@ async function firmwareUpdate(github = true) {
             }
             return;
         }
-        /*
-        console.log("Firmware upload complete, now verify...");
-        spanPercent.innerHTML = '00%&nbsp';
-        document.getElementById("updateMsg").innerHTML = "Do not close browser until update completes. Device will reboot when complete.<br><br>Verifying... ";
-        response = await fetch(`update?action=verify&size=${bin.byteLength}&md5=${binMD5}`, {
-            method: "POST",
-            body: formData,
-        });
-        if (response.status !== 200) {
-            rebootMsg = await response.text();
-            console.error(`Upload verification error: ${rebootMsg}`);
-            if (confirm(`Upload verification error: ${rebootMsg}\nExisting firmware not replaced. Proceed to reboot device?\nNOTE: Reboot is required to re-enable HomeKit services.`)) {
-                rebootRATGDO(false);
-            }
-            else {
-                showRebootMsg = false;
-                location.href = "/";
-            }
-            return;
-        }
-        */
         // Upload and verify suceeded, so reboot...
         rebootRATGDO(false);
         rebootMsg = "Update complete...";
@@ -482,10 +460,12 @@ async function firmwareUpdate(github = true) {
 async function rebootRATGDO(dialog = true) {
     if (dialog) {
         document.getElementById("pleaseWait").style.display = "block";
+        loaderElem.style.visibility = "visible";
         const response = await fetch("checkflash", {
             method: "GET",
             cache: "no-cache"
         });
+        loaderElem.style.visibility = "hidden";
         const result = (await response.text()).trim().toLowerCase();
         document.getElementById("pleaseWait").style.display = "none";
         let txt = "Reboot RATGDO, are you sure?";
@@ -494,9 +474,11 @@ async function rebootRATGDO(dialog = true) {
         }
         if (!confirm(txt)) return;
     }
+    loaderElem.style.visibility = "visible";
     var response = await fetch("reboot", {
         method: "POST",
     });
+    loaderElem.style.visibility = "hidden";
     if (response.status !== 200) {
         console.warn("Error attempting to reboot RATGDO");
         return;
@@ -505,9 +487,11 @@ async function rebootRATGDO(dialog = true) {
 }
 
 async function unpairRATGDO() {
+    loaderElem.style.visibility = "visible";
     var response = await fetch("reset", {
         method: "POST",
     });
+    loaderElem.style.visibility = "hidden";
     if (response.status !== 200) {
         console.warn("Error attempting to unpair and reboot RATGDO");
         return;
@@ -515,22 +499,13 @@ async function unpairRATGDO() {
     countdown(30, "RATGO un-pairing and rebooting...&nbsp;");
 }
 
-async function clearCrashLog() {
-    var response = await fetch("clearcrashlog", {
-        method: "GET",
-    });
-    if (response.status !== 200) {
-        console.warn("Error attempting to clear RATGDO crash log");
-        return;
-    }
-    document.getElementById("crashactions").style.display = "none";
-}
-
 async function checkAuth() {
     auth = false;
+    loaderElem.style.visibility = "visible";
     var response = await fetch("auth", {
         method: "GET",
     });
+    loaderElem.style.visibility = "hidden";
     if (response.status == 200) {
         auth = true;
     }
@@ -555,11 +530,13 @@ async function setGDO(...args) {
             }
         }
         if (Array.from(formData.keys()).length > 0) {
+            loaderElem.style.visibility = "visible";
             var response = await fetch("setgdo", {
                 method: "POST",
                 body: formData,
                 signal: AbortSignal.timeout(2000),
             });
+            loaderElem.style.visibility = "hidden";
             if (response.status !== 200) {
                 console.warn("Error setting RATGDO state");
                 return true;;

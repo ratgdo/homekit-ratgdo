@@ -329,17 +329,13 @@ Great reliability improvements have been made in recent versions of the firmware
 
 The footer of the webpage displays useful information that can help project contributors assist with diagnosing a problem. The ESP8266 is a low-memory device so monitoring actual memory usage is first place to start. Whenever you connect to the webpage, the firmware reports memory utilization every second... current available free heap, the lowest value that free heap has reached since last reboot, and the minimum available stack reached since last reboot.
 
-In addition the last reboot date and time is reported (calculated by subtracting up-time from current time). If the last reboot was caused by a system crash then an additonal line will display the number of times it crashed with options to display the crash log, and to clear the crash log.
+In addition the last reboot date and time is reported (calculated by subtracting up-time from current time).
 
 The _lastDoorChange_ will show the date and time that the door was last opened or closed.  This is not saved across reboots, so it will show as unknown after a reboot.
 
-### Display log
+### Show system logs
 
-If this appears then please click on the link. A new browser tab will open with details of the crash. If you open an issue on GitHub then please copy/paste this into the issue.
-
-### Clear log
-
-Once you have made a copy of the crash log, you should clear it so there is sufficient space to capture future crashes. Clearing the log requires authentication (only if _require password_ selected) but will not reboot the device.
+Clicking on the system logs link will open a new browser tab with details of current and saved logs.  On this page you can select to view the current system log, the current system status in raw JSON format, the system log immediately before the last user requested reboot or reset, and the system log immediately before the last crash. If you open an issue on GitHub then please copy/paste the full crash log into the issue.
 
 ## How can I contribute?
 
