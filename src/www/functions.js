@@ -115,6 +115,10 @@ function setElementsFromStatus(status) {
                 date.setTime(Date.now() - value);
                 document.getElementById(key).innerHTML = (document.getElementById("lastRebootAt").innerHTML == date.toLocaleString()) ? "Unknown" : date.toLocaleString();
                 break;
+            case "serverTime":
+                date.setTime(value * 1000);
+                console.log(`Server time: ${date.toUTCString()}`)
+                break;
             case "checkFlashCRC":
                 if (!value) {
                     console.warn("WARNING: Server checkFlashCRC() failed. Flash new firmware by USB cable to recover.");
@@ -465,20 +469,18 @@ async function rebootRATGDO(dialog = true) {
             method: "GET",
             cache: "no-cache"
         });
-        loaderElem.style.visibility = "hidden";
         const result = (await response.text()).trim().toLowerCase();
         document.getElementById("pleaseWait").style.display = "none";
         let txt = "Reboot RATGDO, are you sure?";
         if (result !== 'true') {
             txt = "WARNING: Flash CRC check failed. You must flash new firmware by USB cable to recover, please consult documentation. RATGDO device may not restart if you reboot now. Reboot anyway?";
         }
+        loaderElem.style.visibility = "hidden";
         if (!confirm(txt)) return;
     }
-    loaderElem.style.visibility = "visible";
     var response = await fetch("reboot", {
         method: "POST",
     });
-    loaderElem.style.visibility = "hidden";
     if (response.status !== 200) {
         console.warn("Error attempting to reboot RATGDO");
         return;

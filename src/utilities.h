@@ -5,6 +5,17 @@
 #include "homekit_decl.h"
 #include "ratgdo.h"
 
+#ifdef NTP_CLIENT
+#include <WiFiUdp.h>
+#include <NTPClient.h>
+extern NTPClient timeClient;
+extern unsigned long lastRebootAt;
+extern char *timeString(time_t reqTime = 0);
+
+extern const char lastDoorUpdateFile[];
+extern int32_t savedDoorUpdateAt;
+#endif
+
 // For saving DHCP and static IP settings
 #define IP_ADDRESS_SIZE 16
 extern bool staticIP;
