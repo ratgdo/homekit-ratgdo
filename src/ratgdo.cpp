@@ -24,9 +24,9 @@ struct obstruction_sensor_t
     unsigned long last_asleep = 0; // count time between high pulses from the obst ISR
 } obstruction_sensor;
 
-//long unsigned int led_reset_time = 0; // Stores time when LED should return to idle state
-//uint8_t led_active_state = LOW;       // LOW == LED on, HIGH == LED off
-//uint8_t led_idle_state = HIGH;        // opposite of active
+// long unsigned int led_reset_time = 0; // Stores time when LED should return to idle state
+// uint8_t led_active_state = LOW;       // LOW == LED on, HIGH == LED off
+// uint8_t led_idle_state = HIGH;        // opposite of active
 LED led;
 
 extern bool flashCRC;
@@ -77,6 +77,11 @@ void setup()
     setup_comms();
     setup_homekit();
     setup_web();
+
+#ifdef NTP_CLIENT
+    timeClient.begin();
+    timeClient.setUpdateInterval(10 * 60); // Update NTP clock every 10 minutes
+#endif
 
     led.idle();
     RINFO("=== RATGDO setup complete ===");
@@ -203,6 +208,14 @@ void service_timer_loop()
 
     unsigned long current_millis = millis();
 
+#ifdef NTP_CLIENT
+    timeClient.update();
+    if (lastRebootAt == 0 && timeClient.isTimeSet())
+    {
+        lastRebootAt = timeClient.getEpochTime() - (current_millis / 1000);
+        RINFO("Current time: %s", timeString());
+    }
+#endif
     // LED flash timer
     led.flash();
 
@@ -232,7 +245,7 @@ LED::LED()
 {
     if (UART_TX_PIN != LED_BUILTIN)
     {
-        //Serial.printf("Enabling built-in LED object\n");
+        // Serial.printf("Enabling built-in LED object\n");
         pinMode(LED_BUILTIN, OUTPUT);
         on();
     }

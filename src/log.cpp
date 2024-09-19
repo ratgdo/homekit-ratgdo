@@ -145,12 +145,17 @@ extern "C" uint32_t free_iram_heap;
 
 void printMessageLog(Print &outputDev)
 {
-    outputDev.write("Firmware Version: ");
+#ifdef NTP_CLIENT
+    outputDev.write("Server time: ");
+    outputDev.write(timeString());
+    outputDev.println();
+#endif
+    outputDev.write("Firmware version: ");
     outputDev.write(AUTO_VERSION);
     outputDev.println();
     outputDev.write("Flash CRC: 0x");
     outputDev.println(__crc_val, 16);
-    outputDev.write("Flash Length: ");
+    outputDev.write("Flash length: ");
     outputDev.println(__crc_len);
     outputDev.write("Free heap: ");
     outputDev.println(free_heap);

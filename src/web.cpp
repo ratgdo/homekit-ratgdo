@@ -218,7 +218,22 @@ void web_loop()
     if (garage_door.active && garage_door.current_state != lastDoorState)
     {
         RINFO("Current Door State changing from %d to %d", lastDoorState, garage_door.current_state);
+#ifdef NTP_CLIENT
+        if (lastDoorState == 0xff)
+        {
+            // initialize with saved time.
+            // lastDoorUpdateAt is milliseconds relative to system reboot time.
+            lastDoorUpdateAt = ((savedDoorUpdateAt != 0) && timeClient.isTimeSet()) ? ((savedDoorUpdateAt - timeClient.getEpochTime()) * 1000) + upTime : 0;
+        }
+        else
+        {
+            // first state change after a reboot, so really is a state change.
+            write_int_to_file(lastDoorUpdateFile, timeClient.isTimeSet() ? timeClient.getEpochTime() : 0);
+            lastDoorUpdateAt = upTime;
+        }
+#else
         lastDoorUpdateAt = (lastDoorState == 0xff) ? 0 : upTime;
+#endif
         lastDoorState = garage_door.current_state;
         // We send milliseconds relative to current time... ie updated X milliseconds ago
         // First time through, zero offset from upTime, which is when we last rebooted)
@@ -265,7 +280,7 @@ void setup_web()
 #endif
     }
     last_reported_paired = homekit_is_paired();
- 
+
     if (motionTriggers.asInt == 0)
     {
         // maybe just initialized. If we have motion sensor then set that and write back to file
@@ -301,7 +316,6 @@ void setup_web()
     }
 #endif
 
-
     RINFO("Registering URI handlers");
     {
 #if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
@@ -336,7 +350,7 @@ void setup_web()
 /********* handlers **********/
 void handle_notfound()
 {
-    RINFO("Sending 404 Not Found for: %s with method: %s", server.uri().c_str(), http_methods[server.method()]);
+    RINFO("Sending 404 Not Found for: %s with method: %s to client: %s", server.uri().c_str(), http_methods[server.method()], server.client().remoteIP().toString().c_str());
     server.send_P(404, type_txt, response404);
 }
 
@@ -557,6 +571,9 @@ void handle_status()
     ADD_INT(json, "LEDidle", (led.getIdleState() == LOW) ? 1 : 0);
     // We send milliseconds relative to current time... ie updated X milliseconds ago
     ADD_INT(json, "lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
+#ifdef NTP_CLIENT
+    ADD_INT(json, "serverTime", (timeClient.isTimeSet()) ? timeClient.getEpochTime() : 0);
+#endif
     ADD_BOOL(json, "checkFlashCRC", flashCRC);
     END_JSON(json);
 

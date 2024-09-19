@@ -53,6 +53,27 @@ const char ledIdleStateFile[] = "led_idle_state";
 motionTriggersUnion motionTriggers = {{0}};
 const char motionTriggersFile[] = "motion_triggers";
 
+#ifdef NTP_CLIENT
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP);
+unsigned long lastRebootAt = 0;
+const char lastDoorUpdateFile[] = "last_door_update";
+int32_t savedDoorUpdateAt = 0;
+
+char *timeString(time_t reqTime)
+{
+    static char tBuffer[32];
+    tBuffer[0] = 0;
+    time_t tTime = ((reqTime == 0) && timeClient.isTimeSet()) ? timeClient.getEpochTime() : reqTime;
+    if (tTime != 0)
+    {
+        tm *tmTime = gmtime(&tTime);
+        strftime(tBuffer, sizeof(tBuffer), "%Y/%m/%d - %H:%M:%S (UTC)", tmTime);
+    }
+    return tBuffer;
+}
+#endif
+
 void load_all_config_settings()
 {
     snprintf(device_name, DEVICE_NAME_SIZE, "Garage Door %06X", ESP.getChipId());
@@ -97,10 +118,17 @@ void load_all_config_settings()
     RINFO("LED Idle State: %s", (led.getIdleState() == LOW) ? "on" : "off");
     motionTriggers.asInt = (uint8_t)read_int_from_file(motionTriggersFile);
     RINFO("Motion sensor trigger setting: %d", motionTriggers.asInt);
+#ifdef NTP_CLIENT
+    savedDoorUpdateAt = read_int_from_file(lastDoorUpdateFile);
+    RINFO("Last saved door update at: %s", (savedDoorUpdateAt != 0) ? timeString(savedDoorUpdateAt) : "unknown");
+#endif
 }
 
 void sync_and_restart()
 {
+#ifdef NTP_CLIENT
+    timeClient.end();
+#endif
     RINFO("checkFlashCRC: %s", ESP.checkFlashCRC() ? "true" : "false");
     WiFi.mode(WIFI_OFF);
     WiFi.forceSleepBegin();
