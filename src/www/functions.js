@@ -321,7 +321,6 @@ async function showUpdateDialog() {
     modalFlashCRC.innerHTML = "Checking Flash CRC...";
     modalFlashCRC.style.color = '';
     document.getElementById("myModal").style.display = 'block';
-    loaderElem.style.visibility = "visible";
     const response = await fetch("checkflash", {
         method: "GET",
         cache: "no-cache"
@@ -334,15 +333,21 @@ async function showUpdateDialog() {
         modalFlashCRC.style.color = 'red';
         modalFlashCRC.innerHTML = "WARNING: Flash CRC check failed. You must flash new firmware by USB cable to recover, please consult <a href='https://github.com/ratgdo/homekit-ratgdo?tab=readme-ov-file#flash-crc-errors' style='color:red'>documentation.</a> RATGDO device may not restart if you reboot now.";
     }
-    loaderElem.style.visibility = "hidden";
 }
 
 // Handles request to update server firmware from either GitHub (default) or from
 // a user provided file.
 async function firmwareUpdate(github = true) {
+    const inputElem = document.querySelector('input[type="file"]');
+    // check that a file name was provided
+    if (!github && (inputElem.files.length == 0)) {
+        console.log("No file name provided");
+        alert("You must select a file to upload.");
+        return;
+    }
     // check if authenticated, before update
-    if (!await checkAuth()) {
-        return false;
+    if (!(await checkAuth() && confirm(`Update firmware from ${github ? 'GitHub' : 'local file'}, are you sure? Do not close browser until complete.`))) {
+        return;
     }
     var showRebootMsg = false;
     var rebootMsg = "";
@@ -403,15 +408,8 @@ async function firmwareUpdate(github = true) {
             }
         } else {
             // For local filesystem we will not require a MD5 checksum file check.
-            const inputElem = document.querySelector('input[type="file"]');
-            if (inputElem.files.length > 0) {
-                bin = await inputElem.files[0].arrayBuffer();
-                binMD5 = MD5(new Uint8Array(bin));
-            } else {
-                console.log("No file name provided");
-                alert("You must select a file to upload.");
-                return;
-            }
+            bin = await inputElem.files[0].arrayBuffer();
+            binMD5 = MD5(new Uint8Array(bin));
         }
         console.log(`Firmware upload size: ${bin.byteLength}`);
         console.log(`Firmware MD5: ${binMD5}`);
@@ -470,12 +468,14 @@ async function rebootRATGDO(dialog = true) {
             cache: "no-cache"
         });
         const result = (await response.text()).trim().toLowerCase();
+        loaderElem.style.visibility = "hidden";
+        // Give browser a moment to actually hide the spinner...
+        await new Promise(r => setTimeout(r, 50));
         document.getElementById("pleaseWait").style.display = "none";
         let txt = "Reboot RATGDO, are you sure?";
         if (result !== 'true') {
             txt = "WARNING: Flash CRC check failed. You must flash new firmware by USB cable to recover, please consult documentation. RATGDO device may not restart if you reboot now. Reboot anyway?";
         }
-        loaderElem.style.visibility = "hidden";
         if (!confirm(txt)) return;
     }
     var response = await fetch("reboot", {
@@ -489,6 +489,10 @@ async function rebootRATGDO(dialog = true) {
 }
 
 async function unpairRATGDO() {
+    // check if authenticated, before update
+    if (!(await checkAuth() && confirm('Pair to new HomeKit, are you sure?'))) {
+        return false;
+    }
     loaderElem.style.visibility = "visible";
     var response = await fetch("reset", {
         method: "POST",
@@ -508,6 +512,8 @@ async function checkAuth() {
         method: "GET",
     });
     loaderElem.style.visibility = "hidden";
+    // Give browser a moment to actually hide the spinner...
+    await new Promise(r => setTimeout(r, 50));
     if (response.status == 200) {
         auth = true;
     }
@@ -618,9 +624,12 @@ function setMotionTriggers(bitset) {
     //document.getElementById("motionDoor").checked = (bitset & 8) ? true : false;
     //document.getElementById("motionLock").checked = (bitset & 16) ? true : false;
     document.getElementById("motionWallPanel").checked = (bitset & 28) ? true : false;
-}
+};
 
 async function saveSettings() {
+    if (!confirm('Save Settings. Reboot may be required, are you sure?')) {
+        return
+    }
     const gdoSec = (document.getElementById("gdosec1").checked) ? '1' : '2';
     const pwReq = (document.getElementById("pwreq").checked) ? '1' : '0';
     const motionTriggers = getMotionTriggers();
@@ -682,8 +691,10 @@ async function saveSettings() {
 }
 
 async function resetDoor() {
-    await setGDO("resetDoor", true);
-    countdown(30, "Door reset, RATGDO device rebooting...&nbsp;");
+    if (confirm('Reset door rolling codes and presence of motion sensor. Settings will not change but device will reboot, are you sure?')) {
+        await setGDO("resetDoor", true);
+        countdown(30, "Door reset, RATGDO device rebooting...&nbsp;");
+    }
     return;
 }
 

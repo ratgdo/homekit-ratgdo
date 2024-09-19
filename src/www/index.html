@@ -102,7 +102,7 @@
           </div>
           <div class="qrcode center">
             <input type="button" id="unpair" value="Reset HomeKit"
-              onclick="return confirm('Pair to new HomeKit, are you sure?') && unpairRATGDO()">
+              onclick="unpairRATGDO()">
           </div>
         </div>
         <div class="fullwidth">
@@ -129,12 +129,12 @@
         </div>
         <div id="GDOcontrols" class="fullwidth"
           style="padding-left: 0px; padding-right: 0px; display: flex; justify-content: space-between;">
-          <input type="button" value="Light On" onclick="setGDO('garageLightOn', '1');">
-          <input type="button" value="Light Off" onclick="setGDO('garageLightOn', '0');">
-          <input type="button" value="Door Open" onclick="setGDO('garageDoorState', '1');">
-          <input type="button" value="Door Close" onclick="setGDO('garageDoorState', '0');">
-          <input type="button" value="Door Lock" onclick="setGDO('garageLockState', '1');">
-          <input type="button" value="Door Unlock" onclick="setGDO('garageLockState', '0');">
+          <input type="button" value="Light On" onclick="setGDO('garageLightOn', '1')">
+          <input type="button" value="Light Off" onclick="setGDO('garageLightOn', '0')">
+          <input type="button" value="Door Open" onclick="setGDO('garageDoorState', '1')">
+          <input type="button" value="Door Close" onclick="setGDO('garageDoorState', '0')">
+          <input type="button" value="Door Lock" onclick="setGDO('garageLockState', '1')">
+          <input type="button" value="Door Unlock" onclick="setGDO('garageLockState', '0')">
         </div>
       </div>
       <!-- Settings section of page ------------------------------------------------------------------>
@@ -162,7 +162,7 @@
                   <input id="confirmPassword" type="password" placeholder="confirm new password">
                 </td>
                 <td>&nbsp;&nbsp;&nbsp;&nbsp;
-                  <input type="button" value="Save User/Password" onclick="changePassword();">
+                  <input type="button" value="Save User/Password" onclick="changePassword()">
                 </td>
               </tr>
             </table>
@@ -328,11 +328,11 @@
               <tr>
                 <td>
                   <input type="button" value="Save Settings"
-                    onclick="return confirm('Save Settings. Reboot may be required, are you sure?') && saveSettings()">
+                    onclick="saveSettings()">
                 </td>
                 <td>
                   <input type="button" value="Reset Door"
-                    onclick="return confirm('Reset door rolling codes and presence of motion sensor. Settings will not change but device will reboot, are you sure?') && resetDoor()">
+                    onclick="resetDoor()">
                 </td>
               </tr>
             </table>
@@ -402,18 +402,16 @@
               <td><span id="newversion2"></span><span id="dotdot2"></span></td>
             </tr>
           </table>
-          <input type="button" value="Check for update" onclick="checkVersion('dotdot2');">
+          <input type="button" value="Check for update" onclick="checkVersion('dotdot2')">
           <input type="checkbox" id="prerelease" name="prerelease" value="no">
           <span style="font-size: 0.8em;">Include pre-releases</span>
-          <input type="button" value="Update" style="float: right;"
-            onclick="return confirm('Update firmware from GitHub, are you sure? Do not close browser until complete.') && firmwareUpdate(true);">
+          <input type="button" value="Update" style="float: right;" onclick="firmwareUpdate(true)">
         </fieldset>
         <br>
         <fieldset>
           <legend>Update from local file</legend>
           <input type="file" accept=".bin,.bin.gz" name="firmware" style="border: 0px; padding: 0px;">
-          <input type="button" value="Update" style="float: right;"
-            onclick="return confirm('Update firmware from local file, are you sure? Do not close browser until complete.') && firmwareUpdate(false);">
+          <input type="button" value="Update" style="float: right;" onclick="firmwareUpdate(false)">
         </fieldset>
       </div>
       <div id="updateDotDot" style="display:none; float: none; padding:0px">
