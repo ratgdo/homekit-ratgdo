@@ -135,6 +135,12 @@ If selected then you can enter a static IP address, network mask, gateway IP and
 > [!WARNING]
 > If you enter an IP address that is not valid on your network then you will not be able to access the device by web browser or from HomeKit. If the device fails to automatically recover by resetting to DHCP, then the only recovery is to flash the ratgdo over the USB port using the web installer AND select the option to erase the device.  This will factory reset the device and you will have to remove the garage door accessory from HomeKit and then add it again.
 
+### Enable NTP
+
+The ratgdo device will obtain current time from an NTP server. This requires internet access and the default setting is disabled.
+
+When enabled, the _lastDoorChange_ date and time (reported at the bottom of the web page) is saved across reboots and the actual time of log data is reported when viewed in the browser system logs page.  No adjustment is made for time zones, time is reported in UTC/GMT.
+
 ### Reboot Every
 
 During early devlopment there were several reports that the ratgdo device would reset itself and loose its pairing with HomeKit. To reduce the chance of this occuring a regular (e.g. daily) reboot of the device provided a work-around. The firmware is far more stable now and it is hoped that this is no longer required. This setting may be removed in future versions.
@@ -336,6 +342,8 @@ The _lastDoorChange_ will show the date and time that the door was last opened o
 ### Show system logs
 
 Clicking on the system logs link will open a new browser tab with details of current and saved logs.  On this page you can select to view the current system log, the current system status in raw JSON format, the system log immediately before the last user requested reboot or reset, and the system log immediately before the last crash. If you open an issue on GitHub then please copy/paste the full crash log into the issue.
+
+If you enable NTP time server then the actual UTC/GMT time of system logs is shown instead of milliseconds since last boot.
 
 ## How can I contribute?
 

@@ -219,17 +219,24 @@ void web_loop()
     {
         RINFO("Current Door State changing from %d to %d", lastDoorState, garage_door.current_state);
 #ifdef NTP_CLIENT
-        if (lastDoorState == 0xff)
+        if (enableNTP && timeClient.isTimeSet())
         {
-            // initialize with saved time.
-            // lastDoorUpdateAt is milliseconds relative to system reboot time.
-            lastDoorUpdateAt = ((savedDoorUpdateAt != 0) && timeClient.isTimeSet()) ? ((savedDoorUpdateAt - timeClient.getEpochTime()) * 1000) + upTime : 0;
+            if (lastDoorState == 0xff)
+            {
+                // initialize with saved time.
+                // lastDoorUpdateAt is milliseconds relative to system reboot time.
+                lastDoorUpdateAt = (savedDoorUpdateAt != 0) ? ((savedDoorUpdateAt - timeClient.getEpochTime()) * 1000) + upTime : 0;
+            }
+            else
+            {
+                // first state change after a reboot, so really is a state change.
+                write_int_to_file(lastDoorUpdateFile, timeClient.getEpochTime());
+                lastDoorUpdateAt = upTime;
+            }
         }
         else
         {
-            // first state change after a reboot, so really is a state change.
-            write_int_to_file(lastDoorUpdateFile, timeClient.isTimeSet() ? timeClient.getEpochTime() : 0);
-            lastDoorUpdateAt = upTime;
+            lastDoorUpdateAt = (lastDoorState == 0xff) ? 0 : upTime;
         }
 #else
         lastDoorUpdateAt = (lastDoorState == 0xff) ? 0 : upTime;
@@ -572,7 +579,11 @@ void handle_status()
     // We send milliseconds relative to current time... ie updated X milliseconds ago
     ADD_INT(json, "lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
 #ifdef NTP_CLIENT
-    ADD_INT(json, "serverTime", (timeClient.isTimeSet()) ? timeClient.getEpochTime() : 0);
+    ADD_BOOL(json, "enableNTP", enableNTP);
+    if (enableNTP && timeClient.isTimeSet())
+    {
+        ADD_INT(json, "serverTime", timeClient.getEpochTime());
+    }
 #endif
     ADD_BOOL(json, "checkFlashCRC", flashCRC);
     END_JSON(json);
@@ -793,6 +804,13 @@ void handle_setgdo()
             write_int_to_file(ledIdleStateFile, (idleStateOn) ? LOW : HIGH);
             led.setIdleState((idleStateOn) ? LOW : HIGH);
         }
+#ifdef NTP_CLIENT
+        else if (!strcmp(key, "enableNTP"))
+        {
+            write_int_to_file(enableNTPFile, (atoi(value) != 0) ? 1 : 0);
+            reboot = true;
+        }
+#endif
         else if (!strcmp(key, "updateUnderway"))
         {
             firmwareSize = 0;

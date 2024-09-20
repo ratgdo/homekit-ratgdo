@@ -29,6 +29,7 @@
   "TTCseconds": 10,
   "motionTriggers": 3,
   "LEDidle": 1,
+  "enableNTP": false,
   "lastDoorUpdateAt": 847155,
   "checkFlashCRC": false
 }

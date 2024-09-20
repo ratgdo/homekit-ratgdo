@@ -56,6 +56,8 @@ const char motionTriggersFile[] = "motion_triggers";
 #ifdef NTP_CLIENT
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
+bool enableNTP = false;
+const char enableNTPFile[] = "enable_ntp_client";
 unsigned long lastRebootAt = 0;
 const char lastDoorUpdateFile[] = "last_door_update";
 int32_t savedDoorUpdateAt = 0;
@@ -122,15 +124,23 @@ void load_all_config_settings()
     motionTriggers.asInt = (uint8_t)read_int_from_file(motionTriggersFile);
     RINFO("Motion sensor trigger setting: %d", motionTriggers.asInt);
 #ifdef NTP_CLIENT
-    savedDoorUpdateAt = read_int_from_file(lastDoorUpdateFile);
-    RINFO("Last saved door update at: %s", (savedDoorUpdateAt != 0) ? timeString(savedDoorUpdateAt) : "unknown");
+    enableNTP = (read_int_from_file(enableNTPFile) != 0);
+    RINFO("NTP client %s enabled", (enableNTP) ? "is" : "not");
+    if (enableNTP)
+    {
+        savedDoorUpdateAt = read_int_from_file(lastDoorUpdateFile);
+        RINFO("Last saved door update at: %s", (savedDoorUpdateAt != 0) ? timeString(savedDoorUpdateAt) : "unknown");
+    }
 #endif
 }
 
 void sync_and_restart()
 {
 #ifdef NTP_CLIENT
-    timeClient.end();
+    if (enableNTP)
+    {
+        timeClient.end();
+    }
 #endif
     RINFO("checkFlashCRC: %s", ESP.checkFlashCRC() ? "true" : "false");
     WiFi.mode(WIFI_OFF);

@@ -12,6 +12,8 @@ extern NTPClient timeClient;
 extern unsigned long lastRebootAt;
 extern char *timeString(time_t reqTime = 0);
 
+extern bool enableNTP;
+extern const char enableNTPFile[];
 extern const char lastDoorUpdateFile[];
 extern int32_t savedDoorUpdateAt;
 #endif

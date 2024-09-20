@@ -115,7 +115,7 @@ Loading...
         let date = new Date();
         while ((i = text.indexOf('>>> [', i) + 1) > 0) {
           let j = text.indexOf(']', i);
-          let logTime = parseInt(text.substring(i + 5, j));
+          let logTime = parseInt(text.substring(i + 4, j));
           date.setTime(startTime + logTime);
           text = text.substring(0, i - 1) + '[' + date.toJSON() + text.substring(j)
         }
