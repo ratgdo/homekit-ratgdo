@@ -308,11 +308,12 @@
                     </tr>
                   </table>
                 </td>
+              </tr>
               <tr>
-                <td class="label">Reboot Every:</td>
+                <td class="label">Enable NTP:</td>
                 <td>&nbsp;
-                  <input type="number" id="rebootHours" name="rebootHours" value="0" , min="0" , max="72" , step="1">
-                  Hours <span style="font-size: 0.8em;">(never:0, min:1, max:72)</span>
+                  <input type="checkbox" id="enableNTP" name="enableNTP" value="no">
+                  <span style="font-size: 0.8em;">Obtain time from NTP server</span>
                 </td>
               </tr>
               <tr>
@@ -320,6 +321,13 @@
                   <!--
                     Future settings go here
                   -->
+                </td>
+              </tr>
+              <tr>
+                <td class="label">Reboot Every:</td>
+                <td>&nbsp;
+                  <input type="number" id="rebootHours" name="rebootHours" value="0" , min="0" , max="72" , step="1">
+                  Hours <span style="font-size: 0.8em;">(never:0, min:1, max:72)</span>
                 </td>
               </tr>
               <tr>

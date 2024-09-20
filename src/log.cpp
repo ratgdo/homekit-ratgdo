@@ -146,13 +146,16 @@ extern "C" uint32_t free_iram_heap;
 void printMessageLog(Print &outputDev)
 {
 #ifdef NTP_CLIENT
-    static uint32_t currentTime = 0;
-    currentTime = timeClient.getEpochTime();
-    outputDev.write("Server time (secs): ");
-    outputDev.print(currentTime);
-    outputDev.write(" - ");
-    outputDev.write(timeString(currentTime));
-    outputDev.println();
+    if (enableNTP && timeClient.isTimeSet())
+    {
+        static uint32_t currentTime = 0;
+        currentTime = timeClient.getEpochTime();
+        outputDev.write("Server time (secs): ");
+        outputDev.print(currentTime);
+        outputDev.write(" - ");
+        outputDev.write(timeString(currentTime));
+        outputDev.println();
+    }
 #endif
     outputDev.write("Server uptime (ms): ");
     outputDev.println(millis());

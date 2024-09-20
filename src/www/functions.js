@@ -111,6 +111,9 @@ function setElementsFromStatus(status) {
                 document.getElementById(key).checked = value;
                 document.getElementById("staticIPtable").style.display = (value) ? "table" : "none";
                 break;
+            case "enableNTP":
+                document.getElementById(key).checked = value;
+                break;
             case "lastDoorUpdateAt":
                 date.setTime(Date.now() - value);
                 document.getElementById(key).innerHTML = (document.getElementById("lastRebootAt").innerHTML == date.toLocaleString()) ? "Unknown" : date.toLocaleString();
@@ -656,6 +659,8 @@ async function saveSettings() {
     if (gatewayIP.length == 0) gatewayIP = serverStatus.gatewayIP;
     let nameserverIP = document.getElementById("IPnameserver").value.substring(0, 15);
     if (nameserverIP.length == 0) nameserverIP = serverStatus.nameserverIP;
+    const enableNTP = (document.getElementById("enableNTP").checked) ? '1' : '0';
+
 
     // check IP addresses valid
     const regexIPv4 = /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/i;
@@ -678,7 +683,8 @@ async function saveSettings() {
         "localIP", localIP,
         "subnetMask", subnetMask,
         "gatewayIP", gatewayIP,
-        "nameserverIP", nameserverIP
+        "nameserverIP", nameserverIP,
+        "enableNTP", enableNTP
     );
     if (reboot) {
         countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");

@@ -79,8 +79,10 @@ void setup()
     setup_web();
 
 #ifdef NTP_CLIENT
-    timeClient.begin();
-    timeClient.setUpdateInterval(10 * 60); // Update NTP clock every 10 minutes
+    if (enableNTP)
+    {
+        timeClient.begin();
+    }
 #endif
 
     led.idle();
@@ -209,11 +211,14 @@ void service_timer_loop()
     unsigned long current_millis = millis();
 
 #ifdef NTP_CLIENT
-    timeClient.update();
-    if (lastRebootAt == 0 && timeClient.isTimeSet())
+    if (enableNTP)
     {
-        lastRebootAt = timeClient.getEpochTime() - (current_millis / 1000);
-        RINFO("Current time: %s", timeString());
+        timeClient.update();
+        if (lastRebootAt == 0 && timeClient.isTimeSet())
+        {
+            lastRebootAt = timeClient.getEpochTime() - (current_millis / 1000);
+            RINFO("Current time: %s", timeString());
+        }
     }
 #endif
     // LED flash timer
