@@ -62,13 +62,16 @@ int32_t savedDoorUpdateAt = 0;
 
 char *timeString(time_t reqTime)
 {
+    // declare static so we don't use stack space
     static char tBuffer[32];
+    static time_t tTime = 0;
+    static tm *tmTime = NULL;
     tBuffer[0] = 0;
-    time_t tTime = ((reqTime == 0) && timeClient.isTimeSet()) ? timeClient.getEpochTime() : reqTime;
+    tTime = ((reqTime == 0) && timeClient.isTimeSet()) ? timeClient.getEpochTime() : reqTime;
     if (tTime != 0)
     {
-        tm *tmTime = gmtime(&tTime);
-        strftime(tBuffer, sizeof(tBuffer), "%Y/%m/%d - %H:%M:%S (UTC)", tmTime);
+        tmTime = gmtime(&tTime);
+        strftime(tBuffer, sizeof(tBuffer), "%Y/%m/%d %H:%M:%S (UTC)", tmTime);
     }
     return tBuffer;
 }
