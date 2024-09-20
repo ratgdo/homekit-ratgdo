@@ -97,6 +97,32 @@ Loading...
     document.getElementById("defaultOpen").click();
     loadLogs();
 
+    function findStartTime(text) {
+      let i = text.indexOf('Server time');
+      if (i < 0) return undefined;
+
+      i = text.indexOf(':', i) + 2;
+      let j = text.indexOf(' ', i);
+      let serverTime = parseInt(text.substring(i, j)) * 1000;
+      i = text.indexOf(':', text.indexOf('Server uptime')) + 2;
+      j = text.indexOf(' ', i);
+      return serverTime - parseInt(text.substring(i, j));
+    }
+
+    function insertTimeStamp(text, startTime) {
+      if (startTime) {
+        let i = 0;
+        let date = new Date();
+        while ((i = text.indexOf('>>> [', i) + 1) > 0) {
+          let j = text.indexOf(']', i);
+          let logTime = parseInt(text.substring(i + 5, j));
+          date.setTime(startTime + logTime);
+          text = text.substring(0, i - 1) + '[' + date.toJSON() + text.substring(j)
+        }
+      }
+      return text;
+    }
+
     function openTab(evt, tabName) {
       var i, tabcontent, tablinks;
       // Get all elements with class="tabcontent" and hide them
@@ -140,6 +166,7 @@ Loading...
 
     async function loadLogs() {
       // Load all the logs in parallel, showing progress indicator while we do...
+      let serverBootTime = undefined;
       loaderElem.style.visibility = "visible";
       console.log("Start loading server logs and status");
       Promise.allSettled([
@@ -168,7 +195,7 @@ Loading...
             }
           })
           .then((text) => {
-            document.getElementById("rebootlog").innerText = text;
+            document.getElementById("rebootlog").innerText = insertTimeStamp(text, findStartTime(text));
           })
           .catch(error => console.warn(error)),
 
@@ -181,7 +208,7 @@ Loading...
             }
           })
           .then((text) => {
-            document.getElementById("crashlog").innerText = text;
+            document.getElementById("crashlog").innerText = insertTimeStamp(text, findStartTime(text));
           })
           .catch(error => console.warn(error)),
 
@@ -200,7 +227,7 @@ Loading...
             evtSource.addEventListener("logger", (event) => {
               let divElem = document.getElementById("logTab");
               let scroll = (divElem.scrollHeight - divElem.scrollTop - divElem.clientHeight) < 10;
-              document.getElementById("showlog").insertAdjacentText('beforeend', event.data + "\n\r");
+              document.getElementById("showlog").insertAdjacentText('beforeend', insertTimeStamp(event.data, serverBootTime) + "\n\r");
               // Only scroll the page if we are already at bottom of the page
               if (scroll) divElem.scrollTop = divElem.scrollHeight;
             });
@@ -222,6 +249,8 @@ Loading...
           })
           .then((text) => {
             document.getElementById("firstLoad").style.display = "none";
+            serverBootTime = findStartTime(text);
+            text = insertTimeStamp(text, serverBootTime);
             document.getElementById("showlog").insertAdjacentText('afterbegin', text);
             let divElem = document.getElementById("logTab");
             // Scroll to the bottom
