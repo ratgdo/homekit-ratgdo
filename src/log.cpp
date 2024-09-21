@@ -148,13 +148,8 @@ void printMessageLog(Print &outputDev)
 #ifdef NTP_CLIENT
     if (enableNTP && timeClient.isTimeSet())
     {
-        static uint32_t currentTime = 0;
-        currentTime = timeClient.getEpochTime();
         outputDev.write("Server time (secs): ");
-        outputDev.print(currentTime);
-        outputDev.write(" - ");
-        outputDev.write(timeString(currentTime));
-        outputDev.println();
+        outputDev.println(timeClient.getEpochTime());
     }
 #endif
     outputDev.write("Server uptime (ms): ");
