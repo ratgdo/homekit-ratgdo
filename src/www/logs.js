@@ -11,15 +11,33 @@ var msgJson = undefined;        // for status
 const clientUUID = uuidv4();    // uniquely identify this session
 
 function findStartTime(text) {
-    let i = text.indexOf('Server time');
-    if (i < 0) return undefined;
+    const regex = /[\s\r\n]/;
+    let serverTime = undefined;
+    let upTime = undefined;
+    let bootTime = undefined;
 
-    i = text.indexOf(':', i) + 2;
-    let j = text.indexOf(' ', i);
-    let serverTime = parseInt(text.substring(i, j)) * 1000;
-    i = text.indexOf(':', text.indexOf('Server uptime')) + 2;
-    j = text.indexOf(' ', i);
-    return serverTime - parseInt(text.substring(i, j));
+    function search(string, regexp, from = 0) {
+        const index = string.slice(from).search(regexp);
+        return index === -1 ? -1 : index + from;
+    }
+
+    let i = text.indexOf(':', text.indexOf('Server uptime')) + 2;
+    let j = search(text, regex, i);
+    upTime = Number(text.substring(i, j));
+
+    i = text.indexOf('Server time');
+    if (i >= 0) {
+        i = text.indexOf(':', i) + 2;
+        let j = search(text, regex, i);
+        serverTime = Number(text.substring(i, j)) * 1000;
+        bootTime = serverTime - upTime;
+    }
+
+    return {
+        serverTime: serverTime,
+        upTime: upTime,
+        bootTime: bootTime
+    };
 }
 
 function insertTimeStamp(text, startTime) {
@@ -28,12 +46,25 @@ function insertTimeStamp(text, startTime) {
         let date = new Date();
         while ((i = text.indexOf('>>> [', i) + 1) > 0) {
             let j = text.indexOf(']', i);
-            let logTime = parseInt(text.substring(i + 4, j));
+            let logTime = Number(text.substring(i + 4, j));
             date.setTime(startTime + logTime);
-            text = text.substring(0, i - 1) + '[' + date.toJSON() + text.substring(j)
+            text = text.substring(0, i - 1) + '[' + date.toJSON() + text.substring(j);
         }
     }
     return text;
+}
+
+function msToTime(duration) {
+    let seconds = Math.floor((duration / 1000) % 60),
+        minutes = Math.floor((duration / (1000 * 60)) % 60),
+        hours = Math.floor((duration / (1000 * 60 * 60)) % 24),
+        days = Math.floor((duration / (1000 * 60 * 60 * 24)));
+
+    hours = (hours < 10) ? "0" + hours : hours;
+    minutes = (minutes < 10) ? "0" + minutes : minutes;
+    seconds = (seconds < 10) ? "0" + seconds : seconds;
+
+    return days + " days " + hours + " hrs " + minutes + " mins " + seconds + " secs";
 }
 
 function openTab(evt, tabName) {
@@ -108,7 +139,19 @@ async function loadLogs() {
                 }
             })
             .then((text) => {
-                document.getElementById("rebootlog").innerText = insertTimeStamp(text, findStartTime(text));
+                const { serverTime, upTime, bootTime } = findStartTime(text);
+                const elem = document.getElementById("rebootlog");
+                if (bootTime) {
+                    let date = new Date();
+                    date.setTime(bootTime);
+                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color : darkgoldenrod">Server started at:  ${date.toUTCString()}</pre>`);
+                    date.setTime(serverTime);
+                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color : darkgoldenrod">Server shutdown at: ${date.toUTCString()}</pre>`);
+                }
+                if (upTime) {
+                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color : darkgoldenrod">Server upTime:      ${msToTime(upTime)}</pre>`);
+                }
+                elem.innerText = insertTimeStamp(text, bootTime);
             })
             .catch(error => console.warn(error)),
 
@@ -121,7 +164,19 @@ async function loadLogs() {
                 }
             })
             .then((text) => {
-                document.getElementById("crashlog").innerText = insertTimeStamp(text, findStartTime(text));
+                const { serverTime, upTime, bootTime } = findStartTime(text);
+                const elem = document.getElementById("crashlog");
+                if (bootTime) {
+                    let date = new Date();
+                    date.setTime(bootTime);
+                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color : darkgoldenrod">Server started at: ${date.toUTCString()}</pre>`);
+                    date.setTime(serverTime);
+                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color : darkgoldenrod">Server crashed at: ${date.toUTCString()}</pre>`);
+                }
+                if (upTime) {
+                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color : darkgoldenrod">Server upTime:     ${msToTime(upTime)}</pre>`);
+                }
+                elem.innerText = insertTimeStamp(text, bootTime);
             })
             .catch(error => console.warn(error)),
 
@@ -161,10 +216,20 @@ async function loadLogs() {
                 }
             })
             .then((text) => {
-                document.getElementById("firstLoad").style.display = "none";
-                serverBootTime = findStartTime(text);
-                text = insertTimeStamp(text, serverBootTime);
-                document.getElementById("showlog").insertAdjacentText('afterbegin', text);
+                const elem = document.getElementById("showlog");
+                const { serverTime, upTime, bootTime } = findStartTime(text);
+                serverBootTime = bootTime;
+                if (bootTime) {
+                    let date = new Date();
+                    date.setTime(bootTime);
+                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color : darkgoldenrod">Server started at:   ${date.toUTCString()}</pre>`);
+                    date.setTime(serverTime);
+                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color : darkgoldenrod">Server current time: ${date.toUTCString()}</pre>`);
+                }
+                if (upTime) {
+                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color : darkgoldenrod">Server upTime:       ${msToTime(upTime)}</pre>`);
+                }
+                elem.insertAdjacentText('afterbegin', insertTimeStamp(text, serverBootTime));
                 let divElem = document.getElementById("logTab");
                 // Scroll to the bottom
                 divElem.scrollTop = divElem.scrollHeight;
