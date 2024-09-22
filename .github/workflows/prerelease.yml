@@ -1,0 +1,242 @@
+# This workflow automatically generates nightly release PRs if there were changes to the code
+name: Pre-Release
+
+on:
+  push:
+    branches:
+      - main
+      - next-release
+  workflow_dispatch:
+
+jobs:
+  pre-release:
+    if: github.repository == 'ratgdo/homekit-ratgdo' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+        fetch-depth: 0 # Fetch the history, or this action won't work
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '20'
+
+    - name: Install semver
+      run: npm install semver
+
+    - name: Determine the version bump
+      id: version
+      uses: actions/github-script@v7
+      with:
+        result-encoding: string
+        script: |
+          const semver = require("semver");
+          const fs = require("fs");
+          const path = require("path");
+    
+          const primaryPath = path.join(process.env.GITHUB_WORKSPACE, 'docs', 'manifest.json');
+          const fallbackPath = path.join('docs', 'manifest.json');
+    
+          let manifest;
+          try {
+            manifest = JSON.parse(fs.readFileSync(primaryPath, "utf8"));
+          } catch (err) {
+            if (err.code === 'ENOENT') {
+              manifest = JSON.parse(fs.readFileSync(fallbackPath, "utf8"));
+            } else {
+              throw err;
+            }
+          }
+    
+          const prevVersion = manifest.version;
+          const parsed = semver.parse(prevVersion);
+          let prereleaseIdentifier = parsed.prerelease[0] || 0;
+    
+          // Increment the patch version and reset prerelease number if it's a new patch version
+          let newPatchVersion = parsed.patch;
+          if (parsed.prerelease.length === 0) {
+            newPatchVersion += 1;
+            prereleaseIdentifier = 0;
+          } else {
+            prereleaseIdentifier = parseInt(prereleaseIdentifier) + 1;
+          }
+    
+          // Construct the new version
+          const newVersion = `${parsed.major}.${parsed.minor}.${newPatchVersion}-${prereleaseIdentifier}`;
+    
+          return newVersion;
+
+    - name: Update version on manifest.json
+      uses: amochkin/action-json@v1
+      id: write_version
+      with:
+        mode: write
+        file: docs/manifest.json
+        property: version
+        value: v${{ steps.version.outputs.result }}
+        value_type: string
+        
+    - name: Output created (or overwritten) manifest.json
+      run: cat docs/manifest.json
+      shell: bash
+      
+    - name: Output read value of 'version' property
+      run: echo ${{ steps.write_version.outputs.value }}
+      shell: bash
+
+    - name: Update firmware/*.bin version on manifest.json
+      uses: amochkin/action-json@v1
+      id: builds_parts_path
+      with:
+        mode: write
+        file: docs/manifest.json
+        property: builds.0.parts.0.path
+        value: firmware/homekit-ratgdo-v${{ steps.version.outputs.result }}.bin
+        value_type: string
+
+    - name: Create nightly release
+      id: create_release
+      uses: viperproject/create-nightly-release@v1
+      env:
+        # This token is provided by Actions, you do not need to create your own token
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.version.outputs.result }}
+        release_name: v${{ steps.version.outputs.result }}
+        body: |
+          This is a Pre-Release Firmware for testing purposes only.
+        keep_num: 1
+        keep_tags: false
+        
+    - name: Output created (or overwritten) manifest.json
+      run: cat docs/manifest.json
+      shell: bash
+      
+    - name: Output read value of 'version' property
+      run: echo ${{ steps.builds_parts_path.outputs.value }}
+      shell: bash
+
+    - name: Attach manifest.json
+      uses: AButler/upload-release-assets@v3.0
+      with:
+        files: "/home/runner/work/homekit-ratgdo/homekit-ratgdo/docs/manifest.json"
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        release-tag: v${{ steps.version.outputs.result }}
+
+    - name: Cache PlatformIO
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.platformio/.cache
+        key: ${{ runner.os }}-pio
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install PlatformIO Core
+      run: |
+          pip install --upgrade pip
+          pip install --upgrade platformio
+
+    - name: Build PlatformIO Project
+      run: pio run -e ratgdo_esp8266_hV25
+
+    - name : md5sum Firmware.bin
+      run: |
+        cd .pio/build/ratgdo_esp8266_hV25
+        md5sum firmware.bin | awk '{print $1}' > firmware.md5
+
+    - name: Rename Firmware Files
+      run: |
+        mv .pio/build/ratgdo_esp8266_hV25/firmware.bin .pio/build/ratgdo_esp8266_hV25/homekit-ratgdo-v${{ steps.version.outputs.result }}.bin
+        mv .pio/build/ratgdo_esp8266_hV25/firmware.elf .pio/build/ratgdo_esp8266_hV25/homekit-ratgdo-v${{ steps.version.outputs.result }}.elf
+        mv .pio/build/ratgdo_esp8266_hV25/firmware.md5 .pio/build/ratgdo_esp8266_hV25/homekit-ratgdo-v${{ steps.version.outputs.result }}.md5
+
+    - name: Attach Bundle - Firmware.bin
+      uses: AButler/upload-release-assets@v3.0
+      with:
+        files: ".pio/build/ratgdo_esp8266_hV25/*.bin"
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        release-tag: v${{ steps.version.outputs.result }}
+  
+    - name: Upload Firmware.bin
+      uses: actions/upload-artifact@v4
+      with:
+        name: homekit-ratgdo-v${{ steps.version.outputs.result }}.bin
+        path: |
+          .pio/build/ratgdo_esp8266_hV25/*.bin
+
+    - name: Download Firmware.bin
+      uses: actions/download-artifact@v4
+      with:
+        name: homekit-ratgdo-v${{ steps.version.outputs.result }}.bin
+        path: |
+          docs/firmware/
+
+    - name: Attach Bundle - Firmware.md5
+      uses: AButler/upload-release-assets@v3.0
+      with:
+        files: ".pio/build/ratgdo_esp8266_hV25/*.md5"
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        release-tag: v${{ steps.version.outputs.result }}
+  
+    - name: Upload Firmware.bin
+      uses: actions/upload-artifact@v4
+      with:
+        name: homekit-ratgdo-v${{ steps.version.outputs.result }}.md5
+        path: |
+          .pio/build/ratgdo_esp8266_hV25/*.md5
+
+    - name: Download Firmware.md5
+      uses: actions/download-artifact@v4
+      with:
+        name: homekit-ratgdo-v${{ steps.version.outputs.result }}.md5
+        path: |
+          docs/firmware/
+
+    - name: Attach Bundle - Firmware.elf
+      uses: AButler/upload-release-assets@v3.0
+      with:
+        files: ".pio/build/ratgdo_esp8266_hV25/*.elf"
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        release-tag: v${{ steps.version.outputs.result }}
+  
+    - name: Upload Firmware.elf
+      uses: actions/upload-artifact@v4
+      with:
+        name: homekit-ratgdo-v${{ steps.version.outputs.result }}.elf
+        path: |
+          .pio/build/ratgdo_esp8266_hV25/*.elf
+
+    - name: Download Firmware.elf
+      uses: actions/download-artifact@v4
+      with:
+        name: homekit-ratgdo-v${{ steps.version.outputs.result }}.elf
+        path: |
+          docs/firmware/
+
+  pre-release-discord:
+    needs: pre-release
+    if: github.repository == 'ratgdo/homekit-ratgdo'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sleep for 2 minutes before publishing to Discord
+        run: sleep 120s
+        shell: bash
+      - name: Pre-Release Discord Notification
+        uses: LeGitHubDeTai/github-to-discord@main
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_USERNAME: ratgdo
+          DISCORD_AVATAR: https://avatars.githubusercontent.com/u/144837877?s=200&v=4
+          MESSAGE_TITLE: "Pre-Release: homekit-ratgdo"
+          MESSAGE_DESCRIPTION: Github Action By Ratgdo
+          MESSAGE_URL: https://github.com/ratgdo/homekit-ratgdo/releases
+          MESSAGE_COLOR: 5723991
