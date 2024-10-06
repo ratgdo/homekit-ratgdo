@@ -4,7 +4,6 @@
 #ifndef _HOMEKIT_DECL_H
 #define _HOMEKIT_DECL_H
 
-
 #define DEVICE_NAME_SIZE 32
 #define SERIAL_NAME_SIZE 18
 
