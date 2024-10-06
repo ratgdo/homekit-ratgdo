@@ -231,7 +231,8 @@ void notify_homekit_light()
 void enable_service_homekit_motion(bool reboot)
 {
     write_int_to_file("has_motion", 1);
-    if (reboot) {
+    if (reboot)
+    {
         sync_and_restart();
     }
 }
