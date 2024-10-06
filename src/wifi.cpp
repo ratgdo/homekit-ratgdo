@@ -104,21 +104,8 @@ void wifi_connect()
     }
     WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
 
-    if (strlen(device_name) > 0)
-    {
-        // We don't want any space characters in host name...
-        // Maximum length permitted is 24 characters.
-        char str[24];
-        int i = 0;
-        while (i < 24 && device_name[i] != 0)
-        {
-            str[i] = (isspace((unsigned char)device_name[i])) ? '-' : device_name[i];
-            i++;
-        }
-        str[min(i, 23)] = 0; // null terminate string
-        RINFO("Set WiFi Host Name: %s", str);
-        WiFi.hostname((const char *)str);
-    }
+    RINFO("Set WiFi Host Name: %s", device_name_rfc952);
+    WiFi.hostname((const char *)device_name_rfc952);
 
     if (staticIP)
     {
@@ -171,7 +158,7 @@ void improv_loop()
         if (!connected)
         {
             wifiPhyMode = (WiFiPhyMode_t)0;
-            RINFO("Reset WiFiPhyMode to: %d", wifiPhyMode);
+            RINFO("Reset WiFiPhyMode to: %d", (uint32_t)wifiPhyMode);
             write_int_to_file(wifiPhyModeFile, (uint32_t)wifiPhyMode);
             WiFi.setPhyMode(wifiPhyMode);
             wifiPower = 20;

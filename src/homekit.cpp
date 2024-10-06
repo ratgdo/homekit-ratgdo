@@ -49,8 +49,6 @@ void homekit_loop()
 void setup_homekit()
 {
     RINFO("=== Starting HomeKit Server");
-    snprintf(device_name, DEVICE_NAME_SIZE, "Garage Door %06X", ESP.getChipId());
-    read_string_from_file(device_name_file, device_name, device_name, DEVICE_NAME_SIZE);
     String macAddress = WiFi.macAddress();
     snprintf(serial_number, SERIAL_NAME_SIZE, "%s", macAddress.c_str());
 
