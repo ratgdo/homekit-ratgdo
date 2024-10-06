@@ -104,7 +104,7 @@ function openTab(evt, tabName) {
                 document.getElementById("statusjson").innerText = text;
                 loaderElem.style.visibility = "hidden";
             })
-            .catch(error => console.warn(error))
+            .catch(error => console.warn(error));
     }
 }
 
@@ -195,7 +195,7 @@ async function loadLogs() {
                 evtSource.addEventListener("logger", (event) => {
                     let divElem = document.getElementById("logTab");
                     let scroll = (divElem.scrollHeight - divElem.scrollTop - divElem.clientHeight) < 10;
-                    document.getElementById("showlog").insertAdjacentText('beforeend', insertTimeStamp(event.data, serverBootTime) + "\n\r");
+                    document.getElementById("showlog").insertAdjacentText('beforeend', insertTimeStamp(event.data, serverBootTime) + "\n");
                     // Only scroll the page if we are already at bottom of the page
                     if (scroll) divElem.scrollTop = divElem.scrollHeight;
                 });
