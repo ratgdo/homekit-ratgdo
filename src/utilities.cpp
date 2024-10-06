@@ -85,7 +85,26 @@ void load_all_config_settings()
     RINFO("=== Load all config settings for %s", device_name);
     read_string_from_file(device_name_file, device_name, device_name, DEVICE_NAME_SIZE);
     RINFO("Configured device name: %s", device_name);
-    wifiSettingsChanged = (read_int_from_file(wifiSettingsChangedFile) != 0);
+
+    // Make device name RFC952 complient (simple, just checking for the basics)
+    // RFC952 says max len of 24, [a-z][A-Z][0-9][-.] and no dash or period in last char.
+    int i = 0;
+    while (i <= min(24, DEVICE_NAME_SIZE - 1) && device_name[i] != 0)
+    {
+        device_name_rfc952[i] = (isspace((unsigned char)device_name[i])) ? '-' : device_name[i];
+        i++;
+    }
+    // remove dashes and periods from end of name
+    while (device_name_rfc952[i - 1] == '-' || device_name_rfc952[i - 1] == '.')
+    {
+        device_name_rfc952[--i] = 0;
+    }
+    // null terminate string
+    device_name_rfc952[min(i, min(24, DEVICE_NAME_SIZE - 1))] = 0; // null terminate string
+    RINFO("RFC952 compliant device hostname: %s", device_name_rfc952);
+
+    // Assume wifi settings changed on first boot after install or full erase.
+    wifiSettingsChanged = (read_int_from_file(wifiSettingsChangedFile, 1) != 0);
     RINFO("WiFi settings have %schanged", (wifiSettingsChanged) ? "" : "not ");
     wifiPower = (uint16_t)read_int_from_file(wifiPowerFile, wifiPower);
     RINFO("wifiPower: %d", wifiPower);

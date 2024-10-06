@@ -22,10 +22,11 @@
 // button in Home app.
 void identify(homekit_value_t _value)
 {
-        printf("accessory identify\n");
+    printf("accessory identify\n");
 }
 
 char device_name[DEVICE_NAME_SIZE] = "";
+char device_name_rfc952[DEVICE_NAME_SIZE] = "";
 char serial_number[SERIAL_NAME_SIZE] = "";
 
 homekit_characteristic_t active_state = HOMEKIT_CHARACTERISTIC_(
@@ -63,8 +64,44 @@ homekit_characteristic_t motion_detected = HOMEKIT_CHARACTERISTIC_(
 
 // Declare and define the accessory
 homekit_accessory_t *accessories[] = {
-    HOMEKIT_ACCESSORY(.id = 1, .category = homekit_accessory_category_garage, .services = (homekit_service_t *[]){HOMEKIT_SERVICE(ACCESSORY_INFORMATION, .characteristics = (homekit_characteristic_t *[]){HOMEKIT_CHARACTERISTIC(NAME, device_name), HOMEKIT_CHARACTERISTIC(MANUFACTURER, "ratCloud llc"), HOMEKIT_CHARACTERISTIC(SERIAL_NUMBER, serial_number), HOMEKIT_CHARACTERISTIC(MODEL, "ratgdo"), HOMEKIT_CHARACTERISTIC(FIRMWARE_REVISION, AUTO_VERSION), HOMEKIT_CHARACTERISTIC(IDENTIFY, identify), NULL}), HOMEKIT_SERVICE(GARAGE_DOOR_OPENER, .primary = true, .characteristics = (homekit_characteristic_t *[]){HOMEKIT_CHARACTERISTIC(NAME, "ratgdo"), &active_state, &current_door_state, &target_door_state, &obstruction_detected, &current_lock_state, &target_lock_state, NULL}), HOMEKIT_SERVICE(LIGHTBULB, .primary = false, .characteristics = (homekit_characteristic_t *[]){HOMEKIT_CHARACTERISTIC(NAME, "ratgdo"), &light_state, NULL}), HOMEKIT_SERVICE(MOTION_SENSOR, .primary = false, .characteristics = (homekit_characteristic_t *[]){HOMEKIT_CHARACTERISTIC(NAME, "ratgdo"), &motion_detected, NULL}), NULL}),
-    NULL};
+    HOMEKIT_ACCESSORY(.id = 1, .category = homekit_accessory_category_garage, .services = (homekit_service_t *[]){
+        HOMEKIT_SERVICE(ACCESSORY_INFORMATION, .characteristics = (homekit_characteristic_t *[])
+        {
+            HOMEKIT_CHARACTERISTIC(NAME, device_name_rfc952),
+            HOMEKIT_CHARACTERISTIC(MANUFACTURER, "ratCloud llc"),
+            HOMEKIT_CHARACTERISTIC(SERIAL_NUMBER, serial_number),
+            HOMEKIT_CHARACTERISTIC(MODEL, "ratgdo"),
+            HOMEKIT_CHARACTERISTIC(FIRMWARE_REVISION, AUTO_VERSION),
+            HOMEKIT_CHARACTERISTIC(IDENTIFY, identify),
+            NULL
+        }),
+        HOMEKIT_SERVICE(GARAGE_DOOR_OPENER, .primary = true, .characteristics = (homekit_characteristic_t *[])
+        {
+            HOMEKIT_CHARACTERISTIC(NAME, "ratgdo"),
+            &active_state,
+            &current_door_state,
+            &target_door_state,
+            &obstruction_detected,
+            &current_lock_state,
+            &target_lock_state,
+            NULL
+        }),
+        HOMEKIT_SERVICE(LIGHTBULB, .primary = false, .characteristics = (homekit_characteristic_t *[])
+        {
+            HOMEKIT_CHARACTERISTIC(NAME, "ratgdo"),
+            &light_state,
+            NULL
+        }),
+        HOMEKIT_SERVICE(MOTION_SENSOR, .primary = false, .characteristics = (homekit_characteristic_t *[])
+        {
+            HOMEKIT_CHARACTERISTIC(NAME, "ratgdo"),
+            &motion_detected,
+            NULL
+        }),
+        NULL
+    }),
+    NULL
+};
 
 // Overall HomeKit server config
 homekit_server_config_t config = {
