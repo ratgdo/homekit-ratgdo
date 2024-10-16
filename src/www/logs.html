@@ -42,7 +42,7 @@
       <button class="tablinks" onclick="openTab(event, 'crashTab')">Crash Log</button>
       <input id="clearBtn" type="button" value="Clear crash log"
         style="display: none; margin-left: 2em; margin-top: 0.8em;"
-        onclick="return confirm('Clear crash log, are you sure?.') && clearCrashLog();">
+        onclick="return confirm('Clear crash log, are you sure?') && clearCrashLog();">
     </div>
     <!-- Main section of page ------------------------------------------------------------------>
     <div id="statusTab" class="tabcontent">
@@ -61,6 +61,7 @@ Loading...
     </div>
     <div id="crashTab" class="tabcontent">
       <p style="margin: 0px; color: darkgoldenrod">Messages logged immediately before last system crash...</p>
+      <span id="crashlog-timestamps"></span>
       <pre id="crashlog"></pre>
     </div>
     <!-- Footer section of page ------------------------------------------------------------------>

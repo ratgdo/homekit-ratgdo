@@ -24,9 +24,11 @@
 #include "ratgdo.h"
 #include "log.h"
 #include "utilities.h"
+#include "wifi.h"
 
 // support for changeing WiFi settings
 unsigned long wifiConnectTimeout = 0;
+std::set<String> wifiNets;
 
 #define MAX_ATTEMPTS_WIFI_CONNECTION 20
 uint8_t x_buffer[128];
@@ -71,58 +73,86 @@ void onDHCPTimeout()
 
 void wifi_connect()
 {
-    RINFO("=== Initialize WiFi station");
+    RINFO("=== Initialize WiFi %s", (softAPmode) ? "Soft Access Point" : "Station");
     WiFi.persistent(false);
-    WiFi.mode(WIFI_STA);
-    WiFi.setSleepMode(WIFI_NONE_SLEEP);
-    if (wifiSettingsChanged)
+    if (softAPmode)
     {
-        RINFO("WARNING: WiFi settings changed. Will check for connection after 30 seconds.");
-    }
-    if (wifiPhyMode == WIFI_PHY_MODE_11B)
-    {
-        RINFO("Setting WiFi preference to 802.11b (Wi-Fi 1)");
-    }
-    else if (wifiPhyMode == WIFI_PHY_MODE_11G)
-    {
-        RINFO("Setting WiFi preference to 802.11g (Wi-Fi 3)");
-    }
-    else if (wifiPhyMode == WIFI_PHY_MODE_11N)
-    {
-        RINFO("Setting WiFi preference to 802.11n (Wi-Fi 4)");
-    }
-    else
-    {
-        RINFO("Setting WiFi version preference to automatic");
-    }
-    WiFi.setPhyMode(wifiPhyMode);
-    if (wifiPower < 20)
-    {
-        // Only set WiFi power if set to less than the maximum
-        RINFO("Setting WiFi power to %d", wifiPower);
-        WiFi.setOutputPower((float)wifiPower);
-    }
-    WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
-
-    RINFO("Set WiFi Host Name: %s", device_name_rfc952);
-    WiFi.hostname((const char *)device_name_rfc952);
-
-    if (staticIP)
-    {
-        IPAddress ip;
-        IPAddress gw;
-        IPAddress nm;
-        IPAddress dns;
-        if (ip.fromString(IPaddress) && gw.fromString(IPgateway) && nm.fromString(IPnetmask) && dns.fromString(IPnameserver))
+        RINFO("Start AP mode for: %s", device_name_rfc952);
+        bool apStarted = WiFi.softAP(device_name_rfc952);
+        if (apStarted)
         {
-            WiFi.config(ip, gw, nm, dns);
+            RINFO("AP started with IP %s", WiFi.softAPIP().toString().c_str());
         }
         else
         {
-            RINFO("Failed to set static IP address, error parsing addresses");
+            RINFO("Error starting AP mode");
+        }
+        wifiSettingsChanged = false;
+
+        // scan for networks
+        RINFO("Scanning for networks...");
+        int nNets = WiFi.scanNetworks();
+        RINFO("Found %d networks", nNets);
+        for (int i = 0; i < nNets; i++)
+        {
+            RINFO("Network: %s Ch:%d (%ddBm)", WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i));
+            // Using a C++ set so we only save unique SSIDs
+            wifiNets.insert(WiFi.SSID(i));
         }
     }
+    else
+    {
+        WiFi.mode(WIFI_STA);
 
+        WiFi.setSleepMode(WIFI_NONE_SLEEP);
+        if (wifiSettingsChanged)
+        {
+            RINFO("WARNING: WiFi settings changed. Will check for connection after 30 seconds.");
+        }
+        if (wifiPhyMode == WIFI_PHY_MODE_11B)
+        {
+            RINFO("Setting WiFi preference to 802.11b (Wi-Fi 1)");
+        }
+        else if (wifiPhyMode == WIFI_PHY_MODE_11G)
+        {
+            RINFO("Setting WiFi preference to 802.11g (Wi-Fi 3)");
+        }
+        else if (wifiPhyMode == WIFI_PHY_MODE_11N)
+        {
+            RINFO("Setting WiFi preference to 802.11n (Wi-Fi 4)");
+        }
+        else
+        {
+            RINFO("Setting WiFi version preference to automatic");
+        }
+        WiFi.setPhyMode(wifiPhyMode);
+        if (wifiPower < 20)
+        {
+            // Only set WiFi power if set to less than the maximum
+            RINFO("Setting WiFi power to %d", wifiPower);
+            WiFi.setOutputPower((float)wifiPower);
+        }
+        WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
+
+        RINFO("Set WiFi Host Name: %s", device_name_rfc952);
+        WiFi.hostname((const char *)device_name_rfc952);
+
+        if (staticIP)
+        {
+            IPAddress ip;
+            IPAddress gw;
+            IPAddress nm;
+            IPAddress dns;
+            if (ip.fromString(IPaddress) && gw.fromString(IPgateway) && nm.fromString(IPnetmask) && dns.fromString(IPnameserver))
+            {
+                WiFi.config(ip, gw, nm, dns);
+            }
+            else
+            {
+                RINFO("Failed to set static IP address, error parsing addresses");
+            }
+        }
+    }
     // Set callbacks so we can monitor connection status
     connectedHandler = WiFi.onStationModeConnected(&onConnected);
     disconnectedHandler = WiFi.onStationModeDisconnected(&onDisconnected);
@@ -148,6 +178,13 @@ void improv_loop()
         {
             x_position = 0;
         }
+    }
+
+    if (softAPmode && (millis() > 10 * 60 * 1000))
+    {
+        RINFO("In Soft Access Point mode for over 10 minutes, reboot");
+        sync_and_restart();
+        return;
     }
 
     if (wifiSettingsChanged && (millis() > wifiConnectTimeout))
@@ -181,7 +218,7 @@ void improv_loop()
                 ip_addr_t nm = (ip_addr_t)WiFi.subnetMask();
                 if (ip4_addr_netcmp(&dns, &gw, &nm))
                 {
-                    RINFO("DNS server in same subnet as gateway)");
+                    RINFO("DNS server in same subnet as gateway");
                     WiFi.hostByName("localhost", ip);
                 }
                 else

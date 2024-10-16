@@ -53,6 +53,10 @@ const char ledIdleStateFile[] = "led_idle_state";
 motionTriggersUnion motionTriggers = {{0}};
 const char motionTriggersFile[] = "motion_triggers";
 
+// Control booting into soft access point mode
+bool softAPmode = false;
+const char softAPmodeFile[] = "soft_ap_mode";
+
 #ifdef NTP_CLIENT
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
@@ -142,8 +146,11 @@ void load_all_config_settings()
     RINFO("LED Idle State: %s", (led.getIdleState() == LOW) ? "on" : "off");
     motionTriggers.asInt = (uint8_t)read_int_from_file(motionTriggersFile);
     RINFO("Motion sensor trigger setting: %d", motionTriggers.asInt);
+    softAPmode = (read_int_from_file(softAPmodeFile) != 0);
+    RINFO("WiFi mode: %s", (softAPmode) ? "Soft Access Point" : "Station");
 #ifdef NTP_CLIENT
-    enableNTP = (read_int_from_file(enableNTPFile) != 0);
+    // Only enable NTP client if not in soft AP mode.
+    enableNTP = !softAPmode && (read_int_from_file(enableNTPFile) != 0);
     RINFO("NTP client %s enabled", (enableNTP) ? "is" : "not");
     if (enableNTP)
     {
@@ -164,7 +171,16 @@ void sync_and_restart()
     RINFO("checkFlashCRC: %s", ESP.checkFlashCRC() ? "true" : "false");
     WiFi.mode(WIFI_OFF);
     WiFi.forceSleepBegin();
-    save_rolling_code();
+    if (softAPmode)
+    {
+        // reset so next reboot will be standard station mode
+        write_int_to_file(softAPmodeFile, 0);
+    }
+    else
+    {
+        // In soft AP mode we never initialized garage door comms, so don't save rolling code.
+        save_rolling_code();
+    }
     File file = LittleFS.open(REBOOT_LOG_MSG_FILE, "w");
     printMessageLog(file);
     file.close();

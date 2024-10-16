@@ -17,6 +17,7 @@
 #include "log.h"
 #include "web.h"
 #include "utilities.h"
+#include "wifi.h"
 
 #ifdef ENABLE_CRASH_LOG
 #include "EspSaveCrash.h"
@@ -68,6 +69,8 @@ void handle_update();
 void handle_firmware_upload();
 void SSEHandler(uint8_t);
 void handle_notfound();
+void handle_accesspoint();
+void handle_setssid();
 
 // Built in URI handlers
 const char restEvents[] PROGMEM = "/rest/events/";
@@ -497,6 +500,20 @@ void handle_everything()
     String page = server.uri();
     const char *uri = page.c_str();
 
+    if ((WiFi.getMode() & WIFI_AP) == WIFI_AP)
+    {
+        // If we are in Soft Access Point mode
+        RINFO("WiFi Soft Access Point mode");
+        if (page == "/" || page == "/ap")
+            return handle_accesspoint();
+        else if (page == "/setssid" && method == HTTP_POST)
+            return handle_setssid();
+        else if (page == "/reboot" && method == HTTP_POST)
+            return handle_reboot();
+        else
+            return handle_notfound();
+    }
+
     if (builtInUri.count(uri) > 0)
     {
         // requested page matches one of our built-in handlers
@@ -701,6 +718,12 @@ void handle_setgdo()
             RINFO("Request to reset door rolling codes");
             // reset the door opener ID, rolling code and presence of motion sensor.
             reset_door();
+            reboot = true;
+        }
+        else if (!strcmp(key, "softAPmode"))
+        {
+            RINFO("Request to boot into soft access point mode");
+            write_int_to_file(softAPmodeFile, 1);
             reboot = true;
         }
         else if (!strcmp(key, "passwordRequired"))
@@ -1358,4 +1381,106 @@ void handle_firmware_upload()
         RINFO("%s was aborted", verify ? "Verify" : "Update");
     }
     esp_yield();
+}
+
+void handle_accesspoint()
+{
+    bool connected = WiFi.isConnected();
+    String previousSSID = "";
+    bool match = false;
+    if (connected)
+    {
+        previousSSID = WiFi.SSID();
+    }
+
+    WiFiClient client = server.client();
+    client.print("HTTP/1.1 200 OK\n");
+    client.print("Content-Type: text/html\n");
+    client.print("Cache-Control: no-cache, no-store\n");
+    client.print("Connection: close\n\n");
+    client.print("<p>Select from available networks, or manually enter SSID:</p>");
+    client.print("<form action=\"/setssid\" method=\"post\">");
+    int i = 0;
+    for (auto net : wifiNets)
+    {
+        bool matchSSID = (previousSSID == net);
+        if (matchSSID)
+            match = true;
+        client.printf_P(PSTR("<input type=\"radio\" id=\"n%d\" name=\"net\" value=\"%d\"%s>&nbsp;<label for=\"n%d\">%s</label><br>"),
+                        i, i, (matchSSID) ? " checked=\"checked\"" : "", i, net.c_str());
+        i++;
+    }
+    // user entered value
+    client.printf_P(PSTR("<input type=\"radio\" id=\"n%d\" name=\"net\" value=\"%d\">&nbsp;<input type=\"text\" name=\"userSSID\" placeholder=\"SSID\" value=\"%s\"><br>"),
+                    i, i, (!match) ? previousSSID : "");
+    client.print("<br><label for=\"pw\">Network password:&nbsp;</label>");
+    client.print("<input id=\"pw\" name=\"pw\" type=\"password\" placeholder=\"password\">");
+    client.print("<br><br><input type=\"submit\" value=\"Submit\" onclick=\"return confirm('Set SSID and password, are you sure?');\">");
+    client.print("&nbsp;<input type=\"submit\" value=\"Cancel\" formaction=\"/reboot\" onclick=\"return confirm('Reboot without changes, are you sure?');\">");
+    client.print("</form>");
+    client.print("\n");
+    client.flush();
+    client.stop();
+    return;
+}
+
+void handle_setssid()
+{
+    if (server.args() != 3)
+    {
+        RINFO("Sending %s, for: %s as invalid number of args", response400invalid, server.uri().c_str());
+        server.send_P(400, type_txt, response400invalid);
+        return;
+    }
+
+    const unsigned int net = atoi(server.arg("net").c_str());
+    const char *pw = server.arg("pw").c_str();
+    const char *userSSID = server.arg("userSSID").c_str();
+    const char *ssid;
+
+    if (net < wifiNets.size())
+    {
+        std::set<String>::iterator it = wifiNets.begin();
+        std::advance(it, net);
+        ssid = it->c_str();
+    }
+    else
+    {
+        // user provided SSID
+        ssid = userSSID;
+    }
+    RINFO("Requested WiFi SSID: %s (%d)", ssid, net);
+
+    snprintf_P(json, JSON_BUFFER_SIZE, PSTR("Setting SSID to: %s\nRATGDO rebooting."), ssid);
+    server.client().setNoDelay(true);
+    server.send_P(200, type_txt, json);
+    delay(500);
+    server.stop();
+
+    const bool connected = WiFi.isConnected();
+    String previousSSID;
+    String previousPSK;
+    if (connected)
+    {
+        previousSSID = WiFi.SSID();
+        previousPSK = WiFi.psk();
+        RINFO("Current SSID: %s", previousSSID.c_str());
+        WiFi.disconnect();
+    }
+
+    if (connect_wifi(ssid, pw))
+    {
+        RINFO("WiFi Successfully connects to SSID: %s", ssid);
+    }
+    else
+    {
+        RINFO("WiFi Failed to connect to SSID: %s", ssid);
+        if (connected)
+        {
+            RINFO("Resetting WiFi to previous SSID: %s", previousSSID.c_str());
+            connect_wifi(previousSSID.c_str(), previousPSK.c_str());
+        }
+    }
+    sync_and_restart();
+    return;
 }

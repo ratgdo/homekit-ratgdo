@@ -73,10 +73,13 @@ void setup()
 
     load_all_config_settings();
     wifi_connect();
-    setup_pins();
-    setup_comms();
-    setup_homekit();
     setup_web();
+    if (!softAPmode)
+    {
+        setup_pins();
+        setup_comms();
+        setup_homekit();
+    }
 
 #ifdef NTP_CLIENT
     if (enableNTP)
