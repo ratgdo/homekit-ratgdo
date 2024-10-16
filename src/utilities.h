@@ -46,6 +46,9 @@ extern const char device_name_file[];
 extern uint32_t rebootSeconds;
 extern const char system_reboot_timer[];
 
+extern bool softAPmode;
+extern const char softAPmodeFile[];
+
 extern uint8_t gdoSecurityType;
 extern const char gdoSecurityTypeFile[];
 extern uint8_t TTCdelay;

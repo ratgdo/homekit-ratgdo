@@ -2,6 +2,19 @@
 
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v1.8.0 (2024-10-??)
+
+### What's Changed
+
+* New feature... allow setting WiFi SSID.
+* New feature... enable IRAM heap to increase available memory.
+* Bugfix... ensure that network hostname is RFC952 compliant (e.g. no spaces).
+
+### Known Issues
+
+* Same as v1.7.0
+* Expect fewer crashes inside the MDNSresponder code resulting from enabling IRAM heap.
+
 ## v1.7.1 (2024-09-23)
 
 ### What's Changed

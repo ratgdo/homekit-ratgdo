@@ -120,7 +120,7 @@ function setElementsFromStatus(status) {
                 break;
             case "serverTime":
                 date.setTime(value * 1000);
-                console.log(`Server time: ${date.toUTCString()}`)
+                console.log(`Server time: ${date.toUTCString()}`);
                 break;
             case "checkFlashCRC":
                 if (!value) {
@@ -631,7 +631,7 @@ function setMotionTriggers(bitset) {
 
 async function saveSettings() {
     if (!confirm('Save Settings. Reboot may be required, are you sure?')) {
-        return
+        return;
     }
     const gdoSec = (document.getElementById("gdosec1").checked) ? '1' : '2';
     const pwReq = (document.getElementById("pwreq").checked) ? '1' : '0';
@@ -700,6 +700,17 @@ async function resetDoor() {
     if (confirm('Reset door rolling codes and presence of motion sensor. Settings will not change but device will reboot, are you sure?')) {
         await setGDO("resetDoor", true);
         countdown(30, "Door reset, RATGDO device rebooting...&nbsp;");
+    }
+    return;
+}
+
+async function setSSID() {
+    if (confirm('This will reboot RATGDO device into Soft Access Point mode from where you can '
+        + 'select a WiFi network SSID.\n\nYou must connect your laptop or mobile device to '
+        + 'WiFi Network: "' + document.getElementById("deviceName").innerHTML.replace(/\s/g, '-') + '" and then connect your browser to IP address: '
+        + '192.168.4.1\n\nAre you sure?')) {
+        await setGDO("softAPmode", true);
+        countdown(30, "RATGDO device rebooting...&nbsp;");
     }
     return;
 }
