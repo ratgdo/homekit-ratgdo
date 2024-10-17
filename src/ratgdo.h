@@ -73,6 +73,13 @@ struct GarageDoor
     LockTargetState target_lock;
 };
 
+struct ForceRecover
+{
+   uint8_t push_count;
+   unsigned long timeout;
+};
+extern struct ForceRecover force_recover;
+
 class LED
 {
 private:
