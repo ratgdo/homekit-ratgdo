@@ -508,13 +508,13 @@ async function unpairRATGDO() {
     countdown(30, "RATGO un-pairing and rebooting...&nbsp;");
 }
 
-async function checkAuth() {
+async function checkAuth(loader = true) {
     auth = false;
-    loaderElem.style.visibility = "visible";
+    if (loader) loaderElem.style.visibility = "visible";
     var response = await fetch("auth", {
         method: "GET",
     });
-    loaderElem.style.visibility = "hidden";
+    if (loader) loaderElem.style.visibility = "hidden";
     // Give browser a moment to actually hide the spinner...
     await new Promise(r => setTimeout(r, 50));
     if (response.status == 200) {
@@ -529,7 +529,8 @@ async function checkAuth() {
 async function setGDO(...args) {
     try {
         // check if authenticated, before post to setgdo, prevents timeout of dialog due to AbortSignal
-        if (!await checkAuth()) {
+        loaderElem.style.visibility = "visible";
+        if (!await checkAuth(false)) {
             return false;
         }
         const formData = new FormData();
@@ -541,13 +542,11 @@ async function setGDO(...args) {
             }
         }
         if (Array.from(formData.keys()).length > 0) {
-            loaderElem.style.visibility = "visible";
             var response = await fetch("setgdo", {
                 method: "POST",
                 body: formData,
                 signal: AbortSignal.timeout(2000),
             });
-            loaderElem.style.visibility = "hidden";
             if (response.status !== 200) {
                 console.warn("Error setting RATGDO state");
                 return true;;
@@ -577,6 +576,9 @@ async function setGDO(...args) {
             // A network error, or some other problem.
             console.error(`Error: type: ${err.name}, message: ${err.message}`);
         }
+    }
+    finally {
+        loaderElem.style.visibility = "hidden";
     }
     return false;
 }
