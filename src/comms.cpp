@@ -145,6 +145,7 @@ void setup_comms()
         {
             send_get_status();
         }
+        force_recover.push_count = 0;
     }
 }
 
@@ -790,6 +791,12 @@ void comms_loop()
                 case PacketCommand::Light:
                 {
                     bool l = garage_door.light;
+                    if (force_recover.push_count == 0) {
+                        force_recover.timeout = millis() + 3000;
+                    }
+                    force_recover.push_count++;
+                    RINFO("Push count %d", force_recover.push_count);
+
                     switch (pkt.m_data.value.light.light)
                     {
                     case LightState::Off:

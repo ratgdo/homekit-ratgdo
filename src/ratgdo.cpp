@@ -32,6 +32,7 @@ LED led;
 extern bool flashCRC;
 
 struct GarageDoor garage_door;
+struct ForceRecover force_recover;
 
 extern "C" uint32_t __crc_len;
 extern "C" uint32_t __crc_val;
@@ -245,6 +246,16 @@ void service_timer_loop()
             min_heap = free_heap;
             RINFO("Free heap dropped to %d", min_heap);
         }
+    }
+
+    if (force_recover.push_count && (current_millis > force_recover.timeout)) {
+        force_recover.push_count = 0;
+    }
+    if (force_recover.push_count >= 5) {
+        RINFO("Request to boot into soft access point mode");
+        write_int_to_file(softAPmodeFile, 1);
+        delay(500);
+        sync_and_restart();
     }
 }
 
