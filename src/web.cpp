@@ -510,6 +510,11 @@ void handle_everything()
             return handle_setssid();
         else if (page == "/reboot" && method == HTTP_POST)
             return handle_reboot();
+        else if (page == "/rescan" && method == HTTP_POST)
+        {
+            wifi_scan();
+            return handle_accesspoint();
+        }
         else
             return handle_notfound();
     }
@@ -1417,6 +1422,7 @@ void handle_accesspoint()
     client.print("<input id=\"pw\" name=\"pw\" type=\"password\" placeholder=\"password\">");
     client.print("<br><br><input type=\"submit\" value=\"Submit\" onclick=\"return confirm('Set SSID and password, are you sure?');\">");
     client.print("&nbsp;<input type=\"submit\" value=\"Cancel\" formaction=\"/reboot\" onclick=\"return confirm('Reboot without changes, are you sure?');\">");
+    client.print("&nbsp;<input type=\"submit\" value=\"Rescan\" formaction=\"/rescan\">");
     client.print("</form>");
     client.print("\n");
     client.flush();

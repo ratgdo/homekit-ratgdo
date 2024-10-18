@@ -71,6 +71,20 @@ void onDHCPTimeout()
     RINFO("WiFi DHCP Timeout");
 }
 
+void wifi_scan()
+{
+    // scan for networks
+    RINFO("Scanning for networks...");
+    int nNets = WiFi.scanNetworks();
+    RINFO("Found %d networks", nNets);
+    for (int i = 0; i < nNets; i++)
+    {
+        RINFO("Network: %s Ch:%d (%ddBm)", WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i));
+        // Using a C++ set so we only save unique SSIDs
+        wifiNets.insert(WiFi.SSID(i));
+    }
+}
+
 void wifi_connect()
 {
     RINFO("=== Initialize WiFi %s", (softAPmode) ? "Soft Access Point" : "Station");
@@ -88,17 +102,7 @@ void wifi_connect()
             RINFO("Error starting AP mode");
         }
         wifiSettingsChanged = false;
-
-        // scan for networks
-        RINFO("Scanning for networks...");
-        int nNets = WiFi.scanNetworks();
-        RINFO("Found %d networks", nNets);
-        for (int i = 0; i < nNets; i++)
-        {
-            RINFO("Network: %s Ch:%d (%ddBm)", WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i));
-            // Using a C++ set so we only save unique SSIDs
-            wifiNets.insert(WiFi.SSID(i));
-        }
+        wifi_scan();
     }
     else
     {
