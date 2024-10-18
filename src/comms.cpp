@@ -38,6 +38,10 @@ void (*TTC_Action)(void) = NULL;
 
 struct ForceRecover force_recover;
 #define force_recover_delay 3
+
+// we use this in loop, so copy out of map.
+int gdoSecurityType = 2;
+
 /******************************* SECURITY 2.0 *********************************/
 
 SecPlus2Reader reader;
@@ -103,6 +107,8 @@ void setup_comms()
     // init queue
     q_init(&pkt_q, sizeof(PacketAction), 8, FIFO, false);
 
+    // we use this in loop, so copy out of map.
+    gdoSecurityType = GET_CONFIG_INT("gdoSecurityType");
     if (gdoSecurityType == 1)
     {
 
@@ -840,7 +846,8 @@ void comms_loop()
                         RINFO("Detected new Motion Sensor. Enabling Service");
                         garage_door.has_motion_sensor = true;
                         motionTriggers.bit.motion = 1;
-                        write_int_to_file(motionTriggersFile, motionTriggers.asInt);
+                        SET_CONFIG_INT("motionTriggers", motionTriggers.asInt);
+                        write_config_to_file();
                         // Only reboot if we had not already other motionTriggers (which would have enabled service already)
                         enable_service_homekit_motion(motionTriggers.asInt == 1);
                     }
@@ -1195,7 +1202,7 @@ void close_door()
         return;
     }
 
-    if (TTCdelay == 0)
+    if (GET_CONFIG_INT("TTCdelay") == 0)
     {
         door_command(DoorAction::Close);
     }
@@ -1212,9 +1219,9 @@ void close_door()
         }
         else
         {
-            RINFO("Delay door close by %d seconds", TTCdelay);
+            RINFO("Delay door close by %d seconds", GET_CONFIG_INT("TTCdelay"));
             // Call delay loop every 0.5 seconds to flash light.
-            TTCcountdown = TTCdelay * 2;
+            TTCcountdown = GET_CONFIG_INT("TTCdelay") * 2;
             // Remember whether light was on or off
             TTCwasLightOn = garage_door.light;
             TTC_Action = &door_command_close;
@@ -1378,7 +1385,8 @@ void light_recovery()
     if (force_recover.push_count >= 5)
     {
         RINFO("Request to boot into soft access point mode in %ds", force_recover_delay);
-        write_int_to_file(softAPmodeFile, 1);
+        SET_CONFIG_BOOL("softAPmode", true);
+        write_config_to_file();
         // Call delay loop every 0.5 seconds to flash light.
         TTCcountdown = force_recover_delay * 2;
         // Remember whether light was on or off

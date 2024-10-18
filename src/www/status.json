@@ -12,7 +12,7 @@
   "macAddress": "02:23:45:AB:CD:EF",
   "wifiSSID": "Test",
   "wifiRSSI": "-99 dBm",
-  "GDOSecurityType" : "2",
+  "GDOSecurityType" : 2,
   "garageLightOn": false,
   "garageDoorState": "Closed",
   "garageLockState": "Unsecured",

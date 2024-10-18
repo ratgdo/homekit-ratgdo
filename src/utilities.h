@@ -4,6 +4,9 @@
 #include <ESP8266WiFi.h>
 #include "homekit_decl.h"
 #include "ratgdo.h"
+#include <map>
+#include <string>
+#include <any>
 
 #ifdef NTP_CLIENT
 #include <WiFiUdp.h>
@@ -11,62 +14,31 @@
 extern NTPClient timeClient;
 extern unsigned long lastRebootAt;
 extern char *timeString(time_t reqTime = 0);
-
 extern bool enableNTP;
-extern const char enableNTPFile[];
-extern const char lastDoorUpdateFile[];
-extern int32_t savedDoorUpdateAt;
 #endif
 
-// For saving DHCP and static IP settings
-#define IP_ADDRESS_SIZE 16
-extern bool staticIP;
-extern char IPaddress[IP_ADDRESS_SIZE];
-extern char IPnetmask[IP_ADDRESS_SIZE];
-extern char IPgateway[IP_ADDRESS_SIZE];
-extern char IPnameserver[IP_ADDRESS_SIZE];
-extern const char staticIPfile[];
-extern const char IPaddressFile[];
-extern const char IPnetmaskFile[];
-extern const char IPgatewayFile[];
-extern const char IPnameserverFile[];
-
-// For WiFi physical connection...
-extern uint16_t wifiPower;
-extern const char wifiPowerFile[];
-extern WiFiPhyMode_t wifiPhyMode;
-extern const char wifiPhyModeFile[];
-extern bool wifiSettingsChanged;
-extern const char wifiSettingsChangedFile[];
-
-// device_name is defined in homekit_decl.c
-extern const char device_name_file[];
-
-#define REBOOT_SECONDS (0)
-extern uint32_t rebootSeconds;
-extern const char system_reboot_timer[];
-
+// Controls soft Access Point mode.
 extern bool softAPmode;
-extern const char softAPmodeFile[];
-
-extern uint8_t gdoSecurityType;
-extern const char gdoSecurityTypeFile[];
-extern uint8_t TTCdelay;
-extern const char TTCdelay_file[];
 
 // Password and credential management for HTTP server...
-extern char www_username[32];
-extern const char username_file[];
-extern const char www_password[];
 extern const char www_realm[];
-extern char www_credentials[48];
-extern const char credentials_file[];
-extern bool passwordReq;
-extern const char www_pw_required_file[];
 
-// What is LED idle state (on or off);
-// value is defined in ratgdo.cpp
-extern const char ledIdleStateFile[];
+// map and macros to hold, get and set user configuration settings.
+enum ConfigType : int
+{
+    BOOL = 1,
+    INT = 2,
+    STRING = 3
+};
+extern std::map<std::string, std::pair<int, std::any>> userConfig;
+
+#define GET_CONFIG_BOOL(key) (std::any_cast<bool>(userConfig[key].second))
+#define GET_CONFIG_INT(key) (std::any_cast<int>(userConfig[key].second))
+#define GET_CONFIG_STRING(key) (std::any_cast<std::string>(userConfig[key].second))
+
+#define SET_CONFIG_BOOL(key, value) (userConfig[key] = {ConfigType::BOOL, static_cast<bool>(value)})
+#define SET_CONFIG_INT(key, value) (userConfig[key] = {ConfigType::INT, static_cast<int>(value)})
+#define SET_CONFIG_STRING(key, value) (userConfig[key] = {ConfigType::STRING, std::string(value)})
 
 // Bitset that identifies what will trigger the motion sensor
 typedef struct
@@ -84,18 +56,19 @@ typedef union
     uint8_t asInt;
 } motionTriggersUnion;
 extern motionTriggersUnion motionTriggers;
-extern const char motionTriggersFile[];
 
+// Function declarations
 void load_all_config_settings();
 void sync_and_restart();
+
 uint32_t read_int_from_file(const char *filename, uint32_t defaultValue = 0);
 void write_int_to_file(const char *filename, uint32_t value);
 
 char *read_string_from_file(const char *filename, const char *defaultValue, char *buffer, int bufsize);
 void write_string_to_file(const char *filename, const char *value);
 
-void *read_data_from_file(const char *filename, void *buffer, int bufsize);
-void write_data_to_file(const char *filename, const void *buffer, const int bufsize);
+bool read_config_from_file();
+void write_config_to_file();
 
 void delete_file(const char *filename);
 
