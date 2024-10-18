@@ -34,10 +34,7 @@ extern struct GarageDoor garage_door;
 Ticker TTCtimer = Ticker();
 uint8_t TTCcountdown = 0;
 bool TTCwasLightOn = false;
-enum TTCActions : uint8_t {
-    do_door_close, 
-    do_reboot
-} TTC_Action;
+void (*TTC_Action)(void) = NULL;
 
 struct ForceRecover force_recover;
 #define force_recover_delay 3
@@ -1126,6 +1123,10 @@ void door_command(DoorAction action)
 
     send_get_status();
 }
+void door_command_close()
+{
+    door_command(DoorAction::Close);
+}
 
 void open_door()
 {
@@ -1170,15 +1171,8 @@ void TTCdelayLoop()
     {
         // End of delay period
         TTCtimer.detach();
-        switch (TTC_Action) {
-            case do_door_close:
-                door_command(DoorAction::Close);
-                break;
-            case do_reboot:
-                sync_and_restart();
-                break;
-        }
-
+        if (TTC_Action)
+            (*TTC_Action)();
     }
     return;
 }
@@ -1223,7 +1217,7 @@ void close_door()
             TTCcountdown = TTCdelay * 2;
             // Remember whether light was on or off
             TTCwasLightOn = garage_door.light;
-            TTC_Action = do_door_close;
+            TTC_Action = &door_command_close;
             TTCtimer.attach_scheduled(0.5, TTCdelayLoop);
         }
     }
@@ -1389,7 +1383,7 @@ void light_recovery()
         TTCcountdown = force_recover_delay * 2;
         // Remember whether light was on or off
         TTCwasLightOn = garage_door.light;
-        TTC_Action = do_reboot;
+        TTC_Action = &sync_and_restart;
         TTCtimer.attach_scheduled(0.5, TTCdelayLoop);
     }
 }
