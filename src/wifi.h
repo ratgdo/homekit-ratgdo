@@ -11,6 +11,8 @@ void improv_loop();
 
 void wifi_connect();
 
+void wifi_scan();
+
 bool connect_wifi(std::string, std::string);
 
 extern std::set<String> wifiNets;
