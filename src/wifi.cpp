@@ -28,7 +28,11 @@
 
 // support for changeing WiFi settings
 unsigned long wifiConnectTimeout = 0;
-std::set<String> wifiNets;
+inline bool operator<(const wifi_nets& lhs, const wifi_nets& rhs)
+{
+  return lhs.SSID < rhs.SSID;
+}
+std::set<wifi_nets> wifiNets;
 
 #define MAX_ATTEMPTS_WIFI_CONNECTION 20
 uint8_t x_buffer[128];
@@ -81,7 +85,7 @@ void wifi_scan()
     {
         RINFO("Network: %s Ch:%d (%ddBm)", WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i));
         // Using a C++ set so we only save unique SSIDs
-        wifiNets.insert(WiFi.SSID(i));
+        wifiNets.insert({WiFi.SSID(i), WiFi.RSSI(i)});
     }
 }
 
