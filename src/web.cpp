@@ -1408,11 +1408,11 @@ void handle_accesspoint()
     int i = 0;
     for (auto net : wifiNets)
     {
-        bool matchSSID = (previousSSID == net);
+        bool matchSSID = (previousSSID == net.SSID);
         if (matchSSID)
             match = true;
-        client.printf_P(PSTR("<input type=\"radio\" id=\"n%d\" name=\"net\" value=\"%d\"%s>&nbsp;<label for=\"n%d\">%s</label><br>"),
-                        i, i, (matchSSID) ? " checked=\"checked\"" : "", i, net.c_str());
+        client.printf_P(PSTR("<input type=\"radio\" id=\"n%d\" name=\"net\" value=\"%d\"%s>&nbsp;<label for=\"n%d\">%s : %ddBm</label><br>"),
+                        i, i, (matchSSID) ? " checked=\"checked\"" : "", i, net.SSID.c_str(), net.RSSI);
         i++;
     }
     // user entered value
@@ -1421,8 +1421,8 @@ void handle_accesspoint()
     client.print("<br><label for=\"pw\">Network password:&nbsp;</label>");
     client.print("<input id=\"pw\" name=\"pw\" type=\"password\" placeholder=\"password\">");
     client.print("<br><br><input type=\"submit\" value=\"Submit\" onclick=\"return confirm('Set SSID and password, are you sure?');\">");
-    client.print("&nbsp;<input type=\"submit\" value=\"Cancel\" formaction=\"/reboot\" onclick=\"return confirm('Reboot without changes, are you sure?');\">");
     client.print("&nbsp;<input type=\"submit\" value=\"Rescan\" formaction=\"/rescan\">");
+    client.print("&nbsp;<input type=\"submit\" value=\"Cancel\" formaction=\"/reboot\" onclick=\"return confirm('Reboot without changes, are you sure?');\">");
     client.print("</form>");
     client.print("\n");
     client.flush();
@@ -1446,9 +1446,9 @@ void handle_setssid()
 
     if (net < wifiNets.size())
     {
-        std::set<String>::iterator it = wifiNets.begin();
+        std::set<struct wifi_nets>::iterator it = wifiNets.begin();
         std::advance(it, net);
-        ssid = it->c_str();
+        ssid = it->SSID.c_str();
     }
     else
     {

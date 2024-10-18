@@ -15,6 +15,10 @@ void wifi_scan();
 
 bool connect_wifi(std::string, std::string);
 
-extern std::set<String> wifiNets;
+struct wifi_nets {
+    String  SSID;
+    int32_t RSSI;
+};
+extern std::set<struct wifi_nets> wifiNets;
 
 #endif /* WIFI_INFO_H_ */
