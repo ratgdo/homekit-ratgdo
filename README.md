@@ -153,6 +153,8 @@ This button resets the Sec+ 2.0 rolling codes and whether your door opener has a
 
 This button will restart the ratgdo in soft Access Point (AP) mode from where you can set a new WiFi network SSID and password.  You can connect to the ratgdo either from the existing WiFi network and IP address or by connecting your laptop or mobile device to the ratgdo's WiFi SSID and pointing your browser to IP address 192.168.4.1.  The SSID created is based on the device name, e.g. _Garage-Door-ABCDEF._
 
+If you are unable to connect to your ratgdo or the old wifi network is not available, you can force the device into soft Access Point mode by rapidly pressing the wall panel light button 5 times within 3 second.  The ratgdo will respond by flashing the lights for 3 more seconds before rebooting into AP mode.
+
 If you are preparing to move the ratgdo to a new location then after the device has booted into soft AP mode you can disconnect it (within 10 minutes) and when it first boots in the new location it will start up in soft AP mode. In soft AP mode the ratgdo does not connect to the garage door opener or HomeKit.
 
 On changing the WiFi network SSID you will have to un-pair and re-pair the ratgdo to Apple Home.
