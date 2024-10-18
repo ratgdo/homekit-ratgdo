@@ -34,7 +34,13 @@ extern struct GarageDoor garage_door;
 Ticker TTCtimer = Ticker();
 uint8_t TTCcountdown = 0;
 bool TTCwasLightOn = false;
+enum TTCActions : uint8_t {
+    do_door_close, 
+    do_reboot
+} TTC_Action;
 
+struct ForceRecover force_recover;
+#define force_recover_delay 3
 /******************************* SECURITY 2.0 *********************************/
 
 SecPlus2Reader reader;
@@ -89,6 +95,8 @@ void door_command(DoorAction action);
 void send_get_status();
 bool transmitSec1(byte toSend);
 bool transmitSec2(PacketAction &pkt_ac);
+void TTCdelayLoop();
+void light_recovery();
 
 /********************************** MAIN LOOP CODE *****************************************/
 
@@ -334,6 +342,7 @@ void comms_loop()
             else if (key == secplus1Codes::LightButtonPress)
             {
                 RINFO("0x32 RX (light press)");
+                light_recovery();
             }
             else if (key == secplus1Codes::LightButtonRelease)
             {
@@ -791,12 +800,7 @@ void comms_loop()
                 case PacketCommand::Light:
                 {
                     bool l = garage_door.light;
-                    if (force_recover.push_count == 0) {
-                        force_recover.timeout = millis() + 3000;
-                    }
-                    force_recover.push_count++;
-                    RINFO("Push count %d", force_recover.push_count);
-
+                    light_recovery();
                     switch (pkt.m_data.value.light.light)
                     {
                     case LightState::Off:
@@ -1166,7 +1170,15 @@ void TTCdelayLoop()
     {
         // End of delay period
         TTCtimer.detach();
-        door_command(DoorAction::Close);
+        switch (TTC_Action) {
+            case do_door_close:
+                door_command(DoorAction::Close);
+                break;
+            case do_reboot:
+                sync_and_restart();
+                break;
+        }
+
     }
     return;
 }
@@ -1211,6 +1223,7 @@ void close_door()
             TTCcountdown = TTCdelay * 2;
             // Remember whether light was on or off
             TTCwasLightOn = garage_door.light;
+            TTC_Action = do_door_close;
             TTCtimer.attach_scheduled(0.5, TTCdelayLoop);
         }
     }
@@ -1350,5 +1363,33 @@ void set_light(bool value)
 
         q_push(&pkt_q, &pkt_ac);
         send_get_status();
+    }
+}
+
+void light_recovery()
+{
+    // Increment counter every time light button is pushed.  If we hit 5 in 3 seconds,
+    // go to WiFi recovery mode
+    if (force_recover.push_count == 0)
+    {
+        force_recover.timeout = millis() + 3000;
+    }
+    else if (millis() > force_recover.timeout)
+    {
+        force_recover.push_count = 0;
+    }
+    force_recover.push_count++;
+    RINFO("Push count %d", force_recover.push_count);
+
+    if (force_recover.push_count >= 5)
+    {
+        RINFO("Request to boot into soft access point mode in %ds", force_recover_delay);
+        write_int_to_file(softAPmodeFile, 1);
+        // Call delay loop every 0.5 seconds to flash light.
+        TTCcountdown = force_recover_delay * 2;
+        // Remember whether light was on or off
+        TTCwasLightOn = garage_door.light;
+        TTC_Action = do_reboot;
+        TTCtimer.attach_scheduled(0.5, TTCdelayLoop);
     }
 }
