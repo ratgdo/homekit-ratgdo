@@ -26,11 +26,13 @@
 #include "utilities.h"
 #include "wifi.h"
 
+// we use this in loop, so copy out of map.
+bool wifiSettingsChanged = false;
 // support for changeing WiFi settings
 unsigned long wifiConnectTimeout = 0;
-inline bool operator<(const wifi_nets& lhs, const wifi_nets& rhs)
+inline bool operator<(const wifi_nets &lhs, const wifi_nets &rhs)
 {
-  return lhs.SSID < rhs.SSID;
+    return lhs.SSID < rhs.SSID;
 }
 std::set<wifi_nets> wifiNets;
 
@@ -64,10 +66,11 @@ void onDisconnected(const WiFiEventStationModeDisconnected &evt)
 void onGotIP(const WiFiEventStationModeGotIP &evt)
 {
     RINFO("WiFi Got IP: %s, Mask: %s, Gateway: %s, DNS: %s", evt.ip.toString().c_str(), evt.mask.toString().c_str(), evt.gw.toString().c_str(), WiFi.dnsIP().toString().c_str());
-    write_string_to_file(IPaddressFile, evt.ip.toString().c_str());
-    write_string_to_file(IPnetmaskFile, evt.mask.toString().c_str());
-    write_string_to_file(IPgatewayFile, evt.gw.toString().c_str());
-    write_string_to_file(IPnameserverFile, (WiFi.dnsIP().isSet()) ? WiFi.dnsIP().toString().c_str() : evt.gw.toString().c_str());
+    SET_CONFIG_STRING("IPaddress", evt.ip.toString().c_str());
+    SET_CONFIG_STRING("IPnetmask", evt.mask.toString().c_str());
+    SET_CONFIG_STRING("IPgateway", evt.gw.toString().c_str());
+    SET_CONFIG_STRING("IPnameserver", (WiFi.dnsIP().isSet()) ? WiFi.dnsIP().toString().c_str() : evt.gw.toString().c_str());
+    write_config_to_file();
 }
 
 void onDHCPTimeout()
@@ -92,6 +95,8 @@ void wifi_scan()
 void wifi_connect()
 {
     RINFO("=== Initialize WiFi %s", (softAPmode) ? "Soft Access Point" : "Station");
+    // we use this in loop, so copy out of map.
+    wifiSettingsChanged = GET_CONFIG_BOOL("wifiSettingsChanged");
     WiFi.persistent(false);
     if (softAPmode)
     {
@@ -110,48 +115,48 @@ void wifi_connect()
     }
     else
     {
-        WiFi.mode(WIFI_STA);
-
-        WiFi.setSleepMode(WIFI_NONE_SLEEP);
         if (wifiSettingsChanged)
         {
             RINFO("WARNING: WiFi settings changed. Will check for connection after 30 seconds.");
         }
-        if (wifiPhyMode == WIFI_PHY_MODE_11B)
+        switch (GET_CONFIG_INT("wifiPhyMode"))
         {
+        case WIFI_PHY_MODE_11B:
             RINFO("Setting WiFi preference to 802.11b (Wi-Fi 1)");
-        }
-        else if (wifiPhyMode == WIFI_PHY_MODE_11G)
-        {
+            break;
+        case WIFI_PHY_MODE_11G:
             RINFO("Setting WiFi preference to 802.11g (Wi-Fi 3)");
-        }
-        else if (wifiPhyMode == WIFI_PHY_MODE_11N)
-        {
+            break;
+        case WIFI_PHY_MODE_11N:
             RINFO("Setting WiFi preference to 802.11n (Wi-Fi 4)");
-        }
-        else
-        {
+            break;
+        default:
             RINFO("Setting WiFi version preference to automatic");
         }
-        WiFi.setPhyMode(wifiPhyMode);
-        if (wifiPower < 20)
+        WiFi.mode(WIFI_STA);
+        WiFi.setSleepMode(WIFI_NONE_SLEEP);
+        WiFi.setPhyMode((WiFiPhyMode_t)GET_CONFIG_INT("wifiPhyMode"));
+        if (GET_CONFIG_INT("wifiPower") < 20)
         {
             // Only set WiFi power if set to less than the maximum
-            RINFO("Setting WiFi power to %d", wifiPower);
-            WiFi.setOutputPower((float)wifiPower);
+            RINFO("Setting WiFi power to %d", GET_CONFIG_INT("wifiPower"));
+            WiFi.setOutputPower((float)GET_CONFIG_INT("wifiPower"));
         }
         WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
 
         RINFO("Set WiFi Host Name: %s", device_name_rfc952);
         WiFi.hostname((const char *)device_name_rfc952);
 
-        if (staticIP)
+        if (GET_CONFIG_BOOL("staticIP"))
         {
             IPAddress ip;
             IPAddress gw;
             IPAddress nm;
             IPAddress dns;
-            if (ip.fromString(IPaddress) && gw.fromString(IPgateway) && nm.fromString(IPnetmask) && dns.fromString(IPnameserver))
+            if (ip.fromString(GET_CONFIG_STRING("IPaddress").c_str()) &&
+                gw.fromString(GET_CONFIG_STRING("IPgateway").c_str()) &&
+                nm.fromString(GET_CONFIG_STRING("IPnetmask").c_str()) &&
+                dns.fromString(GET_CONFIG_STRING("IPnameserver").c_str()))
             {
                 WiFi.config(ip, gw, nm, dns);
             }
@@ -202,14 +207,12 @@ void improv_loop()
         // If not connected, reset to auto.
         if (!connected)
         {
-            wifiPhyMode = (WiFiPhyMode_t)0;
-            RINFO("Reset WiFiPhyMode to: %d", (uint32_t)wifiPhyMode);
-            write_int_to_file(wifiPhyModeFile, (uint32_t)wifiPhyMode);
-            WiFi.setPhyMode(wifiPhyMode);
-            wifiPower = 20;
-            RINFO("Reset WiFi Power to 20.5dBm");
-            write_int_to_file(wifiPowerFile, (uint32_t)wifiPower);
+            RINFO("Reset WiFi Power to 20.5 dBm and WiFiPhyMode to: 0");
+            SET_CONFIG_INT("wifiPower", 20);
+            SET_CONFIG_INT("wifiPhyMode", 0);
             WiFi.setOutputPower(20.5);
+            WiFi.setPhyMode((WiFiPhyMode_t)0);
+            write_config_to_file();
             // Now try and reconnect...
             wifiConnectTimeout = millis() + 30000;
             WiFi.reconnect();
@@ -237,8 +240,8 @@ void improv_loop()
                 if (!ip.isSet())
                 {
                     RINFO("DNS not working, reset to DHCP to acquire IP address and reconnect");
-                    staticIP = false;
-                    write_int_to_file(staticIPfile, 0);
+                    SET_CONFIG_BOOL("staticIP", false);
+                    write_config_to_file();
                     IPAddress ip;
                     ip.fromString("0.0.0.0");
                     WiFi.config(ip, ip, ip);
@@ -255,7 +258,8 @@ void improv_loop()
         }
         // reset flag
         wifiSettingsChanged = false;
-        write_int_to_file(wifiSettingsChangedFile, 0);
+        SET_CONFIG_BOOL("wifiSettingsChanged", false);
+        write_config_to_file();
     }
 }
 

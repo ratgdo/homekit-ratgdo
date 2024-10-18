@@ -7,55 +7,63 @@
 #include "comms.h"
 #include <ESP8266WiFi.h>
 
-bool staticIP = false;
-char IPaddress[IP_ADDRESS_SIZE] = "0.0.0.0";
-char IPnetmask[IP_ADDRESS_SIZE] = "0.0.0.0";
-char IPgateway[IP_ADDRESS_SIZE] = "0.0.0.0";
-char IPnameserver[IP_ADDRESS_SIZE] = "0.0.0.0";
+// Filenames for legacy user configuation, replaced by single file.
 const char staticIPfile[] = "static_ip_file";
 const char IPaddressFile[] = "ip_address_file";
 const char IPnetmaskFile[] = "ip_netmask_file";
 const char IPgatewayFile[] = "ip_gateway_file";
 const char IPnameserverFile[] = "ip_nameserver_file";
-
-uint16_t wifiPower = 20; // maximum
 const char wifiPowerFile[] = "wifiPower";
-WiFiPhyMode_t wifiPhyMode = (WiFiPhyMode_t)0;
 const char wifiPhyModeFile[] = "wifiPhyMode";
-bool wifiSettingsChanged = false;
 const char wifiSettingsChangedFile[] = "wifiSettingsChanged";
-
 const char device_name_file[] = "device_name";
-
-uint32_t rebootSeconds; // seconds between reboots
 const char system_reboot_timer[] = "system_reboot_timer";
-
-uint8_t gdoSecurityType = 2;
 const char gdoSecurityTypeFile[] = "gdo_security";
-uint8_t TTCdelay = 0;
 const char TTCdelay_file[] = "TTC_delay";
-
-char www_username[32] = "admin";
 const char username_file[] = "www_username";
-const char www_password[] = "password";
-const char www_realm[] = "RATGDO Login Required";
-// MD5 Hash of "user:realm:password"
-// www_credentials = server.credentialHash(www_username, www_realm, www_password);
-char www_credentials[48] = "10d3c00fa1e09696601ef113b99f8a87";
 const char credentials_file[] = "www_credentials";
-bool passwordReq = false;
 const char www_pw_required_file[] = "www_pw_required_file";
-
-// What is LED idle state (on or off);
 const char ledIdleStateFile[] = "led_idle_state";
+const char motionTriggersFile[] = "motion_triggers";
+const char softAPmodeFile[] = "soft_ap_mode";
 
 // What trigger motion...
 motionTriggersUnion motionTriggers = {{0}};
-const char motionTriggersFile[] = "motion_triggers";
-
 // Control booting into soft access point mode
 bool softAPmode = false;
-const char softAPmodeFile[] = "soft_ap_mode";
+// Realm for MD5 credential hashing
+const char www_realm[] = "RATGDO Login Required";
+// Temporary buffer for read_string_from_file
+#define STRING_BUF_SIZE 64
+char strBuffer[STRING_BUF_SIZE] = "";
+
+// Consolodate all config settings into one file.
+const char userConfigFile[] = "user_config";
+std::map<std::string, std::pair<int, std::any>> userConfig = {
+    {"deviceName", {ConfigType::STRING, std::string("Garage Door")}},
+    {"wifiSettingsChanged", {ConfigType::BOOL, true}},
+    {"wifiPower", {ConfigType::INT, 20}},
+    {"wifiPhyMode", {ConfigType::INT, 0}},
+    {"staticIP", {ConfigType::BOOL, false}},
+    {"IPaddress", {ConfigType::STRING, std::string("0.0.0.0")}},
+    {"IPnetmask", {ConfigType::STRING, std::string("0.0.0.0")}},
+    {"IPgateway", {ConfigType::STRING, std::string("0.0.0.0")}},
+    {"IPnameserver", {ConfigType::STRING, std::string("0.0.0.0")}},
+    {"wwwPWrequired", {ConfigType::BOOL, false}},
+    {"wwwUsername", {ConfigType::STRING, std::string("admin")}},
+    // Credentials are MD5 Hash... server.credentialHash(username, realm, "password");
+    {"wwwCredentials", {ConfigType::STRING, std::string("10d3c00fa1e09696601ef113b99f8a87")}},
+    {"gdoSecurityType", {ConfigType::INT, 2}},
+    {"TTCdelay", {ConfigType::INT, 0}},
+    {"rebootSeconds", {ConfigType::INT, 0}},
+    {"ledIdleState", {ConfigType::INT, LOW}},
+    {"motionTriggers", {ConfigType::INT, 0}},
+#ifdef NTP_CLIENT
+    {"enableNTP", {ConfigType::BOOL, false}},
+    {"doorUpdateAt", {ConfigType::STRING, std::string("")}},
+#endif
+    {"softAPmode", {ConfigType::BOOL, false}},
+};
 
 #ifdef NTP_CLIENT
 WiFiUDP ntpUDP;
@@ -83,81 +91,114 @@ char *timeString(time_t reqTime)
 }
 #endif
 
+char *make_rfc952(char *dest, const char *src, int size)
+{
+    // Make device name RFC952 complient (simple, just checking for the basics)
+    // RFC952 says max len of 24, [a-z][A-Z][0-9][-.] and no dash or period in last char.
+    int i = 0;
+    while (i <= min(24, size - 1) && src[i] != 0)
+    {
+        dest[i] = (isspace((unsigned char)src[i])) ? '-' : src[i];
+        i++;
+    }
+    // remove dashes and periods from end of name
+    while (dest[i - 1] == '-' || dest[i - 1] == '.')
+    {
+        dest[--i] = 0;
+    }
+    // null terminate string
+    dest[min(i, min(24, size - 1))] = 0;
+    return dest;
+}
+
 void load_all_config_settings()
 {
     snprintf(device_name, DEVICE_NAME_SIZE, "Garage Door %06X", ESP.getChipId());
     RINFO("=== Load all config settings for %s", device_name);
-    read_string_from_file(device_name_file, device_name, device_name, DEVICE_NAME_SIZE);
-    RINFO("Configured device name: %s", device_name);
+    if (!read_config_from_file())
+    {
+        // Config file does not exist, load all settings from legacy files (if they exist!)
+        RINFO("Loading user configuration from legacy files");
+        SET_CONFIG_STRING("deviceName", read_string_from_file(device_name_file, device_name, strBuffer, sizeof(strBuffer)));
+        Serial.print(".");
+        SET_CONFIG_BOOL("wifiSettingsChanged", read_int_from_file(wifiSettingsChangedFile, 1) != 0);
+        Serial.print(".");
+        SET_CONFIG_INT("wifiPower", read_int_from_file(wifiPowerFile, GET_CONFIG_INT("wifiPower")));
+        Serial.print(".");
+        SET_CONFIG_INT("wifiPhyMode", read_int_from_file(wifiPhyModeFile));
+        Serial.print(".");
+        SET_CONFIG_BOOL("staticIP", read_int_from_file(staticIPfile) != 0);
+        Serial.print(".");
+        if (GET_CONFIG_BOOL("staticIP"))
+        {
+            SET_CONFIG_STRING("IPaddress", read_string_from_file(IPaddressFile, GET_CONFIG_STRING("IPaddress").c_str(), strBuffer, sizeof(strBuffer)));
+            Serial.print(".");
+            SET_CONFIG_STRING("IPnetmask", read_string_from_file(IPnetmaskFile, GET_CONFIG_STRING("IPnetmask").c_str(), strBuffer, sizeof(strBuffer)));
+            Serial.print(".");
+            SET_CONFIG_STRING("IPgateway", read_string_from_file(IPgatewayFile, GET_CONFIG_STRING("IPgateway").c_str(), strBuffer, sizeof(strBuffer)));
+            Serial.print(".");
+            SET_CONFIG_STRING("IPnameserver", read_string_from_file(IPnameserverFile, GET_CONFIG_STRING("IPnameserver").c_str(), strBuffer, sizeof(strBuffer)));
+            Serial.print(".");
+        }
+        SET_CONFIG_BOOL("wwwPWrequired", read_int_from_file(www_pw_required_file) != 0);
+        Serial.print(".");
+        SET_CONFIG_STRING("wwwUsername", read_string_from_file(username_file, GET_CONFIG_STRING("wwwUsername").c_str(), strBuffer, sizeof(strBuffer)));
+        Serial.print(".");
+        SET_CONFIG_STRING("wwwCredentials", read_string_from_file(credentials_file, GET_CONFIG_STRING("wwwCredentials").c_str(), strBuffer, sizeof(strBuffer)));
+        Serial.print(".");
+        SET_CONFIG_INT("gdoSecurityType", read_int_from_file(gdoSecurityTypeFile, GET_CONFIG_INT("gdoSecurityType")));
+        Serial.print(".");
+        SET_CONFIG_INT("TTCdelay", read_int_from_file(TTCdelay_file));
+        Serial.print(".");
+        SET_CONFIG_INT("rebootSeconds", read_int_from_file(system_reboot_timer));
+        Serial.print(".");
+        SET_CONFIG_INT("ledIdleState", read_int_from_file(ledIdleStateFile, LOW));
+        Serial.print(".");
+        SET_CONFIG_INT("motionTriggers", read_int_from_file(motionTriggersFile));
+        Serial.print(".");
+#ifdef NTP_CLIENT
+        SET_CONFIG_BOOL("enableNTP", read_int_from_file(enableNTPFile) != 0);
+        Serial.print(".");
+        SET_CONFIG_INT("doorUpdateAt", read_int_from_file(lastDoorUpdateFile));
+        Serial.print(".");
+#endif
+        SET_CONFIG_BOOL("softAPmode", read_int_from_file(softAPmodeFile) != 0);
+        Serial.print("\n");
+        // Save to file so we never have to read from individual files again.
+        write_config_to_file();
+    }
 
-    // Make device name RFC952 complient (simple, just checking for the basics)
-    // RFC952 says max len of 24, [a-z][A-Z][0-9][-.] and no dash or period in last char.
-    int i = 0;
-    while (i <= min(24, DEVICE_NAME_SIZE - 1) && device_name[i] != 0)
-    {
-        device_name_rfc952[i] = (isspace((unsigned char)device_name[i])) ? '-' : device_name[i];
-        i++;
-    }
-    // remove dashes and periods from end of name
-    while (device_name_rfc952[i - 1] == '-' || device_name_rfc952[i - 1] == '.')
-    {
-        device_name_rfc952[--i] = 0;
-    }
-    // null terminate string
-    device_name_rfc952[min(i, min(24, DEVICE_NAME_SIZE - 1))] = 0; // null terminate string
-    RINFO("RFC952 compliant device hostname: %s", device_name_rfc952);
-
-    // Assume wifi settings changed on first boot after install or full erase.
-    wifiSettingsChanged = (read_int_from_file(wifiSettingsChangedFile, 1) != 0);
-    RINFO("WiFi settings have %schanged", (wifiSettingsChanged) ? "" : "not ");
-    wifiPower = (uint16_t)read_int_from_file(wifiPowerFile, wifiPower);
-    RINFO("wifiPower: %d", wifiPower);
-    wifiPhyMode = (WiFiPhyMode_t)read_int_from_file(wifiPhyModeFile);
-    RINFO("wifiPhyMode: %d", wifiPhyMode);
-    staticIP = (read_int_from_file(staticIPfile) != 0);
-    if (staticIP)
-    {
-        read_string_from_file(IPaddressFile, IPaddress, IPaddress, sizeof(IPaddress));
-        read_string_from_file(IPnetmaskFile, IPnetmask, IPnetmask, sizeof(IPnetmask));
-        read_string_from_file(IPgatewayFile, IPgateway, IPgateway, sizeof(IPgateway));
-        read_string_from_file(IPnameserverFile, IPnameserver, IPnameserver, sizeof(IPnameserver));
-        RINFO("Static IP address configured... IP: %s, Mask: %s, Gateway: %s, DNS: %s", IPaddress, IPnetmask, IPgateway, IPnameserver);
-    }
-    else
-    {
-        RINFO("IP address obtained by DHCP");
-    }
-    gdoSecurityType = (uint8_t)read_int_from_file(gdoSecurityTypeFile, gdoSecurityType);
-    RINFO("Garage door security type: %d", gdoSecurityType);
-    TTCdelay = read_int_from_file(TTCdelay_file);
-    RINFO("Door close delay: %d seconds", TTCdelay);
-    read_string_from_file(credentials_file, www_credentials, www_credentials, sizeof(www_credentials));
-    RINFO("WWW Credentials: %s", www_credentials);
-    read_string_from_file(username_file, www_username, www_username, sizeof(www_username));
-    RINFO("WWW Username: %s", www_username);
-    passwordReq = (read_int_from_file(www_pw_required_file) != 0);
-    RINFO("WWW Password %s required", (passwordReq) ? "is" : "not");
-    rebootSeconds = read_int_from_file(system_reboot_timer, REBOOT_SECONDS);
-    if (rebootSeconds > 0)
-    {
-        RINFO("System will reboot every %i seconds", rebootSeconds);
-    }
-    led.setIdleState((uint8_t)read_int_from_file(ledIdleStateFile, LOW));
-    RINFO("LED Idle State: %s", (led.getIdleState() == LOW) ? "on" : "off");
-    motionTriggers.asInt = (uint8_t)read_int_from_file(motionTriggersFile);
-    RINFO("Motion sensor trigger setting: %d", motionTriggers.asInt);
-    softAPmode = (read_int_from_file(softAPmodeFile) != 0);
-    RINFO("WiFi mode: %s", (softAPmode) ? "Soft Access Point" : "Station");
+    // All user configuration loaded, set globals...
+    led.setIdleState((uint8_t)GET_CONFIG_INT("ledIdleState"));
+    strlcpy(device_name, GET_CONFIG_STRING("deviceName").c_str(), sizeof(device_name));
+    make_rfc952(device_name_rfc952, device_name, sizeof(device_name_rfc952));
+    motionTriggers.asInt = GET_CONFIG_INT("motionTriggers");
+    softAPmode = GET_CONFIG_BOOL("softAPmode");
 #ifdef NTP_CLIENT
     // Only enable NTP client if not in soft AP mode.
-    enableNTP = !softAPmode && (read_int_from_file(enableNTPFile) != 0);
-    RINFO("NTP client %s enabled", (enableNTP) ? "is" : "not");
-    if (enableNTP)
-    {
-        savedDoorUpdateAt = read_int_from_file(lastDoorUpdateFile);
-        RINFO("Last saved door update at: %s", (savedDoorUpdateAt != 0) ? timeString(savedDoorUpdateAt) : "unknown");
-    }
+    enableNTP = !softAPmode && GET_CONFIG_BOOL("enableNTP");
 #endif
+
+    // Now log what we have loaded
+    RINFO("RFC952 compliant device hostname: %s", device_name_rfc952);
+
+    RINFO("User configuration...");
+    for (const auto &setting : userConfig)
+    {
+        RINFO("%s: %s", setting.first.c_str(),
+              (setting.second.first == ConfigType::BOOL)     ? ((std::any_cast<bool>(setting.second.second)) ? "true" : "false")
+              : (setting.second.first == ConfigType::INT)    ? std::to_string(std::any_cast<int>(setting.second.second)).c_str()
+              : (setting.second.first == ConfigType::STRING) ? std::any_cast<std::string>(setting.second.second).c_str()
+                                                             : "Unknown Type");
+    }
+    if (GET_CONFIG_BOOL("staticIP"))
+    {
+        RINFO("Static IP address configured... IP: %s, Mask: %s, Gateway: %s, DNS: %s",
+              GET_CONFIG_STRING("IPaddress").c_str(),
+              GET_CONFIG_STRING("IPnetmask").c_str(),
+              GET_CONFIG_STRING("IPgateway").c_str(),
+              GET_CONFIG_STRING("IPnameserver").c_str());
+    }
 }
 
 void sync_and_restart()
@@ -168,19 +209,21 @@ void sync_and_restart()
         timeClient.end();
     }
 #endif
-    RINFO("checkFlashCRC: %s", ESP.checkFlashCRC() ? "true" : "false");
-    WiFi.mode(WIFI_OFF);
-    WiFi.forceSleepBegin();
     if (softAPmode)
     {
         // reset so next reboot will be standard station mode
-        write_int_to_file(softAPmodeFile, 0);
+        SET_CONFIG_BOOL("softAPmode", false);
+        write_config_to_file();
     }
     else
     {
         // In soft AP mode we never initialized garage door comms, so don't save rolling code.
         save_rolling_code();
     }
+    // RINFO("checkFlashCRC: %s", ESP.checkFlashCRC() ? "true" : "false");
+    WiFi.mode(WIFI_OFF);
+    WiFi.forceSleepBegin();
+    // Save current logs in case needed for future analysis
     File file = LittleFS.open(REBOOT_LOG_MSG_FILE, "w");
     printMessageLog(file);
     file.close();
@@ -194,12 +237,7 @@ uint32_t read_int_from_file(const char *filename, uint32_t defaultValue)
     // set to default value
     uint32_t value = defaultValue;
     File file = LittleFS.open(filename, "r");
-    if (!file)
-    {
-        RINFO("%s doesn't exist. creating...", filename);
-        write_int_to_file(filename, value);
-    }
-    else
+    if (file)
     {
         value = file.parseInt();
         file.close();
@@ -218,17 +256,9 @@ void write_int_to_file(const char *filename, uint32_t value)
 char *read_string_from_file(const char *filename, const char *defaultValue, char *buffer, int bufsize)
 {
     File file = LittleFS.open(filename, "r");
-    if (!file)
-    {
-        RINFO("%s doesn't exist. creating...", filename);
-        strlcpy(buffer, defaultValue, bufsize);
-        write_string_to_file(filename, buffer);
-    }
-    else
-    {
-        strlcpy(buffer, file.readString().c_str(), bufsize);
+    strlcpy(buffer, (file) ? file.readString().c_str() : defaultValue, bufsize);
+    if (file)
         file.close();
-    }
     return buffer;
 }
 
@@ -240,25 +270,66 @@ void write_string_to_file(const char *filename, const char *value)
     file.close();
 }
 
-void *read_data_from_file(const char *filename, void *buffer, int bufsize)
-{
-    File file = LittleFS.open(filename, "r");
-    if (!file)
-        return NULL;
-    // strlcpy(buffer, file.readString().c_str(), bufsize);
-    file.read((uint8_t *)buffer, bufsize);
-    file.close();
-    return buffer;
-}
-
-void write_data_to_file(const char *filename, const void *buffer, const int bufsize)
-{
-    File file = LittleFS.open(filename, "w");
-    file.write((const uint8_t *)buffer, bufsize);
-    file.close();
-}
-
 void delete_file(const char *filename)
 {
     LittleFS.remove(filename);
+}
+
+void write_config_to_file()
+{
+    RINFO("Writing user configuration to file: %s", userConfigFile);
+    File file = LittleFS.open(userConfigFile, "w");
+    for (const auto &setting : userConfig)
+    {
+        file.print(setting.first.c_str());
+        file.print(",");
+        file.print(setting.second.first);
+        file.print(",");
+        switch (setting.second.first)
+        {
+        case ConfigType::BOOL:
+            file.print((std::any_cast<bool>(setting.second.second)) ? "true" : "false");
+            break;
+        case ConfigType::INT:
+            file.print(std::any_cast<int>(setting.second.second));
+            break;
+        case ConfigType::STRING:
+            file.print(std::any_cast<std::string>(setting.second.second).c_str());
+            break;
+        }
+        file.print("\n");
+    }
+    file.close();
+}
+
+bool read_config_from_file()
+{
+    RINFO("Read user configuration from file: %s", userConfigFile);
+    File file = LittleFS.open(userConfigFile, "r");
+    if (!file)
+        return false;
+    while (file.available())
+    {
+        String line = file.readStringUntil('\n');
+        const char *key = line.c_str();
+        char *type = strchr(key, ',');
+        *type++ = 0;
+        char *value = strchr(type, ',');
+        *value++ = 0;
+
+        switch (atoi(type))
+        {
+        case ConfigType::BOOL:
+            SET_CONFIG_BOOL(key, !strcmp(value, "true"));
+            break;
+        case ConfigType::INT:
+            SET_CONFIG_INT(key, atoi(value));
+            break;
+        case ConfigType::STRING:
+            SET_CONFIG_STRING(key, value);
+            break;
+        }
+    }
+    file.close();
+    return true;
 }
