@@ -139,9 +139,6 @@ extern "C" uint32_t __crc_val;
 // Memory stats
 extern "C" uint32_t free_heap;
 extern "C" uint32_t min_heap;
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-extern "C" uint32_t free_iram_heap;
-#endif
 
 void printMessageLog(Print &outputDev)
 {
@@ -168,8 +165,6 @@ void printMessageLog(Print &outputDev)
 #if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
     outputDev.write("IRAM heap size: ");
     outputDev.println(MMU_SEC_HEAP_SIZE);
-    outputDev.write("Free IRAM heap: ");
-    outputDev.println(free_iram_heap);
 #endif
     outputDev.println();
     if (msgBuffer)

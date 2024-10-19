@@ -9,6 +9,10 @@
 #include "utilities.h"
 #include "homekit_decl.h"
 #include "web.h"
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
+#include <umm_malloc/umm_malloc.h>
+#include <umm_malloc/umm_heap_select.h>
+#endif
 
 // Bring in config and characteristics defined in homekit_decl.c
 extern "C" homekit_server_config_t config;
@@ -72,7 +76,15 @@ void setup_homekit()
     // We can set current lock state to unknown as HomeKit has value for that.
     // But we can't do the same for door state as HomeKit has no value for that.
     garage_door.current_lock = CURR_UNKNOWN;
-    arduino_homekit_setup(&config);
+    {
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
+        HeapSelectIram ephemeral;
+#endif
+        arduino_homekit_setup(&config);
+#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
+        RINFO("Free IRAM heap: %d", ESP.getFreeHeap());
+#endif
+    }
 }
 
 /******************************** GETTERS AND SETTERS ***************************************/
