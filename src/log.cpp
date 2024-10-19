@@ -37,16 +37,18 @@ char *lineBuffer = NULL;
 logBuffer *msgBuffer = NULL; // Buffer to save log messages as they occur
 File logMessageFile;
 
-#define SYSLOGPORT 514
-#define LOCAL0 16
+#define SYSLOG_PORT      514
+#define SYSLOG_LOCAL0    16
 #define SYSLOG_EMERGENCY 0
-#define SYSLOG_ALERT 1
-#define SYSLOG_CRIT 2
-#define SYSLOG_ERROR 3
-#define SYSLOG_WARN 4
-#define SYSLOG_NOTICE 5
-#define SYSLOG_INFO 6
-#define SYSLOG_DEBUG 7
+#define SYSLOG_ALERT     1
+#define SYSLOG_CRIT      2
+#define SYSLOG_ERROR     3
+#define SYSLOG_WARN      4
+#define SYSLOG_NOTICE    5
+#define SYSLOG_INFO      6
+#define SYSLOG_DEBUG     7
+#define SYSLOG_NIL       "-"
+#define SYSLOG_BOM       "\xEF\xBB\xBF"
 
 WiFiUDP syslog;
 void logToSyslog(char * message)
@@ -54,7 +56,7 @@ void logToSyslog(char * message)
     if (!syslogEn)
         return;
 
-    uint8_t PRI = LOCAL0 * 8;
+    uint8_t PRI = SYSLOG_LOCAL0 * 8;
     if (*message == '>')
         PRI += SYSLOG_INFO;
     else if (*message == '!')
@@ -68,26 +70,27 @@ void logToSyslog(char * message)
     app_name = strtok(NULL, ":");
     while (*app_name == ' ') app_name++;
     msg = strtok(NULL, "\r\n");
-    while (*msg == ' ') msg++;
 
-    syslog.beginPacket(GET_CONFIG_STRING("syslogIP").c_str(), SYSLOGPORT);
+    syslog.beginPacket(GET_CONFIG_STRING("syslogIP").c_str(), SYSLOG_PORT);
 
     // If NTP is enabled, then use RFC5424 Format
     if (enableNTP && timeClient.isTimeSet())
     {
-        syslog.printf_P("<%u>1 ", PRI);             // PRI code
-        syslog.print(timeString());                 // date / time string
-        syslog.printf_P(" %s", device_name_rfc952); // hostname
-        syslog.printf_P(" %s", app_name);           // application name
-        syslog.printf_P(" %d", loop_id);            // process ID
-        syslog.printf_P(" -");                      // message ID
-        syslog.printf_P(" -");                      // structured data
-        syslog.printf_P(" \xEF\xBB\xBF");           // BOM - indicates UTF-8 encoding
-        syslog.printf_P(" %s", msg);          // message
+        syslog.printf("<%u>1 ", PRI);     // PRI code
+        syslog.print(timeString());       // date / time string
+        syslog.print(" ");
+        syslog.print(device_name_rfc952); // hostname
+        syslog.print(" ");
+        syslog.print(app_name);           // application name
+        syslog.printf(" %d", loop_id);    // process ID
+        syslog.print(" " SYSLOG_NIL       // message ID
+                     " " SYSLOG_NIL       // structured data
+                     " " SYSLOG_BOM);     // BOM - indicates UTF-8 encoding
+        syslog.print(msg);                // message
     }
     else
     {
-        syslog.printf_P("<%d> %s: %s", PRI, app_name, msg);
+        syslog.printf_P("<%d> %s:%s", PRI, app_name, msg);
     }
     syslog.endPacket();
 }

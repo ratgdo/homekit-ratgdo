@@ -26,7 +26,6 @@ const char www_pw_required_file[] = "www_pw_required_file";
 const char ledIdleStateFile[] = "led_idle_state";
 const char motionTriggersFile[] = "motion_triggers";
 const char softAPmodeFile[] = "soft_ap_mode";
-const char syslogfile[] = "syslog_file";
 
 // What trigger motion...
 motionTriggersUnion motionTriggers = {{0}};
