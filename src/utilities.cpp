@@ -26,6 +26,7 @@ const char www_pw_required_file[] = "www_pw_required_file";
 const char ledIdleStateFile[] = "led_idle_state";
 const char motionTriggersFile[] = "motion_triggers";
 const char softAPmodeFile[] = "soft_ap_mode";
+const char syslogfile[] = "syslog_file";
 
 // What trigger motion...
 motionTriggersUnion motionTriggers = {{0}};
@@ -63,7 +64,11 @@ std::map<std::string, std::pair<int, std::any>> userConfig = {
     {"doorUpdateAt", {ConfigType::STRING, std::string("")}},
 #endif
     {"softAPmode", {ConfigType::BOOL, false}},
+    {"syslogEn", {ConfigType::BOOL, false}},
+    {"syslogIP", {ConfigType::STRING, std::string("0.0.0.0")}},
 };
+
+bool syslogEn = false;
 
 #ifdef NTP_CLIENT
 WiFiUDP ntpUDP;
@@ -85,7 +90,7 @@ char *timeString(time_t reqTime)
     if (tTime != 0)
     {
         tmTime = gmtime(&tTime);
-        strftime(tBuffer, sizeof(tBuffer), "%Y/%m/%d %H:%M:%S (UTC)", tmTime);
+        strftime(tBuffer, sizeof(tBuffer), "%Y-%m-%dT%H:%M:%S.000Z", tmTime);
     }
     return tBuffer;
 }
@@ -199,6 +204,8 @@ void load_all_config_settings()
               GET_CONFIG_STRING("IPgateway").c_str(),
               GET_CONFIG_STRING("IPnameserver").c_str());
     }
+
+    syslogEn = GET_CONFIG_BOOL("syslogEn");
 }
 
 void sync_and_restart()

@@ -217,6 +217,7 @@ char *json = NULL;
 
 void web_loop()
 {
+    loop_id = LOOP_WEB;
     unsigned long upTime = millis();
     START_JSON(json);
     if (garage_door.active && garage_door.current_state != lastDoorState)
@@ -596,6 +597,8 @@ void handle_status()
     ADD_INT(json, "wifiPhyMode", GET_CONFIG_INT("wifiPhyMode"));
     ADD_INT(json, "wifiPower", GET_CONFIG_INT("wifiPower"));
     ADD_BOOL(json, "staticIP", GET_CONFIG_BOOL("staticIP"));
+    ADD_BOOL(json, "syslogEn", GET_CONFIG_BOOL("syslogEn"));
+    ADD_STR(json, "syslogIP", GET_CONFIG_STRING("syslogIP").c_str());
     ADD_INT(json, "TTCseconds", GET_CONFIG_INT("TTCdelay"));
     ADD_INT(json, "motionTriggers", motionTriggers.asInt);
     ADD_INT(json, "LEDidle", (led.getIdleState() == LOW) ? 1 : 0);
@@ -797,8 +800,22 @@ void handle_setgdo()
         {
             if (strlen(value) > 0)
             {
-                SET_CONFIG_STRING("IPaddress", value);
-                reboot = true;
+               SET_CONFIG_STRING("IPaddress", value);
+               reboot = true;
+            }
+        }
+        else if (!strcmp(key, "syslogEn"))
+        {
+            RINFO("Setting SyslogEN to %s", value);
+            SET_CONFIG_BOOL("syslogEn", atoi(value) != 0);
+            syslogEn = atoi(value) != 0;
+        }
+        else if (!strcmp(key, "syslogIP"))
+        {
+            if (strlen(value) > 0)
+            {
+                RINFO("Setting SyslogIP to %s", value);
+                SET_CONFIG_STRING("syslogIP", value);
             }
         }
         else if (!strcmp(key, "TTCseconds"))

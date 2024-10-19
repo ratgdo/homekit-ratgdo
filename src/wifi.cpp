@@ -179,6 +179,7 @@ void wifi_connect()
 
 void improv_loop()
 {
+    loop_id=LOOP_IMPROV;
     if (Serial.available() > 0)
     {
         uint8_t b = Serial.read();

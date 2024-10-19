@@ -211,6 +211,27 @@
                 </td>
               </tr>
               <tr>
+                <td class="label">Syslog:</td>
+                <td>&nbsp;
+                  <input type="checkbox" id="syslogEn" name="syslogEn" value="no" onchange="toggleSyslog()">
+                  <span style="font-size: 0.8em;">Send logs to a syslog server</span>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td>
+                  <table class="settings" id="syslogTable" style="display: none;">
+                    <tr>
+                      <td class="staticIPlabel">Syslog Server:</td>
+                      <td>&nbsp;
+                        <input class="syslogInput" id="syslogIP" type="text" placeholder="0.0.0.0" minlength="7"
+                          maxlength="15" size="15">
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
                 <td style="font-size: 0.65em;"><br><u>Reboot may be required:</u></td>
                 <td></td>
               </tr>
@@ -536,6 +557,27 @@
         }
       });
     });
+
+    // Allow only numeric and dot keystrokes into staticIP fields
+    Array.from(document.getElementsByClassName("syslogInput")).forEach(function (inputField) {
+      inputField.addEventListener("keypress", (event) => {
+        if ((event.which < 48 || event.which > 57) && (event.which != 46)) {
+          event.preventDefault();
+        }
+      });
+    });
+
+    // Show or hide the static IP fields
+    function toggleSyslog() {
+      let staticIP = this.event.target.checked;
+      document.getElementById("syslogTable").style.display = (staticIP) ? "table" : "none";
+      if (!syslogEn) {
+        // If hiding (turning off static IP) then erase any addresses that may be set.
+        Array.from(document.getElementsByClassName("syslogInput")).forEach(function (inputField) {
+          inputField.value = "";
+        });
+      }
+    }
 
     // Show or hide the static IP fields
     function toggleStaticIP() {

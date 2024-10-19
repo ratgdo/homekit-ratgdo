@@ -111,6 +111,14 @@ function setElementsFromStatus(status) {
                 document.getElementById(key).checked = value;
                 document.getElementById("staticIPtable").style.display = (value) ? "table" : "none";
                 break;
+            case "syslogIP":
+                document.getElementById(key).innerHTML = value;
+                document.getElementById("syslogIP").placeholder = value;
+                break;
+            case "syslogEn":
+                document.getElementById(key).checked = value;
+                document.getElementById("syslogTable").style.display = (value) ? "table" : "none";
+                break;
             case "enableNTP":
                 document.getElementById(key).checked = value;
                 break;
@@ -652,6 +660,10 @@ async function saveSettings() {
     if (isNaN(TTCseconds)) TTCseconds = 0;
     localStorage.setItem("logger", (document.getElementById("serverLog").checked) ? "true" : "false");
 
+    const syslogEn = (document.getElementById("syslogEn").checked) ? '1' : '0';
+    let syslogIP = document.getElementById("syslogIP").value.substring(0, 15);
+    if (syslogIP.length == 0) syslogIP = serverStatus.syslogIP;
+
     const staticIP = (document.getElementById("staticIP").checked) ? '1' : '0';
     let localIP = document.getElementById("IPaddress").value.substring(0, 15);
     if (localIP.length == 0) localIP = serverStatus.localIP;
@@ -666,9 +678,9 @@ async function saveSettings() {
 
     // check IP addresses valid
     const regexIPv4 = /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/i;
-    if (!(regexIPv4.test(localIP) && regexIPv4.test(subnetMask) && regexIPv4.test(gatewayIP) && regexIPv4.test(nameserverIP))) {
-        console.error(`Invalid IP address(s): ${localIP} / ${subnetMask} / ${gatewayIP} / ${nameserverIP}`);
-        alert(`Invalid IP address(s): ${localIP} / ${subnetMask} / ${gatewayIP} / ${nameserverIP}`);
+    if (!(regexIPv4.test(localIP) && regexIPv4.test(subnetMask) && regexIPv4.test(gatewayIP) && regexIPv4.test(nameserverIP) && regexIPv4.test(syslogIP))) {
+        console.error(`Invalid IP address(s): ${localIP} / ${subnetMask} / ${gatewayIP} / ${nameserverIP} / ${syslogIP}`);
+        alert(`Invalid IP address(s): ${localIP} / ${subnetMask} / ${gatewayIP} / ${nameserverIP} / ${syslogIP}`);
         return;
     }
 
@@ -686,7 +698,9 @@ async function saveSettings() {
         "subnetMask", subnetMask,
         "gatewayIP", gatewayIP,
         "nameserverIP", nameserverIP,
-        "enableNTP", enableNTP
+        "enableNTP", enableNTP,
+        "syslogEn", syslogEn,
+        "syslogIP", syslogIP
     );
     if (reboot) {
         countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");

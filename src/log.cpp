@@ -37,6 +37,61 @@ char *lineBuffer = NULL;
 logBuffer *msgBuffer = NULL; // Buffer to save log messages as they occur
 File logMessageFile;
 
+#define SYSLOGPORT 514
+#define LOCAL0 16
+#define SYSLOG_EMERGENCY 0
+#define SYSLOG_ALERT 1
+#define SYSLOG_CRIT 2
+#define SYSLOG_ERROR 3
+#define SYSLOG_WARN 4
+#define SYSLOG_NOTICE 5
+#define SYSLOG_INFO 6
+#define SYSLOG_DEBUG 7
+
+WiFiUDP syslog;
+void logToSyslog(char * message)
+{
+    if (!syslogEn)
+        return;
+
+    uint8_t PRI = LOCAL0 * 8;
+    if (*message == '>')
+        PRI += SYSLOG_INFO;
+    else if (*message == '!')
+        PRI += SYSLOG_ERROR;
+
+    char * app_name;
+    char * msg;
+
+    app_name = strtok(message, "]");
+    while (*app_name == ' ') app_name++;
+    app_name = strtok(NULL, ":");
+    while (*app_name == ' ') app_name++;
+    msg = strtok(NULL, "\r\n");
+    while (*msg == ' ') msg++;
+
+    syslog.beginPacket(GET_CONFIG_STRING("syslogIP").c_str(), SYSLOGPORT);
+
+    // If NTP is enabled, then use RFC5424 Format
+    if (enableNTP && timeClient.isTimeSet())
+    {
+        syslog.printf_P("<%u>1 ", PRI);             // PRI code
+        syslog.print(timeString());                 // date / time string
+        syslog.printf_P(" %s", device_name_rfc952); // hostname
+        syslog.printf_P(" %s", app_name);           // application name
+        syslog.printf_P(" %d", loop_id);            // process ID
+        syslog.printf_P(" -");                      // message ID
+        syslog.printf_P(" -");                      // structured data
+        syslog.printf_P(" \xEF\xBB\xBF");           // BOM - indicates UTF-8 encoding
+        syslog.printf_P(" %s", msg);          // message
+    }
+    else
+    {
+        syslog.printf_P("<%d> %s: %s", PRI, app_name, msg);
+    }
+    syslog.endPacket();
+}
+
 void logToBuffer_P(const char *fmt, ...)
 {
     if (!msgBuffer)
@@ -93,6 +148,7 @@ void logToBuffer_P(const char *fmt, ...)
     }
     // send it to subscribed browsers
     SSEBroadcastState(lineBuffer, LOG_MESSAGE);
+    logToSyslog(lineBuffer);
 }
 
 #ifdef ENABLE_CRASH_LOG

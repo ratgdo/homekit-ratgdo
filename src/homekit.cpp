@@ -47,6 +47,7 @@ extern "C" char serial_number[SERIAL_NAME_SIZE];
 
 void homekit_loop()
 {
+    loop_id = LOOP_HK;
     arduino_homekit_loop();
 }
 

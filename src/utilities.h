@@ -17,6 +17,8 @@ extern char *timeString(time_t reqTime = 0);
 extern bool enableNTP;
 #endif
 
+extern bool syslogEn;
+
 // Controls soft Access Point mode.
 extern bool softAPmode;
 
