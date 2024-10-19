@@ -110,6 +110,13 @@ Changing this setting will cause a reboot only if changing from no motion sensor
 
 This option is not available on mobile devices. On a desktop browser all server firmware logs can be displayed in the javascript console log. On some browsers you may need to enable developer mode before you can open the javascript console.
 
+### Syslog
+
+This setting allows you to send the ratgdo logs to a syslog server.  Enter the IP address of your syslog server.  Uses UDP port 514 and logs to the LOCAL0 Facility.
+
+> [!NOTE]
+> If your ratgdo is on an IoT VLAN or otherwise isolated VLAN, then you need to make sure it has access to your syslog server.  If the syslog server is on a seperate VLAN, you need to allow UDP port 514 through the firewall.
+
 ### Door Protocol
 
 Set the protocol for your model of garage door opener.  This defaults to Security+ 2.0 and you should only change this if necessary.  Note that the changing the door protocol also resets the door opener rolling codes and whether there is a motion sensor (this will be automatically detected after reset).
