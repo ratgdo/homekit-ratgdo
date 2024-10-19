@@ -110,9 +110,6 @@ GarageDoorCurrentState lastDoorState = (GarageDoorCurrentState)0xff;
 // Track our memory usage
 extern "C" uint32_t free_heap;
 extern "C" uint32_t min_heap;
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-uint32_t free_iram_heap = 65535;
-#endif
 
 // number of times the device has crashed
 int crashCount = 0;
@@ -292,8 +289,7 @@ void setup_web()
         json = (char *)malloc(JSON_BUFFER_SIZE);
         RINFO("Allocated buffer for JSON, size: %d", JSON_BUFFER_SIZE);
 #if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-        free_iram_heap = ESP.getFreeHeap();
-        RINFO("Free IRAM heap: %d", free_iram_heap);
+        RINFO("Free IRAM heap: %d", ESP.getFreeHeap());
 #endif
     }
     last_reported_paired = homekit_is_paired();
@@ -343,8 +339,7 @@ void setup_web()
         server.on("/update", HTTP_POST, handle_update, handle_firmware_upload);
         server.onNotFound(handle_everything);
 #if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-        free_iram_heap = ESP.getFreeHeap();
-        RINFO("Free IRAM heap: %d", free_iram_heap);
+        RINFO("Free IRAM heap: %d", ESP.getFreeHeap());
 #endif
     }
 
@@ -596,9 +591,6 @@ void handle_status()
     ADD_INT(json, "rebootSeconds", GET_CONFIG_INT("rebootSeconds"));
     ADD_INT(json, "freeHeap", free_heap);
     ADD_INT(json, "minHeap", min_heap);
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-    ADD_INT(json, "freeIramHeap", free_iram_heap);
-#endif
     ADD_INT(json, "minStack", ESP.getFreeContStack());
     ADD_INT(json, "crashCount", crashCount);
     ADD_INT(json, "wifiPhyMode", GET_CONFIG_INT("wifiPhyMode"));
@@ -942,10 +934,6 @@ void SSEheartbeat(SSESubscription *s)
         ADD_INT(json, "upTime", millis());
         ADD_INT(json, "freeHeap", free_heap);
         ADD_INT(json, "minHeap", min_heap);
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-        // Not needed on heartbeat as all allocated during startup so never changes.
-        // ADD_INT(json, "freeIramHeap", free_iram_heap);
-#endif
         ADD_INT(json, "minStack", ESP.getFreeContStack());
         ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm").c_str());
         ADD_BOOL(json, "checkFlashCRC", flashCRC);
