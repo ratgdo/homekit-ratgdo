@@ -97,7 +97,7 @@ void send_get_status();
 bool transmitSec1(byte toSend);
 bool transmitSec2(PacketAction &pkt_ac);
 void TTCdelayLoop();
-void light_recovery();
+void manual_recovery();
 
 /********************************** MAIN LOOP CODE *****************************************/
 
@@ -248,594 +248,590 @@ void wallPlate_Emulation()
     }
 }
 
-void comms_loop()
+void comms_loop_sec1()
 {
-    loop_id = LOOP_COMMS;
-    // SECUIRTY1.0
-    if (gdoSecurityType == 1)
+    static bool reading_msg = false;
+    static uint16_t byte_count = 0;
+    static RxPacket rx_packet;
+    bool gotMessage = false;
+
+    if (sw_serial.available())
     {
+        uint8_t ser_byte = sw_serial.read();
+        last_rx = millis();
 
-        static bool reading_msg = false;
-        static uint16_t byte_count = 0;
-        static RxPacket rx_packet;
-        bool gotMessage = false;
-
-        if (sw_serial.available())
+        if (!reading_msg)
         {
-            uint8_t ser_byte = sw_serial.read();
-            last_rx = millis();
-
-            if (!reading_msg)
+            // valid?
+            if (ser_byte >= 0x30 && ser_byte <= 0x3A)
             {
-                // valid?
-                if (ser_byte >= 0x30 && ser_byte <= 0x3A)
-                {
-                    byte_count = 0;
-                    rx_packet[byte_count++] = ser_byte;
-                    reading_msg = true;
-                }
-                // is it single byte command?
-                // really all commands are single byte
-                // is it a button push or release? (FROM WALL PANEL)
-                if (ser_byte >= 0x30 && ser_byte <= 0x37)
-                {
-                    rx_packet[1] = 0;
-                    reading_msg = false;
-                    byte_count = 0;
-
-                    gotMessage = true;
-                }
-            }
-            else
-            {
-                // save next byte
+                byte_count = 0;
                 rx_packet[byte_count++] = ser_byte;
-
-                if (byte_count == RX_LENGTH)
-                {
-                    reading_msg = false;
-                    byte_count = 0;
-
-                    gotMessage = true;
-                }
-
-                if (gotMessage == false && (millis() - last_rx) > 100)
-                {
-                    RINFO("RX message timeout");
-                    // if we have a partial packet and it's been over 100ms since last byte was read,
-                    // the rest is not coming (a full packet should be received in ~20ms),
-                    // discard it so we can read the following packet correctly
-                    reading_msg = false;
-                    byte_count = 0;
-                }
+                reading_msg = true;
             }
-        }
-
-        // got data?
-        if (gotMessage)
-        {
-            gotMessage = false;
-
-            // get kvp
-            // button press/release have no val, just a single byte
-            uint8_t key = rx_packet[0];
-            uint8_t val = rx_packet[1];
-
-            if (key == secplus1Codes::DoorButtonPress)
+            // is it single byte command?
+            // really all commands are single byte
+            // is it a button push or release? (FROM WALL PANEL)
+            if (ser_byte >= 0x30 && ser_byte <= 0x37)
             {
-                RINFO("0x30 RX (door press)");
-                if (motionTriggers.bit.doorKey)
-                {
-                    garage_door.motion_timer = millis() + 5000;
-                    garage_door.motion = true;
-                    notify_homekit_motion();
-                }
-            }
-            // wall panel is sending out 0x31 (Door Button Release) when it starts up
-            // but also on release of door button
-            else if (key == secplus1Codes::DoorButtonRelease)
-            {
-                RINFO("0x31 RX (door release)");
+                rx_packet[1] = 0;
+                reading_msg = false;
+                byte_count = 0;
 
-                // Possible power up of 889LM
-                if ((DoorState)doorState == DoorState::Unknown)
-                {
-                    wallplateBooting = true;
-                }
-            }
-            else if (key == secplus1Codes::LightButtonPress)
-            {
-                RINFO("0x32 RX (light press)");
-                light_recovery();
-            }
-            else if (key == secplus1Codes::LightButtonRelease)
-            {
-                RINFO("0x33 RX (light release)");
-            }
-
-            // 2 byte status messages (0x38 - 0x3A)
-            // its the byte sent out by the wallplate + the byte transmitted by the opener
-            if (key == secplus1Codes::DoorStatus || key == secplus1Codes::ObstructionStatus || key == secplus1Codes::LightLockStatus)
-            {
-
-                // RINFO("SEC1 STATUS MSG: %X%02X",key,val);
-
-                switch (key)
-                {
-                // door status
-                case secplus1Codes::DoorStatus:
-
-                    // RINFO("0x38 MSG: %02X",val);
-
-                    // 0x5X = stopped
-                    // 0x0X = moving
-                    // best attempt to trap invalid values (due to collisions)
-                    if (((val & 0xF0) != 0x00) && ((val & 0xF0) != 0x50) && ((val & 0xF0) != 0xB0))
-                    {
-                        RINFO("0x38 val upper nible not 0x0 or 0x5 or 0xB: %02X", val);
-                        break;
-                    }
-
-                    val = (val & 0x7);
-                    // 000 0x0 stopped
-                    // 001 0x1 opening
-                    // 010 0x2 open
-                    // 100 0x4 closing
-                    // 101 0x5 closed
-                    // 110 0x6 stopped
-
-                    // sec+1 doors sometimes report wrong door status
-                    // require two sequential matching door states
-                    // I have not seen this to be the case on my unit (MJS)
-                    static uint8_t prevDoor;
-                    if (prevDoor != val)
-                    {
-                        prevDoor = val;
-                        break;
-                    }
-
-                    switch (val)
-                    {
-                    case 0x00:
-                        doorState = DoorState::Stopped;
-                        break;
-                    case 0x01:
-                        doorState = DoorState::Opening;
-                        break;
-                    case 0x02:
-                        doorState = DoorState::Open;
-                        break;
-                    // no 0x03 known
-                    case 0x04:
-                        doorState = DoorState::Closing;
-                        break;
-                    case 0x05:
-                        doorState = DoorState::Closed;
-                        break;
-                    case 0x06:
-                        doorState = DoorState::Stopped;
-                        break;
-                    default:
-                        doorState = DoorState::Unknown;
-                        break;
-                    }
-
-                    // RINFO("doorstate: %d", doorState);
-
-                    switch (doorState)
-                    {
-                    case DoorState::Open:
-                        garage_door.current_state = CURR_OPEN;
-                        garage_door.target_state = TGT_OPEN;
-                        break;
-                    case DoorState::Closed:
-                        garage_door.current_state = CURR_CLOSED;
-                        garage_door.target_state = TGT_CLOSED;
-                        break;
-                    case DoorState::Stopped:
-                        garage_door.current_state = CURR_STOPPED;
-                        garage_door.target_state = TGT_OPEN;
-                        break;
-                    case DoorState::Opening:
-                        garage_door.current_state = CURR_OPENING;
-                        garage_door.target_state = TGT_OPEN;
-                        break;
-                    case DoorState::Closing:
-                        garage_door.current_state = CURR_CLOSING;
-                        garage_door.target_state = TGT_CLOSED;
-                        break;
-                    case DoorState::Unknown:
-                        RERROR("Got door state unknown");
-                        break;
-                    }
-
-                    if ((garage_door.current_state == CURR_CLOSING) && (TTCcountdown > 0))
-                    {
-                        // We are in a time-to-close delay timeout, cancel the timeout
-                        RINFO("Canceling time-to-close delay timer");
-                        TTCtimer.detach();
-                        TTCcountdown = 0;
-                    }
-
-                    if (!garage_door.active)
-                    {
-                        RINFO("activating door");
-                        garage_door.active = true;
-                        notify_homekit_active();
-                        if (garage_door.current_state == CURR_OPENING || garage_door.current_state == CURR_OPEN)
-                        {
-                            garage_door.target_state = TGT_OPEN;
-                        }
-                        else
-                        {
-                            garage_door.target_state = TGT_CLOSED;
-                        }
-                    }
-
-                    static GarageDoorCurrentState gd_currentstate;
-                    if (garage_door.current_state != gd_currentstate)
-                    {
-                        gd_currentstate = garage_door.current_state;
-
-                        const char *l = "unknown door state";
-                        switch (gd_currentstate)
-                        {
-                        case GarageDoorCurrentState::CURR_STOPPED:
-                            l = "Stopped";
-                            break;
-                        case GarageDoorCurrentState::CURR_OPEN:
-                            l = "Open";
-                            break;
-                        case GarageDoorCurrentState::CURR_OPENING:
-                            l = "Opening";
-                            break;
-                        case GarageDoorCurrentState::CURR_CLOSED:
-                            l = "Closed";
-                            break;
-                        case GarageDoorCurrentState::CURR_CLOSING:
-                            l = "Closing";
-                            break;
-                        }
-                        RINFO("status DOOR: %s", l);
-
-                        notify_homekit_current_door_state_change();
-                    }
-
-                    static GarageDoorTargetState gd_TargetState;
-                    if (garage_door.target_state != gd_TargetState)
-                    {
-                        gd_TargetState = garage_door.target_state;
-                        notify_homekit_target_door_state_change();
-                    }
-
-                    break;
-
-                // objstruction states (not confirmed)
-                case secplus1Codes::ObstructionStatus:
-                    // currently not using
-                    break;
-
-                // light & lock
-                case secplus1Codes::LightLockStatus:
-
-                    // RINFO("0x3A MSG: %X%02X",key,val);
-
-                    // upper nibble must be 5
-                    if ((val & 0xF0) != 0x50)
-                    {
-                        RINFO("0x3A val upper nible not 5: %02X", val);
-                        break;
-                    }
-
-                    lightState = bitRead(val, 2);
-                    lockState = !bitRead(val, 3);
-
-                    // light status
-                    static uint8_t lastLightState = 0xff;
-                    // light state change?
-                    if (lightState != lastLightState)
-                    {
-                        RINFO("status LIGHT: %s", lightState ? "On" : "Off");
-                        lastLightState = lightState;
-
-                        garage_door.light = (bool)lightState;
-                        notify_homekit_light();
-                        if (motionTriggers.bit.lightKey)
-                        {
-                            garage_door.motion_timer = millis() + 5000;
-                            garage_door.motion = true;
-                            notify_homekit_motion();
-                        }
-                    }
-
-                    // lock status
-                    static uint8_t lastLockState = 0xff;
-                    // lock state change?
-                    if (lockState != lastLockState)
-                    {
-                        RINFO("status LOCK: %s", lockState ? "Secured" : "Unsecured");
-                        lastLockState = lockState;
-
-                        if (lockState)
-                        {
-                            garage_door.current_lock = CURR_LOCKED;
-                            garage_door.target_lock = TGT_LOCKED;
-                        }
-                        else
-                        {
-                            garage_door.current_lock = CURR_UNLOCKED;
-                            garage_door.target_lock = TGT_UNLOCKED;
-                        }
-                        notify_homekit_target_lock();
-                        notify_homekit_current_lock();
-                        if (motionTriggers.bit.lockKey)
-                        {
-                            garage_door.motion_timer = millis() + 5000;
-                            garage_door.motion = true;
-                            notify_homekit_motion();
-                        }
-                    }
-
-                    break;
-                }
-            }
-        }
-
-        //
-        // PROCESS TRANSMIT QUEUE
-        //
-        PacketAction pkt_ac;
-        static unsigned long cmdDelay = 0;
-        unsigned long now;
-        bool okToSend = false;
-
-        if (!q_isEmpty(&pkt_q))
-        {
-
-            now = millis();
-
-            // if there is no wall panel, no need to check 200ms since last rx
-            // (yes some duped code here, but its clearer)
-            if (!wallPanelDetected)
-            {
-                // no wall panel
-                okToSend = (now - last_rx > 20);        // after 20ms since last rx
-                okToSend &= (now - last_tx > 20);       // after 20ms since last tx
-                okToSend &= (now - last_tx > cmdDelay); // after any command delays
-            }
-            else
-            {
-                // digitial wall pnael
-                okToSend = (now - last_rx > 20);        // after 20ms since last rx
-                okToSend &= (now - last_rx < 200);      // before 200ms since last rx
-                okToSend &= (now - last_tx > 20);       // after 20ms since last tx
-                okToSend &= (now - last_tx > cmdDelay); // after any command delays
-            }
-
-            // OK to send based on above rules
-            if (okToSend)
-            {
-                if (q_peek(&pkt_q, &pkt_ac))
-                {
-                    if (process_PacketAction(pkt_ac))
-                    {
-                        // get next delay "between" transmits
-                        cmdDelay = pkt_ac.delay;
-                        q_drop(&pkt_q);
-                    }
-                    else
-                    {
-                        cmdDelay = 0;
-                        RERROR("transmit failed, will retry");
-                    }
-                }
-            }
-        }
-
-        // check for wall panel and provide emulator
-        wallPlate_Emulation();
-    }
-    // SECUIRTY2.0+
-    else
-    {
-        // no incoming data, check if we have command queued
-        if (!sw_serial.available())
-        {
-            PacketAction pkt_ac;
-
-            if (q_peek(&pkt_q, &pkt_ac))
-            {
-                if (process_PacketAction(pkt_ac))
-                {
-                    q_drop(&pkt_q);
-                }
-                else
-                {
-                    RERROR("transmit failed, will retry");
-                }
+                gotMessage = true;
             }
         }
         else
         {
-            // spin on receiving data until the whole packet has arrived
-            uint8_t ser_data = sw_serial.read();
-            if (reader.push_byte(ser_data))
+            // save next byte
+            rx_packet[byte_count++] = ser_byte;
+
+            if (byte_count == RX_LENGTH)
             {
-                Packet pkt = Packet(reader.fetch_buf());
-                pkt.print();
+                reading_msg = false;
+                byte_count = 0;
 
-                switch (pkt.m_pkt_cmd)
+                gotMessage = true;
+            }
+
+            if (gotMessage == false && (millis() - last_rx) > 100)
+            {
+                RINFO("RX message timeout");
+                // if we have a partial packet and it's been over 100ms since last byte was read,
+                // the rest is not coming (a full packet should be received in ~20ms),
+                // discard it so we can read the following packet correctly
+                reading_msg = false;
+                byte_count = 0;
+            }
+        }
+    }
+
+    // got data?
+    if (gotMessage)
+    {
+        gotMessage = false;
+
+        // get kvp
+        // button press/release have no val, just a single byte
+        uint8_t key = rx_packet[0];
+        uint8_t val = rx_packet[1];
+
+        if (key == secplus1Codes::DoorButtonPress)
+        {
+            RINFO("0x30 RX (door press)");
+            manual_recovery();
+            if (motionTriggers.bit.doorKey)
+            {
+                garage_door.motion_timer = millis() + 5000;
+                garage_door.motion = true;
+                notify_homekit_motion();
+            }
+        }
+        // wall panel is sending out 0x31 (Door Button Release) when it starts up
+        // but also on release of door button
+        else if (key == secplus1Codes::DoorButtonRelease)
+        {
+            RINFO("0x31 RX (door release)");
+
+            // Possible power up of 889LM
+            if ((DoorState)doorState == DoorState::Unknown)
+            {
+                wallplateBooting = true;
+            }
+        }
+        else if (key == secplus1Codes::LightButtonPress)
+        {
+            RINFO("0x32 RX (light press)");
+            manual_recovery();
+        }
+        else if (key == secplus1Codes::LightButtonRelease)
+        {
+            RINFO("0x33 RX (light release)");
+        }
+
+        // 2 byte status messages (0x38 - 0x3A)
+        // its the byte sent out by the wallplate + the byte transmitted by the opener
+        if (key == secplus1Codes::DoorStatus || key == secplus1Codes::ObstructionStatus || key == secplus1Codes::LightLockStatus)
+        {
+
+            // RINFO("SEC1 STATUS MSG: %X%02X",key,val);
+
+            switch (key)
+            {
+            // door status
+            case secplus1Codes::DoorStatus:
+
+                // RINFO("0x38 MSG: %02X",val);
+
+                // 0x5X = stopped
+                // 0x0X = moving
+                // best attempt to trap invalid values (due to collisions)
+                if (((val & 0xF0) != 0x00) && ((val & 0xF0) != 0x50) && ((val & 0xF0) != 0xB0))
                 {
-                case PacketCommand::Status:
+                    RINFO("0x38 val upper nible not 0x0 or 0x5 or 0xB: %02X", val);
+                    break;
+                }
+
+                val = (val & 0x7);
+                // 000 0x0 stopped
+                // 001 0x1 opening
+                // 010 0x2 open
+                // 100 0x4 closing
+                // 101 0x5 closed
+                // 110 0x6 stopped
+
+                // sec+1 doors sometimes report wrong door status
+                // require two sequential matching door states
+                // I have not seen this to be the case on my unit (MJS)
+                static uint8_t prevDoor;
+                if (prevDoor != val)
                 {
-                    GarageDoorCurrentState current_state = garage_door.current_state;
-                    GarageDoorTargetState target_state = garage_door.target_state;
-                    switch (pkt.m_data.value.status.door)
+                    prevDoor = val;
+                    break;
+                }
+
+                switch (val)
+                {
+                case 0x00:
+                    doorState = DoorState::Stopped;
+                    break;
+                case 0x01:
+                    doorState = DoorState::Opening;
+                    break;
+                case 0x02:
+                    doorState = DoorState::Open;
+                    break;
+                // no 0x03 known
+                case 0x04:
+                    doorState = DoorState::Closing;
+                    break;
+                case 0x05:
+                    doorState = DoorState::Closed;
+                    break;
+                case 0x06:
+                    doorState = DoorState::Stopped;
+                    break;
+                default:
+                    doorState = DoorState::Unknown;
+                    break;
+                }
+
+                // RINFO("doorstate: %d", doorState);
+
+                switch (doorState)
+                {
+                case DoorState::Open:
+                    garage_door.current_state = CURR_OPEN;
+                    garage_door.target_state = TGT_OPEN;
+                    break;
+                case DoorState::Closed:
+                    garage_door.current_state = CURR_CLOSED;
+                    garage_door.target_state = TGT_CLOSED;
+                    break;
+                case DoorState::Stopped:
+                    garage_door.current_state = CURR_STOPPED;
+                    garage_door.target_state = TGT_OPEN;
+                    break;
+                case DoorState::Opening:
+                    garage_door.current_state = CURR_OPENING;
+                    garage_door.target_state = TGT_OPEN;
+                    break;
+                case DoorState::Closing:
+                    garage_door.current_state = CURR_CLOSING;
+                    garage_door.target_state = TGT_CLOSED;
+                    break;
+                case DoorState::Unknown:
+                    RERROR("Got door state unknown");
+                    break;
+                }
+
+                if ((garage_door.current_state == CURR_CLOSING) && (TTCcountdown > 0))
+                {
+                    // We are in a time-to-close delay timeout, cancel the timeout
+                    RINFO("Canceling time-to-close delay timer");
+                    TTCtimer.detach();
+                    TTCcountdown = 0;
+                }
+
+                if (!garage_door.active)
+                {
+                    RINFO("activating door");
+                    garage_door.active = true;
+                    notify_homekit_active();
+                    if (garage_door.current_state == CURR_OPENING || garage_door.current_state == CURR_OPEN)
                     {
-                    case DoorState::Open:
-                        current_state = CURR_OPEN;
-                        target_state = TGT_OPEN;
-                        break;
-                    case DoorState::Closed:
-                        current_state = CURR_CLOSED;
-                        target_state = TGT_CLOSED;
-                        break;
-                    case DoorState::Stopped:
-                        current_state = CURR_STOPPED;
-                        target_state = TGT_OPEN;
-                        break;
-                    case DoorState::Opening:
-                        current_state = CURR_OPENING;
-                        target_state = TGT_OPEN;
-                        break;
-                    case DoorState::Closing:
-                        current_state = CURR_CLOSING;
-                        target_state = TGT_CLOSED;
-                        break;
-                    case DoorState::Unknown:
-                        RERROR("Got door state unknown");
-                        break;
-                    }
-
-                    if ((current_state == CURR_CLOSING) && (TTCcountdown > 0))
-                    {
-                        // We are in a time-to-close delay timeout, cancel the timeout
-                        RINFO("Canceling time-to-close delay timer");
-                        TTCtimer.detach();
-                        TTCcountdown = 0;
-                    }
-
-                    if (!garage_door.active)
-                    {
-                        RINFO("activating door");
-                        garage_door.active = true;
-                        notify_homekit_active();
-                        if (current_state == CURR_OPENING || current_state == CURR_OPEN)
-                        {
-                            target_state = TGT_OPEN;
-                        }
-                        else
-                        {
-                            target_state = TGT_CLOSED;
-                        }
-                    }
-
-                    RINFO("tgt %d curr %d", target_state, current_state);
-
-                    if ((target_state != garage_door.target_state) ||
-                        (current_state != garage_door.current_state))
-                    {
-                        garage_door.target_state = target_state;
-                        garage_door.current_state = current_state;
-
-                        notify_homekit_current_door_state_change();
-                        notify_homekit_target_door_state_change();
-                    }
-
-                    if (pkt.m_data.value.status.light != garage_door.light)
-                    {
-                        RINFO("Light Status %s", pkt.m_data.value.status.light ? "On" : "Off");
-                        garage_door.light = pkt.m_data.value.status.light;
-                        notify_homekit_light();
-                    }
-
-                    LockCurrentState current_lock;
-                    LockTargetState target_lock;
-                    if (pkt.m_data.value.status.lock)
-                    {
-                        current_lock = CURR_LOCKED;
-                        target_lock = TGT_LOCKED;
+                        garage_door.target_state = TGT_OPEN;
                     }
                     else
                     {
-                        current_lock = CURR_UNLOCKED;
-                        target_lock = TGT_UNLOCKED;
+                        garage_door.target_state = TGT_CLOSED;
                     }
-                    if (current_lock != garage_door.current_lock)
-                    {
-                        garage_door.target_lock = target_lock;
-                        garage_door.current_lock = current_lock;
-                        notify_homekit_target_lock();
-                        notify_homekit_current_lock();
-                    }
+                }
 
+                static GarageDoorCurrentState gd_currentstate;
+                if (garage_door.current_state != gd_currentstate)
+                {
+                    gd_currentstate = garage_door.current_state;
+
+                    const char *l = "unknown door state";
+                    switch (gd_currentstate)
+                    {
+                    case GarageDoorCurrentState::CURR_STOPPED:
+                        l = "Stopped";
+                        break;
+                    case GarageDoorCurrentState::CURR_OPEN:
+                        l = "Open";
+                        break;
+                    case GarageDoorCurrentState::CURR_OPENING:
+                        l = "Opening";
+                        break;
+                    case GarageDoorCurrentState::CURR_CLOSED:
+                        l = "Closed";
+                        break;
+                    case GarageDoorCurrentState::CURR_CLOSING:
+                        l = "Closing";
+                        break;
+                    }
+                    RINFO("status DOOR: %s", l);
+
+                    notify_homekit_current_door_state_change();
+                }
+
+                static GarageDoorTargetState gd_TargetState;
+                if (garage_door.target_state != gd_TargetState)
+                {
+                    gd_TargetState = garage_door.target_state;
+                    notify_homekit_target_door_state_change();
+                }
+
+                break;
+
+            // objstruction states (not confirmed)
+            case secplus1Codes::ObstructionStatus:
+                // currently not using
+                break;
+
+            // light & lock
+            case secplus1Codes::LightLockStatus:
+
+                // RINFO("0x3A MSG: %X%02X",key,val);
+
+                // upper nibble must be 5
+                if ((val & 0xF0) != 0x50)
+                {
+                    RINFO("0x3A val upper nible not 5: %02X", val);
                     break;
                 }
 
-                case PacketCommand::Lock:
+                lightState = bitRead(val, 2);
+                lockState = !bitRead(val, 3);
+
+                // light status
+                static uint8_t lastLightState = 0xff;
+                // light state change?
+                if (lightState != lastLightState)
                 {
-                    LockTargetState lock = garage_door.target_lock;
-                    switch (pkt.m_data.value.lock.lock)
+                    RINFO("status LIGHT: %s", lightState ? "On" : "Off");
+                    lastLightState = lightState;
+
+                    garage_door.light = (bool)lightState;
+                    notify_homekit_light();
+                    if (motionTriggers.bit.lightKey)
                     {
-                    case LockState::Off:
+                        garage_door.motion_timer = millis() + 5000;
+                        garage_door.motion = true;
+                        notify_homekit_motion();
+                    }
+                }
+
+                // lock status
+                static uint8_t lastLockState = 0xff;
+                // lock state change?
+                if (lockState != lastLockState)
+                {
+                    RINFO("status LOCK: %s", lockState ? "Secured" : "Unsecured");
+                    lastLockState = lockState;
+
+                    if (lockState)
+                    {
+                        garage_door.current_lock = CURR_LOCKED;
+                        garage_door.target_lock = TGT_LOCKED;
+                    }
+                    else
+                    {
+                        garage_door.current_lock = CURR_UNLOCKED;
+                        garage_door.target_lock = TGT_UNLOCKED;
+                    }
+                    notify_homekit_target_lock();
+                    notify_homekit_current_lock();
+                    if (motionTriggers.bit.lockKey)
+                    {
+                        garage_door.motion_timer = millis() + 5000;
+                        garage_door.motion = true;
+                        notify_homekit_motion();
+                    }
+                }
+
+                break;
+            }
+        }
+    }
+
+    //
+    // PROCESS TRANSMIT QUEUE
+    //
+    PacketAction pkt_ac;
+    static unsigned long cmdDelay = 0;
+    unsigned long now;
+    bool okToSend = false;
+
+    if (!q_isEmpty(&pkt_q))
+    {
+
+        now = millis();
+
+        // if there is no wall panel, no need to check 200ms since last rx
+        // (yes some duped code here, but its clearer)
+        if (!wallPanelDetected)
+        {
+            // no wall panel
+            okToSend = (now - last_rx > 20);        // after 20ms since last rx
+            okToSend &= (now - last_tx > 20);       // after 20ms since last tx
+            okToSend &= (now - last_tx > cmdDelay); // after any command delays
+        }
+        else
+        {
+            // digitial wall pnael
+            okToSend = (now - last_rx > 20);        // after 20ms since last rx
+            okToSend &= (now - last_rx < 200);      // before 200ms since last rx
+            okToSend &= (now - last_tx > 20);       // after 20ms since last tx
+            okToSend &= (now - last_tx > cmdDelay); // after any command delays
+        }
+
+        // OK to send based on above rules
+        if (okToSend)
+        {
+            if (q_peek(&pkt_q, &pkt_ac))
+            {
+                if (process_PacketAction(pkt_ac))
+                {
+                    // get next delay "between" transmits
+                    cmdDelay = pkt_ac.delay;
+                    q_drop(&pkt_q);
+                }
+                else
+                {
+                    cmdDelay = 0;
+                    RERROR("transmit failed, will retry");
+                }
+            }
+        }
+    }
+
+    // check for wall panel and provide emulator
+    wallPlate_Emulation();
+}
+
+void comms_loop_sec2()
+{
+    // no incoming data, check if we have command queued
+    if (!sw_serial.available())
+    {
+        PacketAction pkt_ac;
+
+        if (q_peek(&pkt_q, &pkt_ac))
+        {
+            if (process_PacketAction(pkt_ac))
+            {
+                q_drop(&pkt_q);
+            }
+            else
+            {
+                RERROR("transmit failed, will retry");
+            }
+        }
+    }
+    else
+    {
+        // spin on receiving data until the whole packet has arrived
+        uint8_t ser_data = sw_serial.read();
+        if (reader.push_byte(ser_data))
+        {
+            Packet pkt = Packet(reader.fetch_buf());
+            pkt.print();
+
+            switch (pkt.m_pkt_cmd)
+            {
+            case PacketCommand::Status:
+            {
+                GarageDoorCurrentState current_state = garage_door.current_state;
+                GarageDoorTargetState target_state = garage_door.target_state;
+                switch (pkt.m_data.value.status.door)
+                {
+                case DoorState::Open:
+                    current_state = CURR_OPEN;
+                    target_state = TGT_OPEN;
+                    break;
+                case DoorState::Closed:
+                    current_state = CURR_CLOSED;
+                    target_state = TGT_CLOSED;
+                    break;
+                case DoorState::Stopped:
+                    current_state = CURR_STOPPED;
+                    target_state = TGT_OPEN;
+                    break;
+                case DoorState::Opening:
+                    current_state = CURR_OPENING;
+                    target_state = TGT_OPEN;
+                    break;
+                case DoorState::Closing:
+                    current_state = CURR_CLOSING;
+                    target_state = TGT_CLOSED;
+                    break;
+                case DoorState::Unknown:
+                    RERROR("Got door state unknown");
+                    break;
+                }
+
+                if ((current_state == CURR_CLOSING) && (TTCcountdown > 0))
+                {
+                    // We are in a time-to-close delay timeout, cancel the timeout
+                    RINFO("Canceling time-to-close delay timer");
+                    TTCtimer.detach();
+                    TTCcountdown = 0;
+                }
+
+                if (!garage_door.active)
+                {
+                    RINFO("activating door");
+                    garage_door.active = true;
+                    notify_homekit_active();
+                    if (current_state == CURR_OPENING || current_state == CURR_OPEN)
+                    {
+                        target_state = TGT_OPEN;
+                    }
+                    else
+                    {
+                        target_state = TGT_CLOSED;
+                    }
+                }
+
+                RINFO("tgt %d curr %d", target_state, current_state);
+
+                if ((target_state != garage_door.target_state) ||
+                    (current_state != garage_door.current_state))
+                {
+                    garage_door.target_state = target_state;
+                    garage_door.current_state = current_state;
+
+                    notify_homekit_current_door_state_change();
+                    notify_homekit_target_door_state_change();
+                }
+
+                if (pkt.m_data.value.status.light != garage_door.light)
+                {
+                    RINFO("Light Status %s", pkt.m_data.value.status.light ? "On" : "Off");
+                    garage_door.light = pkt.m_data.value.status.light;
+                    notify_homekit_light();
+                }
+
+                LockCurrentState current_lock;
+                LockTargetState target_lock;
+                if (pkt.m_data.value.status.lock)
+                {
+                    current_lock = CURR_LOCKED;
+                    target_lock = TGT_LOCKED;
+                }
+                else
+                {
+                    current_lock = CURR_UNLOCKED;
+                    target_lock = TGT_UNLOCKED;
+                }
+                if (current_lock != garage_door.current_lock)
+                {
+                    garage_door.target_lock = target_lock;
+                    garage_door.current_lock = current_lock;
+                    notify_homekit_target_lock();
+                    notify_homekit_current_lock();
+                }
+
+                break;
+            }
+
+            case PacketCommand::Lock:
+            {
+                LockTargetState lock = garage_door.target_lock;
+                switch (pkt.m_data.value.lock.lock)
+                {
+                case LockState::Off:
+                    lock = TGT_UNLOCKED;
+                    break;
+                case LockState::On:
+                    lock = TGT_LOCKED;
+                    break;
+                case LockState::Toggle:
+                    if (lock == TGT_LOCKED)
+                    {
                         lock = TGT_UNLOCKED;
-                        break;
-                    case LockState::On:
+                    }
+                    else
+                    {
                         lock = TGT_LOCKED;
-                        break;
-                    case LockState::Toggle:
-                        if (lock == TGT_LOCKED)
-                        {
-                            lock = TGT_UNLOCKED;
-                        }
-                        else
-                        {
-                            lock = TGT_LOCKED;
-                        }
-                        break;
                     }
-                    if (lock != garage_door.target_lock)
-                    {
-                        RINFO("Lock Cmd %d", lock);
-                        garage_door.target_lock = lock;
-                        notify_homekit_target_lock();
-                        if (motionTriggers.bit.lockKey)
-                        {
-                            garage_door.motion_timer = millis() + 5000;
-                            garage_door.motion = true;
-                            notify_homekit_motion();
-                        }
-                    }
-                    // Send a get status to make sure we are in sync
-                    send_get_status();
                     break;
                 }
-
-                case PacketCommand::Light:
+                if (lock != garage_door.target_lock)
                 {
-                    bool l = garage_door.light;
-                    light_recovery();
-                    switch (pkt.m_data.value.light.light)
+                    RINFO("Lock Cmd %d", lock);
+                    garage_door.target_lock = lock;
+                    notify_homekit_target_lock();
+                    if (motionTriggers.bit.lockKey)
                     {
-                    case LightState::Off:
-                        l = false;
-                        break;
-                    case LightState::On:
-                        l = true;
-                        break;
-                    case LightState::Toggle:
-                    case LightState::Toggle2:
-                        l = !garage_door.light;
-                        break;
+                        garage_door.motion_timer = millis() + 5000;
+                        garage_door.motion = true;
+                        notify_homekit_motion();
                     }
-                    if (l != garage_door.light)
-                    {
-                        RINFO("Light Cmd %s", l ? "On" : "Off");
-                        garage_door.light = l;
-                        notify_homekit_light();
-                        if (motionTriggers.bit.lightKey)
-                        {
-                            garage_door.motion_timer = millis() + 5000;
-                            garage_door.motion = true;
-                            notify_homekit_motion();
-                        }
-                    }
-                    // Send a get status to make sure we are in sync
-                    // Should really only need to do this on a toggle,
-                    // But safer to do it always
-                    send_get_status();
+                }
+                // Send a get status to make sure we are in sync
+                send_get_status();
+                break;
+            }
+
+            case PacketCommand::Light:
+            {
+                bool l = garage_door.light;
+                manual_recovery();
+                switch (pkt.m_data.value.light.light)
+                {
+                case LightState::Off:
+                    l = false;
+                    break;
+                case LightState::On:
+                    l = true;
+                    break;
+                case LightState::Toggle:
+                case LightState::Toggle2:
+                    l = !garage_door.light;
                     break;
                 }
+                if (l != garage_door.light)
+                {
+                    RINFO("Light Cmd %s", l ? "On" : "Off");
+                    garage_door.light = l;
+                    notify_homekit_light();
+                    if (motionTriggers.bit.lightKey)
+                    {
+                        garage_door.motion_timer = millis() + 5000;
+                        garage_door.motion = true;
+                        notify_homekit_motion();
+                    }
+                }
+                // Send a get status to make sure we are in sync
+                // Should really only need to do this on a toggle,
+                // But safer to do it always
+                send_get_status();
+                break;
+            }
 
                 case PacketCommand::Motion:
                 {
@@ -853,45 +849,57 @@ void comms_loop()
                         enable_service_homekit_motion(motionTriggers.asInt == 1);
                     }
 
-                    /* When we get the motion detect message, notify HomeKit. Motion sensor
-                       will continue to send motion messages every 5s until motion stops.
-                       set a timer for 5 seconds to disable motion after the last message */
-                    garage_door.motion_timer = millis() + 5000;
-                    if (!garage_door.motion)
-                    {
-                        garage_door.motion = true;
-                        notify_homekit_motion();
-                    }
-                    // Update status because things like light may have changed states
-                    send_get_status();
-                    break;
-                }
-
-                case PacketCommand::DoorAction:
+                /* When we get the motion detect message, notify HomeKit. Motion sensor
+                    will continue to send motion messages every 5s until motion stops.
+                    set a timer for 5 seconds to disable motion after the last message */
+                garage_door.motion_timer = millis() + 5000;
+                if (!garage_door.motion)
                 {
-                    RINFO("Door Action");
-                    if (pkt.m_data.value.door_action.pressed && motionTriggers.bit.doorKey)
-                    {
-                        garage_door.motion_timer = millis() + 5000;
-                        garage_door.motion = true;
-                        notify_homekit_motion();
-                    }
-                    break;
+                    garage_door.motion = true;
+                    notify_homekit_motion();
                 }
+                // Update status because things like light may have changed states
+                send_get_status();
+                break;
+            }
 
-                default:
-                    RINFO("Support for %s packet unimplemented. Ignoring.", PacketCommand::to_string(pkt.m_pkt_cmd));
-                    break;
+            case PacketCommand::DoorAction:
+            {
+                RINFO("Door Action");
+                if (pkt.m_data.value.door_action.pressed)
+                {
+                    manual_recovery();
                 }
+                if (pkt.m_data.value.door_action.pressed && motionTriggers.bit.doorKey)
+                {
+                    garage_door.motion_timer = millis() + 5000;
+                    garage_door.motion = true;
+                    notify_homekit_motion();
+                }
+                break;
+            }
+
+            default:
+                RINFO("Support for %s packet unimplemented. Ignoring.", PacketCommand::to_string(pkt.m_pkt_cmd));
+                break;
             }
         }
-
-        // Save rolling code if we have exceeded max limit.
-        if (rolling_code >= (last_saved_code + MAX_CODES_WITHOUT_FLASH_WRITE))
-        {
-            save_rolling_code();
-        }
     }
+
+    // Save rolling code if we have exceeded max limit.
+    if (rolling_code >= (last_saved_code + MAX_CODES_WITHOUT_FLASH_WRITE))
+    {
+        save_rolling_code();
+    }
+}
+
+void comms_loop()
+{
+    loop_id=LOOP_COMMS;
+    if (gdoSecurityType == 1)
+        comms_loop_sec1();
+    else
+        comms_loop_sec2();
 }
 
 /********************************** CONTROLLER CODE *****************************************/
@@ -1368,9 +1376,9 @@ void set_light(bool value)
     }
 }
 
-void light_recovery()
+void manual_recovery()
 {
-    // Increment counter every time light button is pushed.  If we hit 5 in 3 seconds,
+    // Increment counter every time button is pushed.  If we hit 5 in 3 seconds,
     // go to WiFi recovery mode
     if (force_recover.push_count == 0)
     {
