@@ -29,6 +29,8 @@ struct obstruction_sensor_t
 // uint8_t led_idle_state = HIGH;        // opposite of active
 LED led;
 
+uint8_t loop_id;
+
 extern bool flashCRC;
 
 struct GarageDoor garage_door;
@@ -95,12 +97,12 @@ void setup()
 
 void loop()
 {
-
     improv_loop();
     comms_loop();
     homekit_loop();
     service_timer_loop();
     web_loop();
+    loop_id = LOOP_SYSTEM;
 }
 
 /*********************************** HELPER FUNCTIONS **************************************/
@@ -208,6 +210,7 @@ void obstruction_timer()
 
 void service_timer_loop()
 {
+    loop_id=LOOP_TIMER;
     // Service the Obstruction Timer
     obstruction_timer();
 

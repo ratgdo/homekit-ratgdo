@@ -250,6 +250,7 @@ void wallPlate_Emulation()
 
 void comms_loop()
 {
+    loop_id = LOOP_COMMS;
     // SECUIRTY1.0
     if (gdoSecurityType == 1)
     {

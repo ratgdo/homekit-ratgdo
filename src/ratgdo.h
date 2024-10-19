@@ -99,6 +99,15 @@ public:
 };
 
 extern LED led;
+
+#define LOOP_SYSTEM 0
+#define LOOP_IMPROV 1
+#define LOOP_COMMS  2
+#define LOOP_HK     3
+#define LOOP_TIMER  4
+#define LOOP_WEB    5
+extern uint8_t loop_id;
+
 #define FLASH_MS 50
 
 #endif // _RATGDO_H
