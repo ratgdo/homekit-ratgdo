@@ -10,6 +10,7 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 * New feature... enable IRAM heap to increase available memory.
 * New feature... move all user config settings into single file, improves boot time by ~13 seconds (<https://github.com/ratgdo/homekit-ratgdo/issues/241>).
 * New feature... add support for logging to a syslog server.
+* Change... Reboot countdown times changed from 30 seconds to 15 seconds
 * Bugfix... ensure that network hostname is RFC952 compliant (e.g. no spaces).
 * Bugfix... Possible fix to <https://github.com/ratgdo/homekit-ratgdo/issues/215> by modifying HomeKit server malloc().
 * Bugfix... Possible fix to <https://github.com/ratgdo/homekit-ratgdo/issues/211> and <https://github.com/ratgdo/homekit-ratgdo/issues/223> as we enable IRAM heap.
