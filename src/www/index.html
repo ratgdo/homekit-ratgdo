@@ -417,7 +417,7 @@
   <!-- Popup / modal dialog ------------------------------------------------------------------>
   <div id="myModal" class="modal">
     <div class="modal-content">
-      <span id="modalClose" class="close" onclick="modal.style.display = 'none'">&times;</span>
+      <span id="modalClose" class="close" onclick="document.getElementById('myModal').style.display = 'none'">&times;</span>
       <span id="modalTitle">Installed Firmware:&nbsp;<span id="firmwareVersion2">xxx</span><br></span><br>
       <div id="updateDialog" style="float: none; padding:0px">
         <span id="modalFlashCRC" style="font-size: 0.8em; display: block">xxx</span><br>
@@ -450,11 +450,13 @@
   </div>
 
   <!-- Simple please wait dialog --------------------------------------------------------------->
+  <!-- Only used for CRC check at reboot which we no longer do.
   <div id="pleaseWait" class="modal">
     <div class="modal-content">
       Checking flash CRC. please wait...
     </div>
   </div>
+  -->
 
   <!-- Initialization scripts ------------------------------------------------------------------>
   <script>
@@ -485,12 +487,14 @@
     document.addEventListener('touchend', function (e) { swipeEnd(e); }, false);
 
     // When the user clicks anywhere outside of the modal, close it
+    /*** Disable this as it causes countdown/reboot/update dialog to hide in the middle of activity.
     const modal = document.getElementById("myModal");
     window.onclick = function (event) {
       if (event.target == modal) {
         modal.style.display = "none";
       }
     };
+    */
 
     document.getElementById("settings-icon").onclick = async () => {
       // Only display the Settings page if user is authenticated.

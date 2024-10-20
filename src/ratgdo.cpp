@@ -48,8 +48,8 @@ unsigned long next_heap_check = 0;
 void setup()
 {
     disable_extra4k_at_link_time();
-    flashCRC = ESP.checkFlashCRC();
     Serial.begin(115200);
+    flashCRC = ESP.checkFlashCRC();
     LittleFS.begin();
 
     Serial.printf("\n"); // newline before we start
