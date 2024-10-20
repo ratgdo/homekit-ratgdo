@@ -9,11 +9,6 @@
 #include "comms.h"
 #include "web.h"
 
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-#include <umm_malloc/umm_malloc.h>
-#include <umm_malloc/umm_heap_select.h>
-#endif
-
 #ifndef UNIT_TEST
 
 #include <Arduino.h>
@@ -104,29 +99,25 @@ void logToBuffer_P(const char *fmt, ...)
         // first time in we need to create the buffers
         Serial.printf_P(PSTR("Allocating memory for logs\n"));
         Serial.printf_P(PSTR("Free heap: %d\n"), ESP.getFreeHeap());
-        {
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-            HeapSelectIram ephemeral;
-            Serial.printf_P(PSTR("IRAM heap size %d\n"), MMU_SEC_HEAP_SIZE);
-            Serial.printf_P(PSTR("Free IRAM heap: %d\n"), ESP.getFreeHeap());
+        IRAM_START
+#if defined(MMU_IRAM_HEAP)
+        Serial.printf_P(PSTR("IRAM heap size %d\n"), MMU_SEC_HEAP_SIZE);
+        Serial.printf_P(PSTR("Free IRAM heap: %d\n"), ESP.getFreeHeap());
 #endif
-            msgBuffer = (logBuffer *)malloc(sizeof(logBuffer));
-            Serial.printf_P(PSTR("Allocated %d bytes for message log buffer\n"), sizeof(logBuffer));
-            lineBuffer = (char *)malloc(LINE_BUFFER_SIZE);
-            Serial.printf_P(PSTR("Allocated %d bytes for line buffer\n"), LINE_BUFFER_SIZE);
-            // Fill the buffer with space chars... because if we crash and dump buffer before it fills
-            // up, we want blank space not garbage! Nothing is null-terminated in this circular buffer.
-            memset(msgBuffer->buffer, 0x20, sizeof(msgBuffer->buffer));
-            msgBuffer->wrapped = 0;
-            msgBuffer->head = 0;
-            // Open logMessageFile so we don't have to later.
-            logMessageFile = (LittleFS.exists(CRASH_LOG_MSG_FILE)) ? LittleFS.open(CRASH_LOG_MSG_FILE, "r+") : LittleFS.open(CRASH_LOG_MSG_FILE, "w+");
-            Serial.printf_P(PSTR("Opened log message file, size: %d\n"), logMessageFile.size());
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-            Serial.printf_P(PSTR("Free IRAM heap: %d\n"), ESP.getFreeHeap());
-#endif
-        }
-        Serial.printf_P(PSTR("Free heap: %d\n"), ESP.getFreeHeap());
+        msgBuffer = (logBuffer *)malloc(sizeof(logBuffer));
+        Serial.printf_P(PSTR("Allocated %d bytes for message log buffer\n"), sizeof(logBuffer));
+        lineBuffer = (char *)malloc(LINE_BUFFER_SIZE);
+        Serial.printf_P(PSTR("Allocated %d bytes for line buffer\n"), LINE_BUFFER_SIZE);
+        // Fill the buffer with space chars... because if we crash and dump buffer before it fills
+        // up, we want blank space not garbage! Nothing is null-terminated in this circular buffer.
+        memset(msgBuffer->buffer, 0x20, sizeof(msgBuffer->buffer));
+        msgBuffer->wrapped = 0;
+        msgBuffer->head = 0;
+        // Open logMessageFile so we don't have to later.
+        logMessageFile = (LittleFS.exists(CRASH_LOG_MSG_FILE)) ? LittleFS.open(CRASH_LOG_MSG_FILE, "r+") : LittleFS.open(CRASH_LOG_MSG_FILE, "w+");
+        Serial.printf_P(PSTR("Opened log message file, size: %d\n"), logMessageFile.size());
+        IRAM_END
+        RINFO("Free heap: %d", ESP.getFreeHeap());
     }
 
     // parse the format string into lineBuffer
@@ -223,7 +214,7 @@ void printMessageLog(Print &outputDev)
     outputDev.println(free_heap);
     outputDev.write("Minimum heap: ");
     outputDev.println(min_heap);
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
+#if defined(MMU_IRAM_HEAP)
     outputDev.write("IRAM heap size: ");
     outputDev.println(MMU_SEC_HEAP_SIZE);
 #endif

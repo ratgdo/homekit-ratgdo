@@ -28,11 +28,6 @@
 #include <eboot_command.h>
 #include <MD5Builder.h>
 
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-#include <umm_malloc/umm_malloc.h>
-#include <umm_malloc/umm_heap_select.h>
-#endif
-
 #ifdef ENABLE_CRASH_LOG
 #ifdef LOG_MSG_BUFFER
 EspSaveCrash saveCrash(1408, 1024, true, &crashCallback);
@@ -278,16 +273,8 @@ void web_loop()
 void setup_web()
 {
     RINFO("=== Starting HTTP web server ===");
-    {
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-        HeapSelectIram ephemeral;
-#endif
-        json = (char *)malloc(JSON_BUFFER_SIZE);
-        RINFO("Allocated buffer for JSON, size: %d", JSON_BUFFER_SIZE);
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-        RINFO("Free IRAM heap: %d", ESP.getFreeHeap());
-#endif
-    }
+    json = (char *)malloc(JSON_BUFFER_SIZE);
+    RINFO("Allocated buffer for JSON, size: %d", JSON_BUFFER_SIZE);
     last_reported_paired = homekit_is_paired();
 
     if (motionTriggers.asInt == 0)
@@ -328,23 +315,13 @@ void setup_web()
 #endif
 
     RINFO("Registering URI handlers");
-    {
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-        HeapSelectIram ephemeral;
-#endif
-        server.on("/update", HTTP_POST, handle_update, handle_firmware_upload);
-        server.onNotFound(handle_everything);
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-        RINFO("Free IRAM heap: %d", ESP.getFreeHeap());
-#endif
-    }
-
+    server.on("/update", HTTP_POST, handle_update, handle_firmware_upload);
+    server.onNotFound(handle_everything);
     // here the list of headers to be recorded
     const char *headerkeys[] = {"If-None-Match"};
     size_t headerkeyssize = sizeof(headerkeys) / sizeof(char *);
     // ask server to track these headers
     server.collectHeaders(headerkeys, headerkeyssize);
-
     server.begin();
     // initialize all the Server-Sent Events (SSE) slots.
     for (uint8_t i = 0; i < SSE_MAX_CHANNELS; i++)
