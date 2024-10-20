@@ -41,9 +41,6 @@ EspSaveCrash saveCrash(1408, 1024, true);
 #endif
 #endif
 
-// config settings used in loop, so copy out of map for efficiency
-uint32_t rebootSeconds; // seconds between reboots
-
 // Declare web server on HTTP port 80.
 ESP8266WebServer server(80);
 
@@ -230,12 +227,12 @@ void web_loop()
             {
                 // initialize with saved time.
                 // lastDoorUpdateAt is milliseconds relative to system reboot time.
-                lastDoorUpdateAt = (GET_CONFIG_INT("doorUpdateAt") != 0) ? ((GET_CONFIG_INT("doorUpdateAt") - timeClient.getEpochTime()) * 1000) + upTime : 0;
+                lastDoorUpdateAt = (userConfig->doorUpdateAt != 0) ? ((userConfig->doorUpdateAt - timeClient.getEpochTime()) * 1000) + upTime : 0;
             }
             else
             {
                 // first state change after a reboot, so really is a state change.
-                SET_CONFIG_INT("doorUpdateAt", timeClient.getEpochTime());
+                userConfig->doorUpdateAt = timeClient.getEpochTime();
                 write_config_to_file();
                 lastDoorUpdateAt = upTime;
             }
@@ -267,10 +264,10 @@ void web_loop()
         REMOVE_NL(json);
         SSEBroadcastState(json);
     }
-    if ((rebootSeconds != 0) && (rebootSeconds < millis() / 1000))
+    if ((userConfig->rebootSeconds != 0) && ((unsigned long)userConfig->rebootSeconds < millis() / 1000))
     {
         // Reboot the system if we have reached time...
-        RINFO("Rebooting system as %i seconds expired", rebootSeconds);
+        RINFO("Rebooting system as %i seconds expired", userConfig->rebootSeconds);
         server.stop();
         sync_and_restart();
         return;
@@ -281,8 +278,6 @@ void web_loop()
 void setup_web()
 {
     RINFO("=== Starting HTTP web server ===");
-    // we use this in loop, so copy out of map.
-    rebootSeconds = GET_CONFIG_INT("rebootSeconds");
     {
 #if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
         HeapSelectIram ephemeral;
@@ -301,7 +296,7 @@ void setup_web()
         if (garage_door.has_motion_sensor)
         {
             motionTriggers.bit.motion = 1;
-            SET_CONFIG_INT("motionTriggers", motionTriggers.asInt);
+            userConfig->motionTriggers = motionTriggers.asInt;
             write_config_to_file();
         }
     }
@@ -310,7 +305,7 @@ void setup_web()
         // sync up web page tracking of whether we have motion sensor or not.
         RINFO("Motion trigger mismatch, reset to %d", (uint8_t)garage_door.has_motion_sensor);
         motionTriggers.bit.motion = (uint8_t)garage_door.has_motion_sensor;
-        SET_CONFIG_INT("motionTriggers", motionTriggers.asInt);
+        userConfig->motionTriggers = motionTriggers.asInt;
         write_config_to_file();
     }
     RINFO("Motion triggers, motion : %d, obstruction: %d, light key: %d, door key: %d, lock key: %d, asInt: %d",
@@ -371,7 +366,7 @@ void handle_notfound()
 
 void handle_auth()
 {
-    if (GET_CONFIG_BOOL("wwwPWrequired") && !server.authenticateDigest(GET_CONFIG_STRING("wwwUsername").c_str(), GET_CONFIG_STRING("wwwCredentials").c_str()))
+    if (userConfig->wwwPWrequired && !server.authenticateDigest(userConfig->wwwUsername, userConfig->wwwCredentials))
     {
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
     }
@@ -381,7 +376,7 @@ void handle_auth()
 
 void handle_reset()
 {
-    if (GET_CONFIG_BOOL("wwwPWrequired") && !server.authenticateDigest(GET_CONFIG_STRING("wwwUsername").c_str(), GET_CONFIG_STRING("wwwCredentials").c_str()))
+    if (userConfig->wwwPWrequired && !server.authenticateDigest(userConfig->wwwUsername, userConfig->wwwCredentials))
     {
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
     }
@@ -571,7 +566,7 @@ void handle_status()
     START_JSON(json);
     ADD_INT(json, "upTime", upTime);
     ADD_STR(json, "deviceName", device_name);
-    ADD_STR(json, "userName", GET_CONFIG_STRING("wwwUsername").c_str());
+    ADD_STR(json, "userName", userConfig->wwwUsername);
     ADD_BOOL(json, "paired", paired);
     ADD_STR(json, "firmwareVersion", std::string(AUTO_VERSION).c_str());
     ADD_STR(json, "accessoryID", accessoryID);
@@ -582,24 +577,24 @@ void handle_status()
     ADD_STR(json, "macAddress", macAddress);
     ADD_STR(json, "wifiSSID", wifiSSID);
     ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm").c_str());
-    ADD_INT(json, "GDOSecurityType", GET_CONFIG_INT("gdoSecurityType"));
+    ADD_INT(json, "GDOSecurityType", userConfig->gdoSecurityType);
     ADD_STR(json, "garageDoorState", garage_door.active ? DOOR_STATE(garage_door.current_state) : DOOR_STATE(255));
     ADD_STR(json, "garageLockState", LOCK_STATE(garage_door.current_lock));
     ADD_BOOL(json, "garageLightOn", garage_door.light);
     ADD_BOOL(json, "garageMotion", garage_door.motion);
     ADD_BOOL(json, "garageObstructed", garage_door.obstructed);
-    ADD_BOOL(json, "passwordRequired", GET_CONFIG_BOOL("wwwPWrequired"));
-    ADD_INT(json, "rebootSeconds", GET_CONFIG_INT("rebootSeconds"));
+    ADD_BOOL(json, "passwordRequired", userConfig->wwwPWrequired);
+    ADD_INT(json, "rebootSeconds", userConfig->rebootSeconds);
     ADD_INT(json, "freeHeap", free_heap);
     ADD_INT(json, "minHeap", min_heap);
     ADD_INT(json, "minStack", ESP.getFreeContStack());
     ADD_INT(json, "crashCount", crashCount);
-    ADD_INT(json, "wifiPhyMode", GET_CONFIG_INT("wifiPhyMode"));
-    ADD_INT(json, "wifiPower", GET_CONFIG_INT("wifiPower"));
-    ADD_BOOL(json, "staticIP", GET_CONFIG_BOOL("staticIP"));
-    ADD_BOOL(json, "syslogEn", GET_CONFIG_BOOL("syslogEn"));
-    ADD_STR(json, "syslogIP", GET_CONFIG_STRING("syslogIP").c_str());
-    ADD_INT(json, "TTCseconds", GET_CONFIG_INT("TTCdelay"));
+    ADD_INT(json, "wifiPhyMode", userConfig->wifiPhyMode);
+    ADD_INT(json, "wifiPower", userConfig->wifiPower);
+    ADD_BOOL(json, "staticIP", userConfig->staticIP);
+    ADD_BOOL(json, "syslogEn", userConfig->syslogEn);
+    ADD_STR(json, "syslogIP", userConfig->syslogIP);
+    ADD_INT(json, "TTCseconds", userConfig->TTCdelay);
     ADD_INT(json, "motionTriggers", motionTriggers.asInt);
     ADD_INT(json, "LEDidle", (led.getIdleState() == LOW) ? 1 : 0);
     // We send milliseconds relative to current time... ie updated X milliseconds ago
@@ -637,7 +632,7 @@ void handle_setgdo()
     bool reboot = false;
     bool error = false;
 
-    if (GET_CONFIG_BOOL("wwwPWrequired") && !server.authenticateDigest(GET_CONFIG_STRING("wwwUsername").c_str(), GET_CONFIG_STRING("wwwCredentials").c_str()))
+    if (userConfig->wwwPWrequired && !server.authenticateDigest(userConfig->wwwUsername, userConfig->wwwCredentials))
     {
         RINFO("In setGDO request authentication");
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
@@ -691,13 +686,13 @@ void handle_setgdo()
                 *strchr(newUsername, '"') = (char)0;
                 *strchr(newCredentials, '"') = (char)0;
                 // save values...
-                SET_CONFIG_STRING("wwwUsername", newUsername);
-                SET_CONFIG_STRING("wwwCredentials", newCredentials);
+                strlcpy(userConfig->wwwUsername, newUsername, sizeof(userConfig->wwwUsername));
+                strlcpy(userConfig->wwwCredentials, newCredentials, sizeof(userConfig->wwwCredentials));
             }
             else
             {
                 // old implementation... before JSON form of parameter.
-                SET_CONFIG_STRING("wwwCredentials", value);
+                strlcpy(userConfig->wwwCredentials, value, sizeof(userConfig->wwwCredentials));
             }
         }
         else if (!strcmp(key, "GDOSecurityType"))
@@ -708,7 +703,7 @@ void handle_setgdo()
                 RINFO("SetGDO security type to %i", type);
                 // reset the door opener ID, rolling code and presence of motion sensor.
                 reset_door();
-                SET_CONFIG_INT("gdoSecurityType", type);
+                userConfig->gdoSecurityType = type;
                 reboot = true;
             }
             else
@@ -726,57 +721,57 @@ void handle_setgdo()
         else if (!strcmp(key, "softAPmode"))
         {
             RINFO("Request to boot into soft access point mode");
-            SET_CONFIG_BOOL("softAPmode", true);
+            userConfig->softAPmode = true;
             reboot = true;
         }
         else if (!strcmp(key, "passwordRequired"))
         {
-            SET_CONFIG_BOOL("wwwPWrequired", atoi(value) != 0);
+            userConfig->wwwPWrequired = atoi(value) != 0;
         }
         else if (!strcmp(key, "rebootSeconds"))
         {
-            rebootSeconds = atoi(value);
-            SET_CONFIG_INT("rebootSeconds", rebootSeconds);
-            reboot = (rebootSeconds != 0);
+            userConfig->rebootSeconds = atoi(value);
+            reboot = (userConfig->rebootSeconds != 0);
         }
         else if (!strcmp(key, "deviceName"))
         {
             if (strlen(value) > 0)
             {
                 strlcpy(device_name, value, sizeof(device_name));
-                SET_CONFIG_STRING("deviceName", device_name);
+                strlcpy(userConfig->deviceName, value, sizeof(userConfig->deviceName));
             }
         }
         else if (!strcmp(key, "wifiPhyMode"))
         {
             int wifiPhyMode = atoi(value);
-            if (GET_CONFIG_INT("wifiPhyMode") != wifiPhyMode)
+            if (userConfig->wifiPhyMode != wifiPhyMode)
             {
                 // Setting has changed.  Write new value and note that change has taken place
-                SET_CONFIG_INT("wifiPhyMode", wifiPhyMode);
+                userConfig->wifiPhyMode = wifiPhyMode;
                 reboot = true;
             }
         }
         else if (!strcmp(key, "wifiPower"))
         {
             int wifiPower = atoi(value);
-            if (GET_CONFIG_INT("wifiPower") != wifiPower)
+            if (userConfig->wifiPower != wifiPower)
             {
                 // Setting has changed.  Write new value and note that change has taken place
-                SET_CONFIG_INT("wifiPower", wifiPower);
+                userConfig->wifiPower = wifiPower;
                 reboot = true;
             }
         }
         else if (!strcmp(key, "staticIP"))
         {
-            SET_CONFIG_BOOL("staticIP", atoi(value) != 0);
+            userConfig->staticIP = atoi(value) != 0;
             reboot = true;
         }
         else if (!strcmp(key, "subnetMask"))
         {
             if (strlen(value) > 0)
             {
-                SET_CONFIG_STRING("IPnetmask", value);
+                strlcpy(userConfig->IPnetmask, value, sizeof(userConfig->IPnetmask));
+
                 reboot = true;
             }
         }
@@ -784,7 +779,8 @@ void handle_setgdo()
         {
             if (strlen(value) > 0)
             {
-                SET_CONFIG_STRING("IPgateway", value);
+                strlcpy(userConfig->IPgateway, value, sizeof(userConfig->IPgateway));
+
                 reboot = true;
             }
         }
@@ -792,7 +788,8 @@ void handle_setgdo()
         {
             if (strlen(value) > 0)
             {
-                SET_CONFIG_STRING("IPnameserver", value);
+                strlcpy(userConfig->IPnameserver, value, sizeof(userConfig->IPnameserver));
+
                 reboot = true;
             }
         }
@@ -800,27 +797,27 @@ void handle_setgdo()
         {
             if (strlen(value) > 0)
             {
-               SET_CONFIG_STRING("IPaddress", value);
-               reboot = true;
+                strlcpy(userConfig->IPaddress, value, sizeof(userConfig->IPaddress));
+                reboot = true;
             }
         }
         else if (!strcmp(key, "syslogEn"))
         {
             RINFO("Setting SyslogEN to %s", value);
-            SET_CONFIG_BOOL("syslogEn", atoi(value) != 0);
             syslogEn = atoi(value) != 0;
+            userConfig->syslogEn = syslogEn;
         }
         else if (!strcmp(key, "syslogIP"))
         {
             if (strlen(value) > 0)
             {
                 RINFO("Setting SyslogIP to %s", value);
-                SET_CONFIG_STRING("syslogIP", value);
+                strlcpy(userConfig->syslogIP, value, sizeof(userConfig->syslogIP));
             }
         }
         else if (!strcmp(key, "TTCseconds"))
         {
-            SET_CONFIG_INT("TTCdelay", atoi(value));
+            userConfig->TTCdelay = atoi(value);
         }
         else if (!strcmp(key, "motionTriggers"))
         {
@@ -828,18 +825,18 @@ void handle_setgdo()
             // Only reboot if need for motion sensor accessory changes...
             reboot = (((triggers == 0) && (motionTriggers.asInt != 0)) || ((triggers != 0) && (motionTriggers.asInt == 0)));
             motionTriggers.asInt = triggers;
-            SET_CONFIG_INT("motionTriggers", motionTriggers.asInt);
+            userConfig->motionTriggers = motionTriggers.asInt;
         }
         else if (!strcmp(key, "LEDidle"))
         {
             bool idleStateOn = (atoi(value) != 0);
-            SET_CONFIG_INT("ledIdleState", (idleStateOn) ? LOW : HIGH);
+            userConfig->ledIdleState = (idleStateOn) ? LOW : HIGH;
             led.setIdleState((idleStateOn) ? LOW : HIGH);
         }
 #ifdef NTP_CLIENT
         else if (!strcmp(key, "enableNTP"))
         {
-            SET_CONFIG_BOOL("enableNTP", atoi(value) != 0);
+            userConfig->enableNTP = atoi(value) != 0;
             reboot = true;
         }
 #endif
@@ -1122,7 +1119,7 @@ void handle_showrebootlog()
 #ifdef ENABLE_CRASH_LOG
 void handle_clearcrashlog()
 {
-    if (GET_CONFIG_BOOL("wwwPWrequired") && !server.authenticateDigest(GET_CONFIG_STRING("wwwUsername").c_str(), GET_CONFIG_STRING("wwwCredentials").c_str()))
+    if (userConfig->wwwPWrequired && !server.authenticateDigest(userConfig->wwwUsername, userConfig->wwwCredentials))
     {
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
     }
@@ -1219,7 +1216,7 @@ void handle_update()
 
     server.sendHeader(F("Access-Control-Allow-Headers"), "*");
     server.sendHeader(F("Access-Control-Allow-Origin"), "*");
-    if (GET_CONFIG_BOOL("wwwPWrequired") && !server.authenticateDigest(GET_CONFIG_STRING("wwwUsername").c_str(), GET_CONFIG_STRING("wwwCredentials").c_str()))
+    if (userConfig->wwwPWrequired && !server.authenticateDigest(userConfig->wwwUsername, userConfig->wwwCredentials))
     {
         RINFO("In handle_update request authentication");
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
@@ -1281,7 +1278,7 @@ void handle_firmware_upload()
     {
         _updaterError.clear();
 
-        _authenticatedUpdate = !GET_CONFIG_BOOL("wwwPWrequired") || server.authenticateDigest(GET_CONFIG_STRING("wwwUsername").c_str(), GET_CONFIG_STRING("wwwCredentials").c_str());
+        _authenticatedUpdate = !userConfig->wwwPWrequired || server.authenticateDigest(userConfig->wwwUsername, userConfig->wwwCredentials);
         if (!_authenticatedUpdate)
         {
             RINFO("Unauthenticated Update");

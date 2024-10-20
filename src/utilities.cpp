@@ -33,50 +33,23 @@ motionTriggersUnion motionTriggers = {{0}};
 bool softAPmode = false;
 // Realm for MD5 credential hashing
 const char www_realm[] = "RATGDO Login Required";
-// Temporary buffer for read_string_from_file
-#define STRING_BUF_SIZE 64
-char strBuffer[STRING_BUF_SIZE] = "";
 
 // Consolodate all config settings into one file.
 const char userConfigFile[] = "user_config";
-std::map<std::string, std::pair<int, std::any>> userConfig = {
-    {"deviceName", {ConfigType::STRING, std::string("Garage Door")}},
-    {"wifiSettingsChanged", {ConfigType::BOOL, true}},
-    {"wifiPower", {ConfigType::INT, 20}},
-    {"wifiPhyMode", {ConfigType::INT, 0}},
-    {"staticIP", {ConfigType::BOOL, false}},
-    {"IPaddress", {ConfigType::STRING, std::string("0.0.0.0")}},
-    {"IPnetmask", {ConfigType::STRING, std::string("0.0.0.0")}},
-    {"IPgateway", {ConfigType::STRING, std::string("0.0.0.0")}},
-    {"IPnameserver", {ConfigType::STRING, std::string("0.0.0.0")}},
-    {"wwwPWrequired", {ConfigType::BOOL, false}},
-    {"wwwUsername", {ConfigType::STRING, std::string("admin")}},
-    // Credentials are MD5 Hash... server.credentialHash(username, realm, "password");
-    {"wwwCredentials", {ConfigType::STRING, std::string("10d3c00fa1e09696601ef113b99f8a87")}},
-    {"gdoSecurityType", {ConfigType::INT, 2}},
-    {"TTCdelay", {ConfigType::INT, 0}},
-    {"rebootSeconds", {ConfigType::INT, 0}},
-    {"ledIdleState", {ConfigType::INT, LOW}},
-    {"motionTriggers", {ConfigType::INT, 0}},
-#ifdef NTP_CLIENT
-    {"enableNTP", {ConfigType::BOOL, false}},
-    {"doorUpdateAt", {ConfigType::STRING, std::string("")}},
-#endif
-    {"softAPmode", {ConfigType::BOOL, false}},
-    {"syslogEn", {ConfigType::BOOL, false}},
-    {"syslogIP", {ConfigType::STRING, std::string("0.0.0.0")}},
-};
+userConfig_t *userConfig = NULL;
 
+// Controls whether to log to syslog server
 bool syslogEn = false;
 
 #ifdef NTP_CLIENT
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP);
 bool enableNTP = false;
-const char enableNTPFile[] = "enable_ntp_client";
 unsigned long lastRebootAt = 0;
-const char lastDoorUpdateFile[] = "last_door_update";
 int32_t savedDoorUpdateAt = 0;
+// Filenames for legacy user configuation, replaced by single file.
+const char lastDoorUpdateFile[] = "last_door_update";
+const char enableNTPFile[] = "enable_ntp_client";
 
 char *timeString(time_t reqTime)
 {
@@ -119,92 +92,102 @@ void load_all_config_settings()
 {
     snprintf(device_name, DEVICE_NAME_SIZE, "Garage Door %06X", ESP.getChipId());
     RINFO("=== Load all config settings for %s", device_name);
+    if (!userConfig)
+    {
+        userConfig = (userConfig_t *)malloc(sizeof(userConfig_t));
+        *userConfig = (userConfig_t){}; // Initializes with defaults defined in typedef.
+    }
     if (!read_config_from_file())
     {
         // Config file does not exist, load all settings from legacy files (if they exist!)
         RINFO("Loading user configuration from legacy files");
-        SET_CONFIG_STRING("deviceName", read_string_from_file(device_name_file, device_name, strBuffer, sizeof(strBuffer)));
+        read_string_from_file(device_name_file, userConfig->deviceName, device_name, sizeof(userConfig->deviceName));
         Serial.print(".");
-        SET_CONFIG_BOOL("wifiSettingsChanged", read_int_from_file(wifiSettingsChangedFile, 1) != 0);
+        userConfig->wifiSettingsChanged = read_int_from_file(wifiSettingsChangedFile, 1) != 0;
         Serial.print(".");
-        SET_CONFIG_INT("wifiPower", read_int_from_file(wifiPowerFile, GET_CONFIG_INT("wifiPower")));
+        userConfig->wifiPower = read_int_from_file(wifiPowerFile, userConfig->wifiPower);
         Serial.print(".");
-        SET_CONFIG_INT("wifiPhyMode", read_int_from_file(wifiPhyModeFile));
+        userConfig->wifiPhyMode = read_int_from_file(wifiPhyModeFile);
         Serial.print(".");
-        SET_CONFIG_BOOL("staticIP", read_int_from_file(staticIPfile) != 0);
+        userConfig->staticIP = read_int_from_file(staticIPfile) != 0;
         Serial.print(".");
-        if (GET_CONFIG_BOOL("staticIP"))
+        if (userConfig->staticIP)
         {
-            SET_CONFIG_STRING("IPaddress", read_string_from_file(IPaddressFile, GET_CONFIG_STRING("IPaddress").c_str(), strBuffer, sizeof(strBuffer)));
+            read_string_from_file(IPaddressFile, userConfig->IPaddress, userConfig->IPaddress, sizeof(userConfig->IPaddress));
             Serial.print(".");
-            SET_CONFIG_STRING("IPnetmask", read_string_from_file(IPnetmaskFile, GET_CONFIG_STRING("IPnetmask").c_str(), strBuffer, sizeof(strBuffer)));
+            read_string_from_file(IPnetmaskFile, userConfig->IPnetmask, userConfig->IPnetmask, sizeof(userConfig->IPnetmask));
             Serial.print(".");
-            SET_CONFIG_STRING("IPgateway", read_string_from_file(IPgatewayFile, GET_CONFIG_STRING("IPgateway").c_str(), strBuffer, sizeof(strBuffer)));
+            read_string_from_file(IPgatewayFile, userConfig->IPgateway, userConfig->IPgateway, sizeof(userConfig->IPgateway));
             Serial.print(".");
-            SET_CONFIG_STRING("IPnameserver", read_string_from_file(IPnameserverFile, GET_CONFIG_STRING("IPnameserver").c_str(), strBuffer, sizeof(strBuffer)));
+            read_string_from_file(IPnameserverFile, userConfig->IPnameserver, userConfig->IPnameserver, sizeof(userConfig->IPnameserver));
             Serial.print(".");
         }
-        SET_CONFIG_BOOL("wwwPWrequired", read_int_from_file(www_pw_required_file) != 0);
+        userConfig->wwwPWrequired = read_int_from_file(www_pw_required_file) != 0;
         Serial.print(".");
-        SET_CONFIG_STRING("wwwUsername", read_string_from_file(username_file, GET_CONFIG_STRING("wwwUsername").c_str(), strBuffer, sizeof(strBuffer)));
+        read_string_from_file(username_file, userConfig->wwwUsername, userConfig->wwwUsername, sizeof(userConfig->wwwUsername));
         Serial.print(".");
-        SET_CONFIG_STRING("wwwCredentials", read_string_from_file(credentials_file, GET_CONFIG_STRING("wwwCredentials").c_str(), strBuffer, sizeof(strBuffer)));
+        read_string_from_file(credentials_file, userConfig->wwwCredentials, userConfig->wwwCredentials, sizeof(userConfig->wwwCredentials));
         Serial.print(".");
-        SET_CONFIG_INT("gdoSecurityType", read_int_from_file(gdoSecurityTypeFile, GET_CONFIG_INT("gdoSecurityType")));
+        userConfig->gdoSecurityType = read_int_from_file(gdoSecurityTypeFile, userConfig->gdoSecurityType);
         Serial.print(".");
-        SET_CONFIG_INT("TTCdelay", read_int_from_file(TTCdelay_file));
+        userConfig->TTCdelay = read_int_from_file(TTCdelay_file);
         Serial.print(".");
-        SET_CONFIG_INT("rebootSeconds", read_int_from_file(system_reboot_timer));
+        userConfig->rebootSeconds = read_int_from_file(system_reboot_timer);
         Serial.print(".");
-        SET_CONFIG_INT("ledIdleState", read_int_from_file(ledIdleStateFile, LOW));
+        userConfig->ledIdleState = read_int_from_file(ledIdleStateFile, userConfig->ledIdleState);
         Serial.print(".");
-        SET_CONFIG_INT("motionTriggers", read_int_from_file(motionTriggersFile));
+        userConfig->motionTriggers = read_int_from_file(motionTriggersFile);
         Serial.print(".");
 #ifdef NTP_CLIENT
-        SET_CONFIG_BOOL("enableNTP", read_int_from_file(enableNTPFile) != 0);
+        userConfig->enableNTP = read_int_from_file(enableNTPFile) != 0;
         Serial.print(".");
-        SET_CONFIG_INT("doorUpdateAt", read_int_from_file(lastDoorUpdateFile));
+        userConfig->doorUpdateAt = read_int_from_file(lastDoorUpdateFile);
         Serial.print(".");
 #endif
-        SET_CONFIG_BOOL("softAPmode", read_int_from_file(softAPmodeFile) != 0);
+        userConfig->softAPmode = read_int_from_file(softAPmodeFile) != 0;
         Serial.print("\n");
         // Save to file so we never have to read from individual files again.
         write_config_to_file();
     }
 
     // All user configuration loaded, set globals...
-    led.setIdleState((uint8_t)GET_CONFIG_INT("ledIdleState"));
-    strlcpy(device_name, GET_CONFIG_STRING("deviceName").c_str(), sizeof(device_name));
+    led.setIdleState((uint8_t)userConfig->ledIdleState);
+    strlcpy(device_name, userConfig->deviceName, sizeof(device_name));
     make_rfc952(device_name_rfc952, device_name, sizeof(device_name_rfc952));
-    motionTriggers.asInt = GET_CONFIG_INT("motionTriggers");
-    softAPmode = GET_CONFIG_BOOL("softAPmode");
+    motionTriggers.asInt = userConfig->motionTriggers;
+    softAPmode = userConfig->softAPmode;
 #ifdef NTP_CLIENT
     // Only enable NTP client if not in soft AP mode.
-    enableNTP = !softAPmode && GET_CONFIG_BOOL("enableNTP");
+    enableNTP = !softAPmode && userConfig->enableNTP;
 #endif
-
+    syslogEn = userConfig->syslogEn;
     // Now log what we have loaded
     RINFO("RFC952 compliant device hostname: %s", device_name_rfc952);
-
-    RINFO("User configuration...");
-    for (const auto &setting : userConfig)
-    {
-        RINFO("%s: %s", setting.first.c_str(),
-              (setting.second.first == ConfigType::BOOL)     ? ((std::any_cast<bool>(setting.second.second)) ? "true" : "false")
-              : (setting.second.first == ConfigType::INT)    ? std::to_string(std::any_cast<int>(setting.second.second)).c_str()
-              : (setting.second.first == ConfigType::STRING) ? std::any_cast<std::string>(setting.second.second).c_str()
-                                                             : "Unknown Type");
-    }
-    if (GET_CONFIG_BOOL("staticIP"))
-    {
-        RINFO("Static IP address configured... IP: %s, Mask: %s, Gateway: %s, DNS: %s",
-              GET_CONFIG_STRING("IPaddress").c_str(),
-              GET_CONFIG_STRING("IPnetmask").c_str(),
-              GET_CONFIG_STRING("IPgateway").c_str(),
-              GET_CONFIG_STRING("IPnameserver").c_str());
-    }
-
-    syslogEn = GET_CONFIG_BOOL("syslogEn");
+    RINFO("User Configuration...");
+    RINFO("   deviceName:          %s", userConfig->deviceName);
+    RINFO("   wifiSettingsChanged: %s", userConfig->wifiSettingsChanged ? "true" : "false");
+    RINFO("   wifiPower:           %d", userConfig->wifiPower);
+    RINFO("   wifiPhyMode:         %d", userConfig->wifiPhyMode);
+    RINFO("   staticIP:            %s", userConfig->staticIP ? "true" : "false");
+    RINFO("   IPaddress:           %s", userConfig->IPaddress);
+    RINFO("   IPnetmask:           %s", userConfig->IPnetmask);
+    RINFO("   IPgateway:           %s", userConfig->IPgateway);
+    RINFO("   IPnameserver:        %s", userConfig->IPnameserver);
+    RINFO("   wwwPWrequired:       %s", userConfig->wwwPWrequired ? "true" : "false");
+    RINFO("   wwwUsername:         %s", userConfig->wwwUsername);
+    RINFO("   wwwCredentials:      %s", userConfig->wwwCredentials);
+    RINFO("   gdoSecurityType:     %d", userConfig->gdoSecurityType);
+    RINFO("   TTCdelay:            %d", userConfig->TTCdelay);
+    RINFO("   rebootSeconds:       %d", userConfig->rebootSeconds);
+    RINFO("   ledIdleState:        %d", userConfig->ledIdleState);
+    RINFO("   motionTriggers:      %d", userConfig->motionTriggers);
+#ifdef NTP_CLIENT
+    RINFO("   enableNTP:           %s", userConfig->enableNTP ? "true" : "false");
+    RINFO("   doorUpdateAt:        %d", userConfig->doorUpdateAt);
+#endif
+    RINFO("   softAPmode:          %s", userConfig->softAPmode ? "true" : "false");
+    RINFO("   syslogEn:            %s", userConfig->syslogEn ? "true" : "false");
+    RINFO("   syslogIP:            %s", userConfig->syslogIP);
 }
 
 void sync_and_restart()
@@ -218,7 +201,7 @@ void sync_and_restart()
     if (softAPmode)
     {
         // reset so next reboot will be standard station mode
-        SET_CONFIG_BOOL("softAPmode", false);
+        userConfig->softAPmode = false;
         write_config_to_file();
     }
     else
@@ -285,26 +268,30 @@ void write_config_to_file()
 {
     RINFO("Writing user configuration to file: %s", userConfigFile);
     File file = LittleFS.open(userConfigFile, "w");
-    for (const auto &setting : userConfig)
-    {
-        file.print(setting.first.c_str());
-        file.print(",");
-        file.print(setting.second.first);
-        file.print(",");
-        switch (setting.second.first)
-        {
-        case ConfigType::BOOL:
-            file.print((std::any_cast<bool>(setting.second.second)) ? "true" : "false");
-            break;
-        case ConfigType::INT:
-            file.print(std::any_cast<int>(setting.second.second));
-            break;
-        case ConfigType::STRING:
-            file.print(std::any_cast<std::string>(setting.second.second).c_str());
-            break;
-        }
-        file.print("\n");
-    }
+    file.printf_P(PSTR("deviceName,,%s\n"), userConfig->deviceName);
+    file.printf_P(PSTR("wifiSettingsChanged,,%s\n"), userConfig->wifiSettingsChanged ? "true" : "false");
+    file.printf_P(PSTR("wifiPower,,%d\n"), userConfig->wifiPower);
+    file.printf_P(PSTR("wifiPhyMode,,%d\n"), userConfig->wifiPhyMode);
+    file.printf_P(PSTR("staticIP,,%s\n"), userConfig->staticIP ? "true" : "false");
+    file.printf_P(PSTR("IPaddress,,%s\n"), userConfig->IPaddress);
+    file.printf_P(PSTR("IPnetmask,,%s\n"), userConfig->IPnetmask);
+    file.printf_P(PSTR("IPgateway,,%s\n"), userConfig->IPgateway);
+    file.printf_P(PSTR("IPnameserver,,%s\n"), userConfig->IPnameserver);
+    file.printf_P(PSTR("wwwPWrequired,,%s\n"), userConfig->wwwPWrequired ? "true" : "false");
+    file.printf_P(PSTR("wwwUsername,,%s\n"), userConfig->wwwUsername);
+    file.printf_P(PSTR("wwwCredentials,,%s\n"), userConfig->wwwCredentials);
+    file.printf_P(PSTR("gdoSecurityType,,%d\n"), userConfig->gdoSecurityType);
+    file.printf_P(PSTR("TTCdelay,,%d\n"), userConfig->TTCdelay);
+    file.printf_P(PSTR("rebootSeconds,,%d\n"), userConfig->rebootSeconds);
+    file.printf_P(PSTR("ledIdleState,,%d\n"), userConfig->ledIdleState);
+    file.printf_P(PSTR("motionTriggers,,%d\n"), userConfig->motionTriggers);
+#ifdef NTP_CLIENT
+    file.printf_P(PSTR("enableNTP,,%s\n"), userConfig->enableNTP ? "true" : "false");
+    file.printf_P(PSTR("doorUpdateAt,,%d\n"), userConfig->doorUpdateAt);
+#endif
+    file.printf_P(PSTR("softAPmode,,%s\n"), userConfig->softAPmode ? "true" : "false");
+    file.printf_P(PSTR("syslogEn,,%s\n"), userConfig->syslogEn ? "true" : "false");
+    file.printf_P(PSTR("syslogIP,,%s\n"), userConfig->syslogIP);
     file.close();
 }
 
@@ -323,17 +310,98 @@ bool read_config_from_file()
         char *value = strchr(type, ',');
         *value++ = 0;
 
-        switch (atoi(type))
+        if (!userConfig)
+            return false;
+
+        if (!strcmp(key, "deviceName"))
         {
-        case ConfigType::BOOL:
-            SET_CONFIG_BOOL(key, !strcmp(value, "true"));
-            break;
-        case ConfigType::INT:
-            SET_CONFIG_INT(key, atoi(value));
-            break;
-        case ConfigType::STRING:
-            SET_CONFIG_STRING(key, value);
-            break;
+            strlcpy(userConfig->deviceName, value, sizeof(userConfig->deviceName));
+        }
+        else if (!strcmp(key, "wifiSettingsChanged"))
+        {
+            userConfig->wifiSettingsChanged = !strcmp(value, "true");
+        }
+        else if (!strcmp(key, "wifiPower"))
+        {
+            userConfig->wifiPower = atoi(value);
+        }
+        else if (!strcmp(key, "wifiPhyMode"))
+        {
+            userConfig->wifiPhyMode = atoi(value);
+        }
+        else if (!strcmp(key, "staticIP"))
+        {
+            userConfig->staticIP = !strcmp(value, "true");
+        }
+        else if (!strcmp(key, "IPaddress"))
+        {
+            strlcpy(userConfig->IPaddress, value, sizeof(userConfig->IPaddress));
+        }
+        else if (!strcmp(key, "IPnetmask"))
+        {
+            strlcpy(userConfig->IPnetmask, value, sizeof(userConfig->IPnetmask));
+        }
+        else if (!strcmp(key, "IPgateway"))
+        {
+            strlcpy(userConfig->IPgateway, value, sizeof(userConfig->IPgateway));
+        }
+        else if (!strcmp(key, "IPnameserver"))
+        {
+            strlcpy(userConfig->IPnameserver, value, sizeof(userConfig->IPnameserver));
+        }
+        else if (!strcmp(key, "wwwPWrequired"))
+        {
+            userConfig->wwwPWrequired = !strcmp(value, "true");
+        }
+        else if (!strcmp_P(key, PSTR("wwwUsername")))
+        {
+            strlcpy(userConfig->wwwUsername, value, sizeof(userConfig->wwwUsername));
+        }
+        else if (!strcmp(key, "wwwCredentials"))
+        {
+            strlcpy(userConfig->wwwCredentials, value, sizeof(userConfig->wwwCredentials));
+        }
+        else if (!strcmp(key, "gdoSecurityType"))
+        {
+            userConfig->gdoSecurityType = atoi(value);
+        }
+        else if (!strcmp(key, "TTCdelay"))
+        {
+            userConfig->TTCdelay = atoi(value);
+        }
+        else if (!strcmp(key, "rebootSeconds"))
+        {
+            userConfig->rebootSeconds = atoi(value);
+        }
+        else if (!strcmp(key, "ledIdleState"))
+        {
+            userConfig->ledIdleState = atoi(value);
+        }
+        else if (!strcmp(key, "motionTriggers"))
+        {
+            userConfig->motionTriggers = atoi(value);
+        }
+#ifdef NTP_CLIENT
+        else if (!strcmp(key, "enableNTP"))
+        {
+            userConfig->enableNTP = !strcmp(value, "true");
+        }
+        else if (!strcmp(key, "doorUpdateAt"))
+        {
+            userConfig->doorUpdateAt = 0;
+        }
+#endif
+        else if (!strcmp(key, "softAPmode"))
+        {
+            userConfig->softAPmode = !strcmp(value, "true");
+        }
+        else if (!strcmp(key, "syslogEn"))
+        {
+            userConfig->syslogEn = !strcmp(value, "true");
+        }
+        else if (!strcmp(key, "syslogIP"))
+        {
+            strlcpy(userConfig->syslogIP, value, sizeof(userConfig->syslogIP));
         }
     }
     file.close();

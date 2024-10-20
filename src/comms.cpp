@@ -39,9 +39,6 @@ void (*TTC_Action)(void) = NULL;
 struct ForceRecover force_recover;
 #define force_recover_delay 3
 
-// we use this in loop, so copy out of map.
-int gdoSecurityType = 2;
-
 /******************************* SECURITY 2.0 *********************************/
 
 SecPlus2Reader reader;
@@ -107,9 +104,7 @@ void setup_comms()
     // init queue
     q_init(&pkt_q, sizeof(PacketAction), 8, FIFO, false);
 
-    // we use this in loop, so copy out of map.
-    gdoSecurityType = GET_CONFIG_INT("gdoSecurityType");
-    if (gdoSecurityType == 1)
+    if (userConfig->gdoSecurityType == 1)
     {
 
         RINFO("=== Setting up comms for Secuirty+1.0 protocol");
@@ -833,21 +828,21 @@ void comms_loop_sec2()
                 break;
             }
 
-                case PacketCommand::Motion:
+            case PacketCommand::Motion:
+            {
+                RINFO("Motion Detected");
+                // We got a motion message, so we know we have a motion sensor
+                // If it's not yet enabled, add the service
+                if (!garage_door.has_motion_sensor)
                 {
-                    RINFO("Motion Detected");
-                    // We got a motion message, so we know we have a motion sensor
-                    // If it's not yet enabled, add the service
-                    if (!garage_door.has_motion_sensor)
-                    {
-                        RINFO("Detected new Motion Sensor. Enabling Service");
-                        garage_door.has_motion_sensor = true;
-                        motionTriggers.bit.motion = 1;
-                        SET_CONFIG_INT("motionTriggers", motionTriggers.asInt);
-                        write_config_to_file();
-                        // Only reboot if we had not already other motionTriggers (which would have enabled service already)
-                        enable_service_homekit_motion(motionTriggers.asInt == 1);
-                    }
+                    RINFO("Detected new Motion Sensor. Enabling Service");
+                    garage_door.has_motion_sensor = true;
+                    motionTriggers.bit.motion = 1;
+                    userConfig->motionTriggers = motionTriggers.asInt;
+                    write_config_to_file();
+                    // Only reboot if we had not already other motionTriggers (which would have enabled service already)
+                    enable_service_homekit_motion(motionTriggers.asInt == 1);
+                }
 
                 /* When we get the motion detect message, notify HomeKit. Motion sensor
                     will continue to send motion messages every 5s until motion stops.
@@ -895,8 +890,8 @@ void comms_loop_sec2()
 
 void comms_loop()
 {
-    loop_id=LOOP_COMMS;
-    if (gdoSecurityType == 1)
+    loop_id = LOOP_COMMS;
+    if (userConfig->gdoSecurityType == 1)
         comms_loop_sec1();
     else
         comms_loop_sec2();
@@ -983,7 +978,7 @@ bool process_PacketAction(PacketAction &pkt_ac)
     // Use LED to signal activity
     led.flash(FLASH_MS);
 
-    if (gdoSecurityType == 1)
+    if (userConfig->gdoSecurityType == 1)
     {
         // check which action
         switch (pkt_ac.pkt.m_data.type)
@@ -1132,7 +1127,7 @@ void door_command(DoorAction action)
     q_push(&pkt_q, &pkt_ac);
 
     // when observing wall panel 2 releases happen, so we do the same
-    if (gdoSecurityType == 1)
+    if (userConfig->gdoSecurityType == 1)
     {
         q_push(&pkt_q, &pkt_ac);
     }
@@ -1211,7 +1206,7 @@ void close_door()
         return;
     }
 
-    if (GET_CONFIG_INT("TTCdelay") == 0)
+    if (userConfig->TTCdelay == 0)
     {
         door_command(DoorAction::Close);
     }
@@ -1228,9 +1223,9 @@ void close_door()
         }
         else
         {
-            RINFO("Delay door close by %d seconds", GET_CONFIG_INT("TTCdelay"));
+            RINFO("Delay door close by %d seconds", userConfig->TTCdelay);
             // Call delay loop every 0.5 seconds to flash light.
-            TTCcountdown = GET_CONFIG_INT("TTCdelay") * 2;
+            TTCcountdown = userConfig->TTCdelay * 2;
             // Remember whether light was on or off
             TTCwasLightOn = garage_door.light;
             TTC_Action = &door_command_close;
@@ -1242,7 +1237,7 @@ void close_door()
 void send_get_status()
 {
     // only used with SECURITY2.0
-    if (gdoSecurityType == 2)
+    if (userConfig->gdoSecurityType == 2)
     {
         PacketData d;
         d.type = PacketDataType::NoData;
@@ -1281,7 +1276,7 @@ void set_lock(uint8_t value)
     }
 
     // SECUIRTY1.0
-    if (gdoSecurityType == 1)
+    if (userConfig->gdoSecurityType == 1)
     {
 
         // this emulates the "look" button press+release
@@ -1342,7 +1337,7 @@ void set_light(bool value)
     }
 
     // SECUIRTY+1.0
-    if (gdoSecurityType == 1)
+    if (userConfig->gdoSecurityType == 1)
     {
         // this emulates the "light" button press+release
         // - PRESS (0x32)
@@ -1394,7 +1389,7 @@ void manual_recovery()
     if (force_recover.push_count >= 5)
     {
         RINFO("Request to boot into soft access point mode in %ds", force_recover_delay);
-        SET_CONFIG_BOOL("softAPmode", true);
+        userConfig->softAPmode = true;
         write_config_to_file();
         // Call delay loop every 0.5 seconds to flash light.
         TTCcountdown = force_recover_delay * 2;

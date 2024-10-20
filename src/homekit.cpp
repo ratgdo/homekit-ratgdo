@@ -69,7 +69,7 @@ void setup_homekit()
     light_state.setter = light_state_set;
 
     garage_door.has_motion_sensor = (bool)read_int_from_file("has_motion");
-    if (!garage_door.has_motion_sensor && (GET_CONFIG_INT("motionTriggers") == 0))
+    if (!garage_door.has_motion_sensor && (userConfig->motionTriggers == 0))
     {
         RINFO("Motion Sensor not detected.  Disabling Service");
         config.accessories[0]->services[3] = NULL;

@@ -4,9 +4,6 @@
 #include <ESP8266WiFi.h>
 #include "homekit_decl.h"
 #include "ratgdo.h"
-#include <map>
-#include <string>
-#include <any>
 
 #ifdef NTP_CLIENT
 #include <WiFiUdp.h>
@@ -17,6 +14,7 @@ extern char *timeString(time_t reqTime = 0);
 extern bool enableNTP;
 #endif
 
+// Controls whether to log to syslog server
 extern bool syslogEn;
 
 // Controls soft Access Point mode.
@@ -25,22 +23,37 @@ extern bool softAPmode;
 // Password and credential management for HTTP server...
 extern const char www_realm[];
 
-// map and macros to hold, get and set user configuration settings.
-enum ConfigType : int
+// struct to hold user configuration settings.
+#define IP_ADDRESS_SIZE 16
+typedef struct
 {
-    BOOL = 1,
-    INT = 2,
-    STRING = 3
-};
-extern std::map<std::string, std::pair<int, std::any>> userConfig;
-
-#define GET_CONFIG_BOOL(key) (std::any_cast<bool>(userConfig[key].second))
-#define GET_CONFIG_INT(key) (std::any_cast<int>(userConfig[key].second))
-#define GET_CONFIG_STRING(key) (std::any_cast<std::string>(userConfig[key].second))
-
-#define SET_CONFIG_BOOL(key, value) (userConfig[key] = {ConfigType::BOOL, static_cast<bool>(value)})
-#define SET_CONFIG_INT(key, value) (userConfig[key] = {ConfigType::INT, static_cast<int>(value)})
-#define SET_CONFIG_STRING(key, value) (userConfig[key] = {ConfigType::STRING, std::string(value)})
+    char deviceName[DEVICE_NAME_SIZE];
+    bool wifiSettingsChanged = true;
+    int wifiPower = 20;
+    int wifiPhyMode = 0;
+    bool staticIP = false;
+    char IPaddress[IP_ADDRESS_SIZE] = "0.0.0.0";
+    char IPnetmask[IP_ADDRESS_SIZE] = "0.0.0.0";
+    char IPgateway[IP_ADDRESS_SIZE] = "0.0.0.0";
+    char IPnameserver[IP_ADDRESS_SIZE] = "0.0.0.0";
+    bool wwwPWrequired = false;
+    char wwwUsername[32] = "admin";
+    // Credentials are MD5 Hash... server.credentialHash(username, realm, "password");
+    char wwwCredentials[36] = "10d3c00fa1e09696601ef113b99f8a87";
+    int gdoSecurityType = 2;
+    int TTCdelay = 0;
+    int rebootSeconds = 0;
+    int ledIdleState = LOW;
+    int motionTriggers = 0;
+#ifdef NTP_CLIENT
+    bool enableNTP = false;
+    int doorUpdateAt = 0;
+#endif
+    bool softAPmode = false;
+    bool syslogEn = false;
+    char syslogIP[IP_ADDRESS_SIZE] = "0.0.0.0";
+} userConfig_t;
+extern userConfig_t *userConfig;
 
 // Bitset that identifies what will trigger the motion sensor
 typedef struct
