@@ -23,5 +23,6 @@ typedef struct
     uint8_t bssid[6];
 } wifiNet_t;
 extern std::multiset<wifiNet_t, bool (*)(wifiNet_t, wifiNet_t)> wifiNets;
+extern station_config wifiConf;
 
 #endif /* WIFI_INFO_H_ */

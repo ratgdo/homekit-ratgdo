@@ -126,36 +126,36 @@ const char *http_methods[] PROGMEM = {"HTTP_ANY", "HTTP_GET", "HTTP_HEAD", "HTTP
 const char softAPhttpPreamble[] PROGMEM = "HTTP/1.1 200 OK\nContent-Type: text/html\nCache-Control: no-cache, no-store\nConnection: close\n\n<!DOCTYPE html>";
 const char softAPstyle[] PROGMEM = R"(<style>
 .adv {
-    display: none;
+ display: none;
 }
 td,th {
-    text-align: left;
+ text-align: left;
 }
 th:nth-child(1n+4), td:nth-child(1n+4) {
-    display: none;
-    text-align: right;
+ display: none;
+ text-align: right;
 }
 </style>)";
 const char softAPscript[] PROGMEM = R"(<script>
 const warnTxt = 'Selecting SSID in advanced mode locks the device to a specific WiFi ' +
-    'access point by its unique hardware BSSID. If that access point goes offline, or you replace ' +
-    'it, then the device will NOT connect to WiFi.';
+ 'access point by its unique hardware BSSID. If that access point goes offline, or you replace ' +
+ 'it, then the device will NOT connect to WiFi.';
 const setTxt = 'Set SSID and password, are you sure?';
 function shAdv(checked) {
-    Array.from(document.getElementsByClassName('adv')).forEach((elem) => {
-        elem.style.display = checked ? 'table-row' : 'none';
-    });
-    Array.from(document.querySelectorAll('th:nth-child(1n+4), td:nth-child(1n+4)')).forEach((elem) => {
-        elem.style.display = checked ? 'table-cell' : 'none';
-    });
-    document.getElementById('warn').innerHTML = checked ? '<p><b>WARNING: </b>' + warnTxt + '</p>' : '';
+ Array.from(document.getElementsByClassName('adv')).forEach((elem) => {
+  elem.style.display = checked ? 'table-row' : 'none';
+ });
+ Array.from(document.querySelectorAll('th:nth-child(1n+4), td:nth-child(1n+4)')).forEach((elem) => {
+  elem.style.display = checked ? 'table-cell' : 'none';
+ });
+ document.getElementById('warn').innerHTML = checked ? '<p><b>WARNING: </b>' + warnTxt + '</p>' : '';
 }
 function confirmAdv() {
-    if (document.getElementById('adv').checked) {
-        return confirm('WARNING: ' + warnTxt + '\n\n' + setTxt);
-    } else {
-        return confirm(setTxt);
-    }
+ if (document.getElementById('adv').checked) {
+  return confirm('WARNING: ' + warnTxt + '\n\n' + setTxt);
+ } else {
+  return confirm(setTxt);
+ }
 }
 </script>)";
 const char softAPtableHead[] PROGMEM = R"(
@@ -614,7 +614,8 @@ void handle_status()
     ADD_STR(json, "nameserverIP", nameserverIP);
     ADD_STR(json, "macAddress", macAddress);
     ADD_STR(json, "wifiSSID", wifiSSID);
-    ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm").c_str());
+    ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm, Channel " + std::to_string(WiFi.channel())).c_str());
+    ADD_STR(json, "wifiBSSID", (WiFi.BSSIDstr() + (wifiConf.bssid_set ? " (locked)" : "")).c_str());
     ADD_INT(json, "GDOSecurityType", userConfig->gdoSecurityType);
     ADD_STR(json, "garageDoorState", garage_door.active ? DOOR_STATE(garage_door.current_state) : DOOR_STATE(255));
     ADD_STR(json, "garageLockState", LOCK_STATE(garage_door.current_lock));
@@ -987,7 +988,7 @@ void SSEheartbeat(SSESubscription *s)
         ADD_INT(json, "freeHeap", free_heap);
         ADD_INT(json, "minHeap", min_heap);
         ADD_INT(json, "minStack", ESP.getFreeContStack());
-        ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm").c_str());
+        ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm, Channel " + std::to_string(WiFi.channel())).c_str());
         ADD_BOOL(json, "checkFlashCRC", flashCRC);
         END_JSON(json);
         REMOVE_NL(json);
@@ -1501,13 +1502,13 @@ void handle_setssid()
     {
         RINFO("Requested WiFi SSID: %s (%d) at AP: %02x:%02x:%02x:%02x:%02x:%02x",
               ssid, net, wifiNet.bssid[0], wifiNet.bssid[1], wifiNet.bssid[2], wifiNet.bssid[3], wifiNet.bssid[4], wifiNet.bssid[5]);
-        snprintf_P(json, JSON_BUFFER_SIZE, PSTR("Setting SSID to: %s at Access Point: %02x:%02x:%02x:%02x:%02x:%02x\nRATGDO rebooting."),
+        snprintf_P(json, JSON_BUFFER_SIZE, PSTR("Setting SSID to: %s locked to Access Point: %02x:%02x:%02x:%02x:%02x:%02x\nRATGDO rebooting.\nPlease wait 30 seconds and connect to RATGDO on new network."),
                    ssid, wifiNet.bssid[0], wifiNet.bssid[1], wifiNet.bssid[2], wifiNet.bssid[3], wifiNet.bssid[4], wifiNet.bssid[5]);
     }
     else
     {
         RINFO("Requested WiFi SSID: %s (%d)", ssid);
-        snprintf_P(json, JSON_BUFFER_SIZE, PSTR("Setting SSID to: %s\nRATGDO rebooting."), ssid);
+        snprintf_P(json, JSON_BUFFER_SIZE, PSTR("Setting SSID to: %s\nRATGDO rebooting.\nPlease wait 30 seconds and connect to RATGDO on new network."), ssid);
     }
     server.client().setNoDelay(true);
     server.send_P(200, type_txt, json);
@@ -1536,7 +1537,7 @@ void handle_setssid()
         RINFO("WiFi Failed to connect to SSID: %s", ssid);
         if (connected)
         {
-            RINFO("Resetting WiFi to previous SSID: %s", previousSSID.c_str());
+            RINFO("Resetting WiFi to previous SSID: %s, removing any Access Point BSSID lock", previousSSID.c_str());
             connect_wifi(previousSSID.c_str(), previousPSK.c_str());
         }
     }

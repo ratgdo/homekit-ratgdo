@@ -35,6 +35,7 @@ bool wifiNetsCmp(wifiNet_t a, wifiNet_t b)
     return (a.ssid < b.ssid) || ((a.ssid == b.ssid) && (a.rssi > b.rssi));
 }
 std::multiset<wifiNet_t, decltype(&wifiNetsCmp)> wifiNets(&wifiNetsCmp);
+station_config wifiConf;
 
 #define MAX_ATTEMPTS_WIFI_CONNECTION 30
 uint8_t x_buffer[128];
@@ -182,6 +183,16 @@ void wifi_connect()
     gotIPHandler = WiFi.onStationModeGotIP(&onGotIP);
     dhcpTimeoutHandler = WiFi.onStationModeDHCPTimeout(&onDHCPTimeout);
 
+    wifi_station_get_config_default(&wifiConf);
+    if (wifiConf.bssid_set)
+    {
+        RINFO("Connecting to SSID: %s locked to Access Point: %02x:%02x:%02x:%02x:%02x:%02x, ", wifiConf.ssid,
+              wifiConf.bssid[0], wifiConf.bssid[1], wifiConf.bssid[2], wifiConf.bssid[3], wifiConf.bssid[4], wifiConf.bssid[5]);
+    }
+    else
+    {
+        RINFO("Connecting to SSID: %s", wifiConf.ssid);
+    }
     RINFO("Starting WiFi connecting in background");
     wifiConnectTimeout = millis() + 30000;
     WiFi.begin(); // use credentials stored in flash
