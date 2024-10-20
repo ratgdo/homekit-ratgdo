@@ -11,6 +11,7 @@ var checkHeartbeat = undefined; // setTimeout for heartbeat timeout
 var evtSource = undefined;      // for Server Sent Events (SSE)
 var delayStatusFn = [];         // to keep track of possible checkStatus timeouts
 const clientUUID = uuidv4();    // uniquely identify this session
+const rebootSeconds = 15;       // How long to wait before reloading page after reboot
 
 // https://stackoverflow.com/questions/7995752/detect-desktop-browser-not-mobile-with-javascript
 const isTouchDevice = function () { return 'ontouchstart' in window || 'onmsgesturechange' in window; };
@@ -462,7 +463,8 @@ async function firmwareUpdate(github = true) {
     finally {
         clearInterval(aniDots);
         if (showRebootMsg) {
-            countdown(30, rebootMsg + "<br>RATGDO device rebooting...&nbsp;");
+            // Additional 10 seconds for new firmware copy on first boot.
+            countdown(rebootSeconds + 10, rebootMsg + "<br>RATGDO device rebooting...&nbsp;");
         } else {
             document.getElementById("updateDotDot").style.display = "none";
             document.getElementById("updateDialog").style.display = "block";
@@ -472,6 +474,7 @@ async function firmwareUpdate(github = true) {
 
 async function rebootRATGDO(dialog = true) {
     if (dialog) {
+        /*** Disable this as we don't have any CRC problems anymore.
         document.getElementById("pleaseWait").style.display = "block";
         loaderElem.style.visibility = "visible";
         const response = await fetch("checkflash", {
@@ -483,10 +486,13 @@ async function rebootRATGDO(dialog = true) {
         // Give browser a moment to actually hide the spinner...
         await new Promise(r => setTimeout(r, 50));
         document.getElementById("pleaseWait").style.display = "none";
+        */
         let txt = "Reboot RATGDO, are you sure?";
+        /*
         if (result !== 'true') {
             txt = "WARNING: Flash CRC check failed. You must flash new firmware by USB cable to recover, please consult documentation. RATGDO device may not restart if you reboot now. Reboot anyway?";
         }
+        */
         if (!confirm(txt)) return;
     }
     var response = await fetch("reboot", {
@@ -496,7 +502,7 @@ async function rebootRATGDO(dialog = true) {
         console.warn("Error attempting to reboot RATGDO");
         return;
     }
-    if (dialog) countdown(30, "RATGDO device rebooting...&nbsp;");
+    if (dialog) countdown(rebootSeconds, "RATGDO device rebooting...&nbsp;");
 }
 
 async function unpairRATGDO() {
@@ -513,7 +519,7 @@ async function unpairRATGDO() {
         console.warn("Error attempting to unpair and reboot RATGDO");
         return;
     }
-    countdown(30, "RATGO un-pairing and rebooting...&nbsp;");
+    countdown(rebootSeconds, "RATGO un-pairing and rebooting...&nbsp;");
 }
 
 async function checkAuth(loader = true) {
@@ -703,7 +709,7 @@ async function saveSettings() {
         "syslogIP", syslogIP
     );
     if (reboot) {
-        countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");
+        countdown(rebootSeconds, "Settings saved, RATGDO device rebooting...&nbsp;");
     }
     else {
         // No need to reboot, but return to main page to reload status.
@@ -715,7 +721,7 @@ async function saveSettings() {
 async function resetDoor() {
     if (confirm('Reset door rolling codes and presence of motion sensor. Settings will not change but device will reboot, are you sure?')) {
         await setGDO("resetDoor", true);
-        countdown(30, "Door reset, RATGDO device rebooting...&nbsp;");
+        countdown(rebootSeconds, "Door reset, RATGDO device rebooting...&nbsp;");
     }
     return;
 }
@@ -726,7 +732,7 @@ async function setSSID() {
         + 'WiFi Network: "' + document.getElementById("deviceName").innerHTML.replace(/\s/g, '-') + '" and then connect your browser to IP address: '
         + '192.168.4.1\n\nAre you sure?')) {
         await setGDO("softAPmode", true);
-        countdown(30, "RATGDO device rebooting...&nbsp;");
+        countdown(rebootSeconds, "RATGDO device rebooting...&nbsp;");
     }
     return;
 }
