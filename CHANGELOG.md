@@ -6,19 +6,20 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 
 ### What's Changed
 
-* New feature... allow setting WiFi SSID (<https://github.com/ratgdo/homekit-ratgdo/issues/224>).
-* New feature... enable IRAM heap to increase available memory.
+* New feature... add soft AP mode to allow setting WiFi SSID (<https://github.com/ratgdo/homekit-ratgdo/issues/224>).
+* New feature... enable IRAM heap to increase available memory, expected to improve reliability.
 * New feature... move all user config settings into single file, improves boot time by ~13 seconds (<https://github.com/ratgdo/homekit-ratgdo/issues/241>).
 * New feature... add support for logging to a syslog server.
-* Change... Reboot countdown times changed from 30 seconds to 15 seconds
+* Change... Reboot countdown timer changed from 30 seconds to 15 seconds
+* Change... Remove option to receive server logs to JavaScript console, replaced by syslog and system logs page.
 * Bugfix... ensure that network hostname is RFC952 compliant (e.g. no spaces).
-* Bugfix... Possible fix to <https://github.com/ratgdo/homekit-ratgdo/issues/215> by modifying HomeKit server malloc().
+* Bugfix... Possible fix to <https://github.com/ratgdo/homekit-ratgdo/issues/215> by modifying HomeKit server malloc() from local to global.
 * Bugfix... Possible fix to <https://github.com/ratgdo/homekit-ratgdo/issues/211> and <https://github.com/ratgdo/homekit-ratgdo/issues/223> as we enable IRAM heap.
 
 ### Known Issues
 
-* Same as v1.7.0
-* Expect fewer crashes inside the MDNSresponder code resulting from enabling IRAM heap.
+* Occasional unexplained HomeKit notification that garage door is unlocked. Tracked in <https://github.com/ratgdo/homekit-ratgdo/issues/233>
+* Occasional failure to connect to WiFi. Tracked in <https://github.com/ratgdo/homekit-ratgdo/issues/217>
 
 ## v1.7.1 (2024-09-23)
 

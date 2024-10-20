@@ -36,6 +36,9 @@ For each of the following steps, use the [online browser-based flash tool](https
 
 That's it!
 
+> [!IMPORTANT]
+> If you experience very slow or poor connection accessing the ratgdo device web page then try moving the device further away from the garage door opener.  Several users have reported that this can improve reliability of the connection. We do not know why this is the case but may suggest some RF interference between the door opener and the ratgdo device.
+
 ## Using ratgdo Webpage
 
 Before pairing to HomeKit / Apple Home you should open up the ratgdo webpage and configure basic settings.  Simply enter the local IP address of the ratgdo device to access the settings page to set a more appropriate device name and check that your door protocol is correct.
@@ -53,13 +56,16 @@ If you ratgdo device is not yet paired to HomeKit then a QR code is displayed fo
 
 This section also displays the current firmware version, with a statement on whether an update is available, the uptime of the device in days/hours/minutes/seconds and WiFi connection status.
 
+> [!NOTE]
+> If the word _locked_ appears after the WiFi AP identifier then the ratgdo device will _only_ connect to that WiFi Access Point. See warning in the [Set WiFi SSID](#set-wifi-ssid) section below.
+
 ### Garage door opener status
 
 Status of the garage door along with action buttons are shown in this section.  The status values are updated in real time whether triggered by one of the action buttons or an external action (motion in the garage, someone using a door remote).
 
 ### Information section
 
-The final section provides useful links to documentation and legal/license information.  At the very bottom of the page is diagnostic information, see Troubleshooting section below.
+The final section provides useful links to documentation and legal/license information.  At the very bottom of the page is diagnostic information, see [Troubleshooting](#troubleshooting) section below.
 
 ### Authentication
 
@@ -106,10 +112,6 @@ Motion can also be triggered by the obstruction sensor and by pressing the door,
 
 Changing this setting will cause a reboot only if changing from no motion sensor to any selection that triggers motion, or vis versa.
 
-### Receive Logs
-
-This option is not available on mobile devices. On a desktop browser all server firmware logs can be displayed in the javascript console log. On some browsers you may need to enable developer mode before you can open the javascript console.
-
 ### Syslog
 
 This setting allows you to send the ratgdo logs to a syslog server.  Enter the IP address of your syslog server.  Uses UDP port 514 and logs to the LOCAL0 Facility.
@@ -120,6 +122,9 @@ This setting allows you to send the ratgdo logs to a syslog server.  Enter the I
 ### Door Protocol
 
 Set the protocol for your model of garage door opener.  This defaults to Security+ 2.0 and you should only change this if necessary.  Note that the changing the door protocol also resets the door opener rolling codes and whether there is a motion sensor (this will be automatically detected after reset).
+
+> [!NOTE]
+> This firmware does not currently support _dry contact_ door openers.  If you have one of these and are able to assist the maintainers add support, please contact us or submit a Pull Request.
 
 ### WiFi Version
 
@@ -160,9 +165,9 @@ This button resets the Sec+ 2.0 rolling codes and whether your door opener has a
 
 This button will restart the ratgdo in soft Access Point (AP) mode from where you can set a new WiFi network SSID and password.  You can connect to the ratgdo either from the existing WiFi network and IP address or by connecting your laptop or mobile device to the ratgdo's WiFi SSID and pointing your browser to IP address 192.168.4.1.  The SSID created is based on the device name, e.g. _Garage-Door-ABCDEF._
 
-If you are unable to connect to your ratgdo, or the old wifi network is not available, you can force the device into soft Access Point mode by rapidly pressing the wall panel light button 5 times within 3 second.  The ratgdo will respond by flashing the lights for 3 more seconds before rebooting into AP mode.
+If you are unable to connect to your ratgdo, or the old WiFi network is not available, you can force the device into soft Access Point mode by rapidly pressing the wall panel light button 5 times within 3 second.  The ratgdo will respond by flashing the lights for 3 more seconds before rebooting into AP mode.  Allow 15 to 20 seconds for the ratgdo to boot.
 
-If you are preparing to move the ratgdo to a new location then after the device has booted into soft AP mode you can disconnect it (within 10 minutes) and when it first boots in the new location it will start up in soft AP mode. In soft AP mode the ratgdo does not connect to the garage door opener or HomeKit.
+If you are preparing to move the ratgdo to a new location then, after the device has booted into soft AP mode, you can disconnect it (within 10 minutes). When it first boots in the new location it will start up in soft AP mode. In soft AP mode the ratgdo does not connect to the garage door opener or HomeKit.
 
 On changing the WiFi network SSID you will have to un-pair and re-pair the ratgdo to Apple Home.
 
@@ -170,18 +175,19 @@ On changing the WiFi network SSID you will have to un-pair and re-pair the ratgd
 > If you do not set a new SSID and password within 10 minutes of booting into soft AP mode then the ratgdo will reboot as normal and connect to the previously set WiFi network SSID.
 
 > [!NOTE]
-> On changing the SSID in soft AP mode the ratgdo attempts to connect to the new WiFi network.  If that fails then the ratgdo will reset to the old SSID and password and reboot.
+> On changing the SSID in soft AP mode the ratgdo attempts to connect to the new WiFi network.  If that fails, then the ratgdo will reset to the old SSID and password, remove any Access Point lock, and reboot.
 
 > [!WARNING]
-> Soft AP has an _advanced_ mode. If you select this then the full list of discovered networks are shown, including the same network SSID broadcast by multiple access points. Selecting a WiFi network in advanced mode locks the device to a specific WiFi access point by its __unique hardware BSSID__. If that access point goes offline, or you replace it, then the device will __NOT connect__ to WiFi.
-> Use advanced mode with extreme caution.
+> The soft AP page has an _advanced_ mode. If you select this then the full list of discovered networks are shown, including same network SSID's broadcast by multiple access points. Selecting a WiFi network in advanced mode locks the device to a specific WiFi access point by its __unique hardware BSSID__. If that access point goes offline, or you replace it, then the device will __NOT connect__ to WiFi. __Use advanced mode with extreme caution__.
 
 ## How do I upgrade?
 
 Over-the-Air (OTA) updates are supported, either directly from GitHub or by selecting a firmware binary file on your computer. Follow the steps below to update:
 
 * Navigate to your ratgdo's ip address where you will see the devices webpage, Click `Firmware Update`
-  > When you open Firmware Update the ratgdo device performs a flash memory CRC check. If this fails a warning message is shown. Please see the Flash CRC Errors section below before proceeding.
+
+> [!NOTE]
+> When you open Firmware Update the ratgdo device performs a flash memory CRC check. If this fails a warning message is shown. Please see the [Flash CRC Errors](#flash-crc-errors) section below before proceeding.
 
 [![ota](docs/ota/ota.png)](#ota)
 * Update from Github
@@ -200,15 +206,14 @@ Automatic updates are not supported (and probably will never be), so set a remin
 
 ## Upgrade failures
 
-If the OTA firmware update fails the following message will be displayed and you are given the option to reboot or cancel. If you reboot, the device will reload the same firmware as previously installed.  If you cancel then the device remains open, but the HomeKit service will be shutdown.  This may be helpful for debuging, see Troubleshooting section below.
+If the OTA firmware update fails the following message will be displayed and you are given the option to reboot or cancel. If you reboot, the device will reload the same firmware as previously installed.  If you cancel then the device remains open, but the HomeKit service will be shutdown.  This may be helpful for debuging, see [Troubleshooting](#troubleshooting) section below.
 
 [![updatefail](docs/ota/updatefail.png)](#updatefail)
 
 ## Flash CRC Errors
 
-When requesting a reboot or displaying the firmware update dialog, the integrity of the ratgdo device is checked by running a CRC check on the flash memory. A CRC error is a strong indicator of a problem in the ratgdo firmware and it is highly likely that the device will fail to reboot.
+When displaying the firmware update dialog, the integrity of the ratgdo device is checked by running a CRC check on the flash memory. A CRC error is a strong indicator of a problem in the ratgdo firmware and it is highly likely that the device will fail to reboot.
 
-[![rebootcrc](docs/webpage/rebootcrc.png)](#rebootcrc)
 [![updatecrc](docs/ota/updatecrc.png)](#updatecrc)
 
 If you encounter a flash CRC error then please [open an issue](https://github.com/ratgdo/homekit-ratgdo/issues) on GitHub so that developers can assist with debugging.  Recovering from a flash CRC error will require flashing new firmware using a USB cable, but it may be possible to capture valuable information using esptool to assist with debugging.
@@ -364,7 +369,7 @@ The footer of the webpage displays useful information that can help project cont
 
 In addition the last reboot date and time is reported (calculated by subtracting up-time from current time).
 
-The _lastDoorChange_ will show the date and time that the door was last opened or closed.  This is not saved across reboots, so it will show as unknown after a reboot.
+The _lastDoorChange_ will show the date and time that the door was last opened or closed.
 
 ### Show system logs
 

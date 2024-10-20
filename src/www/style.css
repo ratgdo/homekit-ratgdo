@@ -103,6 +103,10 @@ div.serverstatus {
     width: 75%;
     overflow: hidden;
     position: relative;
+
+    td:nth-child(1) {
+        text-align: right;
+    }
 }
 
 div.qrcode {
@@ -121,6 +125,10 @@ div.fullwidth {
     border-bottom-width: 1px;
     padding-left: 0px;
     padding-right: 0px;
+
+    td:nth-child(2n - 1) {
+        text-align: right;
+    }
 }
 
 div.header {
