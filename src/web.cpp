@@ -1379,11 +1379,11 @@ void handle_accesspoint()
     int i = 0;
     for (auto net : wifiNets)
     {
-        bool matchSSID = (previousSSID == net.SSID);
+        bool matchSSID = (previousSSID == net.first);
         if (matchSSID)
             match = true;
         client.printf_P(PSTR("<input type=\"radio\" id=\"n%d\" name=\"net\" value=\"%d\"%s>&nbsp;<label for=\"n%d\">%s : %ddBm</label><br>"),
-                        i, i, (matchSSID) ? " checked=\"checked\"" : "", i, net.SSID.c_str(), net.RSSI);
+                        i, i, (matchSSID) ? " checked=\"checked\"" : "", i, net.first.c_str(), net.second);
         i++;
     }
     // user entered value
@@ -1417,9 +1417,10 @@ void handle_setssid()
 
     if (net < wifiNets.size())
     {
-        std::set<struct wifi_nets>::iterator it = wifiNets.begin();
-        std::advance(it, net);
-        ssid = it->SSID.c_str();
+        auto it = wifiNets.begin();
+        for (unsigned int i = 0; i < net && it != wifiNets.end(); ++i)
+            ++it;
+        ssid = it->first.c_str();
     }
     else
     {

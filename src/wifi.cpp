@@ -28,13 +28,10 @@
 
 // support for changeing WiFi settings
 unsigned long wifiConnectTimeout = 0;
-inline bool operator<(const wifi_nets &lhs, const wifi_nets &rhs)
-{
-    return lhs.SSID < rhs.SSID;
-}
-std::set<wifi_nets> wifiNets;
+// support for scaning WiFi networks
+std::map<String, int> wifiNets;
 
-#define MAX_ATTEMPTS_WIFI_CONNECTION 20
+#define MAX_ATTEMPTS_WIFI_CONNECTION 30
 uint8_t x_buffer[128];
 uint8_t x_position = 0;
 
@@ -84,10 +81,13 @@ void wifi_scan()
     RINFO("Found %d networks", nNets);
     for (int i = 0; i < nNets; i++)
     {
-        RINFO("Network: %s Ch:%d (%ddBm)", WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i));
-        // Using a C++ set so we only save unique SSIDs
-        wifiNets.insert({WiFi.SSID(i), WiFi.RSSI(i)});
+        RINFO("Network: %s (Ch:%d, %ddBm)", WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i));
+        // Using a C++ map so we only save unique SSIDs
+        if ((wifiNets.count(WiFi.SSID(i)) == 0) || (wifiNets[WiFi.SSID(i)] < WiFi.RSSI(i)))
+            wifiNets[WiFi.SSID(i)] = WiFi.RSSI(i);
     }
+    // delete scan from memory
+    WiFi.scanDelete();
 }
 
 void wifi_connect()
@@ -271,7 +271,6 @@ bool connect_wifi(std::string ssid, std::string password)
     {
         delay(500);
         yield();
-
         if (count > MAX_ATTEMPTS_WIFI_CONNECTION)
         {
             WiFi.disconnect();
@@ -279,7 +278,6 @@ bool connect_wifi(std::string ssid, std::string password)
         }
         count++;
     }
-
     return true;
 }
 
