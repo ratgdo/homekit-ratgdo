@@ -72,7 +72,7 @@ void setup()
     {
         RERROR("checkFlashCRC: false");
     }
-
+    IRAM_START
     load_all_config_settings();
     wifi_connect();
     setup_web();
@@ -82,6 +82,7 @@ void setup()
         setup_comms();
         setup_homekit();
     }
+    IRAM_END
 
 #ifdef NTP_CLIENT
     if (enableNTP)
@@ -210,7 +211,7 @@ void obstruction_timer()
 
 void service_timer_loop()
 {
-    loop_id=LOOP_TIMER;
+    loop_id = LOOP_TIMER;
     // Service the Obstruction Timer
     obstruction_timer();
 

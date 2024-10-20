@@ -14,6 +14,16 @@ extern char *timeString(time_t reqTime = 0);
 extern bool enableNTP;
 #endif
 
+#if defined(MMU_IRAM_HEAP)
+#include <umm_malloc/umm_malloc.h>
+#include <umm_malloc/umm_heap_select.h>
+#define IRAM_START { HeapSelectIram ephemeral;
+#define IRAM_END RINFO("Free IRAM heap: %d", ESP.getFreeHeap()); }
+#else
+#define IRAM_START {
+#define IRAM_END }
+#endif
+
 // Controls whether to log to syslog server
 extern bool syslogEn;
 
