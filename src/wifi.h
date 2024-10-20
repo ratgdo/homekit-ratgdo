@@ -4,8 +4,7 @@
 #ifndef WIFI_INFO_H_
 #define WIFI_INFO_H_
 
-#include <set>
-#include <string>
+#include <map>
 
 void improv_loop();
 
@@ -15,10 +14,6 @@ void wifi_scan();
 
 bool connect_wifi(std::string, std::string);
 
-struct wifi_nets {
-    String  SSID;
-    int32_t RSSI;
-};
-extern std::set<struct wifi_nets> wifiNets;
+extern std::map<String, int> wifiNets;
 
 #endif /* WIFI_INFO_H_ */
