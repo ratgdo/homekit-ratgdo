@@ -14,8 +14,8 @@ const clientUUID = uuidv4();    // uniquely identify this session
 const rebootSeconds = 15;       // How long to wait before reloading page after reboot
 
 // https://stackoverflow.com/questions/7995752/detect-desktop-browser-not-mobile-with-javascript
-const isTouchDevice = function () { return 'ontouchstart' in window || 'onmsgesturechange' in window; };
-const isDesktop = window.screenX != 0 && !isTouchDevice() ? true : false;
+// const isTouchDevice = function () { return 'ontouchstart' in window || 'onmsgesturechange' in window; };
+// const isDesktop = window.screenX != 0 && !isTouchDevice() ? true : false;
 
 // convert miliseconds to dd:hh:mm:ss used to calculate server uptime
 function msToTime(duration) {
@@ -181,16 +181,9 @@ async function checkStatus() {
     serverStatus.firmwareVersion = "v" + serverStatus.firmwareVersion;
 
     setElementsFromStatus(serverStatus);
-    if (isDesktop) {
-        document.getElementById("serverLog").checked = (localStorage.getItem("logger") == "true");
-        document.getElementById("serverLogRow").style.display = "table-row";
-    }
-    else {
-        localStorage.setItem("logger", "false");
-    }
     // Use Server Sent Events to keep status up-to-date, 2 == CLOSED
     if (!evtSource || evtSource.readyState == 2) {
-        const evtResponse = await fetch("rest/events/subscribe?id=" + clientUUID + ((localStorage.getItem("logger") == "true") ? "&log=1" : ""));
+        const evtResponse = await fetch("rest/events/subscribe?id=" + clientUUID);
         if (evtResponse.status !== 200) {
             console.warn("Error registering for Server Sent Events");
             return;
@@ -664,7 +657,6 @@ async function saveSettings() {
     const wifiPower = Math.max(Math.min(parseInt(document.getElementById("wifiPower").value), 20), 0);
     let TTCseconds = Math.max(Math.min(parseInt(document.getElementById("TTCseconds").value), 60), 0);
     if (isNaN(TTCseconds)) TTCseconds = 0;
-    localStorage.setItem("logger", (document.getElementById("serverLog").checked) ? "true" : "false");
 
     const syslogEn = (document.getElementById("syslogEn").checked) ? '1' : '0';
     let syslogIP = document.getElementById("syslogIP").value.substring(0, 15);
