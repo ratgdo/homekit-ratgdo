@@ -70,25 +70,19 @@ void logToSyslog(char *message)
 
     syslog.beginPacket(userConfig->syslogIP, SYSLOG_PORT);
 
-    // If NTP is enabled, then use RFC5424 Format
-    if (enableNTP && timeClient.isTimeSet())
-    {
-        syslog.printf("<%u>1 ", PRI); // PRI code
-        syslog.print(timeString());   // date / time string
-        syslog.print(" ");
-        syslog.print(device_name_rfc952); // hostname
-        syslog.print(" ");
-        syslog.print(app_name);        // application name
-        syslog.printf(" %d", loop_id); // process ID
-        syslog.print(" " SYSLOG_NIL    // message ID
-                     " " SYSLOG_NIL    // structured data
-                     " " SYSLOG_BOM);  // BOM - indicates UTF-8 encoding
-        syslog.print(msg);             // message
-    }
-    else
-    {
-        syslog.printf_P("<%d> %s:%s", PRI, app_name, msg);
-    }
+    // Use RFC5424 Format
+    syslog.printf("<%u>1 ", PRI); // PRI code
+    syslog.print((enableNTP && timeClient.isTimeSet()) ? timeString() : SYSLOG_NIL);
+    syslog.print(" ");
+    syslog.print(device_name_rfc952); // hostname
+    syslog.print(" ");
+    syslog.print(app_name);        // application name
+    syslog.printf(" %d", loop_id); // process ID
+    syslog.print(" " SYSLOG_NIL    // message ID
+                 " " SYSLOG_NIL    // structured data
+                 " " SYSLOG_BOM);  // BOM - indicates UTF-8 encoding
+    syslog.print(msg);             // message
+
     syslog.endPacket();
 }
 

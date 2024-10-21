@@ -222,9 +222,9 @@
                 <td>
                   <table class="settings" id="syslogTable" style="display: none;">
                     <tr>
-                      <td class="staticIPlabel">Syslog Server:</td>
+                      <td class="IPlabel">Syslog Server:</td>
                       <td>&nbsp;
-                        <input class="syslogInput" id="syslogIP" type="text" placeholder="0.0.0.0" minlength="7"
+                        <input class="syslogIPinput IPinput" id="syslogIP" type="text" placeholder="0.0.0.0" minlength="7"
                           maxlength="15" size="15">
                       </td>
                     </tr>
@@ -299,30 +299,30 @@
                 <td>
                   <table class="settings" id="staticIPtable" style="display: none;">
                     <tr>
-                      <td class="staticIPlabel">IP Address:</td>
+                      <td class="IPlabel">IP Address:</td>
                       <td>&nbsp;
-                        <input class="staticIPinput" id="IPaddress" type="text" placeholder="0.0.0.0" minlength="7"
+                        <input class="staticIPinput IPinput" id="IPaddress" type="text" placeholder="0.0.0.0" minlength="7"
                           maxlength="15" size="15">
                       </td>
                     </tr>
                     <tr>
-                      <td class="staticIPlabel">Net Mask:</td>
+                      <td class="IPlabel">Netmask:</td>
                       <td>&nbsp;
-                        <input class="staticIPinput" id="IPnetmask" type="text" placeholder="0.0.0.0" minlength="7"
+                        <input class="staticIPinput IPinput" id="IPnetmask" type="text" placeholder="0.0.0.0" minlength="7"
                           maxlength="15" size="15">
                       </td>
                     </tr>
                     <tr>
-                      <td class="staticIPlabel">Gateway:</td>
+                      <td class="IPlabel">Gateway:</td>
                       <td>&nbsp;
-                        <input class="staticIPinput" id="IPgateway" type="text" placeholder="0.0.0.0" minlength="7"
+                        <input class="staticIPinput IPinput" id="IPgateway" type="text" placeholder="0.0.0.0" minlength="7"
                           maxlength="15" size="15">
                       </td>
                     </tr>
                     <tr>
-                      <td class="staticIPlabel">DNS Server:</td>
+                      <td class="IPlabel">DNS Server:</td>
                       <td>&nbsp;
-                        <input class="staticIPinput" id="IPnameserver" type="text" placeholder="0.0.0.0" minlength="7"
+                        <input class="staticIPinput IPinput" id="IPnameserver" type="text" placeholder="0.0.0.0" minlength="7"
                           maxlength="15" size="15">
                       </td>
                     </tr>
@@ -553,8 +553,8 @@
       }
     });
 
-    // Allow only numeric and dot keystrokes into staticIP fields
-    Array.from(document.getElementsByClassName("staticIPinput")).forEach(function (inputField) {
+    // Allow only numeric and dot keystrokes into IP Address fields
+    Array.from(document.getElementsByClassName("IPinput")).forEach(function (inputField) {
       inputField.addEventListener("keypress", (event) => {
         if ((event.which < 48 || event.which > 57) && (event.which != 46)) {
           event.preventDefault();
@@ -562,22 +562,13 @@
       });
     });
 
-    // Allow only numeric and dot keystrokes into staticIP fields
-    Array.from(document.getElementsByClassName("syslogInput")).forEach(function (inputField) {
-      inputField.addEventListener("keypress", (event) => {
-        if ((event.which < 48 || event.which > 57) && (event.which != 46)) {
-          event.preventDefault();
-        }
-      });
-    });
-
-    // Show or hide the static IP fields
+    // Show or hide the syslog IP field
     function toggleSyslog() {
-      let staticIP = this.event.target.checked;
-      document.getElementById("syslogTable").style.display = (staticIP) ? "table" : "none";
+      let syslogEn = this.event.target.checked;
+      document.getElementById("syslogTable").style.display = (syslogEn) ? "table" : "none";
       if (!syslogEn) {
-        // If hiding (turning off static IP) then erase any addresses that may be set.
-        Array.from(document.getElementsByClassName("syslogInput")).forEach(function (inputField) {
+        // If hiding (turning off syslog IP) then erase any addresses that may be set.
+        Array.from(document.getElementsByClassName("syslogIPinput")).forEach(function (inputField) {
           inputField.value = "";
         });
       }

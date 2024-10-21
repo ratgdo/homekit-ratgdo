@@ -207,15 +207,14 @@ table.password label {
 }
 
 table.settings td.label,
-table.settings td.staticIPlabel,
+table.settings td.IPlabel,
 table.password td.label {
     vertical-align: middle;
     text-align: right;
     font-size: 0.9em;
 }
 
-table.settings td.staticIPlabel,
-table.settings input.staticIPinput {
+table.settings input.IPinput {
     font-size: 0.9em;
 }
 
