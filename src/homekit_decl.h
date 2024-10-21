@@ -4,11 +4,11 @@
 #ifndef _HOMEKIT_DECL_H
 #define _HOMEKIT_DECL_H
 
-
 #define DEVICE_NAME_SIZE 32
 #define SERIAL_NAME_SIZE 18
 
 extern char device_name[DEVICE_NAME_SIZE];
+extern char device_name_rfc952[DEVICE_NAME_SIZE];
 
 // Possible values for characteristic CURRENT_DOOR_STATE:
 #define HOMEKIT_CHARACTERISTIC_CURRENT_DOOR_STATE_OPEN 0

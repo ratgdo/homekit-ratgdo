@@ -101,8 +101,7 @@
             <input type="button" value="Firmware Update" onclick="showUpdateDialog()">
           </div>
           <div class="qrcode center">
-            <input type="button" id="unpair" value="Reset HomeKit"
-              onclick="unpairRATGDO()">
+            <input type="button" id="unpair" value="Reset HomeKit" onclick="unpairRATGDO()">
           </div>
         </div>
         <div class="fullwidth">
@@ -212,6 +211,27 @@
                 </td>
               </tr>
               <tr>
+                <td class="label">Syslog:</td>
+                <td>&nbsp;
+                  <input type="checkbox" id="syslogEn" name="syslogEn" value="no" onchange="toggleSyslog()">
+                  <span style="font-size: 0.8em;">Send logs to a syslog server</span>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td>
+                  <table class="settings" id="syslogTable" style="display: none;">
+                    <tr>
+                      <td class="IPlabel">Syslog Server:</td>
+                      <td>&nbsp;
+                        <input class="syslogIPinput IPinput" id="syslogIP" type="text" placeholder="0.0.0.0" minlength="7"
+                          maxlength="15" size="15">
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
                 <td style="font-size: 0.65em;"><br><u>Reboot may be required:</u></td>
                 <td></td>
               </tr>
@@ -279,30 +299,30 @@
                 <td>
                   <table class="settings" id="staticIPtable" style="display: none;">
                     <tr>
-                      <td class="staticIPlabel">IP Address:</td>
+                      <td class="IPlabel">IP Address:</td>
                       <td>&nbsp;
-                        <input class="staticIPinput" id="IPaddress" type="text" placeholder="0.0.0.0" minlength="7"
+                        <input class="staticIPinput IPinput" id="IPaddress" type="text" placeholder="0.0.0.0" minlength="7"
                           maxlength="15" size="15">
                       </td>
                     </tr>
                     <tr>
-                      <td class="staticIPlabel">Net Mask:</td>
+                      <td class="IPlabel">Netmask:</td>
                       <td>&nbsp;
-                        <input class="staticIPinput" id="IPnetmask" type="text" placeholder="0.0.0.0" minlength="7"
+                        <input class="staticIPinput IPinput" id="IPnetmask" type="text" placeholder="0.0.0.0" minlength="7"
                           maxlength="15" size="15">
                       </td>
                     </tr>
                     <tr>
-                      <td class="staticIPlabel">Gateway:</td>
+                      <td class="IPlabel">Gateway:</td>
                       <td>&nbsp;
-                        <input class="staticIPinput" id="IPgateway" type="text" placeholder="0.0.0.0" minlength="7"
+                        <input class="staticIPinput IPinput" id="IPgateway" type="text" placeholder="0.0.0.0" minlength="7"
                           maxlength="15" size="15">
                       </td>
                     </tr>
                     <tr>
-                      <td class="staticIPlabel">DNS Server:</td>
+                      <td class="IPlabel">DNS Server:</td>
                       <td>&nbsp;
-                        <input class="staticIPinput" id="IPnameserver" type="text" placeholder="0.0.0.0" minlength="7"
+                        <input class="staticIPinput IPinput" id="IPnameserver" type="text" placeholder="0.0.0.0" minlength="7"
                           maxlength="15" size="15">
                       </td>
                     </tr>
@@ -335,12 +355,11 @@
               </tr>
               <tr>
                 <td>
-                  <input type="button" value="Save Settings"
-                    onclick="saveSettings()">
+                  <input type="button" value="Save Settings" onclick="saveSettings()">
                 </td>
                 <td>
-                  <input type="button" value="Reset Door"
-                    onclick="resetDoor()">
+                  <input type="button" value="Reset Door" onclick="resetDoor()">&nbsp;
+                  <input type="button" value="Set WiFi SSID" onclick="setSSID()">
                 </td>
               </tr>
             </table>
@@ -398,7 +417,7 @@
   <!-- Popup / modal dialog ------------------------------------------------------------------>
   <div id="myModal" class="modal">
     <div class="modal-content">
-      <span id="modalClose" class="close" onclick="modal.style.display = 'none'">&times;</span>
+      <span id="modalClose" class="close" onclick="document.getElementById('myModal').style.display = 'none'">&times;</span>
       <span id="modalTitle">Installed Firmware:&nbsp;<span id="firmwareVersion2">xxx</span><br></span><br>
       <div id="updateDialog" style="float: none; padding:0px">
         <span id="modalFlashCRC" style="font-size: 0.8em; display: block">xxx</span><br>
@@ -431,11 +450,13 @@
   </div>
 
   <!-- Simple please wait dialog --------------------------------------------------------------->
+  <!-- Only used for CRC check at reboot which we no longer do.
   <div id="pleaseWait" class="modal">
     <div class="modal-content">
       Checking flash CRC. please wait...
     </div>
   </div>
+  -->
 
   <!-- Initialization scripts ------------------------------------------------------------------>
   <script>
@@ -466,12 +487,14 @@
     document.addEventListener('touchend', function (e) { swipeEnd(e); }, false);
 
     // When the user clicks anywhere outside of the modal, close it
+    /*** Disable this as it causes countdown/reboot/update dialog to hide in the middle of activity.
     const modal = document.getElementById("myModal");
     window.onclick = function (event) {
       if (event.target == modal) {
         modal.style.display = "none";
       }
     };
+    */
 
     document.getElementById("settings-icon").onclick = async () => {
       // Only display the Settings page if user is authenticated.
@@ -530,14 +553,26 @@
       }
     });
 
-    // Allow only numeric and dot keystrokes into staticIP fields
-    Array.from(document.getElementsByClassName("staticIPinput")).forEach(function (inputField) {
+    // Allow only numeric and dot keystrokes into IP Address fields
+    Array.from(document.getElementsByClassName("IPinput")).forEach(function (inputField) {
       inputField.addEventListener("keypress", (event) => {
         if ((event.which < 48 || event.which > 57) && (event.which != 46)) {
           event.preventDefault();
         }
       });
     });
+
+    // Show or hide the syslog IP field
+    function toggleSyslog() {
+      let syslogEn = this.event.target.checked;
+      document.getElementById("syslogTable").style.display = (syslogEn) ? "table" : "none";
+      if (!syslogEn) {
+        // If hiding (turning off syslog IP) then erase any addresses that may be set.
+        Array.from(document.getElementsByClassName("syslogIPinput")).forEach(function (inputField) {
+          inputField.value = "";
+        });
+      }
+    }
 
     // Show or hide the static IP fields
     function toggleStaticIP() {

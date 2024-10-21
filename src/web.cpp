@@ -17,6 +17,7 @@
 #include "log.h"
 #include "web.h"
 #include "utilities.h"
+#include "wifi.h"
 
 #ifdef ENABLE_CRASH_LOG
 #include "EspSaveCrash.h"
@@ -27,11 +28,6 @@
 #include <eboot_command.h>
 #include <MD5Builder.h>
 
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-#include <umm_malloc/umm_malloc.h>
-#include <umm_malloc/umm_heap_select.h>
-#endif
-
 #ifdef ENABLE_CRASH_LOG
 #ifdef LOG_MSG_BUFFER
 EspSaveCrash saveCrash(1408, 1024, true, &crashCallback);
@@ -40,6 +36,7 @@ EspSaveCrash saveCrash(1408, 1024, true);
 #endif
 #endif
 
+// Declare web server on HTTP port 80.
 ESP8266WebServer server(80);
 
 // Forward declare the internal URI handling functions...
@@ -68,6 +65,8 @@ void handle_update();
 void handle_firmware_upload();
 void SSEHandler(uint8_t);
 void handle_notfound();
+void handle_accesspoint();
+void handle_setssid();
 
 // Built in URI handlers
 const char restEvents[] PROGMEM = "/rest/events/";
@@ -103,9 +102,6 @@ GarageDoorCurrentState lastDoorState = (GarageDoorCurrentState)0xff;
 // Track our memory usage
 extern "C" uint32_t free_heap;
 extern "C" uint32_t min_heap;
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-uint32_t free_iram_heap = 65535;
-#endif
 
 // number of times the device has crashed
 int crashCount = 0;
@@ -213,6 +209,7 @@ char *json = NULL;
 
 void web_loop()
 {
+    loop_id = LOOP_WEB;
     unsigned long upTime = millis();
     START_JSON(json);
     if (garage_door.active && garage_door.current_state != lastDoorState)
@@ -225,12 +222,13 @@ void web_loop()
             {
                 // initialize with saved time.
                 // lastDoorUpdateAt is milliseconds relative to system reboot time.
-                lastDoorUpdateAt = (savedDoorUpdateAt != 0) ? ((savedDoorUpdateAt - timeClient.getEpochTime()) * 1000) + upTime : 0;
+                lastDoorUpdateAt = (userConfig->doorUpdateAt != 0) ? ((userConfig->doorUpdateAt - timeClient.getEpochTime()) * 1000) + upTime : 0;
             }
             else
             {
                 // first state change after a reboot, so really is a state change.
-                write_int_to_file(lastDoorUpdateFile, timeClient.getEpochTime());
+                userConfig->doorUpdateAt = timeClient.getEpochTime();
+                write_config_to_file();
                 lastDoorUpdateAt = upTime;
             }
         }
@@ -261,10 +259,10 @@ void web_loop()
         REMOVE_NL(json);
         SSEBroadcastState(json);
     }
-    if ((rebootSeconds != 0) && (rebootSeconds < millis() / 1000))
+    if ((userConfig->rebootSeconds != 0) && ((unsigned long)userConfig->rebootSeconds < millis() / 1000))
     {
         // Reboot the system if we have reached time...
-        RINFO("Rebooting system as %i seconds expired", rebootSeconds);
+        RINFO("Rebooting system as %i seconds expired", userConfig->rebootSeconds);
         server.stop();
         sync_and_restart();
         return;
@@ -275,17 +273,8 @@ void web_loop()
 void setup_web()
 {
     RINFO("=== Starting HTTP web server ===");
-    {
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-        HeapSelectIram ephemeral;
-#endif
-        json = (char *)malloc(JSON_BUFFER_SIZE);
-        RINFO("Allocated buffer for JSON, size: %d", JSON_BUFFER_SIZE);
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-        free_iram_heap = ESP.getFreeHeap();
-        RINFO("Free IRAM heap: %d", free_iram_heap);
-#endif
-    }
+    json = (char *)malloc(JSON_BUFFER_SIZE);
+    RINFO("Allocated buffer for JSON, size: %d", JSON_BUFFER_SIZE);
     last_reported_paired = homekit_is_paired();
 
     if (motionTriggers.asInt == 0)
@@ -294,7 +283,8 @@ void setup_web()
         if (garage_door.has_motion_sensor)
         {
             motionTriggers.bit.motion = 1;
-            write_int_to_file(motionTriggersFile, motionTriggers.asInt);
+            userConfig->motionTriggers = motionTriggers.asInt;
+            write_config_to_file();
         }
     }
     else if (garage_door.has_motion_sensor != (bool)motionTriggers.bit.motion)
@@ -302,7 +292,8 @@ void setup_web()
         // sync up web page tracking of whether we have motion sensor or not.
         RINFO("Motion trigger mismatch, reset to %d", (uint8_t)garage_door.has_motion_sensor);
         motionTriggers.bit.motion = (uint8_t)garage_door.has_motion_sensor;
-        write_int_to_file(motionTriggersFile, motionTriggers.asInt);
+        userConfig->motionTriggers = motionTriggers.asInt;
+        write_config_to_file();
     }
     RINFO("Motion triggers, motion : %d, obstruction: %d, light key: %d, door key: %d, lock key: %d, asInt: %d",
           motionTriggers.bit.motion,
@@ -324,24 +315,13 @@ void setup_web()
 #endif
 
     RINFO("Registering URI handlers");
-    {
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-        HeapSelectIram ephemeral;
-#endif
-        server.on("/update", HTTP_POST, handle_update, handle_firmware_upload);
-        server.onNotFound(handle_everything);
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-        free_iram_heap = ESP.getFreeHeap();
-        RINFO("Free IRAM heap: %d", free_iram_heap);
-#endif
-    }
-
+    server.on("/update", HTTP_POST, handle_update, handle_firmware_upload);
+    server.onNotFound(handle_everything);
     // here the list of headers to be recorded
     const char *headerkeys[] = {"If-None-Match"};
     size_t headerkeyssize = sizeof(headerkeys) / sizeof(char *);
     // ask server to track these headers
     server.collectHeaders(headerkeys, headerkeyssize);
-
     server.begin();
     // initialize all the Server-Sent Events (SSE) slots.
     for (uint8_t i = 0; i < SSE_MAX_CHANNELS; i++)
@@ -363,7 +343,7 @@ void handle_notfound()
 
 void handle_auth()
 {
-    if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
+    if (userConfig->wwwPWrequired && !server.authenticateDigest(userConfig->wwwUsername, userConfig->wwwCredentials))
     {
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
     }
@@ -373,7 +353,7 @@ void handle_auth()
 
 void handle_reset()
 {
-    if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
+    if (userConfig->wwwPWrequired && !server.authenticateDigest(userConfig->wwwUsername, userConfig->wwwCredentials))
     {
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
     }
@@ -497,6 +477,25 @@ void handle_everything()
     String page = server.uri();
     const char *uri = page.c_str();
 
+    if ((WiFi.getMode() & WIFI_AP) == WIFI_AP)
+    {
+        // If we are in Soft Access Point mode
+        RINFO("WiFi Soft Access Point mode");
+        if (page == "/" || page == "/ap")
+            return handle_accesspoint();
+        else if (page == "/setssid" && method == HTTP_POST)
+            return handle_setssid();
+        else if (page == "/reboot" && method == HTTP_POST)
+            return handle_reboot();
+        else if (page == "/rescan" && method == HTTP_POST)
+        {
+            wifi_scan();
+            return handle_accesspoint();
+        }
+        else
+            return handle_notfound();
+    }
+
     if (builtInUri.count(uri) > 0)
     {
         // requested page matches one of our built-in handlers
@@ -544,7 +543,7 @@ void handle_status()
     START_JSON(json);
     ADD_INT(json, "upTime", upTime);
     ADD_STR(json, "deviceName", device_name);
-    ADD_STR(json, "userName", www_username);
+    ADD_STR(json, "userName", userConfig->wwwUsername);
     ADD_BOOL(json, "paired", paired);
     ADD_STR(json, "firmwareVersion", std::string(AUTO_VERSION).c_str());
     ADD_STR(json, "accessoryID", accessoryID);
@@ -555,25 +554,24 @@ void handle_status()
     ADD_STR(json, "macAddress", macAddress);
     ADD_STR(json, "wifiSSID", wifiSSID);
     ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm").c_str());
-    ADD_STR(json, "GDOSecurityType", GDOSecurityType);
+    ADD_INT(json, "GDOSecurityType", userConfig->gdoSecurityType);
     ADD_STR(json, "garageDoorState", garage_door.active ? DOOR_STATE(garage_door.current_state) : DOOR_STATE(255));
     ADD_STR(json, "garageLockState", LOCK_STATE(garage_door.current_lock));
     ADD_BOOL(json, "garageLightOn", garage_door.light);
     ADD_BOOL(json, "garageMotion", garage_door.motion);
     ADD_BOOL(json, "garageObstructed", garage_door.obstructed);
-    ADD_BOOL(json, "passwordRequired", passwordReq);
-    ADD_INT(json, "rebootSeconds", rebootSeconds);
+    ADD_BOOL(json, "passwordRequired", userConfig->wwwPWrequired);
+    ADD_INT(json, "rebootSeconds", userConfig->rebootSeconds);
     ADD_INT(json, "freeHeap", free_heap);
     ADD_INT(json, "minHeap", min_heap);
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-    ADD_INT(json, "freeIramHeap", free_iram_heap);
-#endif
     ADD_INT(json, "minStack", ESP.getFreeContStack());
     ADD_INT(json, "crashCount", crashCount);
-    ADD_INT(json, "wifiPhyMode", wifiPhyMode);
-    ADD_INT(json, "wifiPower", wifiPower);
-    ADD_BOOL(json, "staticIP", staticIP);
-    ADD_INT(json, "TTCseconds", TTCdelay);
+    ADD_INT(json, "wifiPhyMode", userConfig->wifiPhyMode);
+    ADD_INT(json, "wifiPower", userConfig->wifiPower);
+    ADD_BOOL(json, "staticIP", userConfig->staticIP);
+    ADD_BOOL(json, "syslogEn", userConfig->syslogEn);
+    ADD_STR(json, "syslogIP", userConfig->syslogIP);
+    ADD_INT(json, "TTCseconds", userConfig->TTCdelay);
     ADD_INT(json, "motionTriggers", motionTriggers.asInt);
     ADD_INT(json, "LEDidle", (led.getIdleState() == LOW) ? 1 : 0);
     // We send milliseconds relative to current time... ie updated X milliseconds ago
@@ -610,9 +608,8 @@ void handle_setgdo()
     const char *value;
     bool reboot = false;
     bool error = false;
-    bool wifiChange = false;
 
-    if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
+    if (userConfig->wwwPWrequired && !server.authenticateDigest(userConfig->wwwUsername, userConfig->wwwCredentials))
     {
         RINFO("In setGDO request authentication");
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
@@ -665,30 +662,25 @@ void handle_setgdo()
                 // null terminate the strings (at closing quote).
                 *strchr(newUsername, '"') = (char)0;
                 *strchr(newCredentials, '"') = (char)0;
-                // RINFO("Username: %s, Credentials: %s", newUsername, newCredentials);
                 // save values...
-                strlcpy(www_credentials, newCredentials, sizeof(www_credentials));
-                strlcpy(www_username, newUsername, sizeof(www_username));
-                write_string_to_file(username_file, www_username);
-                write_string_to_file(credentials_file, www_credentials);
+                strlcpy(userConfig->wwwUsername, newUsername, sizeof(userConfig->wwwUsername));
+                strlcpy(userConfig->wwwCredentials, newCredentials, sizeof(userConfig->wwwCredentials));
             }
             else
             {
                 // old implementation... before JSON form of parameter.
-                strlcpy(www_credentials, value, sizeof(www_credentials));
-                write_string_to_file(credentials_file, www_credentials);
+                strlcpy(userConfig->wwwCredentials, value, sizeof(userConfig->wwwCredentials));
             }
         }
         else if (!strcmp(key, "GDOSecurityType"))
         {
-            uint32_t type = atoi(value);
+            int type = atoi(value);
             if ((type == 1) || (type == 2))
             {
                 RINFO("SetGDO security type to %i", type);
                 // reset the door opener ID, rolling code and presence of motion sensor.
                 reset_door();
-                // Write to flash and reboot
-                write_int_to_file(gdoSecurityTypeFile, type);
+                userConfig->gdoSecurityType = type;
                 reboot = true;
             }
             else
@@ -703,111 +695,125 @@ void handle_setgdo()
             reset_door();
             reboot = true;
         }
+        else if (!strcmp(key, "softAPmode"))
+        {
+            RINFO("Request to boot into soft access point mode");
+            userConfig->softAPmode = true;
+            reboot = true;
+        }
         else if (!strcmp(key, "passwordRequired"))
         {
-            passwordReq = (atoi(value) != 0);
-            write_int_to_file(www_pw_required_file, (passwordReq) ? 1 : 0);
+            userConfig->wwwPWrequired = atoi(value) != 0;
         }
         else if (!strcmp(key, "rebootSeconds"))
         {
-            rebootSeconds = atoi(value);
-            write_int_to_file(system_reboot_timer, rebootSeconds);
-            // only reboot if setting to non-zero
-            reboot = (rebootSeconds != 0);
+            userConfig->rebootSeconds = atoi(value);
+            reboot = (userConfig->rebootSeconds != 0);
         }
         else if (!strcmp(key, "deviceName"))
         {
             if (strlen(value) > 0)
             {
                 strlcpy(device_name, value, sizeof(device_name));
-                write_string_to_file(device_name_file, device_name);
+                strlcpy(userConfig->deviceName, value, sizeof(userConfig->deviceName));
             }
         }
         else if (!strcmp(key, "wifiPhyMode"))
         {
-            uint32_t wifiPhyMode = (uint32_t)atoi(value);
-            if (read_int_from_file(wifiPhyModeFile) != wifiPhyMode)
+            int wifiPhyMode = atoi(value);
+            if (userConfig->wifiPhyMode != wifiPhyMode)
             {
                 // Setting has changed.  Write new value and note that change has taken place
-                write_int_to_file(wifiPhyModeFile, wifiPhyMode);
-                wifiChange = true;
+                userConfig->wifiPhyMode = wifiPhyMode;
+                reboot = true;
             }
         }
         else if (!strcmp(key, "wifiPower"))
         {
-            uint32_t wifiPower = (uint32_t)atoi(value);
-            if (read_int_from_file(wifiPowerFile) != wifiPower)
+            int wifiPower = atoi(value);
+            if (userConfig->wifiPower != wifiPower)
             {
                 // Setting has changed.  Write new value and note that change has taken place
-                write_int_to_file(wifiPowerFile, wifiPower);
-                wifiChange = true;
+                userConfig->wifiPower = wifiPower;
+                reboot = true;
             }
         }
         else if (!strcmp(key, "staticIP"))
         {
-            staticIP = (atoi(value) != 0);
-            write_int_to_file(staticIPfile, (staticIP) ? 1 : 0);
-            wifiChange = true;
+            userConfig->staticIP = atoi(value) != 0;
+            reboot = true;
         }
         else if (!strcmp(key, "subnetMask"))
         {
             if (strlen(value) > 0)
             {
-                strlcpy(IPnetmask, value, sizeof(IPnetmask));
-                write_string_to_file(IPnetmaskFile, IPnetmask);
-                wifiChange = true;
+                strlcpy(userConfig->IPnetmask, value, sizeof(userConfig->IPnetmask));
+
+                reboot = true;
             }
         }
         else if (!strcmp(key, "gatewayIP"))
         {
             if (strlen(value) > 0)
             {
-                strlcpy(IPgateway, value, sizeof(IPgateway));
-                write_string_to_file(IPgatewayFile, IPgateway);
-                wifiChange = true;
+                strlcpy(userConfig->IPgateway, value, sizeof(userConfig->IPgateway));
+
+                reboot = true;
             }
         }
         else if (!strcmp(key, "nameserverIP"))
         {
             if (strlen(value) > 0)
             {
-                strlcpy(IPnameserver, value, sizeof(IPnameserver));
-                write_string_to_file(IPnameserverFile, IPnameserver);
-                wifiChange = true;
+                strlcpy(userConfig->IPnameserver, value, sizeof(userConfig->IPnameserver));
+
+                reboot = true;
             }
         }
         else if (!strcmp(key, "localIP"))
         {
             if (strlen(value) > 0)
             {
-                strlcpy(IPaddress, value, sizeof(IPaddress));
-                write_string_to_file(IPaddressFile, IPaddress);
-                wifiChange = true;
+                strlcpy(userConfig->IPaddress, value, sizeof(userConfig->IPaddress));
+                reboot = true;
+            }
+        }
+        else if (!strcmp(key, "syslogEn"))
+        {
+            RINFO("Setting SyslogEN to %s", value);
+            syslogEn = atoi(value) != 0;
+            userConfig->syslogEn = syslogEn;
+        }
+        else if (!strcmp(key, "syslogIP"))
+        {
+            if (strlen(value) > 0)
+            {
+                RINFO("Setting SyslogIP to %s", value);
+                strlcpy(userConfig->syslogIP, value, sizeof(userConfig->syslogIP));
             }
         }
         else if (!strcmp(key, "TTCseconds"))
         {
-            TTCdelay = (uint8_t)atoi(value);
-            write_int_to_file(TTCdelay_file, TTCdelay);
+            userConfig->TTCdelay = atoi(value);
         }
         else if (!strcmp(key, "motionTriggers"))
         {
             uint8_t triggers = (uint8_t)atoi(value);
-            write_int_to_file(motionTriggersFile, (uint32_t)triggers);
             // Only reboot if need for motion sensor accessory changes...
             reboot = (((triggers == 0) && (motionTriggers.asInt != 0)) || ((triggers != 0) && (motionTriggers.asInt == 0)));
             motionTriggers.asInt = triggers;
+            userConfig->motionTriggers = motionTriggers.asInt;
         }
         else if (!strcmp(key, "LEDidle"))
         {
             bool idleStateOn = (atoi(value) != 0);
-            write_int_to_file(ledIdleStateFile, (idleStateOn) ? LOW : HIGH);
+            userConfig->ledIdleState = (idleStateOn) ? LOW : HIGH;
             led.setIdleState((idleStateOn) ? LOW : HIGH);
         }
 #ifdef NTP_CLIENT
         else if (!strcmp(key, "enableNTP"))
         {
-            write_int_to_file(enableNTPFile, (atoi(value) != 0) ? 1 : 0);
+            userConfig->enableNTP = atoi(value) != 0;
             reboot = true;
         }
 #endif
@@ -857,32 +863,29 @@ void handle_setgdo()
         }
     }
     RINFO("SetGDO Complete");
-    // Simple error handling...
+
     if (error)
     {
+        // Simple error handling...
         RINFO("Sending %s, for: %s", response400invalid, server.uri().c_str());
         server.send_P(400, type_txt, response400invalid);
+        return;
     }
-    else
-    {
-        if (wifiChange)
-        {
-            write_int_to_file(wifiSettingsChangedFile, 1);
-            reboot = true;
-        }
-        if (reboot)
-            server.send_P(200, type_html, PSTR("<p>Success. Reboot.</p>"));
-        else
-            server.send_P(200, type_html, PSTR("<p>Success.</p>"));
-    }
-    // Some settings require reboot to take effect...
+
+    write_config_to_file();
     if (reboot)
     {
+        // Some settings require reboot to take effect
+        server.send_P(200, type_html, PSTR("<p>Success. Reboot.</p>"));
         RINFO("SetGDO Restart required");
         // Allow time to process send() before terminating web server...
         delay(500);
         server.stop();
         sync_and_restart();
+    }
+    else
+    {
+        server.send_P(200, type_html, PSTR("<p>Success.</p>"));
     }
     return;
 }
@@ -922,10 +925,6 @@ void SSEheartbeat(SSESubscription *s)
         ADD_INT(json, "upTime", millis());
         ADD_INT(json, "freeHeap", free_heap);
         ADD_INT(json, "minHeap", min_heap);
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-        // Not needed on heartbeat as all allocated during startup so never changes.
-        // ADD_INT(json, "freeIramHeap", free_iram_heap);
-#endif
         ADD_INT(json, "minStack", ESP.getFreeContStack());
         ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm").c_str());
         ADD_BOOL(json, "checkFlashCRC", flashCRC);
@@ -1097,7 +1096,7 @@ void handle_showrebootlog()
 #ifdef ENABLE_CRASH_LOG
 void handle_clearcrashlog()
 {
-    if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
+    if (userConfig->wwwPWrequired && !server.authenticateDigest(userConfig->wwwUsername, userConfig->wwwCredentials))
     {
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
     }
@@ -1194,7 +1193,7 @@ void handle_update()
 
     server.sendHeader(F("Access-Control-Allow-Headers"), "*");
     server.sendHeader(F("Access-Control-Allow-Origin"), "*");
-    if (passwordReq && !server.authenticateDigest(www_username, www_credentials))
+    if (userConfig->wwwPWrequired && !server.authenticateDigest(userConfig->wwwUsername, userConfig->wwwCredentials))
     {
         RINFO("In handle_update request authentication");
         return server.requestAuthentication(DIGEST_AUTH, www_realm);
@@ -1256,7 +1255,7 @@ void handle_firmware_upload()
     {
         _updaterError.clear();
 
-        _authenticatedUpdate = !passwordReq || server.authenticateDigest(www_username, www_credentials);
+        _authenticatedUpdate = !userConfig->wwwPWrequired || server.authenticateDigest(userConfig->wwwUsername, userConfig->wwwCredentials);
         if (!_authenticatedUpdate)
         {
             RINFO("Unauthenticated Update");
@@ -1358,4 +1357,108 @@ void handle_firmware_upload()
         RINFO("%s was aborted", verify ? "Verify" : "Update");
     }
     esp_yield();
+}
+
+void handle_accesspoint()
+{
+    bool connected = WiFi.isConnected();
+    String previousSSID = "";
+    bool match = false;
+    if (connected)
+    {
+        previousSSID = WiFi.SSID();
+    }
+
+    WiFiClient client = server.client();
+    client.print("HTTP/1.1 200 OK\n");
+    client.print("Content-Type: text/html\n");
+    client.print("Cache-Control: no-cache, no-store\n");
+    client.print("Connection: close\n\n");
+    client.print("<p>Select from available networks, or manually enter SSID:</p>");
+    client.print("<form action=\"/setssid\" method=\"post\">");
+    int i = 0;
+    for (auto net : wifiNets)
+    {
+        bool matchSSID = (previousSSID == net.first);
+        if (matchSSID)
+            match = true;
+        client.printf_P(PSTR("<input type=\"radio\" id=\"n%d\" name=\"net\" value=\"%d\"%s>&nbsp;<label for=\"n%d\">%s : %ddBm</label><br>"),
+                        i, i, (matchSSID) ? " checked=\"checked\"" : "", i, net.first.c_str(), net.second);
+        i++;
+    }
+    // user entered value
+    client.printf_P(PSTR("<input type=\"radio\" id=\"n%d\" name=\"net\" value=\"%d\">&nbsp;<input type=\"text\" name=\"userSSID\" placeholder=\"SSID\" value=\"%s\"><br>"),
+                    i, i, (!match) ? previousSSID : "");
+    client.print("<br><label for=\"pw\">Network password:&nbsp;</label>");
+    client.print("<input id=\"pw\" name=\"pw\" type=\"password\" placeholder=\"password\">");
+    client.print("<br><br><input type=\"submit\" value=\"Submit\" onclick=\"return confirm('Set SSID and password, are you sure?');\">");
+    client.print("&nbsp;<input type=\"submit\" value=\"Rescan\" formaction=\"/rescan\">");
+    client.print("&nbsp;<input type=\"submit\" value=\"Cancel\" formaction=\"/reboot\" onclick=\"return confirm('Reboot without changes, are you sure?');\">");
+    client.print("</form>");
+    client.print("\n");
+    client.flush();
+    client.stop();
+    return;
+}
+
+void handle_setssid()
+{
+    if (server.args() != 3)
+    {
+        RINFO("Sending %s, for: %s as invalid number of args", response400invalid, server.uri().c_str());
+        server.send_P(400, type_txt, response400invalid);
+        return;
+    }
+
+    const unsigned int net = atoi(server.arg("net").c_str());
+    const char *pw = server.arg("pw").c_str();
+    const char *userSSID = server.arg("userSSID").c_str();
+    const char *ssid;
+
+    if (net < wifiNets.size())
+    {
+        auto it = wifiNets.begin();
+        for (unsigned int i = 0; i < net && it != wifiNets.end(); ++i)
+            ++it;
+        ssid = it->first.c_str();
+    }
+    else
+    {
+        // user provided SSID
+        ssid = userSSID;
+    }
+    RINFO("Requested WiFi SSID: %s (%d)", ssid, net);
+
+    snprintf_P(json, JSON_BUFFER_SIZE, PSTR("Setting SSID to: %s\nRATGDO rebooting."), ssid);
+    server.client().setNoDelay(true);
+    server.send_P(200, type_txt, json);
+    delay(500);
+    server.stop();
+
+    const bool connected = WiFi.isConnected();
+    String previousSSID;
+    String previousPSK;
+    if (connected)
+    {
+        previousSSID = WiFi.SSID();
+        previousPSK = WiFi.psk();
+        RINFO("Current SSID: %s", previousSSID.c_str());
+        WiFi.disconnect();
+    }
+
+    if (connect_wifi(ssid, pw))
+    {
+        RINFO("WiFi Successfully connects to SSID: %s", ssid);
+    }
+    else
+    {
+        RINFO("WiFi Failed to connect to SSID: %s", ssid);
+        if (connected)
+        {
+            RINFO("Resetting WiFi to previous SSID: %s", previousSSID.c_str());
+            connect_wifi(previousSSID.c_str(), previousPSK.c_str());
+        }
+    }
+    sync_and_restart();
+    return;
 }

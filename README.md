@@ -110,6 +110,13 @@ Changing this setting will cause a reboot only if changing from no motion sensor
 
 This option is not available on mobile devices. On a desktop browser all server firmware logs can be displayed in the javascript console log. On some browsers you may need to enable developer mode before you can open the javascript console.
 
+### Syslog
+
+This setting allows you to send the ratgdo logs to a syslog server.  Enter the IP address of your syslog server.  Uses UDP port 514 and logs to the LOCAL0 Facility.
+
+> [!NOTE]
+> If your ratgdo is on an IoT VLAN or otherwise isolated VLAN, then you need to make sure it has access to your syslog server.  If the syslog server is on a seperate VLAN, you need to allow UDP port 514 through the firewall.
+
 ### Door Protocol
 
 Set the protocol for your model of garage door opener.  This defaults to Security+ 2.0 and you should only change this if necessary.  Note that the changing the door protocol also resets the door opener rolling codes and whether there is a motion sensor (this will be automatically detected after reset).
@@ -148,6 +155,22 @@ During early devlopment there were several reports that the ratgdo device would 
 ### Reset Door
 
 This button resets the Sec+ 2.0 rolling codes and whether your door opener has a motion sensor. This may be necessary if the ratgdo device gets out-of-sync with what the door opener expects.  Selecting this button requires the ratgdo to reboot and does not save any new settings.
+
+### Set WiFi SSID
+
+This button will restart the ratgdo in soft Access Point (AP) mode from where you can set a new WiFi network SSID and password.  You can connect to the ratgdo either from the existing WiFi network and IP address or by connecting your laptop or mobile device to the ratgdo's WiFi SSID and pointing your browser to IP address 192.168.4.1.  The SSID created is based on the device name, e.g. _Garage-Door-ABCDEF._
+
+If you are unable to connect to your ratgdo or the old wifi network is not available, you can force the device into soft Access Point mode by rapidly pressing the wall panel light button 5 times within 3 second.  The ratgdo will respond by flashing the lights for 3 more seconds before rebooting into AP mode.
+
+If you are preparing to move the ratgdo to a new location then after the device has booted into soft AP mode you can disconnect it (within 10 minutes) and when it first boots in the new location it will start up in soft AP mode. In soft AP mode the ratgdo does not connect to the garage door opener or HomeKit.
+
+On changing the WiFi network SSID you will have to un-pair and re-pair the ratgdo to Apple Home.
+
+> [!NOTE]
+> If you do not set a new SSID and password within 10 minutes of booting into soft AP mode then the ratgdo will reboot as normal and connect to the previously set WiFi network SSID.
+
+> [!NOTE]
+> On changing the SSID in soft AP mode the ratgdo attempts to connect to the new WiFi network.  If that fails then the ratgdo will reset to the old SSID and password and reboot.
 
 ## How do I upgrade?
 

@@ -104,7 +104,7 @@ function openTab(evt, tabName) {
                 document.getElementById("statusjson").innerText = text;
                 loaderElem.style.visibility = "hidden";
             })
-            .catch(error => console.warn(error))
+            .catch(error => console.warn(error));
     }
 }
 
@@ -165,18 +165,18 @@ async function loadLogs() {
             })
             .then((text) => {
                 const { serverTime, upTime, bootTime } = findStartTime(text);
-                const elem = document.getElementById("crashlog");
+                const elem = document.getElementById("crashlog-timestamps");
                 if (bootTime) {
                     let date = new Date();
                     date.setTime(bootTime);
-                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color : darkgoldenrod">Server started at: ${date.toUTCString()}</pre>`);
+                    elem.insertAdjacentHTML('beforeend', `<pre style="margin: 0px; color : darkgoldenrod">Server started at: ${date.toUTCString()}</pre>`);
                     date.setTime(serverTime);
-                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color : darkgoldenrod">Server crashed at: ${date.toUTCString()}</pre>`);
+                    elem.insertAdjacentHTML('beforeend', `<pre style="margin: 0px; color : darkgoldenrod">Server crashed at: ${date.toUTCString()}</pre>`);
                 }
                 if (upTime) {
-                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color : darkgoldenrod">Server upTime:     ${msToTime(upTime)}</pre>`);
+                    elem.insertAdjacentHTML('beforeend', `<pre style="margin: 0px; color : darkgoldenrod">Server upTime:     ${msToTime(upTime)}</pre>`);
                 }
-                elem.innerText = insertTimeStamp(text, bootTime);
+                document.getElementById("crashlog").innerText = insertTimeStamp(text, bootTime);
             })
             .catch(error => console.warn(error)),
 
@@ -195,7 +195,7 @@ async function loadLogs() {
                 evtSource.addEventListener("logger", (event) => {
                     let divElem = document.getElementById("logTab");
                     let scroll = (divElem.scrollHeight - divElem.scrollTop - divElem.clientHeight) < 10;
-                    document.getElementById("showlog").insertAdjacentText('beforeend', insertTimeStamp(event.data, serverBootTime) + "\n\r");
+                    document.getElementById("showlog").insertAdjacentText('beforeend', insertTimeStamp(event.data, serverBootTime) + "\n");
                     // Only scroll the page if we are already at bottom of the page
                     if (scroll) divElem.scrollTop = divElem.scrollHeight;
                 });
@@ -250,6 +250,7 @@ async function clearCrashLog() {
     document.getElementById("clearBtn").style.display = "none";
     if (msgJson) msgJson.crashCount = 0;
     document.getElementById("crashlog").innerText = "No crashes saved";
+    document.getElementById("crashlog-timestamps").innerText = "";
     loaderElem.style.visibility = "hidden";
 }
 // Generate a UUID.  Cannot use crypto.randomUUID() because that will only run

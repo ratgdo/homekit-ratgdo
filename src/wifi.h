@@ -4,8 +4,16 @@
 #ifndef WIFI_INFO_H_
 #define WIFI_INFO_H_
 
+#include <map>
+
 void improv_loop();
 
 void wifi_connect();
+
+void wifi_scan();
+
+bool connect_wifi(std::string, std::string);
+
+extern std::map<String, int> wifiNets;
 
 #endif /* WIFI_INFO_H_ */

@@ -24,11 +24,14 @@
 #include "ratgdo.h"
 #include "log.h"
 #include "utilities.h"
+#include "wifi.h"
 
 // support for changeing WiFi settings
 unsigned long wifiConnectTimeout = 0;
+// support for scaning WiFi networks
+std::map<String, int> wifiNets;
 
-#define MAX_ATTEMPTS_WIFI_CONNECTION 20
+#define MAX_ATTEMPTS_WIFI_CONNECTION 30
 uint8_t x_buffer[128];
 uint8_t x_position = 0;
 
@@ -44,88 +47,121 @@ WiFiEventHandler disconnectedHandler;
 WiFiEventHandler gotIPHandler;
 WiFiEventHandler dhcpTimeoutHandler;
 
-void onConnected(const WiFiEventStationModeConnected& evt) {
-  RINFO("WiFi connected SSID: %s, Channel: %d", evt.ssid.c_str(), evt.channel);
+void onConnected(const WiFiEventStationModeConnected &evt)
+{
+    RINFO("WiFi connected SSID: %s, Channel: %d", evt.ssid.c_str(), evt.channel);
 }
 
-void onDisconnected(const WiFiEventStationModeDisconnected& evt) {
-  RINFO("WiFi disconnected SSID: %s, BSSID: %02x:%02x:%02x:%02x:%02x:%02x, Reason: %d", evt.ssid.c_str(), 
-        evt.bssid[0], evt.bssid[1], evt.bssid[2], evt.bssid[3], evt.bssid[4], evt.bssid[5], evt.reason);
+void onDisconnected(const WiFiEventStationModeDisconnected &evt)
+{
+    RINFO("WiFi disconnected SSID: %s, BSSID: %02x:%02x:%02x:%02x:%02x:%02x, Reason: %d", evt.ssid.c_str(),
+          evt.bssid[0], evt.bssid[1], evt.bssid[2], evt.bssid[3], evt.bssid[4], evt.bssid[5], evt.reason);
 }
 
-void onGotIP(const WiFiEventStationModeGotIP& evt) {
-  RINFO("WiFi Got IP: %s, Mask: %s, Gateway: %s, DNS: %s", evt.ip.toString().c_str(), evt.mask.toString().c_str(), evt.gw.toString().c_str(), WiFi.dnsIP().toString().c_str());
-  write_string_to_file(IPaddressFile,evt.ip.toString().c_str());
-  write_string_to_file(IPnetmaskFile,evt.mask.toString().c_str());
-  write_string_to_file(IPgatewayFile,evt.gw.toString().c_str());
-  write_string_to_file(IPnameserverFile, (WiFi.dnsIP().isSet()) ? WiFi.dnsIP().toString().c_str() : evt.gw.toString().c_str());
+void onGotIP(const WiFiEventStationModeGotIP &evt)
+{
+    strlcpy(userConfig->IPaddress, evt.ip.toString().c_str(), sizeof(userConfig->IPaddress));
+    strlcpy(userConfig->IPnetmask, evt.mask.toString().c_str(), sizeof(userConfig->IPnetmask));
+    strlcpy(userConfig->IPgateway, evt.gw.toString().c_str(), sizeof(userConfig->IPgateway));
+    strlcpy(userConfig->IPnameserver, (WiFi.dnsIP().isSet()) ? WiFi.dnsIP().toString().c_str() : evt.gw.toString().c_str(), sizeof(userConfig->IPnameserver));
+    write_config_to_file();
+    RINFO("WiFi Got IP: %s, Mask: %s, Gateway: %s, DNS: %s", userConfig->IPaddress, userConfig->IPnetmask, userConfig->IPgateway, userConfig->IPnameserver);
 }
 
-void onDHCPTimeout() {
-  RINFO("WiFi DHCP Timeout");
+void onDHCPTimeout()
+{
+    RINFO("WiFi DHCP Timeout");
 }
 
-void wifi_connect() {
-    RINFO("=== Initialize WiFi station");
+void wifi_scan()
+{
+    // scan for networks
+    RINFO("Scanning for networks...");
+    int nNets = WiFi.scanNetworks();
+    RINFO("Found %d networks", nNets);
+    for (int i = 0; i < nNets; i++)
+    {
+        RINFO("Network: %s (Ch:%d, %ddBm)", WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i));
+        // Using a C++ map so we only save unique SSIDs
+        if ((wifiNets.count(WiFi.SSID(i)) == 0) || (wifiNets[WiFi.SSID(i)] < WiFi.RSSI(i)))
+            wifiNets[WiFi.SSID(i)] = WiFi.RSSI(i);
+    }
+    // delete scan from memory
+    WiFi.scanDelete();
+}
+
+void wifi_connect()
+{
+    RINFO("=== Initialize WiFi %s", (softAPmode) ? "Soft Access Point" : "Station");
     WiFi.persistent(false);
-    WiFi.mode(WIFI_STA);
-    WiFi.setSleepMode(WIFI_NONE_SLEEP);
-    if (wifiSettingsChanged) {
-        RINFO("WARNING: WiFi settings changed. Will check for connection after 30 seconds.");
-    }
-    if (wifiPhyMode == WIFI_PHY_MODE_11B) {
-        RINFO("Setting WiFi preference to 802.11b (Wi-Fi 1)");
-    }
-    else if (wifiPhyMode == WIFI_PHY_MODE_11G) {
-        RINFO("Setting WiFi preference to 802.11g (Wi-Fi 3)");
-    }
-    else if (wifiPhyMode == WIFI_PHY_MODE_11N) {
-        RINFO("Setting WiFi preference to 802.11n (Wi-Fi 4)");
-    }
-    else {
-        RINFO("Setting WiFi version preference to automatic");
-    }
-    WiFi.setPhyMode(wifiPhyMode);
-    if (wifiPower < 20)
+    if (softAPmode)
     {
-        // Only set WiFi power if set to less than the maximum
-        RINFO("Setting WiFi power to %d", wifiPower);
-        WiFi.setOutputPower((float)wifiPower);
-    }
-    WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
-
-    if (strlen(device_name) > 0)
-    {
-        // We don't want any space characters in host name...
-        // Maximum length permitted is 24 characters.
-        char str[24];
-        int i = 0;
-        while (i < 24 && device_name[i] != 0)
+        RINFO("Start AP mode for: %s", device_name_rfc952);
+        bool apStarted = WiFi.softAP(device_name_rfc952);
+        if (apStarted)
         {
-            str[i] = (isspace((unsigned char)device_name[i])) ? '-' : device_name[i];
-            i++;
-        }
-        str[min(i,23)] = 0; // null terminate string
-        RINFO("Set WiFi Host Name: %s", str);
-        WiFi.hostname((const char *)str);
-    }
-
-    if (staticIP)
-    {
-        IPAddress ip;
-        IPAddress gw;
-        IPAddress nm;
-        IPAddress dns;
-        if (ip.fromString(IPaddress) && gw.fromString(IPgateway) && nm.fromString(IPnetmask) && dns.fromString(IPnameserver))
-        {
-            WiFi.config(ip, gw, nm, dns);
+            RINFO("AP started with IP %s", WiFi.softAPIP().toString().c_str());
         }
         else
         {
-            RINFO("Failed to set static IP address, error parsing addresses");
+            RINFO("Error starting AP mode");
+        }
+        userConfig->wifiSettingsChanged = false;
+        wifi_scan();
+    }
+    else
+    {
+        if (userConfig->wifiSettingsChanged)
+        {
+            RINFO("WARNING: WiFi settings changed. Will check for connection after 30 seconds.");
+        }
+        switch (userConfig->wifiPhyMode)
+        {
+        case WIFI_PHY_MODE_11B:
+            RINFO("Setting WiFi preference to 802.11b (Wi-Fi 1)");
+            break;
+        case WIFI_PHY_MODE_11G:
+            RINFO("Setting WiFi preference to 802.11g (Wi-Fi 3)");
+            break;
+        case WIFI_PHY_MODE_11N:
+            RINFO("Setting WiFi preference to 802.11n (Wi-Fi 4)");
+            break;
+        default:
+            RINFO("Setting WiFi version preference to automatic");
+        }
+        WiFi.mode(WIFI_STA);
+        WiFi.setSleepMode(WIFI_NONE_SLEEP);
+        WiFi.setPhyMode((WiFiPhyMode_t)userConfig->wifiPhyMode);
+        if (userConfig->wifiPower < 20)
+        {
+            // Only set WiFi power if set to less than the maximum
+            RINFO("Setting WiFi power to %d", userConfig->wifiPower);
+            WiFi.setOutputPower((float)userConfig->wifiPower);
+        }
+        WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
+
+        RINFO("Set WiFi Host Name: %s", device_name_rfc952);
+        WiFi.hostname((const char *)device_name_rfc952);
+
+        if (userConfig->staticIP)
+        {
+            IPAddress ip;
+            IPAddress gw;
+            IPAddress nm;
+            IPAddress dns;
+            if (ip.fromString(userConfig->IPaddress) &&
+                gw.fromString(userConfig->IPgateway) &&
+                nm.fromString(userConfig->IPnetmask) &&
+                dns.fromString(userConfig->IPnameserver))
+            {
+                WiFi.config(ip, gw, nm, dns);
+            }
+            else
+            {
+                RINFO("Failed to set static IP address, error parsing addresses");
+            }
         }
     }
-
     // Set callbacks so we can monitor connection status
     connectedHandler = WiFi.onStationModeConnected(&onConnected);
     disconnectedHandler = WiFi.onStationModeDisconnected(&onDisconnected);
@@ -134,39 +170,53 @@ void wifi_connect() {
 
     RINFO("Starting WiFi connecting in background");
     wifiConnectTimeout = millis() + 30000;
-    WiFi.begin();                // use credentials stored in flash
+    WiFi.begin(); // use credentials stored in flash
 }
 
-void improv_loop() {
-    if (Serial.available() > 0) {
+void improv_loop()
+{
+    loop_id = LOOP_IMPROV;
+    if (Serial.available() > 0)
+    {
         uint8_t b = Serial.read();
 
-        if (parse_improv_serial_byte(x_position, b, x_buffer, on_command_callback, on_error_callback)) {
+        if (parse_improv_serial_byte(x_position, b, x_buffer, on_command_callback, on_error_callback))
+        {
             x_buffer[x_position++] = b;
-        } else {
+        }
+        else
+        {
             x_position = 0;
         }
     }
 
-    if (wifiSettingsChanged && (millis() > wifiConnectTimeout)) {
+    if (softAPmode && (millis() > 10 * 60 * 1000))
+    {
+        RINFO("In Soft Access Point mode for over 10 minutes, reboot");
+        sync_and_restart();
+        return;
+    }
+
+    if (userConfig->wifiSettingsChanged && (millis() > wifiConnectTimeout))
+    {
         bool connected = (WiFi.status() == WL_CONNECTED);
         RINFO("30 seconds since WiFi settings change, connected to access point: %s", (connected) ? "true" : "false");
         // If not connected, reset to auto.
-        if (!connected) {
-            wifiPhyMode = (WiFiPhyMode_t)0;
-            RINFO("Reset WiFiPhyMode to: %d", wifiPhyMode);
-            write_int_to_file(wifiPhyModeFile, (uint32_t)wifiPhyMode);
-            WiFi.setPhyMode(wifiPhyMode);
-            wifiPower = 20;
-            RINFO("Reset WiFi Power to 20.5dBm");
-            write_int_to_file(wifiPowerFile, (uint32_t)wifiPower);
+        if (!connected)
+        {
+            RINFO("Reset WiFi Power to 20.5 dBm and WiFiPhyMode to: 0");
+            userConfig->wifiPower = 20;
+            userConfig->wifiPhyMode = 0;
             WiFi.setOutputPower(20.5);
+            WiFi.setPhyMode((WiFiPhyMode_t)0);
+            write_config_to_file();
             // Now try and reconnect...
             wifiConnectTimeout = millis() + 30000;
             WiFi.reconnect();
             return;
         }
-        else {
+        else
+        {
             RINFO("Connected, test network DNS reachable");
             if (WiFi.dnsIP().isSet())
             {
@@ -176,7 +226,7 @@ void improv_loop() {
                 ip_addr_t nm = (ip_addr_t)WiFi.subnetMask();
                 if (ip4_addr_netcmp(&dns, &gw, &nm))
                 {
-                    RINFO("DNS server in same subnet as gateway)");
+                    RINFO("DNS server in same subnet as gateway");
                     WiFi.hostByName("localhost", ip);
                 }
                 else
@@ -187,8 +237,8 @@ void improv_loop() {
                 if (!ip.isSet())
                 {
                     RINFO("DNS not working, reset to DHCP to acquire IP address and reconnect");
-                    staticIP = false;
-                    write_int_to_file(staticIPfile, 0);
+                    userConfig->staticIP = false;
+                    write_config_to_file();
                     IPAddress ip;
                     ip.fromString("0.0.0.0");
                     WiFi.config(ip, ip, ip);
@@ -204,124 +254,138 @@ void improv_loop() {
             }
         }
         // reset flag
-        wifiSettingsChanged = false;
-        write_int_to_file(wifiSettingsChangedFile, 0);
+        userConfig->wifiSettingsChanged = false;
+        write_config_to_file();
     }
 }
 
-bool connect_wifi(std::string ssid, std::string password) {
+bool connect_wifi(std::string ssid, std::string password)
+{
     uint8_t count = 0;
 
     WiFi.persistent(true); // Set persist to store wifi credentials
     WiFi.begin(ssid.c_str(), password.c_str());
-    WiFi.persistent(false);  // clear the persist flag so other settings do not get written to flash
+    WiFi.persistent(false); // clear the persist flag so other settings do not get written to flash
 
-    while (WiFi.status() != WL_CONNECTED) {
+    while (WiFi.status() != WL_CONNECTED)
+    {
         delay(500);
         yield();
-
-        if (count > MAX_ATTEMPTS_WIFI_CONNECTION) {
+        if (count > MAX_ATTEMPTS_WIFI_CONNECTION)
+        {
             WiFi.disconnect();
             return false;
         }
         count++;
     }
-
     return true;
 }
 
-std::vector<std::string> get_local_url() {
+std::vector<std::string> get_local_url()
+{
     return {
         // TODO
         // URL where user can finish onboarding or use device
         // Recommended to use website hosted by device
-        String("http://" + WiFi.localIP().toString()).c_str()
-    };
+        String("http://" + WiFi.localIP().toString()).c_str()};
 }
 
-void on_error_callback(improv::Error err) {
+void on_error_callback(improv::Error err)
+{
     RERROR("improv error: %02X", err);
 }
 
-bool on_command_callback(improv::ImprovCommand cmd) {
+bool on_command_callback(improv::ImprovCommand cmd)
+{
 
-    switch (cmd.command) {
-        case improv::Command::GET_CURRENT_STATE:
-            {
-                if ((WiFi.status() == WL_CONNECTED)) {
-                    set_state(improv::State::STATE_PROVISIONED);
-                    std::vector<uint8_t> data = improv::build_rpc_response(improv::GET_CURRENT_STATE, get_local_url(), false);
-                    send_response(data);
+    switch (cmd.command)
+    {
+    case improv::Command::GET_CURRENT_STATE:
+    {
+        if ((WiFi.status() == WL_CONNECTED))
+        {
+            set_state(improv::State::STATE_PROVISIONED);
+            std::vector<uint8_t> data = improv::build_rpc_response(improv::GET_CURRENT_STATE, get_local_url(), false);
+            send_response(data);
+        }
+        else
+        {
+            set_state(improv::State::STATE_AUTHORIZED);
+        }
 
-                } else {
-                    set_state(improv::State::STATE_AUTHORIZED);
-                }
+        break;
+    }
 
-                break;
-            }
+    case improv::Command::WIFI_SETTINGS:
+    {
+        if (cmd.ssid.length() == 0)
+        {
+            set_error(improv::Error::ERROR_INVALID_RPC);
+            break;
+        }
 
-        case improv::Command::WIFI_SETTINGS:
-            {
-                if (cmd.ssid.length() == 0) {
-                    set_error(improv::Error::ERROR_INVALID_RPC);
-                    break;
-                }
+        set_state(improv::STATE_PROVISIONING);
 
-                set_state(improv::STATE_PROVISIONING);
+        if (connect_wifi(cmd.ssid, cmd.password))
+        {
+            set_state(improv::STATE_PROVISIONED);
+            std::vector<uint8_t> data = improv::build_rpc_response(improv::WIFI_SETTINGS, get_local_url(), false);
+            send_response(data);
+        }
+        else
+        {
+            set_state(improv::STATE_STOPPED);
+            set_error(improv::Error::ERROR_UNABLE_TO_CONNECT);
+        }
 
-                if (connect_wifi(cmd.ssid, cmd.password)) {
-                    set_state(improv::STATE_PROVISIONED);
-                    std::vector<uint8_t> data = improv::build_rpc_response(improv::WIFI_SETTINGS, get_local_url(), false);
-                    send_response(data);
+        break;
+    }
 
-                } else {
-                    set_state(improv::STATE_STOPPED);
-                    set_error(improv::Error::ERROR_UNABLE_TO_CONNECT);
-                }
+    case improv::Command::GET_DEVICE_INFO:
+    {
+        std::vector<std::string> infos = {
+            DEVICE_NAME,
+            AUTO_VERSION,
+            CHIP_FAMILY,
+            MODEL_NAME};
+        std::vector<uint8_t> data = improv::build_rpc_response(improv::GET_DEVICE_INFO, infos, false);
+        send_response(data);
+        break;
+    }
 
-                break;
-            }
+    case improv::Command::GET_WIFI_NETWORKS:
+    {
+        get_available_wifi_networks();
+        break;
+    }
 
-        case improv::Command::GET_DEVICE_INFO:
-            {
-                std::vector<std::string> infos = {
-                    DEVICE_NAME,
-                    AUTO_VERSION,
-                    CHIP_FAMILY,
-                    MODEL_NAME
-                };
-                std::vector<uint8_t> data = improv::build_rpc_response(improv::GET_DEVICE_INFO, infos, false);
-                send_response(data);
-                break;
-            }
-
-        case improv::Command::GET_WIFI_NETWORKS:
-            {
-                get_available_wifi_networks();
-                break;
-            }
-
-        default: {
-                     set_error(improv::ERROR_UNKNOWN_RPC);
-                     return false;
-                 }
+    default:
+    {
+        set_error(improv::ERROR_UNKNOWN_RPC);
+        return false;
+    }
     }
 
     return true;
 }
 
-void get_available_wifi_networks() {
+void get_available_wifi_networks()
+{
     int networkNum = WiFi.scanNetworks();
 
     int sortedIndicies[networkNum];
-    for (int i = 0; i < networkNum; i++) {
+    for (int i = 0; i < networkNum; i++)
+    {
         sortedIndicies[i] = i;
     }
 
     // sort networks by RSSI, strongest to weakest
-    for (int i = 0; i < networkNum; i++) {
-        for (int j = i + 1; j < networkNum; j++) {
-            if (WiFi.RSSI(sortedIndicies[j]) > WiFi.RSSI(sortedIndicies[i])) {
+    for (int i = 0; i < networkNum; i++)
+    {
+        for (int j = i + 1; j < networkNum; j++)
+        {
+            if (WiFi.RSSI(sortedIndicies[j]) > WiFi.RSSI(sortedIndicies[i]))
+            {
                 std::swap(sortedIndicies[i], sortedIndicies[j]);
             }
         }
@@ -329,20 +393,26 @@ void get_available_wifi_networks() {
 
     // find duplicates (must be RSSI sorted)
     String temp_ssid;
-    for (int i = 0; i < networkNum; i++) {
-        if (sortedIndicies[i] == -1) continue;       // skip duplicate
+    for (int i = 0; i < networkNum; i++)
+    {
+        if (sortedIndicies[i] == -1)
+            continue; // skip duplicate
         temp_ssid = WiFi.SSID(sortedIndicies[i]);
-        for (int j = i + 1; j < networkNum; j++) {
-            if (temp_ssid == WiFi.SSID(sortedIndicies[j])) {
-                sortedIndicies[j] = -1;              // set dupes to -1 to skip later
+        for (int j = i + 1; j < networkNum; j++)
+        {
+            if (temp_ssid == WiFi.SSID(sortedIndicies[j]))
+            {
+                sortedIndicies[j] = -1; // set dupes to -1 to skip later
             }
         }
     }
 
-    for (int id = 0; id < networkNum; ++id) {
-        if (sortedIndicies[id] == -1) continue;      // skip duplicate
+    for (int id = 0; id < networkNum; ++id)
+    {
+        if (sortedIndicies[id] == -1)
+            continue; // skip duplicate
         std::vector<uint8_t> data = improv::build_rpc_response(
-                improv::GET_WIFI_NETWORKS, {WiFi.SSID(sortedIndicies[id]), String(WiFi.RSSI(sortedIndicies[id])), (WiFi.encryptionType(sortedIndicies[id]) == ENC_TYPE_NONE ? "NO" : "YES")}, false);
+            improv::GET_WIFI_NETWORKS, {WiFi.SSID(sortedIndicies[id]), String(WiFi.RSSI(sortedIndicies[id])), (WiFi.encryptionType(sortedIndicies[id]) == ENC_TYPE_NONE ? "NO" : "YES")}, false);
         send_response(data);
         delay(1);
     }
@@ -355,7 +425,8 @@ void get_available_wifi_networks() {
     WiFi.scanDelete();
 }
 
-void set_state(improv::State state) {
+void set_state(improv::State state)
+{
 
     std::vector<uint8_t> data = {'I', 'M', 'P', 'R', 'O', 'V'};
     data.resize(11);
@@ -372,7 +443,8 @@ void set_state(improv::State state) {
     Serial.write(data.data(), data.size());
 }
 
-void send_response(std::vector<uint8_t> &response) {
+void send_response(std::vector<uint8_t> &response)
+{
     std::vector<uint8_t> data = {'I', 'M', 'P', 'R', 'O', 'V'};
     data.resize(9);
     data[6] = improv::IMPROV_SERIAL_VERSION;
@@ -388,7 +460,8 @@ void send_response(std::vector<uint8_t> &response) {
     Serial.write(data.data(), data.size());
 }
 
-void set_error(improv::Error error) {
+void set_error(improv::Error error)
+{
     std::vector<uint8_t> data = {'I', 'M', 'P', 'R', 'O', 'V'};
     data.resize(11);
     data[6] = improv::IMPROV_SERIAL_VERSION;

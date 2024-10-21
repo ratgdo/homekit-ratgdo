@@ -43,14 +43,13 @@ extern "C" char serial_number[SERIAL_NAME_SIZE];
 
 void homekit_loop()
 {
+    loop_id = LOOP_HK;
     arduino_homekit_loop();
 }
 
 void setup_homekit()
 {
     RINFO("=== Starting HomeKit Server");
-    snprintf(device_name, DEVICE_NAME_SIZE, "Garage Door %06X", ESP.getChipId());
-    read_string_from_file(device_name_file, device_name, device_name, DEVICE_NAME_SIZE);
     String macAddress = WiFi.macAddress();
     snprintf(serial_number, SERIAL_NAME_SIZE, "%s", macAddress.c_str());
 
@@ -66,7 +65,7 @@ void setup_homekit()
     light_state.setter = light_state_set;
 
     garage_door.has_motion_sensor = (bool)read_int_from_file("has_motion");
-    if (!garage_door.has_motion_sensor && (read_int_from_file(motionTriggersFile) == 0))
+    if (!garage_door.has_motion_sensor && (userConfig->motionTriggers == 0))
     {
         RINFO("Motion Sensor not detected.  Disabling Service");
         config.accessories[0]->services[3] = NULL;
@@ -231,7 +230,8 @@ void notify_homekit_light()
 void enable_service_homekit_motion(bool reboot)
 {
     write_int_to_file("has_motion", 1);
-    if (reboot) {
+    if (reboot)
+    {
         sync_and_restart();
     }
 }

@@ -9,11 +9,6 @@
 #include "comms.h"
 #include "web.h"
 
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-#include <umm_malloc/umm_malloc.h>
-#include <umm_malloc/umm_heap_select.h>
-#endif
-
 #ifndef UNIT_TEST
 
 #include <Arduino.h>
@@ -37,6 +32,66 @@ char *lineBuffer = NULL;
 logBuffer *msgBuffer = NULL; // Buffer to save log messages as they occur
 File logMessageFile;
 
+#define SYSLOG_PORT 514
+#define SYSLOG_LOCAL0 16
+#define SYSLOG_EMERGENCY 0
+#define SYSLOG_ALERT 1
+#define SYSLOG_CRIT 2
+#define SYSLOG_ERROR 3
+#define SYSLOG_WARN 4
+#define SYSLOG_NOTICE 5
+#define SYSLOG_INFO 6
+#define SYSLOG_DEBUG 7
+#define SYSLOG_NIL "-"
+#define SYSLOG_BOM "\xEF\xBB\xBF"
+
+WiFiUDP syslog;
+void logToSyslog(char *message)
+{
+    if (!syslogEn)
+        return;
+
+    uint8_t PRI = SYSLOG_LOCAL0 * 8;
+    if (*message == '>')
+        PRI += SYSLOG_INFO;
+    else if (*message == '!')
+        PRI += SYSLOG_ERROR;
+
+    char *app_name;
+    char *msg;
+
+    app_name = strtok(message, "]");
+    while (*app_name == ' ')
+        app_name++;
+    app_name = strtok(NULL, ":");
+    while (*app_name == ' ')
+        app_name++;
+    msg = strtok(NULL, "\r\n");
+
+    syslog.beginPacket(userConfig->syslogIP, SYSLOG_PORT);
+
+    // If NTP is enabled, then use RFC5424 Format
+    if (enableNTP && timeClient.isTimeSet())
+    {
+        syslog.printf("<%u>1 ", PRI); // PRI code
+        syslog.print(timeString());   // date / time string
+        syslog.print(" ");
+        syslog.print(device_name_rfc952); // hostname
+        syslog.print(" ");
+        syslog.print(app_name);        // application name
+        syslog.printf(" %d", loop_id); // process ID
+        syslog.print(" " SYSLOG_NIL    // message ID
+                     " " SYSLOG_NIL    // structured data
+                     " " SYSLOG_BOM);  // BOM - indicates UTF-8 encoding
+        syslog.print(msg);             // message
+    }
+    else
+    {
+        syslog.printf_P("<%d> %s:%s", PRI, app_name, msg);
+    }
+    syslog.endPacket();
+}
+
 void logToBuffer_P(const char *fmt, ...)
 {
     if (!msgBuffer)
@@ -44,29 +99,25 @@ void logToBuffer_P(const char *fmt, ...)
         // first time in we need to create the buffers
         Serial.printf_P(PSTR("Allocating memory for logs\n"));
         Serial.printf_P(PSTR("Free heap: %d\n"), ESP.getFreeHeap());
-        {
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-            HeapSelectIram ephemeral;
-            Serial.printf_P(PSTR("IRAM heap size %d\n"), MMU_SEC_HEAP_SIZE);
-            Serial.printf_P(PSTR("Free IRAM heap: %d\n"), ESP.getFreeHeap());
+        IRAM_START
+#if defined(MMU_IRAM_HEAP)
+        Serial.printf_P(PSTR("IRAM heap size %d\n"), MMU_SEC_HEAP_SIZE);
+        Serial.printf_P(PSTR("Free IRAM heap: %d\n"), ESP.getFreeHeap());
 #endif
-            msgBuffer = (logBuffer *)malloc(sizeof(logBuffer));
-            Serial.printf_P(PSTR("Allocated %d bytes for message log buffer\n"), sizeof(logBuffer));
-            lineBuffer = (char *)malloc(LINE_BUFFER_SIZE);
-            Serial.printf_P(PSTR("Allocated %d bytes for line buffer\n"), LINE_BUFFER_SIZE);
-            // Fill the buffer with space chars... because if we crash and dump buffer before it fills
-            // up, we want blank space not garbage! Nothing is null-terminated in this circular buffer.
-            memset(msgBuffer->buffer, 0x20, sizeof(msgBuffer->buffer));
-            msgBuffer->wrapped = 0;
-            msgBuffer->head = 0;
-            // Open logMessageFile so we don't have to later.
-            logMessageFile = (LittleFS.exists(CRASH_LOG_MSG_FILE)) ? LittleFS.open(CRASH_LOG_MSG_FILE, "r+") : LittleFS.open(CRASH_LOG_MSG_FILE, "w+");
-            Serial.printf_P(PSTR("Opened log message file, size: %d\n"), logMessageFile.size());
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-            Serial.printf_P(PSTR("Free IRAM heap: %d\n"), ESP.getFreeHeap());
-#endif
-        }
-        Serial.printf_P(PSTR("Free heap: %d\n"), ESP.getFreeHeap());
+        msgBuffer = (logBuffer *)malloc(sizeof(logBuffer));
+        Serial.printf_P(PSTR("Allocated %d bytes for message log buffer\n"), sizeof(logBuffer));
+        lineBuffer = (char *)malloc(LINE_BUFFER_SIZE);
+        Serial.printf_P(PSTR("Allocated %d bytes for line buffer\n"), LINE_BUFFER_SIZE);
+        // Fill the buffer with space chars... because if we crash and dump buffer before it fills
+        // up, we want blank space not garbage! Nothing is null-terminated in this circular buffer.
+        memset(msgBuffer->buffer, 0x20, sizeof(msgBuffer->buffer));
+        msgBuffer->wrapped = 0;
+        msgBuffer->head = 0;
+        // Open logMessageFile so we don't have to later.
+        logMessageFile = (LittleFS.exists(CRASH_LOG_MSG_FILE)) ? LittleFS.open(CRASH_LOG_MSG_FILE, "r+") : LittleFS.open(CRASH_LOG_MSG_FILE, "w+");
+        Serial.printf_P(PSTR("Opened log message file, size: %d\n"), logMessageFile.size());
+        IRAM_END
+        RINFO("Free heap: %d", ESP.getFreeHeap());
     }
 
     // parse the format string into lineBuffer
@@ -93,6 +144,7 @@ void logToBuffer_P(const char *fmt, ...)
     }
     // send it to subscribed browsers
     SSEBroadcastState(lineBuffer, LOG_MESSAGE);
+    logToSyslog(lineBuffer);
 }
 
 #ifdef ENABLE_CRASH_LOG
@@ -139,9 +191,6 @@ extern "C" uint32_t __crc_val;
 // Memory stats
 extern "C" uint32_t free_heap;
 extern "C" uint32_t min_heap;
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
-extern "C" uint32_t free_iram_heap;
-#endif
 
 void printMessageLog(Print &outputDev)
 {
@@ -165,11 +214,9 @@ void printMessageLog(Print &outputDev)
     outputDev.println(free_heap);
     outputDev.write("Minimum heap: ");
     outputDev.println(min_heap);
-#if defined(MMU_IRAM_HEAP) && defined(USE_IRAM_HEAP)
+#if defined(MMU_IRAM_HEAP)
     outputDev.write("IRAM heap size: ");
     outputDev.println(MMU_SEC_HEAP_SIZE);
-    outputDev.write("Free IRAM heap: ");
-    outputDev.println(free_iram_heap);
 #endif
     outputDev.println();
     if (msgBuffer)

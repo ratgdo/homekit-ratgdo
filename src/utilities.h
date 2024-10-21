@@ -11,59 +11,59 @@
 extern NTPClient timeClient;
 extern unsigned long lastRebootAt;
 extern char *timeString(time_t reqTime = 0);
-
 extern bool enableNTP;
-extern const char enableNTPFile[];
-extern const char lastDoorUpdateFile[];
-extern int32_t savedDoorUpdateAt;
 #endif
 
-// For saving DHCP and static IP settings
-#define IP_ADDRESS_SIZE 16
-extern bool staticIP;
-extern char IPaddress[IP_ADDRESS_SIZE];
-extern char IPnetmask[IP_ADDRESS_SIZE];
-extern char IPgateway[IP_ADDRESS_SIZE];
-extern char IPnameserver[IP_ADDRESS_SIZE];
-extern const char staticIPfile[];
-extern const char IPaddressFile[];
-extern const char IPnetmaskFile[];
-extern const char IPgatewayFile[];
-extern const char IPnameserverFile[];
+#if defined(MMU_IRAM_HEAP)
+#include <umm_malloc/umm_malloc.h>
+#include <umm_malloc/umm_heap_select.h>
+#define IRAM_START { HeapSelectIram ephemeral;
+#define IRAM_END RINFO("Free IRAM heap: %d", ESP.getFreeHeap()); }
+#else
+#define IRAM_START {
+#define IRAM_END }
+#endif
 
-// For WiFi physical connection...
-extern uint16_t wifiPower;
-extern const char wifiPowerFile[];
-extern WiFiPhyMode_t wifiPhyMode;
-extern const char wifiPhyModeFile[];
-extern bool wifiSettingsChanged;
-extern const char wifiSettingsChangedFile[];
+// Controls whether to log to syslog server
+extern bool syslogEn;
 
-// device_name is defined in homekit_decl.c
-extern const char device_name_file[];
-
-#define REBOOT_SECONDS (0)
-extern uint32_t rebootSeconds;
-extern const char system_reboot_timer[];
-
-extern uint8_t gdoSecurityType;
-extern const char gdoSecurityTypeFile[];
-extern uint8_t TTCdelay;
-extern const char TTCdelay_file[];
+// Controls soft Access Point mode.
+extern bool softAPmode;
 
 // Password and credential management for HTTP server...
-extern char www_username[32];
-extern const char username_file[];
-extern const char www_password[];
 extern const char www_realm[];
-extern char www_credentials[48];
-extern const char credentials_file[];
-extern bool passwordReq;
-extern const char www_pw_required_file[];
 
-// What is LED idle state (on or off);
-// value is defined in ratgdo.cpp
-extern const char ledIdleStateFile[];
+// struct to hold user configuration settings.
+#define IP_ADDRESS_SIZE 16
+typedef struct
+{
+    char deviceName[DEVICE_NAME_SIZE];
+    bool wifiSettingsChanged = true;
+    int wifiPower = 20;
+    int wifiPhyMode = 0;
+    bool staticIP = false;
+    char IPaddress[IP_ADDRESS_SIZE] = "0.0.0.0";
+    char IPnetmask[IP_ADDRESS_SIZE] = "0.0.0.0";
+    char IPgateway[IP_ADDRESS_SIZE] = "0.0.0.0";
+    char IPnameserver[IP_ADDRESS_SIZE] = "0.0.0.0";
+    bool wwwPWrequired = false;
+    char wwwUsername[32] = "admin";
+    // Credentials are MD5 Hash... server.credentialHash(username, realm, "password");
+    char wwwCredentials[36] = "10d3c00fa1e09696601ef113b99f8a87";
+    int gdoSecurityType = 2;
+    int TTCdelay = 0;
+    int rebootSeconds = 0;
+    int ledIdleState = LOW;
+    int motionTriggers = 0;
+#ifdef NTP_CLIENT
+    bool enableNTP = false;
+    int doorUpdateAt = 0;
+#endif
+    bool softAPmode = false;
+    bool syslogEn = false;
+    char syslogIP[IP_ADDRESS_SIZE] = "0.0.0.0";
+} userConfig_t;
+extern userConfig_t *userConfig;
 
 // Bitset that identifies what will trigger the motion sensor
 typedef struct
@@ -81,18 +81,19 @@ typedef union
     uint8_t asInt;
 } motionTriggersUnion;
 extern motionTriggersUnion motionTriggers;
-extern const char motionTriggersFile[];
 
+// Function declarations
 void load_all_config_settings();
 void sync_and_restart();
+
 uint32_t read_int_from_file(const char *filename, uint32_t defaultValue = 0);
 void write_int_to_file(const char *filename, uint32_t value);
 
 char *read_string_from_file(const char *filename, const char *defaultValue, char *buffer, int bufsize);
 void write_string_to_file(const char *filename, const char *value);
 
-void *read_data_from_file(const char *filename, void *buffer, int bufsize);
-void write_data_to_file(const char *filename, const void *buffer, const int bufsize);
+bool read_config_from_file();
+void write_config_to_file();
 
 void delete_file(const char *filename);
 

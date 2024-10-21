@@ -29,6 +29,8 @@ struct obstruction_sensor_t
 // uint8_t led_idle_state = HIGH;        // opposite of active
 LED led;
 
+uint8_t loop_id;
+
 extern bool flashCRC;
 
 struct GarageDoor garage_door;
@@ -46,8 +48,8 @@ unsigned long next_heap_check = 0;
 void setup()
 {
     disable_extra4k_at_link_time();
-    flashCRC = ESP.checkFlashCRC();
     Serial.begin(115200);
+    flashCRC = ESP.checkFlashCRC();
     LittleFS.begin();
 
     Serial.printf("\n"); // newline before we start
@@ -70,13 +72,17 @@ void setup()
     {
         RERROR("checkFlashCRC: false");
     }
-
+    IRAM_START
     load_all_config_settings();
     wifi_connect();
-    setup_pins();
-    setup_comms();
-    setup_homekit();
     setup_web();
+    if (!softAPmode)
+    {
+        setup_pins();
+        setup_comms();
+        setup_homekit();
+    }
+    IRAM_END
 
 #ifdef NTP_CLIENT
     if (enableNTP)
@@ -92,12 +98,12 @@ void setup()
 
 void loop()
 {
-
     improv_loop();
     comms_loop();
     homekit_loop();
     service_timer_loop();
     web_loop();
+    loop_id = LOOP_SYSTEM;
 }
 
 /*********************************** HELPER FUNCTIONS **************************************/
@@ -205,6 +211,7 @@ void obstruction_timer()
 
 void service_timer_loop()
 {
+    loop_id = LOOP_TIMER;
     // Service the Obstruction Timer
     obstruction_timer();
 

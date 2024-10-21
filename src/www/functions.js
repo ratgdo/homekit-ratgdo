@@ -11,6 +11,7 @@ var checkHeartbeat = undefined; // setTimeout for heartbeat timeout
 var evtSource = undefined;      // for Server Sent Events (SSE)
 var delayStatusFn = [];         // to keep track of possible checkStatus timeouts
 const clientUUID = uuidv4();    // uniquely identify this session
+const rebootSeconds = 15;       // How long to wait before reloading page after reboot
 
 // https://stackoverflow.com/questions/7995752/detect-desktop-browser-not-mobile-with-javascript
 const isTouchDevice = function () { return 'ontouchstart' in window || 'onmsgesturechange' in window; };
@@ -111,6 +112,14 @@ function setElementsFromStatus(status) {
                 document.getElementById(key).checked = value;
                 document.getElementById("staticIPtable").style.display = (value) ? "table" : "none";
                 break;
+            case "syslogIP":
+                document.getElementById(key).innerHTML = value;
+                document.getElementById("syslogIP").placeholder = value;
+                break;
+            case "syslogEn":
+                document.getElementById(key).checked = value;
+                document.getElementById("syslogTable").style.display = (value) ? "table" : "none";
+                break;
             case "enableNTP":
                 document.getElementById(key).checked = value;
                 break;
@@ -120,7 +129,7 @@ function setElementsFromStatus(status) {
                 break;
             case "serverTime":
                 date.setTime(value * 1000);
-                console.log(`Server time: ${date.toUTCString()}`)
+                console.log(`Server time: ${date.toUTCString()}`);
                 break;
             case "checkFlashCRC":
                 if (!value) {
@@ -454,7 +463,8 @@ async function firmwareUpdate(github = true) {
     finally {
         clearInterval(aniDots);
         if (showRebootMsg) {
-            countdown(30, rebootMsg + "<br>RATGDO device rebooting...&nbsp;");
+            // Additional 10 seconds for new firmware copy on first boot.
+            countdown(rebootSeconds + 10, rebootMsg + "<br>RATGDO device rebooting...&nbsp;");
         } else {
             document.getElementById("updateDotDot").style.display = "none";
             document.getElementById("updateDialog").style.display = "block";
@@ -464,6 +474,7 @@ async function firmwareUpdate(github = true) {
 
 async function rebootRATGDO(dialog = true) {
     if (dialog) {
+        /*** Disable this as we don't have any CRC problems anymore.
         document.getElementById("pleaseWait").style.display = "block";
         loaderElem.style.visibility = "visible";
         const response = await fetch("checkflash", {
@@ -475,10 +486,13 @@ async function rebootRATGDO(dialog = true) {
         // Give browser a moment to actually hide the spinner...
         await new Promise(r => setTimeout(r, 50));
         document.getElementById("pleaseWait").style.display = "none";
+        */
         let txt = "Reboot RATGDO, are you sure?";
+        /*
         if (result !== 'true') {
             txt = "WARNING: Flash CRC check failed. You must flash new firmware by USB cable to recover, please consult documentation. RATGDO device may not restart if you reboot now. Reboot anyway?";
         }
+        */
         if (!confirm(txt)) return;
     }
     var response = await fetch("reboot", {
@@ -488,7 +502,7 @@ async function rebootRATGDO(dialog = true) {
         console.warn("Error attempting to reboot RATGDO");
         return;
     }
-    if (dialog) countdown(30, "RATGDO device rebooting...&nbsp;");
+    if (dialog) countdown(rebootSeconds, "RATGDO device rebooting...&nbsp;");
 }
 
 async function unpairRATGDO() {
@@ -505,16 +519,16 @@ async function unpairRATGDO() {
         console.warn("Error attempting to unpair and reboot RATGDO");
         return;
     }
-    countdown(30, "RATGO un-pairing and rebooting...&nbsp;");
+    countdown(rebootSeconds, "RATGO un-pairing and rebooting...&nbsp;");
 }
 
-async function checkAuth() {
+async function checkAuth(loader = true) {
     auth = false;
-    loaderElem.style.visibility = "visible";
+    if (loader) loaderElem.style.visibility = "visible";
     var response = await fetch("auth", {
         method: "GET",
     });
-    loaderElem.style.visibility = "hidden";
+    if (loader) loaderElem.style.visibility = "hidden";
     // Give browser a moment to actually hide the spinner...
     await new Promise(r => setTimeout(r, 50));
     if (response.status == 200) {
@@ -529,7 +543,8 @@ async function checkAuth() {
 async function setGDO(...args) {
     try {
         // check if authenticated, before post to setgdo, prevents timeout of dialog due to AbortSignal
-        if (!await checkAuth()) {
+        loaderElem.style.visibility = "visible";
+        if (!await checkAuth(false)) {
             return false;
         }
         const formData = new FormData();
@@ -541,13 +556,11 @@ async function setGDO(...args) {
             }
         }
         if (Array.from(formData.keys()).length > 0) {
-            loaderElem.style.visibility = "visible";
             var response = await fetch("setgdo", {
                 method: "POST",
                 body: formData,
                 signal: AbortSignal.timeout(2000),
             });
-            loaderElem.style.visibility = "hidden";
             if (response.status !== 200) {
                 console.warn("Error setting RATGDO state");
                 return true;;
@@ -577,6 +590,9 @@ async function setGDO(...args) {
             // A network error, or some other problem.
             console.error(`Error: type: ${err.name}, message: ${err.message}`);
         }
+    }
+    finally {
+        loaderElem.style.visibility = "hidden";
     }
     return false;
 }
@@ -631,7 +647,7 @@ function setMotionTriggers(bitset) {
 
 async function saveSettings() {
     if (!confirm('Save Settings. Reboot may be required, are you sure?')) {
-        return
+        return;
     }
     const gdoSec = (document.getElementById("gdosec1").checked) ? '1' : '2';
     const pwReq = (document.getElementById("pwreq").checked) ? '1' : '0';
@@ -650,6 +666,10 @@ async function saveSettings() {
     if (isNaN(TTCseconds)) TTCseconds = 0;
     localStorage.setItem("logger", (document.getElementById("serverLog").checked) ? "true" : "false");
 
+    const syslogEn = (document.getElementById("syslogEn").checked) ? '1' : '0';
+    let syslogIP = document.getElementById("syslogIP").value.substring(0, 15);
+    if (syslogIP.length == 0) syslogIP = serverStatus.syslogIP;
+
     const staticIP = (document.getElementById("staticIP").checked) ? '1' : '0';
     let localIP = document.getElementById("IPaddress").value.substring(0, 15);
     if (localIP.length == 0) localIP = serverStatus.localIP;
@@ -664,9 +684,9 @@ async function saveSettings() {
 
     // check IP addresses valid
     const regexIPv4 = /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/i;
-    if (!(regexIPv4.test(localIP) && regexIPv4.test(subnetMask) && regexIPv4.test(gatewayIP) && regexIPv4.test(nameserverIP))) {
-        console.error(`Invalid IP address(s): ${localIP} / ${subnetMask} / ${gatewayIP} / ${nameserverIP}`);
-        alert(`Invalid IP address(s): ${localIP} / ${subnetMask} / ${gatewayIP} / ${nameserverIP}`);
+    if (!(regexIPv4.test(localIP) && regexIPv4.test(subnetMask) && regexIPv4.test(gatewayIP) && regexIPv4.test(nameserverIP) && regexIPv4.test(syslogIP))) {
+        console.error(`Invalid IP address(s): ${localIP} / ${subnetMask} / ${gatewayIP} / ${nameserverIP} / ${syslogIP}`);
+        alert(`Invalid IP address(s): ${localIP} / ${subnetMask} / ${gatewayIP} / ${nameserverIP} / ${syslogIP}`);
         return;
     }
 
@@ -684,10 +704,12 @@ async function saveSettings() {
         "subnetMask", subnetMask,
         "gatewayIP", gatewayIP,
         "nameserverIP", nameserverIP,
-        "enableNTP", enableNTP
+        "enableNTP", enableNTP,
+        "syslogEn", syslogEn,
+        "syslogIP", syslogIP
     );
     if (reboot) {
-        countdown(30, "Settings saved, RATGDO device rebooting...&nbsp;");
+        countdown(rebootSeconds, "Settings saved, RATGDO device rebooting...&nbsp;");
     }
     else {
         // No need to reboot, but return to main page to reload status.
@@ -699,7 +721,18 @@ async function saveSettings() {
 async function resetDoor() {
     if (confirm('Reset door rolling codes and presence of motion sensor. Settings will not change but device will reboot, are you sure?')) {
         await setGDO("resetDoor", true);
-        countdown(30, "Door reset, RATGDO device rebooting...&nbsp;");
+        countdown(rebootSeconds, "Door reset, RATGDO device rebooting...&nbsp;");
+    }
+    return;
+}
+
+async function setSSID() {
+    if (confirm('This will reboot RATGDO device into Soft Access Point mode from where you can '
+        + 'select a WiFi network SSID.\n\nYou must connect your laptop or mobile device to '
+        + 'WiFi Network: "' + document.getElementById("deviceName").innerHTML.replace(/\s/g, '-') + '" and then connect your browser to IP address: '
+        + '192.168.4.1\n\nAre you sure?')) {
+        await setGDO("softAPmode", true);
+        countdown(rebootSeconds, "RATGDO device rebooting...&nbsp;");
     }
     return;
 }
