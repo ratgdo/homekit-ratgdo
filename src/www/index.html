@@ -203,13 +203,6 @@
                   <span style="font-size: 0.8em;">LED will flash on activity</span>
                 </td>
               </tr>
-              <tr id="serverLogRow" style="display:none">
-                <td class="label">Receive Logs:</td>
-                <td>&nbsp;
-                  <input type="checkbox" id="serverLog" name="serverLog" value="no">
-                  <span style="font-size: 0.8em;">Server logs to javascript console</span>
-                </td>
-              </tr>
               <tr>
                 <td class="label">Syslog:</td>
                 <td>&nbsp;
@@ -224,8 +217,8 @@
                     <tr>
                       <td class="IPlabel">Syslog Server:</td>
                       <td>&nbsp;
-                        <input class="syslogIPinput IPinput" id="syslogIP" type="text" placeholder="0.0.0.0" minlength="7"
-                          maxlength="15" size="15">
+                        <input class="syslogIPinput IPinput" id="syslogIP" type="text" placeholder="0.0.0.0"
+                          minlength="7" maxlength="15" size="15">
                       </td>
                     </tr>
                   </table>
@@ -301,29 +294,29 @@
                     <tr>
                       <td class="IPlabel">IP Address:</td>
                       <td>&nbsp;
-                        <input class="staticIPinput IPinput" id="IPaddress" type="text" placeholder="0.0.0.0" minlength="7"
-                          maxlength="15" size="15">
+                        <input class="staticIPinput IPinput" id="IPaddress" type="text" placeholder="0.0.0.0"
+                          minlength="7" maxlength="15" size="15">
                       </td>
                     </tr>
                     <tr>
                       <td class="IPlabel">Netmask:</td>
                       <td>&nbsp;
-                        <input class="staticIPinput IPinput" id="IPnetmask" type="text" placeholder="0.0.0.0" minlength="7"
-                          maxlength="15" size="15">
+                        <input class="staticIPinput IPinput" id="IPnetmask" type="text" placeholder="0.0.0.0"
+                          minlength="7" maxlength="15" size="15">
                       </td>
                     </tr>
                     <tr>
                       <td class="IPlabel">Gateway:</td>
                       <td>&nbsp;
-                        <input class="staticIPinput IPinput" id="IPgateway" type="text" placeholder="0.0.0.0" minlength="7"
-                          maxlength="15" size="15">
+                        <input class="staticIPinput IPinput" id="IPgateway" type="text" placeholder="0.0.0.0"
+                          minlength="7" maxlength="15" size="15">
                       </td>
                     </tr>
                     <tr>
                       <td class="IPlabel">DNS Server:</td>
                       <td>&nbsp;
-                        <input class="staticIPinput IPinput" id="IPnameserver" type="text" placeholder="0.0.0.0" minlength="7"
-                          maxlength="15" size="15">
+                        <input class="staticIPinput IPinput" id="IPnameserver" type="text" placeholder="0.0.0.0"
+                          minlength="7" maxlength="15" size="15">
                       </td>
                     </tr>
                   </table>
@@ -417,7 +410,8 @@
   <!-- Popup / modal dialog ------------------------------------------------------------------>
   <div id="myModal" class="modal">
     <div class="modal-content">
-      <span id="modalClose" class="close" onclick="document.getElementById('myModal').style.display = 'none'">&times;</span>
+      <span id="modalClose" class="close"
+        onclick="document.getElementById('myModal').style.display = 'none'">&times;</span>
       <span id="modalTitle">Installed Firmware:&nbsp;<span id="firmwareVersion2">xxx</span><br></span><br>
       <div id="updateDialog" style="float: none; padding:0px">
         <span id="modalFlashCRC" style="font-size: 0.8em; display: block">xxx</span><br>
