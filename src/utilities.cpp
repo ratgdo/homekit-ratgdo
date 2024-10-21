@@ -7,6 +7,7 @@
 #include "comms.h"
 #include <ESP8266WiFi.h>
 
+#ifdef LEGACY_SETTINGS_MIGRATION
 // Filenames for legacy user configuation, replaced by single file.
 const char staticIPfile[] = "static_ip_file";
 const char IPaddressFile[] = "ip_address_file";
@@ -26,6 +27,9 @@ const char www_pw_required_file[] = "www_pw_required_file";
 const char ledIdleStateFile[] = "led_idle_state";
 const char motionTriggersFile[] = "motion_triggers";
 const char softAPmodeFile[] = "soft_ap_mode";
+const char lastDoorUpdateFile[] = "last_door_update";
+const char enableNTPFile[] = "enable_ntp_client";
+#endif
 
 // What trigger motion...
 motionTriggersUnion motionTriggers = {{0}};
@@ -47,9 +51,6 @@ NTPClient timeClient(ntpUDP);
 bool enableNTP = false;
 unsigned long lastRebootAt = 0;
 int32_t savedDoorUpdateAt = 0;
-// Filenames for legacy user configuation, replaced by single file.
-const char lastDoorUpdateFile[] = "last_door_update";
-const char enableNTPFile[] = "enable_ntp_client";
 
 char *timeString(time_t reqTime)
 {
@@ -99,17 +100,24 @@ void load_all_config_settings()
     }
     if (!read_config_from_file())
     {
+#ifdef LEGACY_SETTINGS_MIGRATION
         // Config file does not exist, load all settings from legacy files (if they exist!)
+        // SOMETIME in the future we can delete this whole block of code, we only need it for migraion from old files
         RINFO("Loading user configuration from legacy files");
         read_string_from_file(device_name_file, userConfig->deviceName, device_name, sizeof(userConfig->deviceName));
+        delete_file(device_name_file);
         Serial.print(".");
         userConfig->wifiSettingsChanged = read_int_from_file(wifiSettingsChangedFile, 1) != 0;
+        delete_file(wifiSettingsChangedFile);
         Serial.print(".");
         userConfig->wifiPower = read_int_from_file(wifiPowerFile, userConfig->wifiPower);
+        delete_file(wifiPowerFile);
         Serial.print(".");
         userConfig->wifiPhyMode = read_int_from_file(wifiPhyModeFile);
+        delete_file(wifiPhyModeFile);
         Serial.print(".");
         userConfig->staticIP = read_int_from_file(staticIPfile) != 0;
+        delete_file(staticIPfile);
         Serial.print(".");
         if (userConfig->staticIP)
         {
@@ -122,31 +130,49 @@ void load_all_config_settings()
             read_string_from_file(IPnameserverFile, userConfig->IPnameserver, userConfig->IPnameserver, sizeof(userConfig->IPnameserver));
             Serial.print(".");
         }
+        delete_file(IPaddressFile);
+        delete_file(IPnetmaskFile);
+        delete_file(IPgatewayFile);
+        delete_file(IPnameserverFile);
         userConfig->wwwPWrequired = read_int_from_file(www_pw_required_file) != 0;
+        delete_file(www_pw_required_file);
         Serial.print(".");
         read_string_from_file(username_file, userConfig->wwwUsername, userConfig->wwwUsername, sizeof(userConfig->wwwUsername));
+        delete_file(username_file);
         Serial.print(".");
         read_string_from_file(credentials_file, userConfig->wwwCredentials, userConfig->wwwCredentials, sizeof(userConfig->wwwCredentials));
+        delete_file(credentials_file);
         Serial.print(".");
         userConfig->gdoSecurityType = read_int_from_file(gdoSecurityTypeFile, userConfig->gdoSecurityType);
+        delete_file(gdoSecurityTypeFile);
         Serial.print(".");
         userConfig->TTCdelay = read_int_from_file(TTCdelay_file);
+        delete_file(TTCdelay_file);
         Serial.print(".");
         userConfig->rebootSeconds = read_int_from_file(system_reboot_timer);
+        delete_file(system_reboot_timer);
         Serial.print(".");
         userConfig->ledIdleState = read_int_from_file(ledIdleStateFile, userConfig->ledIdleState);
+        delete_file(ledIdleStateFile);
         Serial.print(".");
         userConfig->motionTriggers = read_int_from_file(motionTriggersFile);
+        delete_file(motionTriggersFile);
         Serial.print(".");
 #ifdef NTP_CLIENT
         userConfig->enableNTP = read_int_from_file(enableNTPFile) != 0;
+        delete_file(enableNTPFile);
         Serial.print(".");
         userConfig->doorUpdateAt = read_int_from_file(lastDoorUpdateFile);
+        delete_file(lastDoorUpdateFile);
         Serial.print(".");
 #endif
         userConfig->softAPmode = read_int_from_file(softAPmodeFile) != 0;
+        delete_file(softAPmodeFile);
         Serial.print("\n");
-        // Save to file so we never have to read from individual files again.
+// Save to file so we never have to read from individual files again.
+#else
+        RINFO("No settings saved, using factory defaults.");
+#endif
         write_config_to_file();
     }
 
