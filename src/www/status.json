@@ -10,7 +10,7 @@
   "gatewayIP": "192.168.99.1",
   "nameserverIP": "192.168.99.1",
   "macAddress": "02:23:45:AB:CD:EF",
-  "staticEn": true,
+  "syslogEn": true,
   "syslogIP": "192.168.99.99",
   "wifiSSID": "Test",
   "wifiRSSI": "-99 dBm",
