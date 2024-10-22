@@ -72,7 +72,6 @@ void setup()
     {
         RERROR("checkFlashCRC: false");
     }
-    IRAM_START
     load_all_config_settings();
     wifi_connect();
     setup_web();
@@ -82,7 +81,6 @@ void setup()
         setup_comms();
         setup_homekit();
     }
-    IRAM_END
 
 #ifdef NTP_CLIENT
     if (enableNTP)

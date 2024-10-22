@@ -74,6 +74,9 @@ void setup_homekit()
     // But we can't do the same for door state as HomeKit has no value for that.
     garage_door.current_lock = CURR_UNKNOWN;
     arduino_homekit_setup(&config);
+    IRAM_START
+    // Doing a IRAM start/end just to log free memory
+    IRAM_END("HomeKit server started");
 }
 
 /******************************** GETTERS AND SETTERS ***************************************/
