@@ -273,6 +273,11 @@ void web_loop()
 void setup_web()
 {
     RINFO("=== Starting HTTP web server ===");
+    IRAM_START
+    // IRAM heap is used only for allocating globals, to leave as much regular heap
+    // available during operations.  We need to carefully monitor useage so as not
+    // to exceed available IRAM.  We can adjust the LOG_BUFFER_SIZE (in log.h) if we
+    // need to make more space available for initialization.
     json = (char *)malloc(JSON_BUFFER_SIZE);
     RINFO("Allocated buffer for JSON, size: %d", JSON_BUFFER_SIZE);
     last_reported_paired = homekit_is_paired();
@@ -330,7 +335,7 @@ void setup_web()
         subscription[i].clientIP = INADDR_NONE;
         subscription[i].clientUUID.clear();
     }
-    RINFO("HTTP server started. Free heap: %d", ESP.getFreeHeap());
+    IRAM_END("HTTP server started");
     return;
 }
 

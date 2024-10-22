@@ -92,11 +92,13 @@ void logToBuffer_P(const char *fmt, ...)
     {
         // first time in we need to create the buffers
         Serial.printf_P(PSTR("Allocating memory for logs\n"));
-        Serial.printf_P(PSTR("Free heap: %d\n"), ESP.getFreeHeap());
         IRAM_START
+        // IRAM heap is used only for allocating globals, to leave as much regular heap
+        // available during operations.  We need to carefully monitor useage so as not
+        // to exceed available IRAM.  We can adjust the LOG_BUFFER_SIZE (in log.h) if we
+        // need to make more space available for initialization.
 #if defined(MMU_IRAM_HEAP)
         Serial.printf_P(PSTR("IRAM heap size %d\n"), MMU_SEC_HEAP_SIZE);
-        Serial.printf_P(PSTR("Free IRAM heap: %d\n"), ESP.getFreeHeap());
 #endif
         msgBuffer = (logBuffer *)malloc(sizeof(logBuffer));
         Serial.printf_P(PSTR("Allocated %d bytes for message log buffer\n"), sizeof(logBuffer));
@@ -110,8 +112,7 @@ void logToBuffer_P(const char *fmt, ...)
         // Open logMessageFile so we don't have to later.
         logMessageFile = (LittleFS.exists(CRASH_LOG_MSG_FILE)) ? LittleFS.open(CRASH_LOG_MSG_FILE, "r+") : LittleFS.open(CRASH_LOG_MSG_FILE, "w+");
         Serial.printf_P(PSTR("Opened log message file, size: %d\n"), logMessageFile.size());
-        IRAM_END
-        RINFO("Free heap: %d", ESP.getFreeHeap());
+        IRAM_END("Log buffers allocated");
     }
 
     // parse the format string into lineBuffer

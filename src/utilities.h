@@ -15,13 +15,23 @@ extern bool enableNTP;
 #endif
 
 #if defined(MMU_IRAM_HEAP)
+// IRAM heap is used only for allocating globals, to leave as much regular heap
+// available during operations.  We need to carefully monitor useage so as not
+// to exceed available IRAM.  We can adjust the LOG_BUFFER_SIZE (in log.h) if we
+// need to make more space available for initialization.
 #include <umm_malloc/umm_malloc.h>
 #include <umm_malloc/umm_heap_select.h>
-#define IRAM_START { HeapSelectIram ephemeral;
-#define IRAM_END RINFO("Free IRAM heap: %d", ESP.getFreeHeap()); }
+#define IRAM_START \
+    {              \
+        HeapSelectIram ephemeral;
+#define IRAM_END(location)                                         \
+    RINFO("Free IRAM heap (%s): %d", location, ESP.getFreeHeap()); \
+    }
 #else
 #define IRAM_START {
-#define IRAM_END }
+#define IRAM_END(location)                                    \
+    RINFO("Free heap (%s): %d", location, ESP.getFreeHeap()); \
+    }
 #endif
 
 // Controls whether to log to syslog server

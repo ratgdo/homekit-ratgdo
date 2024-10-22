@@ -95,8 +95,14 @@ void load_all_config_settings()
     RINFO("=== Load all config settings for %s", device_name);
     if (!userConfig)
     {
+        IRAM_START
+        // IRAM heap is used only for allocating globals, to leave as much regular heap
+        // available during operations.  We need to carefully monitor useage so as not
+        // to exceed available IRAM.  We can adjust the LOG_BUFFER_SIZE (in log.h) if we
+        // need to make more space available for initialization.
         userConfig = (userConfig_t *)malloc(sizeof(userConfig_t));
         *userConfig = (userConfig_t){}; // Initializes with defaults defined in typedef.
+        IRAM_END("User config buffer allocated");
     }
     if (!read_config_from_file())
     {

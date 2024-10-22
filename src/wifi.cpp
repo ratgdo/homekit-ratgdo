@@ -93,6 +93,11 @@ void wifi_scan()
 void wifi_connect()
 {
     RINFO("=== Initialize WiFi %s", (softAPmode) ? "Soft Access Point" : "Station");
+    IRAM_START
+    // IRAM heap is used only for allocating globals, to leave as much regular heap
+    // available during operations.  We need to carefully monitor useage so as not
+    // to exceed available IRAM.  We can adjust the LOG_BUFFER_SIZE (in log.h) if we
+    // need to make more space available for initialization.
     WiFi.persistent(false);
     if (softAPmode)
     {
@@ -171,6 +176,7 @@ void wifi_connect()
     RINFO("Starting WiFi connecting in background");
     wifiConnectTimeout = millis() + 30000;
     WiFi.begin(); // use credentials stored in flash
+    IRAM_END("Wifi initialized");
 }
 
 void improv_loop()

@@ -100,7 +100,11 @@ void manual_recovery();
 
 void setup_comms()
 {
-
+    IRAM_START
+    // IRAM heap is used only for allocating globals, to leave as much regular heap
+    // available during operations.  We need to carefully monitor useage so as not
+    // to exceed available IRAM.  We can adjust the LOG_BUFFER_SIZE (in log.h) if we
+    // need to make more space available for initialization.
     // init queue
     q_init(&pkt_q, sizeof(PacketAction), 8, FIFO, false);
 
@@ -153,6 +157,7 @@ void setup_comms()
         }
         force_recover.push_count = 0;
     }
+    IRAM_END("GDO comms started");
 }
 
 void save_rolling_code()
