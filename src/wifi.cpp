@@ -29,7 +29,12 @@
 // support for changeing WiFi settings
 unsigned long wifiConnectTimeout = 0;
 // support for scaning WiFi networks
-std::map<String, int> wifiNets;
+bool wifiNetsCmp(wifiNet_t a, wifiNet_t b)
+{
+    // Sorts first by SSID and then by RSSI so strongest signal first.
+    return (a.ssid < b.ssid) || ((a.ssid == b.ssid) && (a.rssi > b.rssi));
+}
+std::multiset<wifiNet_t, decltype(&wifiNetsCmp)> wifiNets(&wifiNetsCmp);
 
 #define MAX_ATTEMPTS_WIFI_CONNECTION 30
 uint8_t x_buffer[128];
@@ -77,14 +82,18 @@ void wifi_scan()
 {
     // scan for networks
     RINFO("Scanning for networks...");
-    int nNets = WiFi.scanNetworks();
+    wifiNet_t wifiNet;
+    wifiNets.clear();
+    int nNets = std::min((int)WiFi.scanNetworks(), 127);
     RINFO("Found %d networks", nNets);
     for (int i = 0; i < nNets; i++)
     {
-        RINFO("Network: %s (Ch:%d, %ddBm)", WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i));
-        // Using a C++ map so we only save unique SSIDs
-        if ((wifiNets.count(WiFi.SSID(i)) == 0) || (wifiNets[WiFi.SSID(i)] < WiFi.RSSI(i)))
-            wifiNets[WiFi.SSID(i)] = WiFi.RSSI(i);
+        wifiNet.ssid = WiFi.SSID(i);
+        wifiNet.channel = WiFi.channel(i);
+        wifiNet.rssi = WiFi.RSSI(i);
+        memcpy(wifiNet.bssid, WiFi.BSSID(i), sizeof(wifiNet.bssid));
+        RINFO("Network: %s (Ch:%d, %ddBm) AP: %s", WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i), WiFi.BSSIDstr(i).c_str());
+        wifiNets.insert(wifiNet);
     }
     // delete scan from memory
     WiFi.scanDelete();
@@ -265,12 +274,17 @@ void improv_loop()
     }
 }
 
-bool connect_wifi(std::string ssid, std::string password)
+bool connect_wifi(const std::string &ssid, const std::string &password)
+{
+    return connect_wifi(ssid, password, NULL);
+}
+
+bool connect_wifi(const std::string &ssid, const std::string &password, const uint8_t *bssid)
 {
     uint8_t count = 0;
 
     WiFi.persistent(true); // Set persist to store wifi credentials
-    WiFi.begin(ssid.c_str(), password.c_str());
+    WiFi.begin(ssid.c_str(), password.c_str(), 0, bssid);
     WiFi.persistent(false); // clear the persist flag so other settings do not get written to flash
 
     while (WiFi.status() != WL_CONNECTED)

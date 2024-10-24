@@ -123,6 +123,62 @@ const char response200[] PROGMEM = "HTTP/1.1 200 OK\nContent-Type: text/plain\nC
 
 const char *http_methods[] PROGMEM = {"HTTP_ANY", "HTTP_GET", "HTTP_HEAD", "HTTP_POST", "HTTP_PUT", "HTTP_PATCH", "HTTP_DELETE", "HTTP_OPTIONS"};
 
+const char softAPhttpPreamble[] PROGMEM = "HTTP/1.1 200 OK\nContent-Type: text/html\nCache-Control: no-cache, no-store\nConnection: close\n\n<!DOCTYPE html>";
+const char softAPstyle[] PROGMEM = R"(<style>
+.adv {
+    display: none;
+}
+td,th {
+    text-align: left;
+}
+th:nth-child(1n+4), td:nth-child(1n+4) {
+    display: none;
+    text-align: right;
+}
+</style>)";
+const char softAPscript[] PROGMEM = R"(<script>
+const warnTxt = 'Selecting SSID in advanced mode locks the device to a specific WiFi ' +
+    'access point by its unique hardware BSSID. If that access point goes offline, or you replace ' +
+    'it, then the device will NOT connect to WiFi.';
+const setTxt = 'Set SSID and password, are you sure?';
+function shAdv(checked) {
+    Array.from(document.getElementsByClassName('adv')).forEach((elem) => {
+        elem.style.display = checked ? 'table-row' : 'none';
+    });
+    Array.from(document.querySelectorAll('th:nth-child(1n+4), td:nth-child(1n+4)')).forEach((elem) => {
+        elem.style.display = checked ? 'table-cell' : 'none';
+    });
+    document.getElementById('warn').innerHTML = checked ? '<p><b>WARNING: </b>' + warnTxt + '</p>' : '';
+}
+function confirmAdv() {
+    if (document.getElementById('adv').checked) {
+        return confirm('WARNING: ' + warnTxt + '\n\n' + setTxt);
+    } else {
+        return confirm(setTxt);
+    }
+}
+</script>)";
+const char softAPtableHead[] PROGMEM = R"(
+<p>Select from available networks, or manually enter SSID:</p>
+<form action='/setssid' method='post'>
+<table>
+<tr><td><input id='adv' name='advanced' type='checkbox' onclick='shAdv(this.checked)'></td><td colspan='2'>Advanced</td></tr>
+<tr><th></th><th>SSID</th><th>RSSI</th><th>Chan</th><th>Hardware BSSID</th></tr>)";
+const char softAPtableRow[] PROGMEM = R"(
+<tr %s><td><input type='radio' name='net' value='%d' %s></td><td>%s</td><td>%ddBm</td><td>%d</td><td>&nbsp;&nbsp;%02x:%02x:%02x:%02x:%02x:%02x</td></tr>)";
+const char softAPtableLastRow[] PROGMEM = R"(
+<tr><td><input type='radio' name='net' value='%d'></td><td colspan='2'><input type='text' name='userSSID' placeholder='SSID' value='%s'></td></tr>)";
+const char softAPtableFoot[] PROGMEM = R"(
+</table>
+<br><label for='pw'>Network password:&nbsp;</label>
+<input id='pw' name='pw' type='password' placeholder='password'>
+<p id='warn'></p>
+<input type='submit' value='Submit' onclick='return confirmAdv();'>&nbsp;
+<input type='submit' value='Rescan' formaction='/rescan'>&nbsp;
+<input type='submit' value='Cancel' formaction='/reboot'
+    onclick='return confirm("Reboot without changes, are you sure?");'>
+</form>)";
+
 // For Server Sent Events (SSE) support
 // Just reloading page causes register on new channel.  So we need a reasonable number
 // to accommodate "extra" until old one is detected as disconnected.
@@ -1373,34 +1429,41 @@ void handle_accesspoint()
     {
         previousSSID = WiFi.SSID();
     }
-
+    RINFO("Number of WiFi networks: %d", wifiNets.size());
+    String currentSSID = "";
     WiFiClient client = server.client();
-    client.print("HTTP/1.1 200 OK\n");
-    client.print("Content-Type: text/html\n");
-    client.print("Cache-Control: no-cache, no-store\n");
-    client.print("Connection: close\n\n");
-    client.print("<p>Select from available networks, or manually enter SSID:</p>");
-    client.print("<form action=\"/setssid\" method=\"post\">");
+
+    client.print(softAPhttpPreamble);
+    client.print("<html><head>");
+    client.print(softAPstyle);
+    client.print(softAPscript);
+    client.print("</head><body style='font-family: monospace'");
+    client.print(softAPtableHead);
     int i = 0;
-    for (auto net : wifiNets)
+    for (wifiNet_t net : wifiNets)
     {
-        bool matchSSID = (previousSSID == net.first);
+        bool hide = true;
+        bool matchSSID = (previousSSID == net.ssid);
         if (matchSSID)
             match = true;
-        client.printf_P(PSTR("<input type=\"radio\" id=\"n%d\" name=\"net\" value=\"%d\"%s>&nbsp;<label for=\"n%d\">%s : %ddBm</label><br>"),
-                        i, i, (matchSSID) ? " checked=\"checked\"" : "", i, net.first.c_str(), net.second);
+        if (currentSSID != net.ssid)
+        {
+            currentSSID = net.ssid;
+            hide = false;
+        }
+        else
+        {
+            matchSSID = false;
+        }
+        client.printf_P(softAPtableRow, (hide) ? "class='adv'" : "", i, (matchSSID) ? "checked='checked'" : "",
+                        net.ssid.c_str(), net.rssi, net.channel,
+                        net.bssid[0], net.bssid[1], net.bssid[2], net.bssid[3], net.bssid[4], net.bssid[5]);
         i++;
     }
     // user entered value
-    client.printf_P(PSTR("<input type=\"radio\" id=\"n%d\" name=\"net\" value=\"%d\">&nbsp;<input type=\"text\" name=\"userSSID\" placeholder=\"SSID\" value=\"%s\"><br>"),
-                    i, i, (!match) ? previousSSID : "");
-    client.print("<br><label for=\"pw\">Network password:&nbsp;</label>");
-    client.print("<input id=\"pw\" name=\"pw\" type=\"password\" placeholder=\"password\">");
-    client.print("<br><br><input type=\"submit\" value=\"Submit\" onclick=\"return confirm('Set SSID and password, are you sure?');\">");
-    client.print("&nbsp;<input type=\"submit\" value=\"Rescan\" formaction=\"/rescan\">");
-    client.print("&nbsp;<input type=\"submit\" value=\"Cancel\" formaction=\"/reboot\" onclick=\"return confirm('Reboot without changes, are you sure?');\">");
-    client.print("</form>");
-    client.print("\n");
+    client.printf_P(softAPtableLastRow, i, (!match) ? previousSSID.c_str() : "");
+    client.print(softAPtableFoot);
+    client.print("</body></html>");
     client.flush();
     client.stop();
     return;
@@ -1408,7 +1471,7 @@ void handle_accesspoint()
 
 void handle_setssid()
 {
-    if (server.args() != 3)
+    if (server.args() < 3)
     {
         RINFO("Sending %s, for: %s as invalid number of args", response400invalid, server.uri().c_str());
         server.send_P(400, type_txt, response400invalid);
@@ -1418,23 +1481,34 @@ void handle_setssid()
     const unsigned int net = atoi(server.arg("net").c_str());
     const char *pw = server.arg("pw").c_str();
     const char *userSSID = server.arg("userSSID").c_str();
-    const char *ssid;
+    const char *ssid = userSSID;
+    bool advanced = server.arg("advanced") == "on";
+    wifiNet_t wifiNet;
 
     if (net < wifiNets.size())
     {
-        auto it = wifiNets.begin();
-        for (unsigned int i = 0; i < net && it != wifiNets.end(); ++i)
-            ++it;
-        ssid = it->first.c_str();
+        // User selected network from within scanned range
+        wifiNet = *std::next(wifiNets.begin(), net);
+        ssid = wifiNet.ssid.c_str();
     }
     else
     {
-        // user provided SSID
-        ssid = userSSID;
+        // Outside scanned range, do not allow locking to access point
+        advanced = false;
     }
-    RINFO("Requested WiFi SSID: %s (%d)", ssid, net);
 
-    snprintf_P(json, JSON_BUFFER_SIZE, PSTR("Setting SSID to: %s\nRATGDO rebooting."), ssid);
+    if (advanced)
+    {
+        RINFO("Requested WiFi SSID: %s (%d) at AP: %02x:%02x:%02x:%02x:%02x:%02x",
+              ssid, net, wifiNet.bssid[0], wifiNet.bssid[1], wifiNet.bssid[2], wifiNet.bssid[3], wifiNet.bssid[4], wifiNet.bssid[5]);
+        snprintf_P(json, JSON_BUFFER_SIZE, PSTR("Setting SSID to: %s at Access Point: %02x:%02x:%02x:%02x:%02x:%02x\nRATGDO rebooting."),
+                   ssid, wifiNet.bssid[0], wifiNet.bssid[1], wifiNet.bssid[2], wifiNet.bssid[3], wifiNet.bssid[4], wifiNet.bssid[5]);
+    }
+    else
+    {
+        RINFO("Requested WiFi SSID: %s (%d)", ssid);
+        snprintf_P(json, JSON_BUFFER_SIZE, PSTR("Setting SSID to: %s\nRATGDO rebooting."), ssid);
+    }
     server.client().setNoDelay(true);
     server.send_P(200, type_txt, json);
     delay(500);
@@ -1443,15 +1517,17 @@ void handle_setssid()
     const bool connected = WiFi.isConnected();
     String previousSSID;
     String previousPSK;
+    String previousBSSID;
     if (connected)
     {
         previousSSID = WiFi.SSID();
         previousPSK = WiFi.psk();
-        RINFO("Current SSID: %s", previousSSID.c_str());
+        previousBSSID = WiFi.BSSIDstr();
+        RINFO("Current SSID: %s / BSSID:%s", previousSSID.c_str(), previousBSSID.c_str());
         WiFi.disconnect();
     }
 
-    if (connect_wifi(ssid, pw))
+    if (connect_wifi(ssid, pw, (advanced) ? wifiNet.bssid : NULL))
     {
         RINFO("WiFi Successfully connects to SSID: %s", ssid);
     }
