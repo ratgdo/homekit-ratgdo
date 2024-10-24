@@ -49,7 +49,7 @@ The webpage comprises three sections, HomeKit and ratgdo device status, garage d
 If you ratgdo device is not yet paired to HomeKit then a QR code is displayed for you to scan and add the garage door to HomeKit. If the device is already paired then this is replaced with a statement that you must first un-pair the device if you wish to use it with another HomeKit home.  A Reset or Un-pair HomeKit button is provided for this.
 
 > [!NOTE]
-> if you will re-pair to the same HomeKit home you must also delete the accessory from HomeKit as well as un-pairing at the ratgdo device.
+> If you will re-pair to the same HomeKit home you must also delete the accessory from HomeKit as well as un-pairing at the ratgdo device.
 
 This section also displays the current firmware version, with a statement on whether an update is available, the uptime of the device in days/hours/minutes/seconds and WiFi connection status.
 
@@ -84,7 +84,7 @@ When you save settings from this page the ratgdo device will either return immed
 
 ### Name
 
-This updates the name reported to HomeKit and for mDNS device discovery.  The default name is _Garage Door ABCDEF_ where the last 6 characters are set to the MAC address of the ratgdo device. Changing the name after pairing with HomeKit does not change the name within HomeKit or Apple Home.  The maximum length is 31 characters.  For IP host name the length is truncated to 23 characters and all spaces are replaced with a hyphen.
+This updates the name reported to HomeKit and for mDNS device discovery.  The default name is _Garage Door ABCDEF_ where the last 6 characters are set to the MAC address of the ratgdo device. Changing the name after pairing with HomeKit does not change the name within HomeKit or Apple Home.  The maximum length is 31 characters.  For IP hostname the length is truncated to 23 characters and all spaces are replaced with a hyphen.
 
 ### Door Close Delay
 
@@ -160,7 +160,7 @@ This button resets the Sec+ 2.0 rolling codes and whether your door opener has a
 
 This button will restart the ratgdo in soft Access Point (AP) mode from where you can set a new WiFi network SSID and password.  You can connect to the ratgdo either from the existing WiFi network and IP address or by connecting your laptop or mobile device to the ratgdo's WiFi SSID and pointing your browser to IP address 192.168.4.1.  The SSID created is based on the device name, e.g. _Garage-Door-ABCDEF._
 
-If you are unable to connect to your ratgdo or the old wifi network is not available, you can force the device into soft Access Point mode by rapidly pressing the wall panel light button 5 times within 3 second.  The ratgdo will respond by flashing the lights for 3 more seconds before rebooting into AP mode.
+If you are unable to connect to your ratgdo, or the old wifi network is not available, you can force the device into soft Access Point mode by rapidly pressing the wall panel light button 5 times within 3 second.  The ratgdo will respond by flashing the lights for 3 more seconds before rebooting into AP mode.
 
 If you are preparing to move the ratgdo to a new location then after the device has booted into soft AP mode you can disconnect it (within 10 minutes) and when it first boots in the new location it will start up in soft AP mode. In soft AP mode the ratgdo does not connect to the garage door opener or HomeKit.
 
@@ -171,6 +171,10 @@ On changing the WiFi network SSID you will have to un-pair and re-pair the ratgd
 
 > [!NOTE]
 > On changing the SSID in soft AP mode the ratgdo attempts to connect to the new WiFi network.  If that fails then the ratgdo will reset to the old SSID and password and reboot.
+
+> [!WARNING]
+> Soft AP has an _advanced_ mode. If you select this then the full list of discovered networks are shown, including the same network SSID broadcast by multiple access points. Selecting a WiFi network in advanced mode locks the device to a specific WiFi access point by its __unique hardware BSSID__. If that access point goes offline, or you replace it, then the device will __NOT connect__ to WiFi.
+> Use advanced mode with extreme caution.
 
 ## How do I upgrade?
 
