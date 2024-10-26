@@ -592,7 +592,8 @@ void handle_status()
 {
     unsigned long upTime = millis();
 #define paired homekit_is_paired()
-#define accessoryID (arduino_homekit_get_running_server() ? arduino_homekit_get_running_server()->accessory_id : "Inactive")
+#define accessoryID std::string(arduino_homekit_get_running_server() ? arduino_homekit_get_running_server()->accessory_id : "Inactive")
+#define clientCount std::to_string(arduino_homekit_get_running_server() ? arduino_homekit_get_running_server()->nfds : 0)
 #define IPaddr WiFi.localIP().toString().c_str()
 #define subnetMask WiFi.subnetMask().toString().c_str()
 #define gatewayIP WiFi.gatewayIP().toString().c_str()
@@ -607,7 +608,7 @@ void handle_status()
     ADD_STR(json, "userName", userConfig->wwwUsername);
     ADD_BOOL(json, "paired", paired);
     ADD_STR(json, "firmwareVersion", std::string(AUTO_VERSION).c_str());
-    ADD_STR(json, "accessoryID", accessoryID);
+    ADD_STR(json, "accessoryID", (accessoryID + " (clients:" + clientCount + ")").c_str());
     ADD_STR(json, "localIP", IPaddr);
     ADD_STR(json, "subnetMask", subnetMask);
     ADD_STR(json, "gatewayIP", gatewayIP);
@@ -983,13 +984,25 @@ void SSEheartbeat(SSESubscription *s)
 
     if (s->client.connected())
     {
+        static int8_t lastRSSI = 0;
+        static int lastClientCount = 0;
+
         START_JSON(json);
         ADD_INT(json, "upTime", millis());
         ADD_INT(json, "freeHeap", free_heap);
         ADD_INT(json, "minHeap", min_heap);
         ADD_INT(json, "minStack", ESP.getFreeContStack());
-        ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm, Channel " + std::to_string(WiFi.channel())).c_str());
         ADD_BOOL(json, "checkFlashCRC", flashCRC);
+        if (lastRSSI != WiFi.RSSI())
+        {
+            lastRSSI = WiFi.RSSI();
+            ADD_STR(json, "wifiRSSI", (std::to_string(lastRSSI) + " dBm, Channel " + std::to_string(WiFi.channel())).c_str());
+        }
+        if (arduino_homekit_get_running_server() && arduino_homekit_get_running_server()->nfds != lastClientCount)
+        {
+            lastClientCount = arduino_homekit_get_running_server()->nfds;
+            ADD_STR(json, "accessoryID", (accessoryID + " (clients:" + std::to_string(lastClientCount) + ")").c_str());
+        }
         END_JSON(json);
         REMOVE_NL(json);
         s->client.printf("event: message\nretry: 15000\ndata: %s\n\n", json);
