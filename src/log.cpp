@@ -67,6 +67,8 @@ void logToSyslog(char *message)
     while (*app_name == ' ')
         app_name++;
     msg = strtok(NULL, "\r\n");
+    while (*msg == ' ')
+        msg++;
 
     syslog.beginPacket(userConfig->syslogIP, SYSLOG_PORT);
 
