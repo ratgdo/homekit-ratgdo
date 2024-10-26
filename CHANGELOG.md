@@ -2,7 +2,9 @@
 
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
-## v1.8.0 (2024-10-??)
+## v1.8.0 (2024-10-26)
+
+This release has significant updates.  Please review the [README](https://github.com/ratgdo/homekit-ratgdo/blob/main/README.md) for full documentation of the new features.
 
 ### What's Changed
 
