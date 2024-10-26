@@ -43,6 +43,9 @@ uint32_t free_heap = 65535;
 uint32_t min_heap = 65535;
 unsigned long next_heap_check = 0;
 
+bool status_done = false;
+unsigned long status_timeout;
+
 /********************************** MAIN LOOP CODE *****************************************/
 
 void setup()
@@ -92,13 +95,23 @@ void setup()
     led.idle();
     RINFO("=== RATGDO setup complete ===");
     RINFO("=============================");
+    status_timeout = millis() + 2000;
 }
 
 void loop()
 {
     improv_loop();
     comms_loop();
-    homekit_loop();
+    // wait for a status command to be processes to properly set the initial state of
+    // all homekit characteristics.  Also timeout if we don't receive a status in 
+    // a reasonable amount of time.  This prevents unintentional state changes if
+    // a home hub reads the state before we initialize everything
+    // Note, secplus1 doesnt have a status command so it will just timeout
+    if (status_done) {
+        homekit_loop();
+    } else if (millis() > status_timeout) {
+        status_done = true;
+    }
     service_timer_loop();
     web_loop();
     loop_id = LOOP_SYSTEM;

@@ -29,6 +29,7 @@ Queue_t pkt_q;
 SoftwareSerial sw_serial;
 
 extern struct GarageDoor garage_door;
+extern bool status_done;
 
 // For Time-to-close control
 Ticker TTCtimer = Ticker();
@@ -755,6 +756,7 @@ void comms_loop_sec2()
                     notify_homekit_current_lock();
                 }
 
+                status_done = true;
                 break;
             }
 
