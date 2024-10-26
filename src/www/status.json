@@ -3,7 +3,7 @@
   "deviceName": "Garage Door ABCDEF",
   "paired": false,
   "firmwareVersion": "9.9.9",
-  "accessoryID": "BA:98:76:54:32:10",
+  "accessoryID": "BA:98:76:54:32:10 (clients:1)",
   "staticIP": true,
   "localIP": "192.168.99.99",
   "subnetMask": "255.255.255.0",
