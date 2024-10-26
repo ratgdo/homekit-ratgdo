@@ -648,7 +648,7 @@ async function saveSettings() {
     const LEDidle = (document.getElementById("LEDidle").checked) ? 1 : 0;
     let rebootHours = Math.max(Math.min(parseInt(document.getElementById("rebootHours").value), 72), 0);
     if (isNaN(rebootHours)) rebootHours = 0;
-    let newDeviceName = document.getElementById("newDeviceName").value.substring(0, 30);
+    let newDeviceName = document.getElementById("newDeviceName").value.substring(0, 30).trim();
     if (newDeviceName.length == 0) newDeviceName = serverStatus.deviceName;
     const wifiPhyMode = (document.getElementById("wifiPhyMode3").checked) ? '3'
         : (document.getElementById("wifiPhyMode2").checked) ? '2'
