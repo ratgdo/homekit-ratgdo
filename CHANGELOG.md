@@ -15,10 +15,10 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 * Bugfix... ensure that network hostname is RFC952 compliant (e.g. no spaces).
 * Bugfix... Possible fix to <https://github.com/ratgdo/homekit-ratgdo/issues/215> by modifying HomeKit server malloc() from local to global.
 * Bugfix... Possible fix to <https://github.com/ratgdo/homekit-ratgdo/issues/211> and <https://github.com/ratgdo/homekit-ratgdo/issues/223> as we enable IRAM heap.
+* Bugfix... Occasional HomeKit notification that garage door is unlocked. Tracked in <https://github.com/ratgdo/homekit-ratgdo/issues/233>
 
 ### Known Issues
 
-* Occasional unexplained HomeKit notification that garage door is unlocked. Tracked in <https://github.com/ratgdo/homekit-ratgdo/issues/233>
 * Occasional failure to connect to WiFi. Tracked in <https://github.com/ratgdo/homekit-ratgdo/issues/217>
 
 ## v1.7.1 (2024-09-23)
