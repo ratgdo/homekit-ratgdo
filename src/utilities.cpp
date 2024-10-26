@@ -80,7 +80,7 @@ char *make_rfc952(char *dest, const char *src, int size)
         i++;
     }
     // remove dashes and periods from end of name
-    while (dest[i - 1] == '-' || dest[i - 1] == '.')
+    while (i > 0 && (dest[i - 1] == '-' || dest[i - 1] == '.'))
     {
         dest[--i] = 0;
     }
@@ -101,9 +101,11 @@ void load_all_config_settings()
         // to exceed available IRAM.  We can adjust the LOG_BUFFER_SIZE (in log.h) if we
         // need to make more space available for initialization.
         userConfig = (userConfig_t *)malloc(sizeof(userConfig_t));
-        *userConfig = (userConfig_t){}; // Initializes with defaults defined in typedef.
         IRAM_END("User config buffer allocated");
     }
+    // Initialize with defaults.
+    *userConfig = (userConfig_t){}; // Initializes with defaults defined in typedef.
+    strlcpy(userConfig->deviceName, device_name, sizeof(userConfig->deviceName));
     if (!read_config_from_file())
     {
 #ifdef LEGACY_SETTINGS_MIGRATION
@@ -182,10 +184,22 @@ void load_all_config_settings()
         write_config_to_file();
     }
 
-    // All user configuration loaded, set globals...
+    // Check we have a legal device name...
+    make_rfc952(device_name_rfc952, userConfig->deviceName, sizeof(device_name_rfc952));
+    if (strlen(device_name_rfc952) == 0)
+    {
+        // cannot have a empty device name, reset to default...
+        strlcpy(userConfig->deviceName, device_name, sizeof(userConfig->deviceName));
+        make_rfc952(device_name_rfc952, userConfig->deviceName, sizeof(device_name_rfc952));
+    }
+    else
+    {
+        // device name okay, copy it to our global
+        strlcpy(device_name, userConfig->deviceName, sizeof(device_name));
+    }
+
+    // Set rest of globals...
     led.setIdleState((uint8_t)userConfig->ledIdleState);
-    strlcpy(device_name, userConfig->deviceName, sizeof(device_name));
-    make_rfc952(device_name_rfc952, device_name, sizeof(device_name_rfc952));
     motionTriggers.asInt = userConfig->motionTriggers;
     softAPmode = userConfig->softAPmode;
 #ifdef NTP_CLIENT
