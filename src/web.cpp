@@ -1544,6 +1544,13 @@ void handle_setssid()
     if (connect_wifi(ssid, pw, (advanced) ? wifiNet.bssid : NULL))
     {
         RINFO("WiFi Successfully connects to SSID: %s", ssid);
+        // We should reset WiFi if changing networks or were not currently connected.
+        if (!connected || previousBSSID != ssid)
+        {
+            userConfig->staticIP = false;
+            userConfig->wifiPower = 20;
+            userConfig->wifiPhyMode = 0;
+        }
     }
     else
     {
@@ -1552,6 +1559,14 @@ void handle_setssid()
         {
             RINFO("Resetting WiFi to previous SSID: %s, removing any Access Point BSSID lock", previousSSID.c_str());
             connect_wifi(previousSSID.c_str(), previousPSK.c_str());
+        }
+        else
+        {
+            // We were not connected, and we failed to connext to new SSID,
+            // so best to reset any wifi settings.
+            userConfig->staticIP = false;
+            userConfig->wifiPower = 20;
+            userConfig->wifiPhyMode = 0;
         }
     }
     sync_and_restart();
