@@ -199,7 +199,7 @@ SSESubscription *firmwareUpdateSub = NULL;
 
 uint8_t subscriptionCount = 0;
 
-#define JSON_BUFFER_SIZE 1024
+#define JSON_BUFFER_SIZE 1280
 char *json = NULL;
 
 #define START_JSON(s)     \
@@ -272,18 +272,18 @@ void web_loop()
     {
         RINFO("Current Door State changing from %d to %d", lastDoorState, garage_door.current_state);
 #ifdef NTP_CLIENT
-        if (enableNTP && timeClient.isTimeSet())
+        if (enableNTP && clockSet)
         {
             if (lastDoorState == 0xff)
             {
                 // initialize with saved time.
                 // lastDoorUpdateAt is milliseconds relative to system reboot time.
-                lastDoorUpdateAt = (userConfig->doorUpdateAt != 0) ? ((userConfig->doorUpdateAt - timeClient.getEpochTime()) * 1000) + upTime : 0;
+                lastDoorUpdateAt = (userConfig->doorUpdateAt != 0) ? ((userConfig->doorUpdateAt - time(NULL)) * 1000) + upTime : 0;
             }
             else
             {
                 // first state change after a reboot, so really is a state change.
-                userConfig->doorUpdateAt = timeClient.getEpochTime();
+                userConfig->doorUpdateAt = time(NULL);
                 write_config_to_file();
                 lastDoorUpdateAt = upTime;
             }
@@ -641,9 +641,13 @@ void handle_status()
     ADD_INT(json, "lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
 #ifdef NTP_CLIENT
     ADD_BOOL(json, "enableNTP", enableNTP);
-    if (enableNTP && timeClient.isTimeSet())
+    if (enableNTP)
     {
-        ADD_INT(json, "serverTime", timeClient.getEpochTime());
+        if (clockSet)
+        {
+            ADD_INT(json, "serverTime", time(NULL));
+        }
+        ADD_STR(json, "timeZone", userConfig->timeZone);
     }
 #endif
     ADD_BOOL(json, "checkFlashCRC", flashCRC);
@@ -877,6 +881,12 @@ void handle_setgdo()
         else if (!strcmp(key, "enableNTP"))
         {
             userConfig->enableNTP = atoi(value) != 0;
+            reboot = true;
+        }
+        else if (!strcmp(key, "timeZone"))
+        {
+            RINFO("Setting time zone to %s", value);
+            strlcpy(userConfig->timeZone, value, sizeof(userConfig->timeZone));
             reboot = true;
         }
 #endif

@@ -10,6 +10,36 @@
 #include "web.h"
 #include "utilities.h"
 
+#include <time.h>
+#include <coredecls.h>
+
+time_t now = 0;
+tm timeInfo;
+
+void showTime()
+{
+    localtime_r(&now, &timeInfo); // update the structure tm with the current time
+    Serial.print("year:");
+    Serial.print(timeInfo.tm_year + 1900); // years since 1900
+    Serial.print("\tmonth:");
+    Serial.print(timeInfo.tm_mon + 1); // January = 0 (!)
+    Serial.print("\tday:");
+    Serial.print(timeInfo.tm_mday); // day of month
+    Serial.print("\thour:");
+    Serial.print(timeInfo.tm_hour); // hours since midnight  0-23
+    Serial.print("\tmin:");
+    Serial.print(timeInfo.tm_min); // minutes after the hour  0-59
+    Serial.print("\tsec:");
+    Serial.print(timeInfo.tm_sec); // seconds after the minute  0-61*
+    Serial.print("\twday");
+    Serial.print(timeInfo.tm_wday); // days since Sunday 0-6
+    if (timeInfo.tm_isdst == 1)     // Daylight Saving Time flag
+        Serial.print("\tDST");
+    else
+        Serial.print("\tstandard");
+    Serial.println();
+}
+
 /********************************* FWD DECLARATIONS *****************************************/
 
 void setup_pins();
@@ -85,13 +115,6 @@ void setup()
         setup_homekit();
     }
 
-#ifdef NTP_CLIENT
-    if (enableNTP)
-    {
-        timeClient.begin();
-    }
-#endif
-
     led.idle();
     RINFO("=== RATGDO setup complete ===");
     RINFO("=============================");
@@ -103,13 +126,16 @@ void loop()
     improv_loop();
     comms_loop();
     // wait for a status command to be processes to properly set the initial state of
-    // all homekit characteristics.  Also timeout if we don't receive a status in 
+    // all homekit characteristics.  Also timeout if we don't receive a status in
     // a reasonable amount of time.  This prevents unintentional state changes if
     // a home hub reads the state before we initialize everything
     // Note, secplus1 doesnt have a status command so it will just timeout
-    if (status_done) {
+    if (status_done)
+    {
         homekit_loop();
-    } else if (millis() > status_timeout) {
+    }
+    else if (millis() > status_timeout)
+    {
         status_done = true;
     }
     service_timer_loop();
@@ -229,16 +255,13 @@ void service_timer_loop()
     unsigned long current_millis = millis();
 
 #ifdef NTP_CLIENT
-    if (enableNTP)
+    if (enableNTP && clockSet && lastRebootAt == 0)
     {
-        timeClient.update();
-        if (lastRebootAt == 0 && timeClient.isTimeSet())
-        {
-            lastRebootAt = timeClient.getEpochTime() - (current_millis / 1000);
-            RINFO("Current time: %s", timeString());
-        }
+        lastRebootAt = time(NULL) - (current_millis / 1000);
+        RINFO("System boot time: %s", timeString(lastRebootAt));
     }
 #endif
+
     // LED flash timer
     led.flash();
 

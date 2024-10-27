@@ -46,24 +46,36 @@ userConfig_t *userConfig = NULL;
 bool syslogEn = false;
 
 #ifdef NTP_CLIENT
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP);
+bool clockSet = false;
 bool enableNTP = false;
 unsigned long lastRebootAt = 0;
 int32_t savedDoorUpdateAt = 0;
+
+void time_is_set(bool from_sntp)
+{
+    RINFO("Clock set from NTP server: %d", from_sntp ? 1 : 0);
+    clockSet = true;
+    RINFO("Current time: %s", timeString());
+}
+
+uint32_t sntp_update_delay_MS_rfc_not_less_than_15000()
+{
+    return 30 * 60 * 1000UL; // update every 30 minutes
+}
 
 char *timeString(time_t reqTime)
 {
     // declare static so we don't use stack space
     static char tBuffer[32];
     static time_t tTime = 0;
-    static tm *tmTime = NULL;
+    static tm tmTime;
     tBuffer[0] = 0;
-    tTime = ((reqTime == 0) && timeClient.isTimeSet()) ? timeClient.getEpochTime() : reqTime;
+    tTime = ((reqTime == 0) && clockSet) ? time(NULL) : reqTime;
     if (tTime != 0)
     {
-        tmTime = gmtime(&tTime);
-        strftime(tBuffer, sizeof(tBuffer), "%Y-%m-%dT%H:%M:%S.000Z", tmTime);
+        localtime_r(&tTime, &tmTime);
+        // Print format example: 27-Oct-2024 11:16:18 EDT
+        strftime(tBuffer, sizeof(tBuffer), "%d-%b-%Y %H:%M:%S %Z", &tmTime);
     }
     return tBuffer;
 }
@@ -205,6 +217,13 @@ void load_all_config_settings()
 #ifdef NTP_CLIENT
     // Only enable NTP client if not in soft AP mode.
     enableNTP = !softAPmode && userConfig->enableNTP;
+    if (enableNTP)
+    {
+        settimeofday_cb(time_is_set);
+        char *tz = strchr(userConfig->timeZone, ';');
+        // semicolon may separate continent/city from posix TZ string
+        configTime((tz) ? tz + 1 : userConfig->timeZone, NTP_SERVER);
+    }
 #endif
     syslogEn = userConfig->syslogEn;
     // Now log what we have loaded
@@ -230,6 +249,7 @@ void load_all_config_settings()
 #ifdef NTP_CLIENT
     RINFO("   enableNTP:           %s", userConfig->enableNTP ? "true" : "false");
     RINFO("   doorUpdateAt:        %d", userConfig->doorUpdateAt);
+    RINFO("   timeZone:            %s", userConfig->timeZone);
 #endif
     RINFO("   softAPmode:          %s", userConfig->softAPmode ? "true" : "false");
     RINFO("   syslogEn:            %s", userConfig->syslogEn ? "true" : "false");
@@ -238,12 +258,6 @@ void load_all_config_settings()
 
 void sync_and_restart()
 {
-#ifdef NTP_CLIENT
-    if (enableNTP)
-    {
-        timeClient.end();
-    }
-#endif
     if (softAPmode)
     {
         // reset so next reboot will be standard station mode

@@ -2,6 +2,7 @@
 // All rights reserved. GPLv3 License
 
 #include <stdint.h>
+#include <WiFiUdp.h>
 
 #include "log.h"
 #include "utilities.h"
@@ -48,7 +49,7 @@ File logMessageFile;
 WiFiUDP syslog;
 void logToSyslog(char *message)
 {
-    if (!syslogEn)
+    if (!syslogEn || !WiFi.isConnected())
         return;
 
     uint8_t PRI = SYSLOG_LOCAL0 * 8;
@@ -192,10 +193,10 @@ extern "C" uint32_t min_heap;
 void printMessageLog(Print &outputDev)
 {
 #ifdef NTP_CLIENT
-    if (enableNTP && timeClient.isTimeSet())
+    if (enableNTP && clockSet)
     {
         outputDev.write("Server time (secs): ");
-        outputDev.println(timeClient.getEpochTime());
+        outputDev.println(time(NULL));
     }
 #endif
     outputDev.write("Server uptime (ms): ");
