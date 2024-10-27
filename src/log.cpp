@@ -74,7 +74,7 @@ void logToSyslog(char *message)
 
     // Use RFC5424 Format
     syslog.printf("<%u>1 ", PRI); // PRI code
-    syslog.print((enableNTP && timeClient.isTimeSet()) ? timeString() : SYSLOG_NIL);
+    syslog.print(SYSLOG_NIL);     // in lieu of timestamp
     syslog.print(" ");
     syslog.print(device_name_rfc952); // hostname
     syslog.print(" ");
