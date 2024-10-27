@@ -281,8 +281,8 @@ async function checkVersion(progress) {
     });
     serverStatus.downloadURL = "https://ratgdo.github.io/homekit-ratgdo/firmware/" + asset.name;
     let msg = "You have newest release";
-    if (serverStatus.firmwareVersion !== latest.tag_name) {
-        // Newest version at GitHub is different from that installed
+    if (serverStatus.firmwareVersion < latest.tag_name) {
+        // Newest version at GitHub is greater from that installed
         msg = "Update available  (" + latest.tag_name + ")";
     }
     clearInterval(aniDots);
