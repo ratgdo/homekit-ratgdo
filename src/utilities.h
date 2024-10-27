@@ -6,12 +6,22 @@
 #include "ratgdo.h"
 
 #ifdef NTP_CLIENT
-#include <WiFiUdp.h>
-#include <NTPClient.h>
-extern NTPClient timeClient;
+extern bool clockSet;
 extern unsigned long lastRebootAt;
 extern char *timeString(time_t reqTime = 0);
 extern bool enableNTP;
+
+#define NTP_SERVER "pool.ntp.org"
+// See... https://github.com/nayarsystems/posix_tz_db
+#define TZ_GMT "Etc/GMT;GMT0"
+#define TZ_US_EASTERN "America/New_York;EST5EDT,M3.2.0,M11.1.0"
+#define TZ_US_CENTRAL "America/Chicago;CST6CDT,M3.2.0,M11.1.0"
+#define TZ_US_MOUNTAIN "America/Denver;MST7MDT,M3.2.0,M11.1.0"
+#define TZ_US_PHOENIZ "America/Phoenix;MST7"
+#define TZ_US_PACIFIC "America/Los_Angeles;PST8PDT,M3.2.0,M11.1.0"
+#define TZ_US_ALASKA "America/Anchorage;AKST9AKDT,M3.2.0,M11.1.0"
+#define TZ_US_HAWAII  "Pacific/Honolulu;HST10"
+
 #endif
 
 #if defined(MMU_IRAM_HEAP)
@@ -68,6 +78,7 @@ typedef struct
 #ifdef NTP_CLIENT
     bool enableNTP = false;
     int doorUpdateAt = 0;
+    char timeZone[64] = TZ_GMT;
 #endif
     bool softAPmode = false;
     bool syslogEn = false;
