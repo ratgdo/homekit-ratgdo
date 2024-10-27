@@ -75,7 +75,11 @@ void logToSyslog(char *message)
 
     // Use RFC5424 Format
     syslog.printf("<%u>1 ", PRI); // PRI code
-    syslog.print(SYSLOG_NIL);     // in lieu of timestamp
+#ifdef USE_NTP_TIMESTAMP
+    syslog.print((enableNTP && timeClient.isTimeSet()) ? timeString() : SYSLOG_NIL);
+#else
+    syslog.print(SYSLOG_NIL);         // Time - let the syslog server insert time
+#endif
     syslog.print(" ");
     syslog.print(device_name_rfc952); // hostname
     syslog.print(" ");
@@ -83,7 +87,11 @@ void logToSyslog(char *message)
     syslog.printf(" %d", loop_id); // process ID
     syslog.print(" " SYSLOG_NIL    // message ID
                  " " SYSLOG_NIL    // structured data
+#ifdef USE_UTF8_BOM
                  " " SYSLOG_BOM);  // BOM - indicates UTF-8 encoding
+#else
+                 " " );            // No BOM
+#endif
     syslog.print(msg);             // message
 
     syslog.endPacket();
