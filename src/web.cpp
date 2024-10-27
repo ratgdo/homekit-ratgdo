@@ -792,6 +792,7 @@ void handle_setgdo()
             {
                 // Setting has changed.  Write new value and note that change has taken place
                 userConfig->wifiPhyMode = wifiPhyMode;
+                userConfig->wifiSettingsChanged = true;
                 reboot = true;
             }
         }
@@ -802,12 +803,14 @@ void handle_setgdo()
             {
                 // Setting has changed.  Write new value and note that change has taken place
                 userConfig->wifiPower = wifiPower;
+                userConfig->wifiSettingsChanged = true;
                 reboot = true;
             }
         }
         else if (!strcmp(key, "staticIP"))
         {
             userConfig->staticIP = atoi(value) != 0;
+            userConfig->wifiSettingsChanged = true;
             reboot = true;
         }
         else if (!strcmp(key, "subnetMask"))
@@ -816,6 +819,7 @@ void handle_setgdo()
             {
                 strlcpy(userConfig->IPnetmask, value, sizeof(userConfig->IPnetmask));
 
+                userConfig->wifiSettingsChanged = true;
                 reboot = true;
             }
         }
@@ -825,6 +829,7 @@ void handle_setgdo()
             {
                 strlcpy(userConfig->IPgateway, value, sizeof(userConfig->IPgateway));
 
+                userConfig->wifiSettingsChanged = true;
                 reboot = true;
             }
         }
@@ -834,6 +839,7 @@ void handle_setgdo()
             {
                 strlcpy(userConfig->IPnameserver, value, sizeof(userConfig->IPnameserver));
 
+                userConfig->wifiSettingsChanged = true;
                 reboot = true;
             }
         }
@@ -842,6 +848,7 @@ void handle_setgdo()
             if (strlen(value) > 0)
             {
                 strlcpy(userConfig->IPaddress, value, sizeof(userConfig->IPaddress));
+                userConfig->wifiSettingsChanged = true;
                 reboot = true;
             }
         }
