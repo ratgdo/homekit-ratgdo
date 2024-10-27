@@ -136,6 +136,7 @@ void loop()
     }
     else if (millis() > status_timeout)
     {
+        RINFO("Status timeout, starting homekit");
         status_done = true;
     }
     service_timer_loop();

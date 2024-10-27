@@ -16,6 +16,7 @@
 
 // #if defined(ESP8266)
 #include <ESP8266WiFi.h>
+#include <ESP8266Ping.h>
 // #elif defined(ESP32)
 // #include <WiFi.h>
 // #endif
@@ -202,6 +203,15 @@ void wifi_connect()
 void improv_loop()
 {
     loop_id = LOOP_IMPROV;
+    // Once a minute ping the Gateway and log
+    if (millis() % 60000 == 0) {
+        if (Ping.ping(WiFi.gatewayIP(), 1)) {
+            RINFO("Gateway %s alive %u ms", WiFi.gatewayIP().toString().c_str(), Ping.averageTime());
+        }
+        else {
+            RINFO("No response from Gateway %s", WiFi.gatewayIP().toString().c_str());
+        }
+    }
     if (Serial.available() > 0)
     {
         uint8_t b = Serial.read();
@@ -243,40 +253,22 @@ void improv_loop()
         }
         else
         {
-            RINFO("Connected, test network DNS reachable");
-            if (WiFi.dnsIP().isSet())
+            RINFO("Connected, test Gatway IP reachable");
+            IPAddress ip;
+            if (!Ping.ping(WiFi.gatewayIP(), 1))
             {
+                RINFO("Unable to ping Gateway, reset to DHCP to acquire IP address and reconnect");
+                userConfig->staticIP = false;
+                write_config_to_file();
                 IPAddress ip;
-                ip_addr_t dns = (ip_addr_t)WiFi.dnsIP();
-                ip_addr_t gw = (ip_addr_t)WiFi.gatewayIP();
-                ip_addr_t nm = (ip_addr_t)WiFi.subnetMask();
-                if (ip4_addr_netcmp(&dns, &gw, &nm))
-                {
-                    RINFO("DNS server in same subnet as gateway");
-                    WiFi.hostByName("localhost", ip);
-                }
-                else
-                {
-                    WiFi.hostByName("google.com", ip);
-                }
-                RINFO("Resolved IP address: %s", ip.toString().c_str());
-                if (!ip.isSet())
-                {
-                    RINFO("DNS not working, reset to DHCP to acquire IP address and reconnect");
-                    userConfig->staticIP = false;
-                    write_config_to_file();
-                    IPAddress ip;
-                    ip.fromString("0.0.0.0");
-                    WiFi.config(ip, ip, ip);
-                    // Now try and reconnect...
-                    wifiConnectTimeout = millis() + 30000;
-                    WiFi.reconnect();
-                    return;
-                }
-            }
-            else
-            {
-                RINFO("No DNS Server address, cannot confirm network is working");
+                ip.fromString("0.0.0.0");
+                WiFi.config(ip, ip, ip);
+                // Now try and reconnect...
+                wifiConnectTimeout = millis() + 30000;
+                WiFi.reconnect();
+                return;
+            } else {
+                RINFO("Gateway %s alive %u ms", WiFi.gatewayIP().toString().c_str(), Ping.averageTime());
             }
         }
         // reset flag
