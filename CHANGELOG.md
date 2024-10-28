@@ -8,10 +8,10 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 
 * New feature... Allow selection of time zone when NTP server enabled.
 * Change... We use built in Arduino core NTP client for time instead of separate module
-* Change... Replace NDS lookup with a ping to gateway to test for network connectivity
+* Change... Replace DNS lookup with a ping to gateway to test for network connectivity
 * Bugfix... Don't display that an update is available if running newer pre-release
 * Bugfix... When changing SSID in soft access point, make sure the WiFi settings are reset to DHCP
-* Bugfix... wifiSettingsChanged setting has been removed by mistake.
+* Bugfix... wifiSettingsChanged setting had been removed by mistake.
 
 ### Known Issues
 

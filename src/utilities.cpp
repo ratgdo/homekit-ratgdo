@@ -63,7 +63,7 @@ uint32_t sntp_update_delay_MS_rfc_not_less_than_15000()
     return 30 * 60 * 1000UL; // update every 30 minutes
 }
 
-char *timeString(time_t reqTime)
+char *timeString(time_t reqTime, bool syslog)
 {
     // declare static so we don't use stack space
     static char tBuffer[32];
@@ -74,8 +74,27 @@ char *timeString(time_t reqTime)
     if (tTime != 0)
     {
         localtime_r(&tTime, &tmTime);
-        // Print format example: 27-Oct-2024 11:16:18 EDT
-        strftime(tBuffer, sizeof(tBuffer), "%d-%b-%Y %H:%M:%S %Z", &tmTime);
+        if (syslog)
+        {
+            // syslog compatibe
+            strftime(tBuffer, sizeof(tBuffer), "%Y-%m-%dT%H:%M:%S.000%z", &tmTime);
+            // %z returns e.g. "-400" or "+1000", we need it to be "-4:00" or "+10:00"
+            // thie format is REQUIRED by syslog
+            int i = strlen(tBuffer);
+            if (tBuffer[i - 5] == '-' || tBuffer[i - 5] == '+' ||
+                tBuffer[i - 6] == '-' || tBuffer[i - 6] == '+')
+            {
+                tBuffer[i + 1] = 0;
+                tBuffer[i] = tBuffer[i - 1];
+                tBuffer[i - 1] = tBuffer[i - 2];
+                tBuffer[i - 2] = ':';
+            }
+        }
+        else
+        {
+            // Print format example: 27-Oct-2024 11:16:18 EDT
+            strftime(tBuffer, sizeof(tBuffer), "%d-%b-%Y %H:%M:%S %Z", &tmTime);
+        }
     }
     return tBuffer;
 }
