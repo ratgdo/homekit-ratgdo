@@ -8,7 +8,7 @@
 #ifdef NTP_CLIENT
 extern bool clockSet;
 extern unsigned long lastRebootAt;
-extern char *timeString(time_t reqTime = 0);
+extern char *timeString(time_t reqTime = 0, bool syslog = false);
 extern bool enableNTP;
 
 #define NTP_SERVER "pool.ntp.org"

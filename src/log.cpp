@@ -76,7 +76,7 @@ void logToSyslog(char *message)
     // Use RFC5424 Format
     syslog.printf("<%u>1 ", PRI); // PRI code
 #ifdef USE_NTP_TIMESTAMP
-    syslog.print((enableNTP && timeClient.isTimeSet()) ? timeString() : SYSLOG_NIL);
+    syslog.print((enableNTP && clockSet) ? timeString(0, true) : SYSLOG_NIL);
 #else
     syslog.print(SYSLOG_NIL);         // Time - let the syslog server insert time
 #endif
