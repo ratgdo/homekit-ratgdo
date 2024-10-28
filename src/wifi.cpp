@@ -203,19 +203,26 @@ void wifi_connect()
 void improv_loop()
 {
     loop_id = LOOP_IMPROV;
+#ifdef GW_PING_CHECK
+    static unsigned long gw_ping_timeout = 10000;
+    static unsigned long gw_report_interval = 0;
     // Once a minute ping the Gateway and log
     unsigned long now = millis();
-    if (now % 60000 == 0) {
+    if (now > gw_ping_timeout) {
+        gw_ping_timeout = now + 60000;
         if (Ping.ping(WiFi.gatewayIP(), 1)) {
             int lat = Ping.averageTime();
             // Log success once an hour
-            if (now % (60000 * 60) == 0 || lat > 100)
+            if ((now > gw_report_interval) || (lat > 100)) {
+                gw_report_interval = now + (60 * 60 * 1000);
                 RINFO("Gateway %s alive %u ms", WiFi.gatewayIP().toString().c_str(), lat);
+            }
         }
         else {
             RINFO("No response from Gateway %s", WiFi.gatewayIP().toString().c_str());
         }
     }
+#endif
     if (Serial.available() > 0)
     {
         uint8_t b = Serial.read();
