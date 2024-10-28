@@ -892,7 +892,6 @@ void handle_setgdo()
         }
         else if (!strcmp(key, "timeZone"))
         {
-            RINFO("Setting time zone to %s", value);
             strlcpy(userConfig->timeZone, value, sizeof(userConfig->timeZone));
             reboot = true;
         }

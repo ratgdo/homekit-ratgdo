@@ -329,8 +329,22 @@
               <tr>
                 <td class="label">Enable NTP:</td>
                 <td>&nbsp;
-                  <input type="checkbox" id="enableNTP" name="enableNTP" value="no">
+                  <input type="checkbox" id="enableNTP" name="enableNTP" value="no" onchange="toggleTimeZone()">
                   <span style="font-size: 0.8em;">Obtain time from NTP server</span>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td>
+                  <table class="settings" id="timeZoneTable" style="display: none;">
+                    <tr>
+                      <td class="IPlabel">Time Zone:</td>
+                      <td>&nbsp;
+                        <select class="timeZoneInput TZinput" id="timeZoneInput">
+                        </select>
+                      </td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
               <tr>
@@ -461,6 +475,7 @@
     console.log('Client UUID: ' + clientUUID);
     const loaderElem = document.getElementById("loader"); // Spinner while pages load
 
+    // Retrieve status from the server
     loaderElem.style.visibility = "visible";
     checkStatus()
       .then(() => {
@@ -559,30 +574,6 @@
         }
       });
     });
-
-    // Show or hide the syslog IP field
-    function toggleSyslog() {
-      let syslogEn = this.event.target.checked;
-      document.getElementById("syslogTable").style.display = (syslogEn) ? "table" : "none";
-      if (!syslogEn) {
-        // If hiding (turning off syslog IP) then erase any addresses that may be set.
-        Array.from(document.getElementsByClassName("syslogIPinput")).forEach(function (inputField) {
-          inputField.value = "";
-        });
-      }
-    }
-
-    // Show or hide the static IP fields
-    function toggleStaticIP() {
-      let staticIP = this.event.target.checked;
-      document.getElementById("staticIPtable").style.display = (staticIP) ? "table" : "none";
-      if (!staticIP) {
-        // If hiding (turning off static IP) then erase any addresses that may be set.
-        Array.from(document.getElementsByClassName("staticIPinput")).forEach(function (inputField) {
-          inputField.value = "";
-        });
-      }
-    }
 
     // This handles user control of sliders
     WiFiSlider = document.getElementById("wifiPower");

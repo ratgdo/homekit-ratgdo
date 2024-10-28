@@ -32,7 +32,8 @@
   "TTCseconds": 10,
   "motionTriggers": 3,
   "LEDidle": 1,
-  "enableNTP": false,
+  "enableNTP": true,
   "lastDoorUpdateAt": 847155,
+  "timeZone": "America/New_York;EST5EDT,M3.2.0,M11.1.0",
   "checkFlashCRC": false
 }
