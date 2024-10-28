@@ -204,9 +204,13 @@ void improv_loop()
 {
     loop_id = LOOP_IMPROV;
     // Once a minute ping the Gateway and log
-    if (millis() % 60000 == 0) {
+    unsigned long now = millis();
+    if (now % 60000 == 0) {
         if (Ping.ping(WiFi.gatewayIP(), 1)) {
-            RINFO("Gateway %s alive %u ms", WiFi.gatewayIP().toString().c_str(), Ping.averageTime());
+            int lat = Ping.averageTime();
+            // Log success once an hour
+            if (now % (60000 * 60) == 0 || lat > 100)
+                RINFO("Gateway %s alive %u ms", WiFi.gatewayIP().toString().c_str(), lat);
         }
         else {
             RINFO("No response from Gateway %s", WiFi.gatewayIP().toString().c_str());
