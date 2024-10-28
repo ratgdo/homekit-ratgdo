@@ -222,6 +222,7 @@ table.password td.label {
     font-size: 0.9em;
 }
 
+table.settings input.TZinput,
 table.settings input.IPinput {
     font-size: 0.9em;
 }

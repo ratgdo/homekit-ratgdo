@@ -348,6 +348,7 @@ void write_config_to_file()
 #ifdef NTP_CLIENT
     file.printf_P(PSTR("enableNTP,,%s\n"), userConfig->enableNTP ? "true" : "false");
     file.printf_P(PSTR("doorUpdateAt,,%d\n"), userConfig->doorUpdateAt);
+    file.printf_P(PSTR("timeZone,,%s\n"), userConfig->timeZone);
 #endif
     file.printf_P(PSTR("softAPmode,,%s\n"), userConfig->softAPmode ? "true" : "false");
     file.printf_P(PSTR("syslogEn,,%s\n"), userConfig->syslogEn ? "true" : "false");
@@ -449,6 +450,10 @@ bool read_config_from_file()
         else if (!strcmp(key, "doorUpdateAt"))
         {
             userConfig->doorUpdateAt = 0;
+        }
+        else if (!strcmp(key, "timeZone"))
+        {
+            strlcpy(userConfig->timeZone, value, sizeof(userConfig->timeZone));
         }
 #endif
         else if (!strcmp(key, "softAPmode"))

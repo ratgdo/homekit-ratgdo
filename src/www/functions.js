@@ -13,6 +13,26 @@ var delayStatusFn = [];         // to keep track of possible checkStatus timeout
 const clientUUID = uuidv4();    // uniquely identify this session
 const rebootSeconds = 15;       // How long to wait before reloading page after reboot
 
+// See... https://github.com/nayarsystems/posix_tz_db
+// This is CSV form of the data, available at that web page.
+const timeZoneDefaults = '"Etc/GMT","GMT0"\n' +
+    '"America/New_York","EST5EDT,M3.2.0,M11.1.0"\n' +
+    '"America/Chicago","CST6CDT,M3.2.0,M11.1.0"\n' +
+    '"America/Denver","MST7MDT,M3.2.0,M11.1.0"\n' +
+    '"America/Phoenix","MST7"\n' +
+    '"America/Los_Angeles","PST8PDT,M3.2.0,M11.1.0"\n' +
+    '"America/Anchorage","AKST9AKDT,M3.2.0,M11.1.0"\n' +
+    '"Pacific/Honolulu","HST10"';
+var timeZones = new Array();
+
+// very simple, work for above
+function tzToArray(str) {
+    ar = str.split('\n');
+    ar.forEach((element, index) => {
+        ar[index] = element.slice(1, -1).replace('","', ';');
+    });
+    return ar;
+}
 // https://stackoverflow.com/questions/7995752/detect-desktop-browser-not-mobile-with-javascript
 // const isTouchDevice = function () { return 'ontouchstart' in window || 'onmsgesturechange' in window; };
 // const isDesktop = window.screenX != 0 && !isTouchDevice() ? true : false;
@@ -30,6 +50,56 @@ function msToTime(duration) {
     seconds = (seconds < 10) ? "0" + seconds : seconds;
 
     return days + ":" + hours + ":" + minutes + ":" + seconds;
+}
+
+// Show or hide the syslog IP field
+function toggleSyslog() {
+    document.getElementById("syslogTable").style.display = (this.event.target.checked) ? "table" : "none";
+    if (!this.event.target.checked) {
+        // If hiding (turning off syslog IP) then erase any addresses that may be set.
+        Array.from(document.getElementsByClassName("syslogIPinput")).forEach(function (inputField) {
+            inputField.value = "";
+        });
+    }
+}
+
+// Show or hide the static IP fields
+function toggleStaticIP() {
+    document.getElementById("staticIPtable").style.display = (this.event.target.checked) ? "table" : "none";
+    if (!this.event.target.checked) {
+        // If hiding (turning off static IP) then erase any addresses that may be set.
+        Array.from(document.getElementsByClassName("staticIPinput")).forEach(function (inputField) {
+            inputField.value = "";
+        });
+    }
+}
+
+// Show or hide the syslog IP field
+function toggleTimeZone() {
+    document.getElementById("timeZoneTable").style.display = (this.event.target.checked) ? "table" : "none";
+    // called for both checked and unchecked... to reset selection if necessary.
+    loadTZinfo(document.getElementById("timeZoneInput"));
+}
+
+function loadTZinfo(list) {
+    if (list.length <= 1) {
+        // not populated yet
+        if (timeZones.length == 0) {
+            timeZones = tzToArray(timeZoneDefaults);
+        }
+        timeZones.forEach((element) => {
+            let option = document.createElement("option");
+            let info = element.split(';');
+            option.text = info[0];
+            option.value = info[1];
+            list.add(option);
+        });
+    }
+    // select current value
+    let index = timeZones.indexOf(serverStatus.timeZone);
+    if (index >= 0) {
+        list.selectedIndex = index;
+    }
 }
 
 // Update all elements on HTML page to reflect status
@@ -122,6 +192,10 @@ function setElementsFromStatus(status) {
                 break;
             case "enableNTP":
                 document.getElementById(key).checked = value;
+                document.getElementById("timeZoneTable").style.display = (value) ? "table" : "none";
+                break;
+            case "timeZone":
+                loadTZinfo(document.getElementById("timeZoneInput"));
                 break;
             case "lastDoorUpdateAt":
                 date.setTime(Date.now() - value);
@@ -672,7 +746,8 @@ async function saveSettings() {
     let nameserverIP = document.getElementById("IPnameserver").value.substring(0, 15);
     if (nameserverIP.length == 0) nameserverIP = serverStatus.nameserverIP;
     const enableNTP = (document.getElementById("enableNTP").checked) ? '1' : '0';
-
+    const list = document.getElementById("timeZoneInput");
+    const timeZone = list.options[list.selectedIndex].text + ';' + list.options[list.selectedIndex].value;
 
     // check IP addresses valid
     const regexIPv4 = /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/i;
@@ -697,6 +772,7 @@ async function saveSettings() {
         "gatewayIP", gatewayIP,
         "nameserverIP", nameserverIP,
         "enableNTP", enableNTP,
+        "timeZone", timeZone,
         "syslogEn", syslogEn,
         "syslogIP", syslogIP
     );
