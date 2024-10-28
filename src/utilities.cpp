@@ -6,6 +6,7 @@
 #include "LittleFS.h"
 #include "comms.h"
 #include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
 
 #ifdef LEGACY_SETTINGS_MIGRATION
 // Filenames for legacy user configuation, replaced by single file.
@@ -51,6 +52,51 @@ bool enableNTP = false;
 unsigned long lastRebootAt = 0;
 int32_t savedDoorUpdateAt = 0;
 
+bool get_tz()
+{
+    WiFiClient client;
+    HTTPClient http;
+    bool success = false;
+
+    if (http.begin(client, "http://ip-api.com/csv/?fields=timezone,offset"))
+    { // HTTP
+
+        // start connection and send HTTP header
+        int httpCode = http.GET();
+
+        // httpCode will be negative on error
+        if (httpCode > 0)
+        {
+            if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY)
+            {
+                String payload = http.getString();
+                char * timezone = (char*)payload.c_str();
+                char * ch = strchr(timezone, ',');
+                *ch = '\0';
+                ch++;
+                int offset = atoi(ch);
+                offset /= -3600;
+                sprintf(userConfig->timeZone, "%s;UTC%d", timezone, offset);
+                RINFO("Setting timezone to %s", userConfig->timeZone);
+                success = true;
+            }
+        }
+        http.end();
+    } else {
+        success = false;
+    }
+    return success;
+}
+
+void update_timezone()
+{
+    if (get_tz()) {
+        char *tz = strchr(userConfig->timeZone, ';');
+        // semicolon may separate continent/city from posix TZ string
+        configTime((tz) ? tz + 1 : userConfig->timeZone, NTP_SERVER);
+    }
+}
+
 void time_is_set(bool from_sntp)
 {
     RINFO("Clock set from NTP server: %d", from_sntp ? 1 : 0);
@@ -93,7 +139,7 @@ char *timeString(time_t reqTime, bool syslog)
         else
         {
             // Print format example: 27-Oct-2024 11:16:18 EDT
-            strftime(tBuffer, sizeof(tBuffer), "%d-%b-%Y %H:%M:%S %Z", &tmTime);
+            strftime(tBuffer, sizeof(tBuffer), "%d-%b-%Y %H:%M:%S", &tmTime);
         }
     }
     return tBuffer;
@@ -239,9 +285,6 @@ void load_all_config_settings()
     if (enableNTP)
     {
         settimeofday_cb(time_is_set);
-        char *tz = strchr(userConfig->timeZone, ';');
-        // semicolon may separate continent/city from posix TZ string
-        configTime((tz) ? tz + 1 : userConfig->timeZone, NTP_SERVER);
     }
 #endif
     syslogEn = userConfig->syslogEn;

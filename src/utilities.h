@@ -117,5 +117,6 @@ bool read_config_from_file();
 void write_config_to_file();
 
 void delete_file(const char *filename);
+void update_timezone();
 
 #endif
