@@ -89,7 +89,7 @@
             </tr>
             <tr>
               <td>HomeKit ID:</td>
-              <td id="accessoryID"></td>
+              <td><span id="accessoryID"></span><br><sup style="font-size: 0.6em;">(clients:<span id="clients"></span>)</sup></td>
             </tr>
           </table>
         </div>
@@ -475,6 +475,7 @@
     console.log('Client UUID: ' + clientUUID);
     const loaderElem = document.getElementById("loader"); // Spinner while pages load
 
+
     // Retrieve status from the server
     loaderElem.style.visibility = "visible";
     checkStatus()
@@ -482,6 +483,8 @@
         loaderElem.style.visibility = "hidden";
         checkVersion("dotdot1");
       });
+    // Load time zone info, this runs asynchronously
+    loadTimeZones();
 
     // reload status if visibility change
     window.addEventListener("visibilitychange", (event) => {
@@ -521,6 +524,7 @@
       document.getElementById("main-page").style.display = "none";
       document.getElementById("settings-page").style.display = "block";
       document.getElementById("main-icon").style.display = "block";
+      loadTZinfo(document.getElementById("timeZoneInput"));
     }
     function showMainpage() {
       document.getElementById("main-icon").style.display = "none";

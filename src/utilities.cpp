@@ -58,43 +58,23 @@ bool get_tz()
     HTTPClient http;
     bool success = false;
 
-    if (http.begin(client, "http://ip-api.com/csv/?fields=timezone,offset"))
-    { // HTTP
-
+    RINFO("Get timezone automatically based on IP address");
+    if (http.begin(client, "http://ip-api.com/csv/?fields=timezone"))
+    {
         // start connection and send HTTP header
         int httpCode = http.GET();
-
         // httpCode will be negative on error
-        if (httpCode > 0)
+        if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY)
         {
-            if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY)
-            {
-                String payload = http.getString();
-                char * timezone = (char*)payload.c_str();
-                char * ch = strchr(timezone, ',');
-                *ch = '\0';
-                ch++;
-                int offset = atoi(ch);
-                offset /= -3600;
-                sprintf(userConfig->timeZone, "%s;UTC%d", timezone, offset);
-                RINFO("Setting timezone to %s", userConfig->timeZone);
-                success = true;
-            }
+            String tz = http.getString();
+            tz.trim();
+            strlcpy(userConfig->timeZone, tz.c_str(), sizeof(userConfig->timeZone));
+            RINFO("Automatic timezone set to: %s", userConfig->timeZone);
+            success = true;
         }
         http.end();
-    } else {
-        success = false;
     }
     return success;
-}
-
-void update_timezone()
-{
-    if (get_tz()) {
-        char *tz = strchr(userConfig->timeZone, ';');
-        // semicolon may separate continent/city from posix TZ string
-        configTime((tz) ? tz + 1 : userConfig->timeZone, NTP_SERVER);
-    }
 }
 
 void time_is_set(bool from_sntp)
@@ -102,6 +82,12 @@ void time_is_set(bool from_sntp)
     RINFO("Clock set from NTP server: %d", from_sntp ? 1 : 0);
     clockSet = true;
     RINFO("Current time: %s", timeString());
+    if (strlen(userConfig->timeZone) == 0) {
+        // no timeZone set, try and find it automatically
+        get_tz();
+        // if successful this will have set the region and city, but not
+        // the POSIX time zone code. That will be done by browser.
+    }
 }
 
 uint32_t sntp_update_delay_MS_rfc_not_less_than_15000()
@@ -139,7 +125,7 @@ char *timeString(time_t reqTime, bool syslog)
         else
         {
             // Print format example: 27-Oct-2024 11:16:18 EDT
-            strftime(tBuffer, sizeof(tBuffer), "%d-%b-%Y %H:%M:%S", &tmTime);
+            strftime(tBuffer, sizeof(tBuffer), "%d-%b-%Y %H:%M:%S %Z", &tmTime);
         }
     }
     return tBuffer;
@@ -285,6 +271,10 @@ void load_all_config_settings()
     if (enableNTP)
     {
         settimeofday_cb(time_is_set);
+        char *tz = strchr(userConfig->timeZone, ';');
+        // semicolon may separate continent/city from posix TZ string
+        // if no semicolon then no POSIX code, so use UTC
+        configTime((tz) ? tz + 1 : "UTC0", NTP_SERVER);
     }
 #endif
     syslogEn = userConfig->syslogEn;

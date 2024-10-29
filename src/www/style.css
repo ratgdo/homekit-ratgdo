@@ -29,6 +29,7 @@ input[type="file"]::file-selector-button {
     border-top-right-radius: 5px;
     border-bottom-right-radius: 5px;
     border-bottom-left-radius: 5px;
+    border-width: 1px;
     font-weight: bold;
     font-size: 2vw;
     padding: 5px;
@@ -89,6 +90,15 @@ input.slider::-moz-range-thumb {
 select {
     vertical-align: middle;
     font-size: 1em;
+    border-style: solid;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+    border-bottom-left-radius: 5px;
+    border-width: 1px;
+    width: 15em;
+    padding: 5px;
+    appearance: unset;
 }
 
 div {
@@ -409,6 +419,7 @@ div.logheader {
         color: black;
     }
 
+    select,
     input[type="number"],
     input[type="text"],
     input[type="password"] {
@@ -435,6 +446,7 @@ div.logheader {
         color: white;
     }
 
+    select,
     input[type="number"],
     input[type="text"],
     input[type="password"] {
