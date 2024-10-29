@@ -141,17 +141,23 @@ You can set the WiFi transmit power to between 0 and 20 dBm. It defaults to the 
 
 If selected then you can enter a static IP address, network mask, gateway IP and DNS server IP.  Note that if the address changes, then after reboot the web page will not automatically reload from the new IP address... you will need to manually connect to the ratgdo device at its new address. __Most users should NOT select static IP__ as it is far safer to use DHCP to automatically configure the device.
 
+Ratgdo tests for network connection approximately 40 seconds after a reboot from a WiFi setting change. If this fails then the device will disable static IP and will attempt to reconnect to the network using DHCP.
+
 > [!NOTE]
-> You must provide a DNS server IP address, this is used to test that the network is working by attempting to access the DNS server approximately 40 seconds after a reboot from a setting change. If this fails then the device will disable static IP and will attempt to reconnect to the network using DHCP. Most household gateway routers act as DNS servers so you could use the same IP address as the gateway. If the DNS is on the same subnet as the gateway then we attempt to resolve for "localhost" otherwise we test for "google.com".
+> You must provide an IP address for DNS (Domain Name Service), this is required to set the clock on ratgdo with Network Time Protocol (NTP). Most household gateway routers act as DNS servers so you can use the same IP address as the gateway.
 
 > [!WARNING]
-> If you enter an IP address that is not valid on your network then you will not be able to access the device by web browser or from HomeKit. If the device fails to automatically recover by resetting to DHCP, then the only recovery is to flash the ratgdo over the USB port using the web installer AND select the option to erase the device.  This will factory reset the device and you will have to remove the garage door accessory from HomeKit and then add it again.
+> If you enter an IP address that is not valid on your network then you will not be able to access the device by web browser or from HomeKit. If the device fails to automatically recover by resetting to DHCP, then you can recover by using the soft AP mode described below in [Set WiFi SSID](#set-wifi-ssid) (press light button 5 times). If this also fails then you will need to flash the ratgdo over the USB port using the web installer AND select the option to erase the device.  This will factory reset the device and you will have to remove the garage door accessory from HomeKit and then add it again.
 
 ### Enable NTP
 
-The ratgdo device will obtain current time from an NTP server. This requires internet access and the default setting is disabled.
+The ratgdo device will obtain current time from an NTP (Network Time Protocol) server. This requires internet access and the default setting is disabled.
 
-When enabled, the _lastDoorChange_ date and time (reported at the bottom of the web page) is saved across reboots and the actual time of log data is reported when viewed in the browser system logs page.  No adjustment is made for time zones, time is reported in UTC/GMT.
+When enabled, the _lastDoorChange_ date and time (reported at the bottom of the web page) is saved across reboots and the actual time of log data is reported when viewed in the browser system logs page.
+
+### Time Zone
+
+You can select time zone for your location.  On fist boot, or after changing the WiFi network SSID, the ratgdo will reset to GMT/UTC and then attempt to obtain your time zone by geolocating the external IP address of the network that ratgdo is connected to.  The discovered time zone will take effect immediately after you view the ratgdo web page.
 
 ### Reboot Every
 

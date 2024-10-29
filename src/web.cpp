@@ -592,8 +592,8 @@ void handle_status()
 {
     unsigned long upTime = millis();
 #define paired homekit_is_paired()
-#define accessoryID std::string(arduino_homekit_get_running_server() ? arduino_homekit_get_running_server()->accessory_id : "Inactive")
-#define clientCount std::to_string(arduino_homekit_get_running_server() ? arduino_homekit_get_running_server()->nfds : 0)
+#define accessoryID arduino_homekit_get_running_server() ? arduino_homekit_get_running_server()->accessory_id : "Inactive"
+#define clientCount arduino_homekit_get_running_server() ? arduino_homekit_get_running_server()->nfds : 0
 #define IPaddr WiFi.localIP().toString().c_str()
 #define subnetMask WiFi.subnetMask().toString().c_str()
 #define gatewayIP WiFi.gatewayIP().toString().c_str()
@@ -608,7 +608,8 @@ void handle_status()
     ADD_STR(json, "userName", userConfig->wwwUsername);
     ADD_BOOL(json, "paired", paired);
     ADD_STR(json, "firmwareVersion", std::string(AUTO_VERSION).c_str());
-    ADD_STR(json, "accessoryID", (accessoryID + " (clients:" + clientCount + ")").c_str());
+    ADD_STR(json, "accessoryID", accessoryID);
+    ADD_INT(json, "clients", clientCount);
     ADD_STR(json, "localIP", IPaddr);
     ADD_STR(json, "subnetMask", subnetMask);
     ADD_STR(json, "gatewayIP", gatewayIP);
@@ -676,12 +677,15 @@ void handle_setgdo()
     bool reboot = false;
     bool error = false;
 
-    if (userConfig->wwwPWrequired && !server.authenticateDigest(userConfig->wwwUsername, userConfig->wwwCredentials))
+    if (!((server.args() == 1) && (server.argName(0) == "timeZone")))
     {
-        RINFO("In setGDO request authentication");
-        return server.requestAuthentication(DIGEST_AUTH, www_realm);
+        // We will allow setting of time zone without authentication
+        if (userConfig->wwwPWrequired && !server.authenticateDigest(userConfig->wwwUsername, userConfig->wwwCredentials))
+        {
+            RINFO("In setGDO request authentication");
+            return server.requestAuthentication(DIGEST_AUTH, www_realm);
+        }
     }
-
     // Loop over all the GDO settings passed in...
     for (int i = 0; i < server.args(); i++)
     {
@@ -893,7 +897,10 @@ void handle_setgdo()
         else if (!strcmp(key, "timeZone"))
         {
             strlcpy(userConfig->timeZone, value, sizeof(userConfig->timeZone));
-            reboot = true;
+            // semicolon separates continent/city from POSIX time zone string
+            char *tz = strchr(userConfig->timeZone, ';');
+            if (tz)
+                configTime(tz + 1, NTP_SERVER);
         }
 #endif
         else if (!strcmp(key, "updateUnderway"))
@@ -1017,7 +1024,7 @@ void SSEheartbeat(SSESubscription *s)
         if (arduino_homekit_get_running_server() && arduino_homekit_get_running_server()->nfds != lastClientCount)
         {
             lastClientCount = arduino_homekit_get_running_server()->nfds;
-            ADD_STR(json, "accessoryID", (accessoryID + " (clients:" + std::to_string(lastClientCount) + ")").c_str());
+            ADD_INT(json, "clients", lastClientCount);
         }
         END_JSON(json);
         REMOVE_NL(json);
@@ -1566,6 +1573,9 @@ void handle_setssid()
             userConfig->staticIP = false;
             userConfig->wifiPower = 20;
             userConfig->wifiPhyMode = 0;
+#ifdef NTP_CLIENT
+            userConfig->timeZone[0] = 0;
+#endif
         }
     }
     else
@@ -1583,6 +1593,9 @@ void handle_setssid()
             userConfig->staticIP = false;
             userConfig->wifiPower = 20;
             userConfig->wifiPhyMode = 0;
+#ifdef NTP_CLIENT
+            userConfig->timeZone[0] = 0;
+#endif
         }
     }
     sync_and_restart();

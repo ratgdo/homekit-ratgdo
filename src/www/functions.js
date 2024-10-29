@@ -13,9 +13,15 @@ var delayStatusFn = [];         // to keep track of possible checkStatus timeout
 const clientUUID = uuidv4();    // uniquely identify this session
 const rebootSeconds = 15;       // How long to wait before reloading page after reboot
 
+// https://stackoverflow.com/questions/7995752/detect-desktop-browser-not-mobile-with-javascript
+// const isTouchDevice = function () { return 'ontouchstart' in window || 'onmsgesturechange' in window; };
+// const isDesktop = window.screenX != 0 && !isTouchDevice() ? true : false;
+
 // See... https://github.com/nayarsystems/posix_tz_db
-// This is CSV form of the data, available at that web page.
-const timeZoneDefaults = '"Etc/GMT","GMT0"\n' +
+// This is CSV form of the data, available at this web page.
+const timeZonesURL = "https://raw.githubusercontent.com/nayarsystems/posix_tz_db/refs/heads/master/zones.csv";
+// Default CSV used only if unable to retrieve full list from above URL
+const timeZoneDefaults = '"Etc/UTC","UTC0"\n' +
     '"America/New_York","EST5EDT,M3.2.0,M11.1.0"\n' +
     '"America/Chicago","CST6CDT,M3.2.0,M11.1.0"\n' +
     '"America/Denver","MST7MDT,M3.2.0,M11.1.0"\n' +
@@ -24,18 +30,76 @@ const timeZoneDefaults = '"Etc/GMT","GMT0"\n' +
     '"America/Anchorage","AKST9AKDT,M3.2.0,M11.1.0"\n' +
     '"Pacific/Honolulu","HST10"';
 var timeZones = new Array();
+var timeZonesLoaded = false;
 
 // very simple, work for above
 function tzToArray(str) {
     ar = str.split('\n');
     ar.forEach((element, index) => {
+        // strip the double quotes and replace comma separator with a semicolon.
         ar[index] = element.slice(1, -1).replace('","', ';');
     });
     return ar;
 }
-// https://stackoverflow.com/questions/7995752/detect-desktop-browser-not-mobile-with-javascript
-// const isTouchDevice = function () { return 'ontouchstart' in window || 'onmsgesturechange' in window; };
-// const isDesktop = window.screenX != 0 && !isTouchDevice() ? true : false;
+
+async function loadTimeZones() {
+    timeZonesLoaded = false;
+    var tzCSV = "";
+    var maxLength = 0;
+    try {
+        const response = await fetch(timeZonesURL, {
+            method: "GET",
+            cache: "no-cache",
+            redirect: "follow"
+        })
+            .catch((error) => {
+                console.warn(`Promise rejection error fetching time zone information: ${error}`);
+                throw ("Promise rejection");
+            });
+        if (!response.ok || response.status !== 200) {
+            console.warn(`Error RC ${response.status} fetching time zone information.`);
+            throw ("Error RC");
+        }
+        tzCSV = await response.text();
+    }
+    catch {
+        // failed to retrieve timezones so use built-in defaults
+        tzCSV = timeZoneDefaults;
+    }
+    // Now convert it into our global array
+    timeZones.length = 0;
+    timeZones = tzCSV.split('\n');
+    timeZones.forEach((element, index) => {
+        // strip the double quotes and replace comma separator with a semicolon.
+        timeZones[index] = element.slice(1, -1).replace('","', ';');
+        if (timeZones[index].length > maxLength)
+            maxLength = timeZones[index].length;
+    });
+    timeZonesLoaded = true;
+    console.log(`Maximum length of timezone strings: ${maxLength}`);
+}
+
+function waitTimeZoneLoad() {
+    return new Promise((resolve) => {
+        const loop = () => timeZonesLoaded === true ? resolve(timeZonesLoaded) : setTimeout(loop);
+        loop();
+    });
+}
+
+async function setServerTimeZone(location) {
+    console.log(`Set server time zone for: ${location}`);
+    if (!timeZonesLoaded)
+        await waitTimeZoneLoad();
+    const index = timeZones.findIndex(tz => tz.includes(location));
+    if (index >= 0) {
+        console.log(`Found at ${index}: ${timeZones[index]}`);
+        await setGDO("timeZone", timeZones[index]);
+    }
+    else {
+        console.log("Time zone not found, tell server to use UTC.");
+        await setGDO("timeZone", "Etc/UTC;UTC0");
+    }
+}
 
 // convert miliseconds to dd:hh:mm:ss used to calculate server uptime
 function msToTime(duration) {
@@ -81,12 +145,11 @@ function toggleTimeZone() {
     loadTZinfo(document.getElementById("timeZoneInput"));
 }
 
-function loadTZinfo(list) {
+async function loadTZinfo(list) {
     if (list.length <= 1) {
         // not populated yet
-        if (timeZones.length == 0) {
-            timeZones = tzToArray(timeZoneDefaults);
-        }
+        if (!timeZonesLoaded)
+            await waitTimeZoneLoad();
         timeZones.forEach((element) => {
             let option = document.createElement("option");
             let info = element.split(';');
@@ -195,7 +258,10 @@ function setElementsFromStatus(status) {
                 document.getElementById("timeZoneTable").style.display = (value) ? "table" : "none";
                 break;
             case "timeZone":
-                loadTZinfo(document.getElementById("timeZoneInput"));
+                if (value.indexOf(';') < 0) {
+                    // No semicolon so POSIX time zone info is missing, tell server the time zone (async);
+                    setServerTimeZone(value);
+                }
                 break;
             case "lastDoorUpdateAt":
                 date.setTime(Date.now() - value);
@@ -620,6 +686,8 @@ async function setGDO(...args) {
             if (serverStatus[args[i]] != args[i + 1]) {
                 console.log(`Set: ${args[i]} to: ${args[i + 1]}`);
                 formData.append(args[i], args[i + 1]);
+                // Update local copy with what we are sending to ratgdo.
+                serverStatus[args[i]] = args[i + 1];
             }
         }
         if (Array.from(formData.keys()).length > 0) {
@@ -630,7 +698,7 @@ async function setGDO(...args) {
             });
             if (response.status !== 200) {
                 console.warn("Error setting RATGDO state");
-                return true;;
+                return false;
             }
             else {
                 const result = await response.text();

@@ -249,7 +249,6 @@ void obstruction_timer()
 
 void service_timer_loop()
 {
-    static unsigned long tz_update = 10000;
     loop_id = LOOP_TIMER;
     // Service the Obstruction Timer
     obstruction_timer();
@@ -257,10 +256,6 @@ void service_timer_loop()
     unsigned long current_millis = millis();
 
 #ifdef NTP_CLIENT
-    if (enableNTP && !clockSet && (current_millis > tz_update)) {
-        tz_update = current_millis + 10000;
-        update_timezone();
-    }
     if (enableNTP && clockSet && lastRebootAt == 0)
     {
         lastRebootAt = time(NULL) - (current_millis / 1000);

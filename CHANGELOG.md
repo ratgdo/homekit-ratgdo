@@ -10,8 +10,8 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 * Change... We use built in Arduino core NTP client for time instead of separate module
 * Change... Replace DNS lookup with a ping to gateway to test for network connectivity
 * Bugfix... Don't display that an update is available if running newer pre-release
-* Bugfix... When changing SSID in soft access point, make sure the WiFi settings are reset to DHCP
-* Bugfix... wifiSettingsChanged setting had been removed by mistake.
+* Bugfix... When changing SSID in soft access point mode, make sure the WiFi settings are reset to DHCP
+* Bugfix... wifiSettingsChanged setting had been removed by mistake, impacting recovery from failure to connect.
 
 ### Known Issues
 
