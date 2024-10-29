@@ -226,6 +226,12 @@ function setElementsFromStatus(status) {
                 document.getElementById(key).value = value;
                 document.getElementById("wifiPowerValue").innerHTML = value;
                 break;
+            case "lockedAP":
+                document.getElementById("lockedAP").style.display = (value) ? "table" : "none";
+                break;
+            case "clients":
+                document.getElementById(key).innerHTML = (value > 0) ? `Yes (${value})` : 'No';
+                break;
             case "localIP":
                 document.getElementById(key).innerHTML = value;
                 document.getElementById("IPaddress").placeholder = value;
