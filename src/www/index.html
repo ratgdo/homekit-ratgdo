@@ -66,7 +66,8 @@
             </tr>
             <tr>
               <td>WiFi AP:</td>
-              <td id="wifiBSSID"></td>
+              <td><span id="wifiBSSID"></span><br><sup style="font-size: 0.6em;"><span id="lockedAP"
+                    style="display: none">(Locked to AP)</span></sup></td>
             </tr>
             <tr>
               <td>MAC Address:</td>
@@ -89,7 +90,8 @@
             </tr>
             <tr>
               <td>HomeKit ID:</td>
-              <td><span id="accessoryID"></span><br><sup style="font-size: 0.6em;">(clients:<span id="clients"></span>)</sup></td>
+              <td><span id="accessoryID"></span><br><sup style="font-size: 0.6em;">HomeKit connected: <span
+                    id="clients">No</span></sup></td>
             </tr>
           </table>
         </div>
@@ -365,10 +367,8 @@
                 <td></td>
               </tr>
               <tr>
-                <td>
-                  <input type="button" value="Save Settings" onclick="saveSettings()">
-                </td>
-                <td>
+                <td colspan="2" style="text-align: center;">
+                  <input type="button" value="Save Settings" onclick="saveSettings()">&nbsp;
                   <input type="button" value="Reset Door" onclick="resetDoor()">&nbsp;
                   <input type="button" value="Set WiFi SSID" onclick="setSSID()">
                 </td>

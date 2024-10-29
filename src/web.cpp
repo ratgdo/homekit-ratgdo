@@ -617,7 +617,8 @@ void handle_status()
     ADD_STR(json, "macAddress", macAddress);
     ADD_STR(json, "wifiSSID", wifiSSID);
     ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm, Channel " + std::to_string(WiFi.channel())).c_str());
-    ADD_STR(json, "wifiBSSID", (WiFi.BSSIDstr() + (wifiConf.bssid_set ? " (locked)" : "")).c_str());
+    ADD_STR(json, "wifiBSSID", WiFi.BSSIDstr().c_str());
+    ADD_BOOL(json, "lockedAP", wifiConf.bssid_set)
     ADD_INT(json, "GDOSecurityType", userConfig->gdoSecurityType);
     ADD_STR(json, "garageDoorState", garage_door.active ? DOOR_STATE(garage_door.current_state) : DOOR_STATE(255));
     ADD_STR(json, "garageLockState", LOCK_STATE(garage_door.current_lock));
