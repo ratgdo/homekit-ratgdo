@@ -1383,6 +1383,8 @@ void handle_firmware_upload()
             // Only if not verifying as either will have been shutdown on immediately prior upload, or we
             // just want to verify without disrupting operation of the HomeKit service.
             arduino_homekit_close();
+            IRAM_START
+            IRAM_END("HomeKit Server Closed");
         }
         if (!verify && !Update.begin((firmwareSize > 0) ? firmwareSize : maxSketchSpace, U_FLASH))
         {
