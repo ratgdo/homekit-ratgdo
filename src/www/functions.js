@@ -203,7 +203,9 @@ function setElementsFromStatus(status) {
                 document.getElementById("pwreq").checked = value;
                 break;
             case "LEDidle":
-                document.getElementById("LEDidle").checked = (value == 1);
+                document.getElementById("LEDidle0").checked = (value == 0) ? true : false;
+                document.getElementById("LEDidle1").checked = (value == 1) ? true : false;
+                document.getElementById("LEDidle2").checked = (value == 2) ? true : false;
                 break;
             case "rebootSeconds":
                 document.getElementById("rebootHours").value = value / 60 / 60;
@@ -797,7 +799,8 @@ async function saveSettings() {
     const gdoSec = (document.getElementById("gdosec1").checked) ? '1' : '2';
     const pwReq = (document.getElementById("pwreq").checked) ? '1' : '0';
     const motionTriggers = getMotionTriggers();
-    const LEDidle = (document.getElementById("LEDidle").checked) ? 1 : 0;
+    const LEDidle = (document.getElementById("LEDidle2").checked) ? 2
+        : (document.getElementById("LEDidle1").checked) ? 1 : 0;
     let rebootHours = Math.max(Math.min(parseInt(document.getElementById("rebootHours").value), 72), 0);
     if (isNaN(rebootHours)) rebootHours = 0;
     let newDeviceName = document.getElementById("newDeviceName").value.substring(0, 30).trim();

@@ -62,7 +62,7 @@ typedef struct
     int gdoSecurityType = 2;
     int TTCdelay = 0;
     int rebootSeconds = 0;
-    int ledIdleState = LOW;
+    int ledIdleState = 0;
     int motionTriggers = 0;
 #ifdef NTP_CLIENT
     bool enableNTP = false;
