@@ -221,10 +221,12 @@
                 <td>
                   <table class="settings" id="syslogTable" style="display: none;">
                     <tr>
-                      <td class="IPlabel">Syslog Server:</td>
+                      <td class="IPlabel">Server IP/Port:</td>
                       <td>&nbsp;
                         <input class="syslogIPinput IPinput" id="syslogIP" type="text" placeholder="0.0.0.0"
-                          minlength="7" maxlength="15" size="15">
+                          minlength="7" maxlength="15" size="15">&nbsp;:
+                        <input class="syslogIPinput IPinput" id="syslogPort" type="text" placeholder="514" minlength="1"
+                          maxlength="5" size="5">
                       </td>
                     </tr>
                   </table>

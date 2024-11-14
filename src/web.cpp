@@ -636,6 +636,7 @@ void handle_status()
     ADD_BOOL(json, "staticIP", userConfig->staticIP);
     ADD_BOOL(json, "syslogEn", userConfig->syslogEn);
     ADD_STR(json, "syslogIP", userConfig->syslogIP);
+    ADD_INT(json, "syslogPort", userConfig->syslogPort);
     ADD_INT(json, "TTCseconds", userConfig->TTCdelay);
     ADD_INT(json, "motionTriggers", motionTriggers.asInt);
     ADD_INT(json, "LEDidle", (led.getIdleState() == LOW) ? 1 : 0);
@@ -870,6 +871,10 @@ void handle_setgdo()
                 RINFO("Setting SyslogIP to %s", value);
                 strlcpy(userConfig->syslogIP, value, sizeof(userConfig->syslogIP));
             }
+        }
+        else if (!strcmp(key, "syslogPort"))
+        {
+            userConfig->syslogPort = atoi(value);
         }
         else if (!strcmp(key, "TTCseconds"))
         {

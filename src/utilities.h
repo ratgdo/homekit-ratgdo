@@ -75,6 +75,7 @@ typedef struct
     bool softAPmode = false;
     bool syslogEn = false;
     char syslogIP[IP_ADDRESS_SIZE] = "0.0.0.0";
+    int syslogPort = 514;
 } userConfig_t;
 extern userConfig_t *userConfig;
 
