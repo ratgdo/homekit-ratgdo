@@ -639,7 +639,7 @@ void handle_status()
     ADD_INT(json, "syslogPort", userConfig->syslogPort);
     ADD_INT(json, "TTCseconds", userConfig->TTCdelay);
     ADD_INT(json, "motionTriggers", motionTriggers.asInt);
-    ADD_INT(json, "LEDidle", (led.getIdleState() == LOW) ? 1 : 0);
+    ADD_INT(json, "LEDidle", led.getIdleState());
     // We send milliseconds relative to current time... ie updated X milliseconds ago
     ADD_INT(json, "lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
 #ifdef NTP_CLIENT
@@ -890,9 +890,8 @@ void handle_setgdo()
         }
         else if (!strcmp(key, "LEDidle"))
         {
-            bool idleStateOn = (atoi(value) != 0);
-            userConfig->ledIdleState = (idleStateOn) ? LOW : HIGH;
-            led.setIdleState((idleStateOn) ? LOW : HIGH);
+            userConfig->ledIdleState = atoi(value);
+            led.setIdleState(userConfig->ledIdleState);
         }
 #ifdef NTP_CLIENT
         else if (!strcmp(key, "enableNTP"))

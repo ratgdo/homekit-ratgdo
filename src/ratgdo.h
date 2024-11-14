@@ -75,17 +75,18 @@ struct GarageDoor
 
 struct ForceRecover
 {
-   uint8_t push_count;
-   unsigned long timeout;
+    uint8_t push_count;
+    unsigned long timeout;
 };
 
 class LED
 {
 private:
-    uint8_t activeState = LOW;   // LOW == LED on, HIGH == LED off
-    uint8_t idleState = HIGH;    // opposite of active
+    uint8_t activeState = 0;
+    uint8_t idleState = 1;       // opposite of active
     unsigned long resetTime = 0; // Stores time when LED should return to idle state
     bool initialized = false;
+    bool enabled = true;
 
 public:
     LED();
@@ -95,17 +96,17 @@ public:
     void idle();
     void flash(unsigned long ms = 0);
     void setIdleState(uint8_t state);
-    uint8_t getIdleState() { return idleState; };
+    uint8_t getIdleState() { return (idleState == activeState) ? 2 : idleState; };
 };
 
 extern LED led;
 
 #define LOOP_SYSTEM 0
 #define LOOP_IMPROV 1
-#define LOOP_COMMS  2
-#define LOOP_HK     3
-#define LOOP_TIMER  4
-#define LOOP_WEB    5
+#define LOOP_COMMS 2
+#define LOOP_HK 3
+#define LOOP_TIMER 4
+#define LOOP_WEB 5
 extern uint8_t loop_id;
 
 #define FLASH_MS 50

@@ -300,12 +300,12 @@ LED::LED()
 
 void LED::on()
 {
-    digitalWrite(LED_BUILTIN, LOW);
+    digitalWrite(LED_BUILTIN, 0);
 }
 
 void LED::off()
 {
-    digitalWrite(LED_BUILTIN, HIGH);
+    digitalWrite(LED_BUILTIN, 1);
 }
 
 void LED::idle()
@@ -315,8 +315,18 @@ void LED::idle()
 
 void LED::setIdleState(uint8_t state)
 {
-    idleState = state;
-    activeState = (state == HIGH) ? LOW : HIGH;
+    // 0 = LED flashes off (idle is on)
+    // 1 = LED flashes on (idle is off)
+    // 3 = LED disabled (active and idle both off)
+    if (state == 2)
+    {
+        idleState = activeState = 1;
+    }
+    else
+    {
+        idleState = state;
+        activeState = (state == 1) ? 0 : 1;
+    }
 }
 
 void LED::flash(unsigned long ms)
