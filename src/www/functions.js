@@ -255,6 +255,10 @@ function setElementsFromStatus(status) {
                 document.getElementById(key).innerHTML = value;
                 document.getElementById("syslogIP").placeholder = value;
                 break;
+            case "syslogPort":
+                document.getElementById(key).innerHTML = value;
+                document.getElementById("syslogPort").placeholder = value;
+                break;
             case "syslogEn":
                 document.getElementById(key).checked = value;
                 document.getElementById("syslogTable").style.display = (value) ? "table" : "none";
@@ -809,6 +813,8 @@ async function saveSettings() {
     const syslogEn = (document.getElementById("syslogEn").checked) ? '1' : '0';
     let syslogIP = document.getElementById("syslogIP").value.substring(0, 15);
     if (syslogIP.length == 0) syslogIP = serverStatus.syslogIP;
+    let syslogPort = document.getElementById("syslogPort").value.substring(0, 5);
+    if (syslogPort.length == 0 || Number(syslogPort) == 0) syslogPort = 514;
 
     const staticIP = (document.getElementById("staticIP").checked) ? '1' : '0';
     let localIP = document.getElementById("IPaddress").value.substring(0, 15);
@@ -848,7 +854,8 @@ async function saveSettings() {
         "enableNTP", enableNTP,
         "timeZone", timeZone,
         "syslogEn", syslogEn,
-        "syslogIP", syslogIP
+        "syslogIP", syslogIP,
+        "syslogPort", syslogPort
     );
     if (reboot) {
         countdown(rebootSeconds, "Settings saved, RATGDO device rebooting...&nbsp;");

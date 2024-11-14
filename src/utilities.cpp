@@ -306,6 +306,7 @@ void load_all_config_settings()
     RINFO("   softAPmode:          %s", userConfig->softAPmode ? "true" : "false");
     RINFO("   syslogEn:            %s", userConfig->syslogEn ? "true" : "false");
     RINFO("   syslogIP:            %s", userConfig->syslogIP);
+    RINFO("   syslogPort:          %d", userConfig->syslogPort);
 }
 
 void sync_and_restart()
@@ -405,6 +406,7 @@ void write_config_to_file()
     file.printf_P(PSTR("softAPmode,,%s\n"), userConfig->softAPmode ? "true" : "false");
     file.printf_P(PSTR("syslogEn,,%s\n"), userConfig->syslogEn ? "true" : "false");
     file.printf_P(PSTR("syslogIP,,%s\n"), userConfig->syslogIP);
+    file.printf_P(PSTR("syslogPort,,%d\n"), userConfig->syslogPort);
     file.close();
 }
 
@@ -519,6 +521,10 @@ bool read_config_from_file()
         else if (!strcmp(key, "syslogIP"))
         {
             strlcpy(userConfig->syslogIP, value, sizeof(userConfig->syslogIP));
+        }
+        else if (!strcmp(key, "syslogPort"))
+        {
+            userConfig->syslogPort = atoi(value);
         }
     }
     file.close();

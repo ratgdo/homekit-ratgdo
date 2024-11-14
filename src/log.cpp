@@ -33,7 +33,6 @@ char *lineBuffer = NULL;
 logBuffer *msgBuffer = NULL; // Buffer to save log messages as they occur
 File logMessageFile;
 
-#define SYSLOG_PORT 514
 #define SYSLOG_LOCAL0 16
 #define SYSLOG_EMERGENCY 0
 #define SYSLOG_ALERT 1
@@ -71,7 +70,7 @@ void logToSyslog(char *message)
     while (*msg == ' ')
         msg++;
 
-    syslog.beginPacket(userConfig->syslogIP, SYSLOG_PORT);
+    syslog.beginPacket(userConfig->syslogIP, userConfig->syslogPort);
 
     // Use RFC5424 Format
     syslog.printf("<%u>1 ", PRI); // PRI code
