@@ -155,17 +155,18 @@ void setup_pins()
 
     pinMode(INPUT_OBST_PIN, INPUT);
 
-    /*
-     * TODO add support for dry contact switches
+   
     pinMode(STATUS_DOOR_PIN, OUTPUT);
-    */
+    
     pinMode(STATUS_OBST_PIN, OUTPUT);
-    /*
+    
     pinMode(DRY_CONTACT_OPEN_PIN, INPUT_PULLUP);
     pinMode(DRY_CONTACT_CLOSE_PIN, INPUT_PULLUP);
     pinMode(DRY_CONTACT_LIGHT_PIN, INPUT_PULLUP);
-    */
-
+    
+	attachInterrupt(DRY_CONTACT_OPEN_PIN,isrDoorOpen,CHANGE);
+	attachInterrupt(DRY_CONTACT_CLOSE_PIN,isrDoorClose,CHANGE);
+	attachInterrupt(DRY_CONTACT_LIGHT_PIN,isrLight,CHANGE);
     /* pin-based obstruction detection
     // FALLING from https://github.com/ratgdo/esphome-ratgdo/blob/e248c705c5342e99201de272cb3e6dc0607a0f84/components/ratgdo/ratgdo.cpp#L54C14-L54C14
      */
@@ -173,6 +174,138 @@ void setup_pins()
 }
 
 /*********************************** MODEL **************************************/
+
+/*************************** DRY CONTACT CONTROL OF LIGHT & DOOR ***************************/
+void IRAM_ATTR isrDebounce(const char *type){
+	static unsigned long lastOpenDoorTime = 0;
+	static unsigned long lastCloseDoorTime = 0;
+	static unsigned long lastToggleLightTime = 0;
+	static bool lastDryContactDoorOpen = false;
+	static bool lastDryContactDoorClose = false;
+	unsigned long currentMillis = millis();
+
+	// Prevent ISR during the first 2 seconds after reboot
+	if(currentMillis < 2000) return;
+
+	if(strcmp(type, "openDoor") == 0){
+		if(controlProtocol == "drycontact"){
+			if(currentMillis - lastOpenDoorTime > 300){
+				dryContactDoorOpen = !digitalRead(DRY_CONTACT_OPEN_PIN);
+
+				if(dryContactDoorOpen != lastDryContactDoorOpen){
+					lastOpenDoorTime = currentMillis;
+					lastDryContactDoorOpen = dryContactDoorOpen;
+				}
+			}
+			
+		}else{
+			if(digitalRead(DRY_CONTACT_OPEN_PIN) == LOW){
+				// save the time of the falling edge
+				lastOpenDoorTime = currentMillis;
+			}else if(currentMillis - lastOpenDoorTime > 100 && currentMillis - lastOpenDoorTime < 10000){
+				// now see if the rising edge was between 100ms and 10 seconds after the falling edge
+				dryContactDoorOpen = true;
+				blink(true);
+			}
+		}
+	}
+
+	if(strcmp(type, "closeDoor") == 0){
+		if(controlProtocol == "drycontact"){
+			if(currentMillis - lastCloseDoorTime > 300){
+				dryContactDoorClose = !digitalRead(DRY_CONTACT_CLOSE_PIN);
+
+				if(dryContactDoorClose != lastDryContactDoorClose){
+					lastCloseDoorTime = currentMillis;
+					lastDryContactDoorClose = dryContactDoorClose;
+				}
+			}
+
+		}else{	
+			if(digitalRead(DRY_CONTACT_CLOSE_PIN) == LOW){
+				// save the time of the falling edge
+				lastCloseDoorTime = currentMillis;
+			}else if(currentMillis - lastCloseDoorTime > 100 && currentMillis - lastCloseDoorTime < 10000){
+				// now see if the rising edge was between 100ms and 10 seconds after the falling edge
+				dryContactDoorClose = true;
+				blink(true);
+			}
+		}
+	}
+
+	if(strcmp(type, "toggleLight") == 0){
+		if(digitalRead(DRY_CONTACT_LIGHT_PIN) == LOW){
+			// save the time of the falling edge
+			lastToggleLightTime = currentMillis;
+		}else if(currentMillis - lastToggleLightTime > 100 && currentMillis - lastToggleLightTime < 10000){
+			// now see if the rising edge was between 500ms and 10 seconds after the falling edge
+			dryContactToggleLight = true;
+		}
+	}
+}
+
+void IRAM_ATTR isrDoorOpen(){
+	isrDebounce("openDoor");
+}
+
+void IRAM_ATTR isrDoorClose(){
+	isrDebounce("closeDoor");
+}
+
+void IRAM_ATTR isrLight(){
+	isrDebounce("toggleLight");
+}
+
+// handle changes to the dry contact state
+void dryContactLoop(){
+	static bool previousDryContactDoorOpen = false;
+	static bool previousDryContactDoorClose = false;
+
+	if(dryContactDoorOpen){
+		if(controlProtocol == "drycontact"){
+			doorState = 1;
+		}else{
+			Serial.println("Dry Contact: open the door");
+			openDoor();
+			dryContactDoorOpen = false;
+		}
+	}
+
+	if(dryContactDoorClose){
+		if(controlProtocol == "drycontact"){
+			doorState = 2;
+		}else{
+			Serial.println("Dry Contact: close the door");
+			closeDoor();
+			dryContactDoorClose = false;
+		}
+	}
+
+	if(dryContactToggleLight){
+		Serial.println("Dry Contact: toggle the light");
+		dryContactToggleLight = false;
+		toggleLight();
+	}
+
+	if(controlProtocol == "drycontact"){
+		if(!dryContactDoorClose && !dryContactDoorOpen){
+			if(previousDryContactDoorClose){
+				doorState = 4;
+			}
+
+			if(previousDryContactDoorOpen){
+				doorState = 5;
+			}
+		}
+
+		if(previousDryContactDoorOpen != dryContactDoorOpen){
+			previousDryContactDoorOpen = dryContactDoorOpen;
+		}
+		if(previousDryContactDoorClose != dryContactDoorClose){
+			previousDryContactDoorClose = dryContactDoorClose;
+		}
+	}
+}
 
 /*************************** OBSTRUCTION DETECTION ***************************/
 void IRAM_ATTR isr_obstruction()
@@ -340,4 +473,109 @@ void LED::flash(unsigned long ms)
     {
         digitalWrite(LED_BUILTIN, idleState);
     }
+}
+
+// Door functions
+void openDoor(){
+	if(doorStates[doorState] == "open" || doorStates[doorState] == "opening"){
+		Serial.print("The door is already ");
+		Serial.println(doorStates[doorState]);
+		return;
+	}
+
+	toggleDoor();
+}
+
+void closeDoor(){
+	if(doorStates[doorState] == "closed" || doorStates[doorState] == "closing"){
+		Serial.print("The door is already ");
+		Serial.println(doorStates[doorState]);
+		return;
+	}
+
+	toggleDoor();
+}
+
+void stopDoor(){
+	if(doorStates[doorState] == "opening" || doorStates[doorState] == "closing"){
+		toggleDoor();
+	}else{
+		Serial.print("The door is not moving.");
+	}
+}
+
+void toggleDoor(){
+	if(controlProtocol == "drycontact"){
+		pullLow();
+    /* Leaving out other mode code for now
+	}else if(controlProtocol == "secplus1"){
+		getStaticCode("door");
+		transmit(txSP1StaticCode,4);
+	}else{
+		getRollingCode("door1");
+		transmit(txSP2RollingCode, SECPLUS2_CODE_LEN);
+
+		delay(40);
+
+		getRollingCode("door2");
+		transmit(txSP2RollingCode, SECPLUS2_CODE_LEN);
+
+		writeCounterToFlash("rolling",rollingCodeCounter);
+        */
+	}
+}
+
+// Light functions
+
+/* Seem not used
+void lightOn(){
+	if(lightStates[lightState] == "on"){
+		Serial.println("already on");
+	}else{
+		toggleLight();
+	}
+}
+
+void lightOff(){
+	if(lightStates[lightState] == "off"){
+		Serial.println("already off");
+	}else{
+		toggleLight();
+	}
+}
+*/
+
+void toggleLight(){
+	if(controlProtocol == "drycontact"){
+		Serial.println("Light control not supported with dry contact control.");
+    /* Leaving out other mode code for now
+	}else if(controlProtocol == "secplus1"){
+		getStaticCode("light");
+		transmit(txSP1StaticCode,4);
+	}else{
+		getRollingCode("light");
+		transmit(txSP2RollingCode,SECPLUS2_CODE_LEN);
+		writeCounterToFlash("rolling",rollingCodeCounter);
+        */
+	}
+}
+
+void pullLow(){
+	digitalWrite(UART_TX_PIN, HIGH); //Replaced OUTPUT_GDO with UART_TX_PIN, check mqtt pin definitions to make sure this is correct assignment
+	delay(500);
+	digitalWrite(UART_TX_PIN, LOW); //Replaced OUTPUT_GDO with UART_TX_PIN, check mqtt pin definitions to make sure this is correct assignment
+}
+
+//Not sure if needed
+void blink(bool trigger){
+	if(LED_BUILTIN == UART_TX_PIN) return; //Replaced OUTPUT_GDO with UART_TX_PIN, check mqtt pin definitions to make sure this is correct assignment
+	static unsigned int onMillis = 0;
+	unsigned int currentMillis = millis();
+
+	if(trigger){
+		digitalWrite(LED_BUILTIN,LOW);
+		onMillis = currentMillis;
+	}else if(currentMillis - onMillis > 500){
+		digitalWrite(LED_BUILTIN,HIGH);
+	}
 }
