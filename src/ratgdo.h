@@ -20,7 +20,6 @@
 #define STATUS_DOOR_PIN         D0  // output door status, HIGH for open, LOW for closed
 #define DRY_CONTACT_OPEN_PIN    D5  // dry contact for opening door
 #define DRY_CONTACT_CLOSE_PIN   D6  // dry contact for closing door
-#define DRY_CONTACT_LIGHT_PIN   D3  // dry contact for triggering light (no discrete light commands, so toggle only)
 
 
 /********************************** MODEL *****************************************/
@@ -99,7 +98,6 @@ extern LED led;
 //Need to define these variables somewhere, not sure where is best to put them
 bool dryContactDoorOpen = false;
 bool dryContactDoorClose = false;
-bool dryContactToggleLight = false;
 
 uint8_t doorState = 0;
 String doorStates[7] = {"unknown","open","closed","stopped","opening","closing","syncing"};

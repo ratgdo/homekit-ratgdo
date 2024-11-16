@@ -141,6 +141,7 @@ void loop()
     }
     service_timer_loop();
     web_loop();
+    dryContactLoop();
     loop_id = LOOP_SYSTEM;
 }
 
@@ -162,11 +163,9 @@ void setup_pins()
     
     pinMode(DRY_CONTACT_OPEN_PIN, INPUT_PULLUP);
     pinMode(DRY_CONTACT_CLOSE_PIN, INPUT_PULLUP);
-    pinMode(DRY_CONTACT_LIGHT_PIN, INPUT_PULLUP);
     
 	attachInterrupt(DRY_CONTACT_OPEN_PIN,isrDoorOpen,CHANGE);
 	attachInterrupt(DRY_CONTACT_CLOSE_PIN,isrDoorClose,CHANGE);
-	attachInterrupt(DRY_CONTACT_LIGHT_PIN,isrLight,CHANGE);
     /* pin-based obstruction detection
     // FALLING from https://github.com/ratgdo/esphome-ratgdo/blob/e248c705c5342e99201de272cb3e6dc0607a0f84/components/ratgdo/ratgdo.cpp#L54C14-L54C14
      */
@@ -179,7 +178,6 @@ void setup_pins()
 void IRAM_ATTR isrDebounce(const char *type){
 	static unsigned long lastOpenDoorTime = 0;
 	static unsigned long lastCloseDoorTime = 0;
-	static unsigned long lastToggleLightTime = 0;
 	static bool lastDryContactDoorOpen = false;
 	static bool lastDryContactDoorClose = false;
 	unsigned long currentMillis = millis();
@@ -232,16 +230,6 @@ void IRAM_ATTR isrDebounce(const char *type){
 			}
 		}
 	}
-
-	if(strcmp(type, "toggleLight") == 0){
-		if(digitalRead(DRY_CONTACT_LIGHT_PIN) == LOW){
-			// save the time of the falling edge
-			lastToggleLightTime = currentMillis;
-		}else if(currentMillis - lastToggleLightTime > 100 && currentMillis - lastToggleLightTime < 10000){
-			// now see if the rising edge was between 500ms and 10 seconds after the falling edge
-			dryContactToggleLight = true;
-		}
-	}
 }
 
 void IRAM_ATTR isrDoorOpen(){
@@ -250,10 +238,6 @@ void IRAM_ATTR isrDoorOpen(){
 
 void IRAM_ATTR isrDoorClose(){
 	isrDebounce("closeDoor");
-}
-
-void IRAM_ATTR isrLight(){
-	isrDebounce("toggleLight");
 }
 
 // handle changes to the dry contact state
@@ -279,12 +263,6 @@ void dryContactLoop(){
 			closeDoor();
 			dryContactDoorClose = false;
 		}
-	}
-
-	if(dryContactToggleLight){
-		Serial.println("Dry Contact: toggle the light");
-		dryContactToggleLight = false;
-		toggleLight();
 	}
 
 	if(controlProtocol == "drycontact"){
@@ -520,41 +498,6 @@ void toggleDoor(){
 		getRollingCode("door2");
 		transmit(txSP2RollingCode, SECPLUS2_CODE_LEN);
 
-		writeCounterToFlash("rolling",rollingCodeCounter);
-        */
-	}
-}
-
-// Light functions
-
-/* Seem not used
-void lightOn(){
-	if(lightStates[lightState] == "on"){
-		Serial.println("already on");
-	}else{
-		toggleLight();
-	}
-}
-
-void lightOff(){
-	if(lightStates[lightState] == "off"){
-		Serial.println("already off");
-	}else{
-		toggleLight();
-	}
-}
-*/
-
-void toggleLight(){
-	if(controlProtocol == "drycontact"){
-		Serial.println("Light control not supported with dry contact control.");
-    /* Leaving out other mode code for now
-	}else if(controlProtocol == "secplus1"){
-		getStaticCode("light");
-		transmit(txSP1StaticCode,4);
-	}else{
-		getRollingCode("light");
-		transmit(txSP2RollingCode,SECPLUS2_CODE_LEN);
 		writeCounterToFlash("rolling",rollingCodeCounter);
         */
 	}
