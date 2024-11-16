@@ -2,6 +2,7 @@
 #define _RATGDO_H
 
 #include <Arduino.h>
+#include <OneButton.h>
 #include "homekit_decl.h"
 
 #define DEVICE_NAME "homekit-ratgdo"
@@ -16,17 +17,10 @@
 #define UART_RX_PIN D2 // red control terminal / GarageDoorOpener (UART1 RX)
 
 #define INPUT_OBST_PIN D7 // black obstruction sensor terminal
-
-/*
- * TODO add support for dry contact switches
-#define STATUS_DOOR_PIN         D0  // output door status, HIGH for open, LOW for closed
-*/
 #define STATUS_OBST_PIN D8 // output for obstruction status, HIGH for obstructed, LOW for clear
-/*
-#define DRY_CONTACT_OPEN_PIN    D5  // dry contact for opening door
-#define DRY_CONTACT_CLOSE_PIN   D6  // dry contact for closing door
-#define DRY_CONTACT_LIGHT_PIN   D3  // dry contact for triggering light (no discrete light commands, so toggle only)
- */
+#define STATUS_DOOR_PIN         D0  // output door status, HIGH for open, LOW for closed
+#define DRY_CONTACT_OPEN_PIN    D5  // dry contact for open door limit switch
+#define DRY_CONTACT_CLOSE_PIN   D6  // dry contact for close door limit switch
 
 /********************************** MODEL *****************************************/
 

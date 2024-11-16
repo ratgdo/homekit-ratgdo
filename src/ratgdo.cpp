@@ -9,6 +9,7 @@
 #include "log.h"
 #include "web.h"
 #include "utilities.h"
+#include "Packet.h"
 
 #include <time.h>
 #include <coredecls.h>
@@ -45,6 +46,19 @@ void showTime()
 void setup_pins();
 void IRAM_ATTR isr_obstruction();
 void service_timer_loop();
+void dryContactLoop();
+void onOpenSwitchPress();
+void onCloseSwitchPress();
+void onOpenSwitchRelease();
+void onCloseSwitchRelease();
+
+//Define OneButton objects for open/close pins
+OneButton buttonOpen(DRY_CONTACT_OPEN_PIN, true, true);  // Active low, with internal pull-up
+OneButton buttonClose(DRY_CONTACT_CLOSE_PIN, true, true);
+bool dryContactDoorOpen = false;
+bool dryContactDoorClose = false;
+bool previousDryContactDoorOpen = false;
+bool previousDryContactDoorClose = false;
 
 /********************************* RUNTIME STORAGE *****************************************/
 
@@ -125,6 +139,10 @@ void loop()
 {
     improv_loop();
     comms_loop();
+    // Poll OneButton objects
+    buttonOpen.tick();
+    buttonClose.tick();
+
     // wait for a status command to be processes to properly set the initial state of
     // all homekit characteristics.  Also timeout if we don't receive a status in
     // a reasonable amount of time.  This prevents unintentional state changes if
@@ -141,6 +159,7 @@ void loop()
     }
     service_timer_loop();
     web_loop();
+    dryContactLoop();
     loop_id = LOOP_SYSTEM;
 }
 
@@ -155,17 +174,19 @@ void setup_pins()
 
     pinMode(INPUT_OBST_PIN, INPUT);
 
-    /*
-     * TODO add support for dry contact switches
+   
     pinMode(STATUS_DOOR_PIN, OUTPUT);
-    */
+    
     pinMode(STATUS_OBST_PIN, OUTPUT);
-    /*
+    
     pinMode(DRY_CONTACT_OPEN_PIN, INPUT_PULLUP);
     pinMode(DRY_CONTACT_CLOSE_PIN, INPUT_PULLUP);
-    pinMode(DRY_CONTACT_LIGHT_PIN, INPUT_PULLUP);
-    */
-
+    
+	// Attach OneButton handlers
+    buttonOpen.attachPress(onOpenSwitchPress);
+    buttonClose.attachPress(onCloseSwitchPress);
+    buttonOpen.attachLongPressStop(onOpenSwitchRelease);
+    buttonClose.attachLongPressStop(onCloseSwitchRelease);
     /* pin-based obstruction detection
     // FALLING from https://github.com/ratgdo/esphome-ratgdo/blob/e248c705c5342e99201de272cb3e6dc0607a0f84/components/ratgdo/ratgdo.cpp#L54C14-L54C14
      */
@@ -173,6 +194,70 @@ void setup_pins()
 }
 
 /*********************************** MODEL **************************************/
+
+/*************************** DRY CONTACT CONTROL OF LIGHT & DOOR ***************************/
+
+//Functions for sensing GDO open/closed
+void onOpenSwitchPress() {
+    dryContactDoorOpen = true;
+    RINFO("Open switch pressed");
+}
+
+void onCloseSwitchPress() {
+    dryContactDoorClose = true;
+    RINFO("Close switch pressed");
+}
+
+void onOpenSwitchRelease() {
+    dryContactDoorOpen = false;
+    RINFO("Open switch released");
+}
+
+void onCloseSwitchRelease() {
+    dryContactDoorClose = false;
+    RINFO("Close switch released");
+}
+
+// handle changes to the dry contact state
+void dryContactLoop(){
+
+	if(dryContactDoorOpen){
+		if(userConfig->gdoSecurityType == 3){
+			doorState = DoorState::Open;
+		}else{
+			Serial.println("Dry Contact: open the door");
+			open_door();
+			dryContactDoorOpen = false;
+		}
+	}
+
+	if(dryContactDoorClose){
+		if(userConfig->gdoSecurityType == 3){
+			doorState = DoorState::Closed;
+		}else{
+			Serial.println("Dry Contact: close the door");
+			close_door();
+			dryContactDoorClose = false;
+		}
+	}
+
+	if(userConfig->gdoSecurityType == 3){
+		if(!dryContactDoorClose && !dryContactDoorOpen){
+			if(previousDryContactDoorClose){
+				doorState = DoorState::Opening;
+			} else if (previousDryContactDoorOpen){
+				doorState = DoorState::Closing;
+			}
+		}
+
+		if(previousDryContactDoorOpen != dryContactDoorOpen){
+			previousDryContactDoorOpen = dryContactDoorOpen;
+		}
+		if(previousDryContactDoorClose != dryContactDoorClose){
+			previousDryContactDoorClose = dryContactDoorClose;
+		}
+	}
+}
 
 /*************************** OBSTRUCTION DETECTION ***************************/
 void IRAM_ATTR isr_obstruction()
