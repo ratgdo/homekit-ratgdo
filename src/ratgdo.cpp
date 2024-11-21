@@ -125,6 +125,10 @@ void loop()
 {
     improv_loop();
     comms_loop();
+    // Poll OneButton objects
+    buttonOpen.tick();
+    buttonClose.tick();
+
     // wait for a status command to be processes to properly set the initial state of
     // all homekit characteristics.  Also timeout if we don't receive a status in
     // a reasonable amount of time.  This prevents unintentional state changes if
@@ -164,8 +168,9 @@ void setup_pins()
     pinMode(DRY_CONTACT_OPEN_PIN, INPUT_PULLUP);
     pinMode(DRY_CONTACT_CLOSE_PIN, INPUT_PULLUP);
     
-	attachInterrupt(DRY_CONTACT_OPEN_PIN,isrDoorOpen,CHANGE);
-	attachInterrupt(DRY_CONTACT_CLOSE_PIN,isrDoorClose,CHANGE);
+	// Attach OneButton handlers
+    buttonOpen.attachClick(onOpenButtonClick);
+    buttonClose.attachClick(onCloseButtonClick);
     /* pin-based obstruction detection
     // FALLING from https://github.com/ratgdo/esphome-ratgdo/blob/e248c705c5342e99201de272cb3e6dc0607a0f84/components/ratgdo/ratgdo.cpp#L54C14-L54C14
      */
@@ -175,69 +180,14 @@ void setup_pins()
 /*********************************** MODEL **************************************/
 
 /*************************** DRY CONTACT CONTROL OF LIGHT & DOOR ***************************/
-void IRAM_ATTR isrDebounce(const char *type){
-	static unsigned long lastOpenDoorTime = 0;
-	static unsigned long lastCloseDoorTime = 0;
-	static bool lastDryContactDoorOpen = false;
-	static bool lastDryContactDoorClose = false;
-	unsigned long currentMillis = millis();
-
-	// Prevent ISR during the first 2 seconds after reboot
-	if(currentMillis < 2000) return;
-
-	if(strcmp(type, "openDoor") == 0){
-		if(controlProtocol == "drycontact"){
-			if(currentMillis - lastOpenDoorTime > 300){
-				dryContactDoorOpen = !digitalRead(DRY_CONTACT_OPEN_PIN);
-
-				if(dryContactDoorOpen != lastDryContactDoorOpen){
-					lastOpenDoorTime = currentMillis;
-					lastDryContactDoorOpen = dryContactDoorOpen;
-				}
-			}
-			
-		}else{
-			if(digitalRead(DRY_CONTACT_OPEN_PIN) == LOW){
-				// save the time of the falling edge
-				lastOpenDoorTime = currentMillis;
-			}else if(currentMillis - lastOpenDoorTime > 100 && currentMillis - lastOpenDoorTime < 10000){
-				// now see if the rising edge was between 100ms and 10 seconds after the falling edge
-				dryContactDoorOpen = true;
-				blink(true);
-			}
-		}
-	}
-
-	if(strcmp(type, "closeDoor") == 0){
-		if(controlProtocol == "drycontact"){
-			if(currentMillis - lastCloseDoorTime > 300){
-				dryContactDoorClose = !digitalRead(DRY_CONTACT_CLOSE_PIN);
-
-				if(dryContactDoorClose != lastDryContactDoorClose){
-					lastCloseDoorTime = currentMillis;
-					lastDryContactDoorClose = dryContactDoorClose;
-				}
-			}
-
-		}else{	
-			if(digitalRead(DRY_CONTACT_CLOSE_PIN) == LOW){
-				// save the time of the falling edge
-				lastCloseDoorTime = currentMillis;
-			}else if(currentMillis - lastCloseDoorTime > 100 && currentMillis - lastCloseDoorTime < 10000){
-				// now see if the rising edge was between 100ms and 10 seconds after the falling edge
-				dryContactDoorClose = true;
-				blink(true);
-			}
-		}
-	}
+void onOpenButtonClick() {
+    Serial.println("Dry Contact Open Button Clicked");
+    openDoor();
 }
 
-void IRAM_ATTR isrDoorOpen(){
-	isrDebounce("openDoor");
-}
-
-void IRAM_ATTR isrDoorClose(){
-	isrDebounce("closeDoor");
+void onCloseButtonClick() {
+    Serial.println("Dry Contact Close Button Clicked");
+    closeDoor();
 }
 
 // handle changes to the dry contact state
@@ -507,18 +457,4 @@ void pullLow(){
 	digitalWrite(UART_TX_PIN, HIGH); //Replaced OUTPUT_GDO with UART_TX_PIN, check mqtt pin definitions to make sure this is correct assignment
 	delay(500);
 	digitalWrite(UART_TX_PIN, LOW); //Replaced OUTPUT_GDO with UART_TX_PIN, check mqtt pin definitions to make sure this is correct assignment
-}
-
-//Not sure if needed
-void blink(bool trigger){
-	if(LED_BUILTIN == UART_TX_PIN) return; //Replaced OUTPUT_GDO with UART_TX_PIN, check mqtt pin definitions to make sure this is correct assignment
-	static unsigned int onMillis = 0;
-	unsigned int currentMillis = millis();
-
-	if(trigger){
-		digitalWrite(LED_BUILTIN,LOW);
-		onMillis = currentMillis;
-	}else if(currentMillis - onMillis > 500){
-		digitalWrite(LED_BUILTIN,HIGH);
-	}
 }

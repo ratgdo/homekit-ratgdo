@@ -2,6 +2,7 @@
 #define _RATGDO_H
 
 #include <Arduino.h>
+#include <OneButton.h>
 #include "homekit_decl.h"
 
 #define DEVICE_NAME "homekit-ratgdo"
@@ -21,6 +22,9 @@
 #define DRY_CONTACT_OPEN_PIN    D5  // dry contact for opening door
 #define DRY_CONTACT_CLOSE_PIN   D6  // dry contact for closing door
 
+//Define OneButton objects for open/close pins
+OneButton buttonOpen(DRY_CONTACT_OPEN_PIN, true, true);  // Active low, with internal pull-up
+OneButton buttonClose(DRY_CONTACT_CLOSE_PIN, true, true);
 
 /********************************** MODEL *****************************************/
 
