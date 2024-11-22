@@ -202,7 +202,7 @@ void dryContactLoop(){
 			doorState = DoorState::Open;
 		}else{
 			Serial.println("Dry Contact: open the door");
-			openDoor();
+			open_door();
 			dryContactDoorOpen = false;
 		}
 	}
@@ -212,7 +212,7 @@ void dryContactLoop(){
 			doorState = DoorState::Closed;
 		}else{
 			Serial.println("Dry Contact: close the door");
-			closeDoor();
+			close_door();
 			dryContactDoorClose = false;
 		}
 	}
@@ -403,60 +403,4 @@ void LED::flash(unsigned long ms)
     {
         digitalWrite(LED_BUILTIN, idleState);
     }
-}
-
-// Door functions
-void openDoor(){
-	if(doorState == DoorState::Open || doorState == DoorState::Opening){
-		Serial.print("The door is already ");
-		Serial.println(doorState);
-		return;
-	}
-
-	toggleDoor();
-}
-
-void closeDoor(){
-	if(doorState == DoorState::Closed || DoorState::Closing){
-		Serial.print("The door is already ");
-		Serial.println(doorState);
-		return;
-	}
-
-	toggleDoor();
-}
-
-void stopDoor(){
-	if(doorState == DoorState::Opening || DoorState::Closing){
-		toggleDoor();
-	}else{
-		Serial.print("The door is not moving.");
-	}
-}
-
-void toggleDoor(){
-	if(userConfig->gdoSecurityType == 3){
-		pullLow();
-    /* Leaving out other mode code for now
-	}else if(userConfig->gdoSecurityType == 1){
-		getStaticCode("door");
-		transmit(txSP1StaticCode,4);
-	}else{
-		getRollingCode("door1");
-		transmit(txSP2RollingCode, SECPLUS2_CODE_LEN);
-
-		delay(40);
-
-		getRollingCode("door2");
-		transmit(txSP2RollingCode, SECPLUS2_CODE_LEN);
-
-		writeCounterToFlash("rolling",rollingCodeCounter);
-        */
-	}
-}
-
-void pullLow(){
-	digitalWrite(UART_TX_PIN, HIGH); //Replaced OUTPUT_GDO with UART_TX_PIN, check mqtt pin definitions to make sure this is correct assignment
-	delay(500);
-	digitalWrite(UART_TX_PIN, LOW); //Replaced OUTPUT_GDO with UART_TX_PIN, check mqtt pin definitions to make sure this is correct assignment
 }

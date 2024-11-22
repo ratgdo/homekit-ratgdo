@@ -895,13 +895,26 @@ void comms_loop_sec2()
     }
 }
 
+void comms_loop_drycontact()
+{
+
+}
+
 void comms_loop()
 {
     loop_id = LOOP_COMMS;
     if (userConfig->gdoSecurityType == 1)
+    {
         comms_loop_sec1();
-    else
+    }
+    else if (userConfig->gdoSecurityType == 2)
+    {
         comms_loop_sec2();
+    }
+    else
+    {
+        comms_loop_drycontact();
+    }
 }
 
 /********************************** CONTROLLER CODE *****************************************/
@@ -1114,32 +1127,44 @@ void sync()
 
 void door_command(DoorAction action)
 {
+    if (userConfig->gdoSecurityType != 3)
+    {   
+        //SECURITY1.0/2.0 commands
+        PacketData data;
+        data.type = PacketDataType::DoorAction;
+        data.value.door_action.action = action;
+        data.value.door_action.pressed = true;
+        data.value.door_action.id = 1;
 
-    PacketData data;
-    data.type = PacketDataType::DoorAction;
-    data.value.door_action.action = action;
-    data.value.door_action.pressed = true;
-    data.value.door_action.id = 1;
+        Packet pkt = Packet(PacketCommand::DoorAction, data, id_code);
+        PacketAction pkt_ac = {pkt, false, 250}; // 250ms delay for SECURITY1.0
 
-    Packet pkt = Packet(PacketCommand::DoorAction, data, id_code);
-    PacketAction pkt_ac = {pkt, false, 250}; // 250ms delay for SECURITY1.0
-
-    q_push(&pkt_q, &pkt_ac);
-
-    // do button release
-    pkt_ac.pkt.m_data.value.door_action.pressed = false;
-    pkt_ac.inc_counter = true;
-    pkt_ac.delay = 40; // 40ms delay for SECURITY1.0
-
-    q_push(&pkt_q, &pkt_ac);
-
-    // when observing wall panel 2 releases happen, so we do the same
-    if (userConfig->gdoSecurityType == 1)
-    {
         q_push(&pkt_q, &pkt_ac);
-    }
 
-    send_get_status();
+        // do button release
+        pkt_ac.pkt.m_data.value.door_action.pressed = false;
+        pkt_ac.inc_counter = true;
+        pkt_ac.delay = 40; // 40ms delay for SECURITY1.0
+
+        q_push(&pkt_q, &pkt_ac);
+
+        // when observing wall panel 2 releases happen, so we do the same
+        if (userConfig->gdoSecurityType == 1)
+        {
+            q_push(&pkt_q, &pkt_ac);
+        }
+
+        send_get_status();
+    }
+    else
+    {
+        //Dry contact commands (only toggle functionality, open/close/toggle/stop -> toggle)
+
+        //Toggle signal
+        digitalWrite(UART_TX_PIN, HIGH); 
+	    delay(500);
+	    digitalWrite(UART_TX_PIN, LOW);
+    }
 }
 void door_command_close()
 {
