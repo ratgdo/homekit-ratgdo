@@ -138,7 +138,7 @@ void setup_comms()
             id_code = (random(0x1, 0xFFF) << 12) | 0x539;
             write_int_to_file("id_code", id_code);
         }
-        RINFO("id code %02X", id_code);
+        RINFO("id code %lu (0x%02X)", id_code, id_code);
 
         // read from flash, default of 0 if file not exist
         rolling_code = read_int_from_file("rolling");
@@ -146,7 +146,7 @@ void setup_comms()
         // always be ahead of what the GDO thinks it should be, and save it.
         rolling_code = (rolling_code != 0) ? rolling_code + MAX_CODES_WITHOUT_FLASH_WRITE : 0;
         save_rolling_code();
-        RINFO("rolling code %02X", rolling_code);
+        RINFO("rolling code %lu (0x%02X)", rolling_code, rolling_code);
 
         RINFO("Syncing rolling code counter after reboot...");
         sync();

@@ -2,6 +2,18 @@
 
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v1.8.2 (2024-11-22)
+
+### What's Changed
+
+* New feature... Allow disabling of LED activity.
+* New feature... Allow setting syslog server port.
+* Bugfix... Passwords do not match message had been removed from html by mistake.
+
+### Known Issues
+
+* None
+
 ## v1.8.1 (2024-10-29)
 
 ### What's Changed
