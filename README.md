@@ -1,3 +1,8 @@
+> [!IMPORTANT]
+> This firmware is for the orginal ESP8266-based RATGDO v2.5-series devices. It does not work on the new ESP32-based RATGDO DISCO device.
+>
+> Firmware for the new DISCO device is under development. This message will be updated when it is available, and an announcement will be made on the Discord channel.
+
 # What is HomeKit-RATGDO?
 
 HomeKit-RATGDO is an alternative firmware for the RATGDO v2.5-series WiFi control boards that works
