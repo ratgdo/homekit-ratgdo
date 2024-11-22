@@ -3,6 +3,9 @@
 
 #include <Arduino.h>
 #include <OneButton.h>
+//Packet.h is needed to provide the doorState class, which is used in dryContactLoop and open/close functions
+//If these are moved outside of ratgdo.cpp this can be removed
+#include "Packet.h"
 #include "homekit_decl.h"
 
 #define DEVICE_NAME "homekit-ratgdo"
@@ -19,8 +22,8 @@
 #define INPUT_OBST_PIN D7 // black obstruction sensor terminal
 #define STATUS_OBST_PIN D8 // output for obstruction status, HIGH for obstructed, LOW for clear
 #define STATUS_DOOR_PIN         D0  // output door status, HIGH for open, LOW for closed
-#define DRY_CONTACT_OPEN_PIN    D5  // dry contact for opening door
-#define DRY_CONTACT_CLOSE_PIN   D6  // dry contact for closing door
+#define DRY_CONTACT_OPEN_PIN    D5  // dry contact for open door limit switch
+#define DRY_CONTACT_CLOSE_PIN   D6  // dry contact for close door limit switch
 
 //Define OneButton objects for open/close pins
 OneButton buttonOpen(DRY_CONTACT_OPEN_PIN, true, true);  // Active low, with internal pull-up
@@ -102,11 +105,6 @@ extern LED led;
 //Need to define these variables somewhere, not sure where is best to put them
 bool dryContactDoorOpen = false;
 bool dryContactDoorClose = false;
-
-uint8_t doorState = 0;
-String doorStates[7] = {"unknown","open","closed","stopped","opening","closing","syncing"};
-//Temporarily creating controlProtocol variable set to drycontact. Not sure how the control protocol is defined in homekit code.
-const char* controlProtocol = "drycontact";
 
 #define LOOP_SYSTEM 0
 #define LOOP_IMPROV 1

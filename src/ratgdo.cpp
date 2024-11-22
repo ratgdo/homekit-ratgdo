@@ -76,6 +76,9 @@ unsigned long next_heap_check = 0;
 bool status_done = false;
 unsigned long status_timeout;
 
+//used in dryContactLoop and open/close functions, if they are moved outside ratgdo.cpp this can be removed
+DoorState doorState = DoorState::Unknown;
+
 /********************************** MAIN LOOP CODE *****************************************/
 
 void setup()
@@ -169,8 +172,8 @@ void setup_pins()
     pinMode(DRY_CONTACT_CLOSE_PIN, INPUT_PULLUP);
     
 	// Attach OneButton handlers
-    buttonOpen.attachClick(onOpenButtonClick);
-    buttonClose.attachClick(onCloseButtonClick);
+    buttonOpen.attachPress(onOpenSwitchPress);
+    buttonClose.attachPress(onCloseSwitchPress);
     /* pin-based obstruction detection
     // FALLING from https://github.com/ratgdo/esphome-ratgdo/blob/e248c705c5342e99201de272cb3e6dc0607a0f84/components/ratgdo/ratgdo.cpp#L54C14-L54C14
      */
@@ -180,14 +183,13 @@ void setup_pins()
 /*********************************** MODEL **************************************/
 
 /*************************** DRY CONTACT CONTROL OF LIGHT & DOOR ***************************/
-void onOpenButtonClick() {
-    Serial.println("Dry Contact Open Button Clicked");
-    openDoor();
+//Functions for sensing GDO open/closed
+void onOpenSwitchPress() {
+    dryContactDoorOpen = true;
 }
 
-void onCloseButtonClick() {
-    Serial.println("Dry Contact Close Button Clicked");
-    closeDoor();
+void onCloseSwitchPress() {
+    dryContactDoorClose = true;
 }
 
 // handle changes to the dry contact state
@@ -196,8 +198,8 @@ void dryContactLoop(){
 	static bool previousDryContactDoorClose = false;
 
 	if(dryContactDoorOpen){
-		if(controlProtocol == "drycontact"){
-			doorState = 1;
+		if(userConfig->gdoSecurityType == 3){
+			doorState = DoorState::Open;
 		}else{
 			Serial.println("Dry Contact: open the door");
 			openDoor();
@@ -206,8 +208,8 @@ void dryContactLoop(){
 	}
 
 	if(dryContactDoorClose){
-		if(controlProtocol == "drycontact"){
-			doorState = 2;
+		if(userConfig->gdoSecurityType == 3){
+			doorState = DoorState::Closed;
 		}else{
 			Serial.println("Dry Contact: close the door");
 			closeDoor();
@@ -215,14 +217,14 @@ void dryContactLoop(){
 		}
 	}
 
-	if(controlProtocol == "drycontact"){
+	if(userConfig->gdoSecurityType == 3){
 		if(!dryContactDoorClose && !dryContactDoorOpen){
 			if(previousDryContactDoorClose){
-				doorState = 4;
+				doorState = DoorState::Opening;
 			}
 
 			if(previousDryContactDoorOpen){
-				doorState = 5;
+				doorState = DoorState::Closing;
 			}
 		}
 
@@ -405,9 +407,9 @@ void LED::flash(unsigned long ms)
 
 // Door functions
 void openDoor(){
-	if(doorStates[doorState] == "open" || doorStates[doorState] == "opening"){
+	if(doorState == DoorState::Open || doorState == DoorState::Opening){
 		Serial.print("The door is already ");
-		Serial.println(doorStates[doorState]);
+		Serial.println(doorState);
 		return;
 	}
 
@@ -415,9 +417,9 @@ void openDoor(){
 }
 
 void closeDoor(){
-	if(doorStates[doorState] == "closed" || doorStates[doorState] == "closing"){
+	if(doorState == DoorState::Closed || DoorState::Closing){
 		Serial.print("The door is already ");
-		Serial.println(doorStates[doorState]);
+		Serial.println(doorState);
 		return;
 	}
 
@@ -425,7 +427,7 @@ void closeDoor(){
 }
 
 void stopDoor(){
-	if(doorStates[doorState] == "opening" || doorStates[doorState] == "closing"){
+	if(doorState == DoorState::Opening || DoorState::Closing){
 		toggleDoor();
 	}else{
 		Serial.print("The door is not moving.");
@@ -433,10 +435,10 @@ void stopDoor(){
 }
 
 void toggleDoor(){
-	if(controlProtocol == "drycontact"){
+	if(userConfig->gdoSecurityType == 3){
 		pullLow();
     /* Leaving out other mode code for now
-	}else if(controlProtocol == "secplus1"){
+	}else if(userConfig->gdoSecurityType == 1){
 		getStaticCode("door");
 		transmit(txSP1StaticCode,4);
 	}else{
