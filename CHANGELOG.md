@@ -2,6 +2,16 @@
 
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v1.8.3 (2024-11-23)
+
+### What's Changed
+
+* Bugfix... Unrecoverable crash/reboot loop for Sec+ reported in <https://github.com/ratgdo/homekit-ratgdo/issues/252>.
+
+### Known Issues
+
+* None
+
 ## v1.8.2 (2024-11-22)
 
 ### What's Changed
