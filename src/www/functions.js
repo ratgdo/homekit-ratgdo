@@ -187,9 +187,10 @@ function setElementsFromStatus(status) {
                 document.getElementById("lastRebootAt").innerHTML = date.toLocaleString();
                 break;
             case "GDOSecurityType":
-                document.getElementById(key).innerHTML = (value == 1) ? "Sec+ " : "Sec+ 2.0";
-                document.getElementById("gdosec1").checked = (value == 1) ? true : false;
-                document.getElementById("gdosec2").checked = (value == 2) ? true : false;
+                document.getElementById(key).innerHTML = (value == 1) ? "Sec+ " : (value == 2) ? "Sec+ 2.0" : "Dry Contact";
+                document.getElementById("gdosec1").checked = (value == 1);
+                document.getElementById("gdosec2").checked = (value == 2);
+                document.getElementById("gdodrycontact").checked = (value == 3);
                 break;
             case "deviceName":
                 document.getElementById(key).innerHTML = value;
