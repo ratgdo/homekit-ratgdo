@@ -9,6 +9,7 @@
 #include "log.h"
 #include "web.h"
 #include "utilities.h"
+#include "Packet.h"
 
 #include <time.h>
 #include <coredecls.h>
@@ -45,6 +46,15 @@ void showTime()
 void setup_pins();
 void IRAM_ATTR isr_obstruction();
 void service_timer_loop();
+void dryContactLoop();
+void onOpenSwitchPress();
+void onCloseSwitchPress();
+
+//Define OneButton objects for open/close pins
+OneButton buttonOpen(DRY_CONTACT_OPEN_PIN, true, true);  // Active low, with internal pull-up
+OneButton buttonClose(DRY_CONTACT_CLOSE_PIN, true, true);
+bool dryContactDoorOpen = false;
+bool dryContactDoorClose = false;
 
 /********************************* RUNTIME STORAGE *****************************************/
 
@@ -75,9 +85,6 @@ unsigned long next_heap_check = 0;
 
 bool status_done = false;
 unsigned long status_timeout;
-
-//used in dryContactLoop and open/close functions, if they are moved outside ratgdo.cpp this can be removed
-DoorState doorState = DoorState::Unknown;
 
 /********************************** MAIN LOOP CODE *****************************************/
 
@@ -183,6 +190,7 @@ void setup_pins()
 /*********************************** MODEL **************************************/
 
 /*************************** DRY CONTACT CONTROL OF LIGHT & DOOR ***************************/
+
 //Functions for sensing GDO open/closed
 void onOpenSwitchPress() {
     dryContactDoorOpen = true;
