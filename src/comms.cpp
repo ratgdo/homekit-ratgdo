@@ -122,7 +122,7 @@ void setup_comms()
         lightState = 2;
         lockState = 2;
     }
-    else
+    else if (userConfig->gdoSecurityType == 2)
     {
         RINFO("=== Setting up comms for Secuirty+2.0 protocol");
 
@@ -157,6 +157,11 @@ void setup_comms()
             send_get_status();
         }
         force_recover.push_count = 0;
+    }
+    else
+    {
+        RINFO("=== Setting up comms for dry contact protocol");
+        doorState = DoorState::Unknown;
     }
     IRAM_END("GDO comms started");
 }
@@ -895,10 +900,44 @@ void comms_loop_sec2()
     }
 }
 
-void comms_loop_drycontact()
-{
+void comms_loop_drycontact() {
+    static DoorState previousDoorState = DoorState::Unknown;
 
+    // Notify HomeKit when the door state changes
+    if (doorState != previousDoorState) {
+        switch (doorState) {
+            case DoorState::Open:
+                garage_door.current_state = GarageDoorCurrentState::CURR_OPEN;
+                garage_door.target_state = GarageDoorTargetState::TGT_OPEN;
+                break;
+            case DoorState::Closed:
+                garage_door.current_state = GarageDoorCurrentState::CURR_CLOSED;
+                garage_door.target_state = GarageDoorTargetState::TGT_CLOSED;
+                break;
+            case DoorState::Opening:
+                garage_door.current_state = GarageDoorCurrentState::CURR_OPENING;
+                garage_door.target_state = GarageDoorTargetState::TGT_OPEN;
+                break;
+            case DoorState::Closing:
+                garage_door.current_state = GarageDoorCurrentState::CURR_CLOSING;
+                garage_door.target_state = GarageDoorTargetState::TGT_CLOSED;
+                break;
+            default:
+                garage_door.current_state = GarageDoorCurrentState::CURR_STOPPED;
+                break;
+        }
+
+        notify_homekit_current_door_state_change();
+        notify_homekit_target_door_state_change();
+
+        previousDoorState = doorState;
+
+        // Log the state change for debugging
+        RINFO("Door state updated: Current: %d, Target: %d", 
+              garage_door.current_state, garage_door.target_state);
+    }
 }
+
 
 void comms_loop()
 {
