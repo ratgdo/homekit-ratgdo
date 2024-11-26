@@ -797,7 +797,8 @@ async function saveSettings() {
     if (!confirm('Save Settings. Reboot may be required, are you sure?')) {
         return;
     }
-    const gdoSec = (document.getElementById("gdosec1").checked) ? '1' : '2';
+    const gdoSec = (document.getElementById("gdosec1").checked) ? '1'
+        : (document.getElementById("gdosec2").checked) ? '2': '3';
     const pwReq = (document.getElementById("pwreq").checked) ? '1' : '0';
     const motionTriggers = getMotionTriggers();
     const LEDidle = (document.getElementById("LEDidle2").checked) ? 2
