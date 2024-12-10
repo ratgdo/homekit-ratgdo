@@ -49,12 +49,16 @@ void service_timer_loop();
 void dryContactLoop();
 void onOpenSwitchPress();
 void onCloseSwitchPress();
+void onOpenSwitchRelease();
+void onCloseSwitchRelease();
 
 //Define OneButton objects for open/close pins
 OneButton buttonOpen(DRY_CONTACT_OPEN_PIN, true, true);  // Active low, with internal pull-up
 OneButton buttonClose(DRY_CONTACT_CLOSE_PIN, true, true);
 bool dryContactDoorOpen = false;
 bool dryContactDoorClose = false;
+bool previousDryContactDoorOpen = false;
+bool previousDryContactDoorClose = false;
 
 /********************************* RUNTIME STORAGE *****************************************/
 
@@ -181,6 +185,8 @@ void setup_pins()
 	// Attach OneButton handlers
     buttonOpen.attachPress(onOpenSwitchPress);
     buttonClose.attachPress(onCloseSwitchPress);
+    buttonOpen.attachLongPressStop(onOpenSwitchRelease);
+    buttonClose.attachLongPressStop(onCloseSwitchRelease);
     /* pin-based obstruction detection
     // FALLING from https://github.com/ratgdo/esphome-ratgdo/blob/e248c705c5342e99201de272cb3e6dc0607a0f84/components/ratgdo/ratgdo.cpp#L54C14-L54C14
      */
@@ -194,16 +200,26 @@ void setup_pins()
 //Functions for sensing GDO open/closed
 void onOpenSwitchPress() {
     dryContactDoorOpen = true;
+    RINFO("Open switch pressed");
 }
 
 void onCloseSwitchPress() {
     dryContactDoorClose = true;
+    RINFO("Close switch pressed");
+}
+
+void onOpenSwitchRelease() {
+    dryContactDoorOpen = false;
+    RINFO("Open switch released");
+}
+
+void onCloseSwitchRelease() {
+    dryContactDoorClose = false;
+    RINFO("Close switch released");
 }
 
 // handle changes to the dry contact state
 void dryContactLoop(){
-	static bool previousDryContactDoorOpen = false;
-	static bool previousDryContactDoorClose = false;
 
 	if(dryContactDoorOpen){
 		if(userConfig->gdoSecurityType == 3){
@@ -229,9 +245,7 @@ void dryContactLoop(){
 		if(!dryContactDoorClose && !dryContactDoorOpen){
 			if(previousDryContactDoorClose){
 				doorState = DoorState::Opening;
-			}
-
-			if(previousDryContactDoorOpen){
+			} else if (previousDryContactDoorOpen){
 				doorState = DoorState::Closing;
 			}
 		}

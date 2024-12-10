@@ -86,6 +86,10 @@ enum secplus1Codes : uint8_t
     Unknown = 0xFF
 };
 
+/******************************* DRY CONTACT *********************************/
+
+static DoorState previousDoorState = DoorState::Unknown;
+
 /*************************** FORWARD DECLARATIONS ******************************/
 
 void sync();
@@ -901,7 +905,6 @@ void comms_loop_sec2()
 }
 
 void comms_loop_drycontact() {
-    static DoorState previousDoorState = DoorState::Unknown;
 
     // Notify HomeKit when the door state changes
     if (doorState != previousDoorState) {
