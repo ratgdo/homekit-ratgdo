@@ -748,7 +748,7 @@ void handle_setgdo()
         else if (!strcmp(key, "GDOSecurityType"))
         {
             int type = atoi(value);
-            if ((type == 1) || (type == 2))
+            if ((type == 1) || (type == 2) || (type==3))
             {
                 RINFO("SetGDO security type to %i", type);
                 // reset the door opener ID, rolling code and presence of motion sensor.
