@@ -70,6 +70,12 @@ void setup_homekit()
         RINFO("Motion Sensor not detected.  Disabling Service");
         config.accessories[0]->services[3] = NULL;
     }
+    if (userConfig->gdoSecurityType == 3)
+    {
+        RINFO("Dry contact does not support light control.  Disabling Service");
+        config.accessories[0]->services[2] = NULL;
+    }
+
     // We can set current lock state to unknown as HomeKit has value for that.
     // But we can't do the same for door state as HomeKit has no value for that.
     garage_door.current_lock = CURR_UNKNOWN;
