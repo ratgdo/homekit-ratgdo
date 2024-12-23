@@ -28,7 +28,7 @@
 #include "wifi.h"
 
 // support for changeing WiFi settings
-unsigned long wifiConnectTimeout = 0;
+uint64_t wifiConnectTimeout = 0;
 // support for scaning WiFi networks
 bool wifiNetsCmp(wifiNet_t a, wifiNet_t b)
 {
@@ -195,7 +195,7 @@ void wifi_connect()
         RINFO("Connecting to SSID: %s", wifiConf.ssid);
     }
     RINFO("Starting WiFi connecting in background");
-    wifiConnectTimeout = millis() + 30000;
+    wifiConnectTimeout = millis64() + 30000;
     WiFi.begin(); // use credentials stored in flash
     IRAM_END("Wifi initialized");
 }
@@ -204,10 +204,10 @@ void improv_loop()
 {
     loop_id = LOOP_IMPROV;
 #ifdef GW_PING_CHECK
-    static unsigned long gw_ping_timeout = 10000;
-    static unsigned long gw_report_interval = 0;
+    static uint64_t gw_ping_timeout = 10000;
+    static uint64_t gw_report_interval = 0;
     // Once a minute ping the Gateway and log
-    unsigned long now = millis();
+    uint64_t now = millis64();
     if (now > gw_ping_timeout) {
         gw_ping_timeout = now + 60000;
         if (Ping.ping(WiFi.gatewayIP(), 1)) {
@@ -237,14 +237,14 @@ void improv_loop()
         }
     }
 
-    if (softAPmode && (millis() > 10 * 60 * 1000))
+    if (softAPmode && (millis64() > 10 * 60 * 1000))
     {
         RINFO("In Soft Access Point mode for over 10 minutes, reboot");
         sync_and_restart();
         return;
     }
 
-    if (userConfig->wifiSettingsChanged && (millis() > wifiConnectTimeout))
+    if (userConfig->wifiSettingsChanged && (millis64() > wifiConnectTimeout))
     {
         bool connected = (WiFi.status() == WL_CONNECTED);
         RINFO("30 seconds since WiFi settings change, connected to access point: %s", (connected) ? "true" : "false");
@@ -258,7 +258,7 @@ void improv_loop()
             WiFi.setPhyMode((WiFiPhyMode_t)0);
             write_config_to_file();
             // Now try and reconnect...
-            wifiConnectTimeout = millis() + 30000;
+            wifiConnectTimeout = millis64() + 30000;
             WiFi.reconnect();
             return;
         }
@@ -275,7 +275,7 @@ void improv_loop()
                 ip.fromString("0.0.0.0");
                 WiFi.config(ip, ip, ip);
                 // Now try and reconnect...
-                wifiConnectTimeout = millis() + 30000;
+                wifiConnectTimeout = millis64() + 30000;
                 WiFi.reconnect();
                 return;
             } else {

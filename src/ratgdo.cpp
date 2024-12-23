@@ -64,8 +64,8 @@ bool previousDryContactDoorClose = false;
 
 struct obstruction_sensor_t
 {
-    unsigned int low_count = 0;    // count obstruction low pulses
-    unsigned long last_asleep = 0; // count time between high pulses from the obst ISR
+    uint32_t low_count = 0;    // count obstruction low pulses
+    uint64_t last_asleep = 0; // count time between high pulses from the obst ISR
 } obstruction_sensor;
 
 // long unsigned int led_reset_time = 0; // Stores time when LED should return to idle state
@@ -85,10 +85,10 @@ extern "C" uint32_t __crc_val;
 // Track our memory usage
 uint32_t free_heap = 65535;
 uint32_t min_heap = 65535;
-unsigned long next_heap_check = 0;
+uint64_t next_heap_check = 0;
 
 bool status_done = false;
-unsigned long status_timeout;
+uint64_t status_timeout;
 
 /********************************** MAIN LOOP CODE *****************************************/
 
@@ -267,8 +267,8 @@ void IRAM_ATTR isr_obstruction()
 
 void obstruction_timer()
 {
-    unsigned long current_millis = millis();
-    static unsigned long last_millis = 0;
+    uint64_t current_millis = millis64();
+    static uint64_t last_millis = 0;
 
     // the obstruction sensor has 3 states: clear (HIGH with LOW pulse every 7ms), obstructed (HIGH), asleep (LOW)
     // the transitions between awake and asleep are tricky because the voltage drops slowly when falling asleep
@@ -338,7 +338,7 @@ void service_timer_loop()
     // Service the Obstruction Timer
     obstruction_timer();
 
-    unsigned long current_millis = millis();
+    uint64_t current_millis = millis64();
 
 #ifdef NTP_CLIENT
     if (enableNTP && clockSet && lastRebootAt == 0)
@@ -419,9 +419,9 @@ void LED::flash(unsigned long ms)
     if (ms)
     {
         digitalWrite(LED_BUILTIN, activeState);
-        resetTime = millis() + ms;
+        resetTime = millis64() + ms;
     }
-    else if ((digitalRead(LED_BUILTIN) == activeState) && (millis() > resetTime))
+    else if ((digitalRead(LED_BUILTIN) == activeState) && (millis64() > resetTime))
     {
         digitalWrite(LED_BUILTIN, idleState);
     }
