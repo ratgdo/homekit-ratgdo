@@ -7,7 +7,7 @@
 
 #ifdef NTP_CLIENT
 extern bool clockSet;
-extern unsigned long lastRebootAt;
+extern uint64_t lastRebootAt;
 extern char *timeString(time_t reqTime = 0, bool syslog = false);
 extern bool enableNTP;
 #define NTP_SERVER "pool.ntp.org"
@@ -97,6 +97,7 @@ typedef union
 extern motionTriggersUnion motionTriggers;
 
 // Function declarations
+uint64_t millis64();
 void load_all_config_settings();
 void sync_and_restart();
 

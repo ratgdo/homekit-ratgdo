@@ -207,7 +207,7 @@ void printMessageLog(Print &outputDev)
     }
 #endif
     outputDev.write("Server uptime (ms): ");
-    outputDev.println(millis());
+    outputDev.println(millis64());
     outputDev.write("Firmware version: ");
     outputDev.write(AUTO_VERSION);
     outputDev.println();

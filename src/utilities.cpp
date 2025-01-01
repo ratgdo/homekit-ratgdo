@@ -49,8 +49,12 @@ bool syslogEn = false;
 #ifdef NTP_CLIENT
 bool clockSet = false;
 bool enableNTP = false;
-unsigned long lastRebootAt = 0;
+uint64_t lastRebootAt = 0;
 int32_t savedDoorUpdateAt = 0;
+
+uint64_t IRAM_ATTR millis64() {
+    return (micros64() / 1000);
+}
 
 bool get_tz()
 {

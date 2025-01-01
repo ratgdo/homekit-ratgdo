@@ -60,7 +60,7 @@ struct GarageDoor
     GarageDoorTargetState target_state;
     bool obstructed;
     bool has_motion_sensor;
-    unsigned long motion_timer;
+    uint64_t motion_timer;
     bool motion;
     bool light;
     LockCurrentState current_lock;
@@ -70,7 +70,7 @@ struct GarageDoor
 struct ForceRecover
 {
     uint8_t push_count;
-    unsigned long timeout;
+    uint64_t timeout;
 };
 
 class LED
@@ -78,7 +78,7 @@ class LED
 private:
     uint8_t activeState = 0;
     uint8_t idleState = 1;       // opposite of active
-    unsigned long resetTime = 0; // Stores time when LED should return to idle state
+    uint64_t resetTime = 0; // Stores time when LED should return to idle state
     bool initialized = false;
     bool enabled = true;
 

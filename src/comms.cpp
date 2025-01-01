@@ -52,8 +52,8 @@ uint32_t last_saved_code = 0;
 
 static const uint8_t RX_LENGTH = 2;
 typedef uint8_t RxPacket[RX_LENGTH * 4];
-unsigned long last_rx;
-unsigned long last_tx;
+uint64_t last_rx;
+uint64_t last_tx;
 
 bool wallplateBooting = false;
 bool wallPanelDetected = false;
@@ -190,10 +190,10 @@ void wallPlate_Emulation()
     if (wallPanelDetected)
         return;
 
-    unsigned long currentMillis = millis();
-    static unsigned long lastRequestMillis = 0;
+    uint64_t currentMillis = millis64();
+    static uint64_t lastRequestMillis = 0;
     static bool emulateWallPanel = false;
-    static unsigned long serialDetected = 0;
+    static uint64_t serialDetected = 0;
     static uint8_t stateIndex = 0;
 
     if (!serialDetected)
@@ -268,7 +268,7 @@ void comms_loop_sec1()
     if (sw_serial.available())
     {
         uint8_t ser_byte = sw_serial.read();
-        last_rx = millis();
+        last_rx = millis64();
 
         if (!reading_msg)
         {
@@ -304,7 +304,7 @@ void comms_loop_sec1()
                 gotMessage = true;
             }
 
-            if (gotMessage == false && (millis() - last_rx) > 100)
+            if (gotMessage == false && (millis64() - last_rx) > 100)
             {
                 RINFO("RX message timeout");
                 // if we have a partial packet and it's been over 100ms since last byte was read,
@@ -332,7 +332,7 @@ void comms_loop_sec1()
             manual_recovery();
             if (motionTriggers.bit.doorKey)
             {
-                garage_door.motion_timer = millis() + 5000;
+                garage_door.motion_timer = millis64() + 5000;
                 garage_door.motion = true;
                 notify_homekit_motion();
             }
@@ -548,7 +548,7 @@ void comms_loop_sec1()
                     notify_homekit_light();
                     if (motionTriggers.bit.lightKey)
                     {
-                        garage_door.motion_timer = millis() + 5000;
+                        garage_door.motion_timer = millis64() + 5000;
                         garage_door.motion = true;
                         notify_homekit_motion();
                     }
@@ -576,7 +576,7 @@ void comms_loop_sec1()
                     notify_homekit_current_lock();
                     if (motionTriggers.bit.lockKey)
                     {
-                        garage_door.motion_timer = millis() + 5000;
+                        garage_door.motion_timer = millis64() + 5000;
                         garage_door.motion = true;
                         notify_homekit_motion();
                     }
@@ -592,13 +592,13 @@ void comms_loop_sec1()
     //
     PacketAction pkt_ac;
     static unsigned long cmdDelay = 0;
-    unsigned long now;
+    uint64_t now;
     bool okToSend = false;
 
     if (!q_isEmpty(&pkt_q))
     {
 
-        now = millis();
+        now = millis64();
 
         // if there is no wall panel, no need to check 200ms since last rx
         // (yes some duped code here, but its clearer)
@@ -798,7 +798,7 @@ void comms_loop_sec2()
                     notify_homekit_target_lock();
                     if (motionTriggers.bit.lockKey)
                     {
-                        garage_door.motion_timer = millis() + 5000;
+                        garage_door.motion_timer = millis64() + 5000;
                         garage_door.motion = true;
                         notify_homekit_motion();
                     }
@@ -832,7 +832,7 @@ void comms_loop_sec2()
                     notify_homekit_light();
                     if (motionTriggers.bit.lightKey)
                     {
-                        garage_door.motion_timer = millis() + 5000;
+                        garage_door.motion_timer = millis64() + 5000;
                         garage_door.motion = true;
                         notify_homekit_motion();
                     }
@@ -863,7 +863,7 @@ void comms_loop_sec2()
                 /* When we get the motion detect message, notify HomeKit. Motion sensor
                     will continue to send motion messages every 5s until motion stops.
                     set a timer for 5 seconds to disable motion after the last message */
-                garage_door.motion_timer = millis() + 5000;
+                garage_door.motion_timer = millis64() + 5000;
                 if (!garage_door.motion)
                 {
                     garage_door.motion = true;
@@ -883,7 +883,7 @@ void comms_loop_sec2()
                 }
                 if (pkt.m_data.value.door_action.pressed && motionTriggers.bit.doorKey)
                 {
-                    garage_door.motion_timer = millis() + 5000;
+                    garage_door.motion_timer = millis64() + 5000;
                     garage_door.motion = true;
                     notify_homekit_motion();
                 }
@@ -980,7 +980,7 @@ bool transmitSec1(byte toSend)
     }
 
     sw_serial.write(toSend);
-    last_tx = millis();
+    last_tx = millis64();
 
     // RINFO("SEC1 SEND BYTE: %02X",toSend);
 
@@ -1054,7 +1054,7 @@ bool process_PacketAction(PacketAction &pkt_ac)
                 success = transmitSec1(pkt_ac.pkt.m_data.value.cmd);
                 if (success)
                 {
-                    last_tx = millis();
+                    last_tx = millis64();
                     // RINFO("sending 0x%02X query", pkt_ac.pkt.m_data.value.cmd);
                 }
             }
@@ -1067,7 +1067,7 @@ bool process_PacketAction(PacketAction &pkt_ac)
                 success = transmitSec1(secplus1Codes::DoorButtonPress);
                 if (success)
                 {
-                    last_tx = millis();
+                    last_tx = millis64();
                     RINFO("sending DOOR button press");
                 }
             }
@@ -1076,7 +1076,7 @@ bool process_PacketAction(PacketAction &pkt_ac)
                 success = transmitSec1(secplus1Codes::DoorButtonRelease);
                 if (success)
                 {
-                    last_tx = millis();
+                    last_tx = millis64();
                     RINFO("sending DOOR button release");
                 }
             }
@@ -1091,7 +1091,7 @@ bool process_PacketAction(PacketAction &pkt_ac)
                 success = transmitSec1(secplus1Codes::LightButtonPress);
                 if (success)
                 {
-                    last_tx = millis();
+                    last_tx = millis64();
                     RINFO("sending LIGHT button press");
                 }
             }
@@ -1100,7 +1100,7 @@ bool process_PacketAction(PacketAction &pkt_ac)
                 success = transmitSec1(secplus1Codes::LightButtonRelease);
                 if (success)
                 {
-                    last_tx = millis();
+                    last_tx = millis64();
                     RINFO("Sending LIGHT button release");
                 }
             }
@@ -1115,7 +1115,7 @@ bool process_PacketAction(PacketAction &pkt_ac)
                 success = transmitSec1(secplus1Codes::LockButtonPress);
                 if (success)
                 {
-                    last_tx = millis();
+                    last_tx = millis64();
                     RINFO("sending LOCK button press");
                 }
             }
@@ -1124,7 +1124,7 @@ bool process_PacketAction(PacketAction &pkt_ac)
                 success = transmitSec1(secplus1Codes::LockButtonRelease);
                 if (success)
                 {
-                    last_tx = millis();
+                    last_tx = millis64();
                     RINFO("sending LOCK button release");
                 }
             }
@@ -1452,9 +1452,9 @@ void manual_recovery()
     if (force_recover.push_count++ == 0)
     {
         RINFO("Push count start");
-        force_recover.timeout = millis() + 3000;
+        force_recover.timeout = millis64() + 3000;
     }
-    else if (millis() > force_recover.timeout)
+    else if (millis64() > force_recover.timeout)
     {
         RINFO("Push count reset");
         force_recover.push_count = 0;
