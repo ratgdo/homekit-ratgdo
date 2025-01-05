@@ -1,5 +1,5 @@
 > [!IMPORTANT]
-> This firmware is for the orginal ESP8266-based RATGDO v2.5-series devices. It does not work on the new ESP32-based RATGDO DISCO device.
+> This firmware is for the orginal ESP8266-based RATGDO v2.5-series devices. It does not work with ratgdo32 or ratgdo32 disco.
 >
 > HomeKit firmware for ratgdo32 & ratgdo32 disco is [under development here](https://github.com/ratgdo/homekit-ratgdo32).
 
