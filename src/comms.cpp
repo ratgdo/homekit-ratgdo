@@ -18,7 +18,7 @@
 
 /********************************** LOCAL STORAGE *****************************************/
 
-struct PacketAction
+struct __attribute__((aligned(4))) PacketAction
 {
     Packet pkt;
     bool inc_counter;

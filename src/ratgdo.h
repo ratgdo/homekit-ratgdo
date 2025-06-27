@@ -67,7 +67,7 @@ struct GarageDoor
     LockTargetState target_lock;
 };
 
-struct ForceRecover
+struct __attribute__((aligned(4))) ForceRecover
 {
     uint8_t push_count;
     unsigned long timeout;
