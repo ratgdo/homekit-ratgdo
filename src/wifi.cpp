@@ -28,7 +28,8 @@
 #include "wifi.h"
 
 // support for changeing WiFi settings
-unsigned long wifiConnectTimeout = 0;
+unsigned long wifiConnectStart = 0;
+bool wifiConnectActive = false;
 // support for scaning WiFi networks
 bool wifiNetsCmp(wifiNet_t a, wifiNet_t b)
 {
@@ -195,7 +196,8 @@ void wifi_connect()
         RINFO("Connecting to SSID: %s", wifiConf.ssid);
     }
     RINFO("Starting WiFi connecting in background");
-    wifiConnectTimeout = millis() + 30000;
+    wifiConnectStart = millis();
+    wifiConnectActive = true;
     WiFi.begin(); // use credentials stored in flash
     IRAM_END("Wifi initialized");
 }
@@ -204,17 +206,29 @@ void improv_loop()
 {
     loop_id = LOOP_IMPROV;
 #ifdef GW_PING_CHECK
-    static unsigned long gw_ping_timeout = 10000;
-    static unsigned long gw_report_interval = 0;
+    static unsigned long gw_ping_start = 0;
+    static unsigned long gw_report_start = 0;
+    static bool gw_ping_init = false;
+    static bool gw_report_init = false;
+    
+    if (!gw_ping_init) {
+        gw_ping_start = millis();
+        gw_ping_init = true;
+    }
+    if (!gw_report_init) {
+        gw_report_start = millis();
+        gw_report_init = true;
+    }
+    
     // Once a minute ping the Gateway and log
     unsigned long now = millis();
-    if (now > gw_ping_timeout) {
-        gw_ping_timeout = now + 60000;
+    if (now - gw_ping_start >= 60000) {
+        gw_ping_start = now;
         if (Ping.ping(WiFi.gatewayIP(), 1)) {
             int lat = Ping.averageTime();
             // Log success once an hour
-            if ((now > gw_report_interval) || (lat > 100)) {
-                gw_report_interval = now + (60 * 60 * 1000);
+            if ((now - gw_report_start >= 60 * 60 * 1000) || (lat > 100)) {
+                gw_report_start = now;
                 RINFO("Gateway %s alive %u ms", WiFi.gatewayIP().toString().c_str(), lat);
             }
         }
@@ -237,14 +251,22 @@ void improv_loop()
         }
     }
 
-    if (softAPmode && (millis() > 10 * 60 * 1000))
-    {
-        RINFO("In Soft Access Point mode for over 10 minutes, reboot");
-        sync_and_restart();
-        return;
+    static unsigned long soft_ap_start = 0;
+    static bool soft_ap_timer_started = false;
+    
+    if (softAPmode) {
+        if (!soft_ap_timer_started) {
+            soft_ap_start = millis();
+            soft_ap_timer_started = true;
+        }
+        if (millis() - soft_ap_start > 10 * 60 * 1000) {
+            RINFO("In Soft Access Point mode for over 10 minutes, reboot");
+            sync_and_restart();
+            return;
+        }
     }
 
-    if (userConfig->wifiSettingsChanged && (millis() > wifiConnectTimeout))
+    if (userConfig->wifiSettingsChanged && wifiConnectActive && (millis() - wifiConnectStart >= 30000))
     {
         bool connected = (WiFi.status() == WL_CONNECTED);
         RINFO("30 seconds since WiFi settings change, connected to access point: %s", (connected) ? "true" : "false");
@@ -258,7 +280,8 @@ void improv_loop()
             WiFi.setPhyMode((WiFiPhyMode_t)0);
             write_config_to_file();
             // Now try and reconnect...
-            wifiConnectTimeout = millis() + 30000;
+            wifiConnectStart = millis();
+            wifiConnectActive = true;
             WiFi.reconnect();
             return;
         }
@@ -275,7 +298,8 @@ void improv_loop()
                 ip.fromString("0.0.0.0");
                 WiFi.config(ip, ip, ip);
                 // Now try and reconnect...
-                wifiConnectTimeout = millis() + 30000;
+                wifiConnectStart = millis();
+                wifiConnectActive = true;
                 WiFi.reconnect();
                 return;
             } else {

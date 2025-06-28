@@ -85,10 +85,9 @@ extern "C" uint32_t __crc_val;
 // Track our memory usage
 uint32_t free_heap = 65535;
 uint32_t min_heap = 65535;
-unsigned long next_heap_check = 0;
 
 bool status_done = false;
-unsigned long status_timeout;
+unsigned long status_start = 0;
 
 /********************************** MAIN LOOP CODE *****************************************/
 
@@ -132,7 +131,7 @@ void setup()
     led.idle();
     RINFO("=== RATGDO setup complete ===");
     RINFO("=============================");
-    status_timeout = millis() + 2000;
+    status_start = millis();
 }
 
 void loop()
@@ -152,7 +151,7 @@ void loop()
     {
         homekit_loop();
     }
-    else if (millis() > status_timeout)
+    else if (millis() - status_start > 2000)
     {
         RINFO("Status timeout, starting homekit");
         status_done = true;
@@ -352,7 +351,7 @@ void service_timer_loop()
     led.flash();
 
     // Motion Clear Timer
-    if (garage_door.motion && (current_millis > garage_door.motion_timer))
+    if (garage_door.motion && garage_door.motion_timer > 0 && (int32_t)(current_millis - garage_door.motion_timer) >= 0)
     {
         RINFO("Motion Cleared");
         garage_door.motion = false;
@@ -360,9 +359,10 @@ void service_timer_loop()
     }
 
     // Check heap
-    if (current_millis > next_heap_check)
+    static unsigned long last_heap_check = 0;
+    if (current_millis - last_heap_check >= 1000)
     {
-        next_heap_check = current_millis + 1000;
+        last_heap_check = current_millis;
         free_heap = ESP.getFreeHeap();
         if (free_heap < min_heap)
         {
@@ -421,7 +421,7 @@ void LED::flash(unsigned long ms)
         digitalWrite(LED_BUILTIN, activeState);
         resetTime = millis() + ms;
     }
-    else if ((digitalRead(LED_BUILTIN) == activeState) && (millis() > resetTime))
+    else if ((digitalRead(LED_BUILTIN) == activeState) && resetTime > 0 && (int32_t)(millis() - resetTime) >= 0)
     {
         digitalWrite(LED_BUILTIN, idleState);
     }

@@ -1449,15 +1449,18 @@ void manual_recovery()
 {
     // Increment counter every time button is pushed.  If we hit 5 in 3 seconds,
     // go to WiFi recovery mode
+    static unsigned long start_time = 0;
+    
     if (force_recover.push_count++ == 0)
     {
         RINFO("Push count start");
-        force_recover.timeout = millis() + 3000;
+        start_time = millis();
     }
-    else if (millis() > force_recover.timeout)
+    else if (millis() - start_time > 3000)
     {
         RINFO("Push count reset");
         force_recover.push_count = 0;
+        start_time = millis();
     }
     RINFO("Push count %d", force_recover.push_count);
 

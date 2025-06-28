@@ -70,7 +70,6 @@ struct GarageDoor
 struct ForceRecover
 {
     uint8_t push_count;
-    unsigned long timeout;
 };
 
 class LED
