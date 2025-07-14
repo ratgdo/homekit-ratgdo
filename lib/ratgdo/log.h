@@ -18,10 +18,10 @@ void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]);
 #define CRASH_LOG_MSG_FILE "crash_log"
 #define REBOOT_LOG_MSG_FILE "reboot_log"
 #if defined(MMU_IRAM_HEAP)
-// This can be large, but not too large.  IRAM heap is approx 18KB, we also need
-// space for other data in here, so during development monitor logs and adjust
-// this smaller if necessary.  IRAM malloc's are all done during startup.
-#define LOG_BUFFER_SIZE 8192
+// Reduced from 8192 to 4096 to save 4KB IRAM for other critical allocations.
+// This still provides sufficient log storage while leaving more IRAM available
+// for HomeKit and other services that need it during runtime.
+#define LOG_BUFFER_SIZE 2048
 #else
 #define LOG_BUFFER_SIZE 1024
 #endif

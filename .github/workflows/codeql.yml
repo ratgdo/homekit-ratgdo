@@ -1,0 +1,76 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '22 21 * * 1'
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'cpp', 'python', 'javascript' ]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup Python
+      if: matrix.language == 'python'
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Setup Node.js
+      if: matrix.language == 'javascript'
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Setup PlatformIO
+      if: matrix.language == 'cpp'
+      run: |
+        pip install platformio
+        pio update
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+
+    - name: Build C++
+      if: matrix.language == 'cpp'
+      run: |
+        pio pkg install
+        # Just build with include path - no need to pre-compile
+        PLATFORMIO_BUILD_FLAGS="-Ilib/secplus/src" pio run -e ratgdo_esp8266_hV25
+
+    - name: Build Python
+      if: matrix.language == 'python'
+      run: |
+        python -m py_compile *.py
+        find . -name "*.py" -exec python -m py_compile {} \;
+
+    - name: Build JavaScript
+      if: matrix.language == 'javascript'
+      run: |
+        echo "JavaScript files found, no build needed"
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}}"

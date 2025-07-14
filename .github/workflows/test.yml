@@ -1,0 +1,127 @@
+name: Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+    
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install platformio
+    
+    - name: Install cppcheck
+      run: sudo apt-get install -y cppcheck
+    
+    - name: Build for ESP8266
+      run: pio run -e esp8266
+    
+    - name: Build for test environments
+      run: pio run -e test_rollover
+    
+    - name: Run unit tests
+      run: |
+        # Run tests that exist
+        if [ -f "test/test_core/test_main.cpp" ]; then
+          pio test -e native --filter test_core
+        fi
+        if [ -f "test/test_packet/test_main.cpp" ]; then
+          pio test -e native --filter test_packet
+        fi
+        if [ -f "test/test_reader/test_main.cpp" ]; then
+          pio test -e native --filter test_reader
+        fi
+    
+    - name: Run integration tests
+      run: |
+        if [ -f "test/test_integration/test_main.cpp" ]; then
+          pio test -e test_integration --filter test_integration
+        fi
+    
+    - name: Run performance tests
+      run: |
+        if [ -f "test/test_performance/test_main.cpp" ]; then
+          pio test -e test_performance --filter test_performance
+        fi
+    
+    - name: Run hardware simulation tests
+      run: |
+        if [ -f "test/test_hardware/test_main.cpp" ]; then
+          pio test -e test_hardware --filter test_hardware
+        fi
+    
+    - name: Check memory usage
+      run: |
+        # Build and check memory usage
+        pio run -e esp8266 -t size | tee memory_usage.txt
+        
+        # Extract and check RAM usage
+        RAM_USAGE=$(grep "RAM:" memory_usage.txt | awk '{print $4}' | tr -d '%' | cut -d'.' -f1 || echo "0")
+        FLASH_USAGE=$(grep "Flash:" memory_usage.txt | awk '{print $4}' | tr -d '%' | cut -d'.' -f1 || echo "0")
+        
+        echo "RAM Usage: ${RAM_USAGE}%"
+        echo "Flash Usage: ${FLASH_USAGE}%"
+        
+        # Fail if usage is too high
+        if [ "${RAM_USAGE}" -gt 85 ]; then
+          echo "::error::RAM usage too high: ${RAM_USAGE}%"
+          exit 1
+        fi
+        
+        if [ "${FLASH_USAGE}" -gt 95 ]; then
+          echo "::error::Flash usage too high: ${FLASH_USAGE}%"
+          exit 1
+        fi
+    
+    - name: Run static analysis
+      run: |
+        # Run cppcheck and capture output
+        cppcheck --enable=all --std=c++11 --platform=unix32 \
+          --suppress=missingIncludeSystem \
+          --suppress=missingInclude \
+          --suppress=unusedFunction \
+          --suppress=syntaxError:src/homekit_decl.c:67 \
+          --suppress=unknownMacro \
+          --quiet \
+          src/ lib/ratgdo/ 2>&1 | tee cppcheck_output.txt
+        
+        # Check for actual errors (not style/performance/information)
+        # Exclude known false positives
+        if grep -E "error:" cppcheck_output.txt | grep -v "homekit_decl.c:67" | grep -v "PROGMEM"; then
+          echo "::error::Cppcheck found errors"
+          exit 1
+        fi
+    
+    - name: Run web interface tests
+      run: |
+        if [ -f "test/web/test_web_api.py" ]; then
+          pip install requests
+          cd test/web && python test_web_api.py
+        fi
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: build-artifacts
+        path: |
+          .pio/build/*/firmware.bin
+          .pio/build/*/firmware.elf
+          memory_usage.txt

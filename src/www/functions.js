@@ -296,6 +296,18 @@ function setElementsFromStatus(status) {
             case "freeIramHeap":
                 // Unused... remove this case statement when/if we add to html.
                 break;
+            case "webRequests":
+                // No-op: Performance metric, not displayed in UI
+                break;
+            case "webCacheHits":
+                // No-op: Performance metric, not displayed in UI
+                break;
+            case "webDroppedConns":
+                // No-op: Performance metric, not displayed in UI
+                break;
+            case "webMaxResponseTime":
+                // No-op: Performance metric, not displayed in UI
+                break;
             default:
                 try {
                     document.getElementById(key).innerHTML = value;

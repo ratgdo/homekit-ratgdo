@@ -30,37 +30,37 @@ char device_name_rfc952[DEVICE_NAME_SIZE] = "";
 char serial_number[SERIAL_NAME_SIZE] = "";
 
 homekit_characteristic_t active_state = HOMEKIT_CHARACTERISTIC_(
-    STATUS_ACTIVE, false, );
+    STATUS_ACTIVE, false);
 
 homekit_characteristic_t current_door_state = HOMEKIT_CHARACTERISTIC_(
-    CURRENT_DOOR_STATE, HOMEKIT_CHARACTERISTIC_CURRENT_DOOR_STATE_CLOSED,
+    CURRENT_DOOR_STATE, HOMEKIT_CHARACTERISTIC_CURRENT_DOOR_STATE_CLOSED
     //.getter=current_door_state_get,
     //.setter=NULL
 );
 
 homekit_characteristic_t target_door_state = HOMEKIT_CHARACTERISTIC_(
-    TARGET_DOOR_STATE, HOMEKIT_CHARACTERISTIC_TARGET_DOOR_STATE_CLOSED,
+    TARGET_DOOR_STATE, HOMEKIT_CHARACTERISTIC_TARGET_DOOR_STATE_CLOSED
     //.getter=target_door_state_get,
     //.setter=target_door_state_set
 );
 
 homekit_characteristic_t obstruction_detected = HOMEKIT_CHARACTERISTIC_(
-    OBSTRUCTION_DETECTED, false,
+    OBSTRUCTION_DETECTED, false
     //.getter=obstruction_detected_get,
     //.setter=NULL
 );
 
 homekit_characteristic_t current_lock_state = HOMEKIT_CHARACTERISTIC_(
-    LOCK_CURRENT_STATE, HOMEKIT_CHARACTERISTIC_CURRENT_LOCK_STATE_UNSECURED, );
+    LOCK_CURRENT_STATE, HOMEKIT_CHARACTERISTIC_CURRENT_LOCK_STATE_UNSECURED);
 
 homekit_characteristic_t target_lock_state = HOMEKIT_CHARACTERISTIC_(
-    LOCK_TARGET_STATE, HOMEKIT_CHARACTERISTIC_TARGET_LOCK_STATE_UNSECURED, );
+    LOCK_TARGET_STATE, HOMEKIT_CHARACTERISTIC_TARGET_LOCK_STATE_UNSECURED);
 
 homekit_characteristic_t light_state = HOMEKIT_CHARACTERISTIC_(
-    ON, false, );
+    ON, false);
 
 homekit_characteristic_t motion_detected = HOMEKIT_CHARACTERISTIC_(
-    MOTION_DETECTED, false, );
+    MOTION_DETECTED, false);
 
 // Declare and define the accessory
 homekit_accessory_t *accessories[] = {

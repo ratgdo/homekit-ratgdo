@@ -46,6 +46,7 @@ SecPlus2Reader reader;
 uint32_t id_code = 0;
 uint32_t rolling_code = 0;
 uint32_t last_saved_code = 0;
+static bool rolling_code_operation_in_progress = false;
 #define MAX_CODES_WITHOUT_FLASH_WRITE 10
 
 /******************************* SECURITY 1.0 *********************************/
@@ -172,8 +173,16 @@ void setup_comms()
 
 void save_rolling_code()
 {
+    // Prevent concurrent rolling code operations
+    if (rolling_code_operation_in_progress) {
+        return;
+    }
+    rolling_code_operation_in_progress = true;
+    
     write_int_to_file("rolling", rolling_code);
     last_saved_code = rolling_code;
+    
+    rolling_code_operation_in_progress = false;
 }
 
 void reset_door()
@@ -293,8 +302,15 @@ void comms_loop_sec1()
         }
         else
         {
-            // save next byte
-            rx_packet[byte_count++] = ser_byte;
+            // save next byte with bounds checking to prevent overflow
+            if (byte_count < sizeof(rx_packet)) {
+                rx_packet[byte_count++] = ser_byte;
+            } else {
+                RERROR("SEC1 RX buffer overflow, discarding packet");
+                reading_msg = false;
+                byte_count = 0;
+                return;
+            }
 
             if (byte_count == RX_LENGTH)
             {
@@ -304,7 +320,7 @@ void comms_loop_sec1()
                 gotMessage = true;
             }
 
-            if (gotMessage == false && (millis() - last_rx) > 100)
+            if (gotMessage == false && ((int32_t)(millis() - last_rx) > 100))
             {
                 RINFO("RX message timeout");
                 // if we have a partial packet and it's been over 100ms since last byte was read,
@@ -370,7 +386,7 @@ void comms_loop_sec1()
             {
             // door status
             case secplus1Codes::DoorStatus:
-
+            {
                 // RINFO("0x38 MSG: %02X",val);
 
                 // 0x5X = stopped
@@ -391,13 +407,27 @@ void comms_loop_sec1()
                 // 110 0x6 stopped
 
                 // sec+1 doors sometimes report wrong door status
-                // require two sequential matching door states
-                // I have not seen this to be the case on my unit (MJS)
-                static uint8_t prevDoor;
-                if (prevDoor != val)
+                // Use improved validation: accept single state if valid, require confirmation for suspicious values
+                static uint8_t prevDoor = 0xFF; // Initialize to invalid value
+                static uint8_t stateConfirmCount = 0;
+                
+                // Accept valid states immediately, but require confirmation for edge cases
+                bool isValidState = (val <= 0x06 && val != 0x03); // 0x03 is not a known valid state
+                
+                if (prevDoor == val)
+                {
+                    stateConfirmCount++;
+                }
+                else
                 {
                     prevDoor = val;
-                    break;
+                    stateConfirmCount = 1;
+                }
+                
+                // Accept immediately if valid state, or if confirmed twice for edge cases
+                if (!isValidState && stateConfirmCount < 2)
+                {
+                    break; // Wait for confirmation on suspicious values
                 }
 
                 switch (val)
@@ -515,6 +545,7 @@ void comms_loop_sec1()
                 }
 
                 break;
+            }
 
             // objstruction states (not confirmed)
             case secplus1Codes::ObstructionStatus:
@@ -605,17 +636,17 @@ void comms_loop_sec1()
         if (!wallPanelDetected)
         {
             // no wall panel
-            okToSend = (now - last_rx > 20);        // after 20ms since last rx
-            okToSend &= (now - last_tx > 20);       // after 20ms since last tx
-            okToSend &= (now - last_tx > cmdDelay); // after any command delays
+            okToSend = ((int32_t)(now - last_rx) > 20);        // after 20ms since last rx
+            okToSend &= ((int32_t)(now - last_tx) > 20);       // after 20ms since last tx
+            okToSend &= ((int32_t)(now - last_tx) > (int32_t)cmdDelay); // after any command delays
         }
         else
         {
             // digitial wall pnael
-            okToSend = (now - last_rx > 20);        // after 20ms since last rx
-            okToSend &= (now - last_rx < 200);      // before 200ms since last rx
-            okToSend &= (now - last_tx > 20);       // after 20ms since last tx
-            okToSend &= (now - last_tx > cmdDelay); // after any command delays
+            okToSend = ((int32_t)(now - last_rx) > 20);        // after 20ms since last rx
+            okToSend &= ((int32_t)(now - last_rx) < 200);      // before 200ms since last rx
+            okToSend &= ((int32_t)(now - last_tx) > 20);       // after 20ms since last tx
+            okToSend &= ((int32_t)(now - last_tx) > (int32_t)cmdDelay); // after any command delays
         }
 
         // OK to send based on above rules
@@ -890,6 +921,38 @@ void comms_loop_sec2()
                 break;
             }
 
+            case PacketCommand::Pair3Resp:
+            {
+                // Only use Pair3Resp for obstruction detection if no sensor detected
+                if (!obstruction_sensor_detected) {
+                    // Use Pair3Resp packets for obstruction detection via parity
+                    // Parity 3 = clear, Parity 4 = obstructed
+                    uint8_t parity = pkt.m_data.value.no_data.parity;
+                    bool currently_obstructed = (parity == 4);
+                    
+                    // Only update if obstruction state has changed
+                    if (garage_door.obstructed != currently_obstructed)
+                    {
+                    garage_door.obstructed = currently_obstructed;
+                    RINFO("Obstruction %s (Pair3Resp parity %d)", 
+                          currently_obstructed ? "Detected" : "Clear", parity);
+                    
+                    // Notify HomeKit of the state change
+                    notify_homekit_obstruction();
+                    digitalWrite(STATUS_OBST_PIN, garage_door.obstructed);
+                    
+                    // Trigger motion detection if enabled
+                    if (motionTriggers.bit.obstruction)
+                    {
+                        garage_door.motion_timer = millis() + 5000;
+                        garage_door.motion = garage_door.obstructed;
+                        notify_homekit_motion();
+                    }
+                    }
+                }
+                break;
+            }
+
             default:
                 RINFO("Support for %s packet unimplemented. Ignoring.", PacketCommand::to_string(pkt.m_pkt_cmd));
                 break;
@@ -898,7 +961,8 @@ void comms_loop_sec2()
     }
 
     // Save rolling code if we have exceeded max limit.
-    if (rolling_code >= (last_saved_code + MAX_CODES_WITHOUT_FLASH_WRITE))
+    // Only check if no rolling code operation is in progress to prevent race conditions
+    if (!rolling_code_operation_in_progress && rolling_code >= (last_saved_code + MAX_CODES_WITHOUT_FLASH_WRITE))
     {
         save_rolling_code();
     }
@@ -1025,7 +1089,10 @@ bool transmitSec2(PacketAction &pkt_ac)
 
         if (pkt_ac.inc_counter)
         {
-            rolling_code = (rolling_code + 1) & 0xfffffff;
+            // Protect rolling code increment from concurrent access
+            if (!rolling_code_operation_in_progress) {
+                rolling_code = (rolling_code + 1) & 0xfffffff;
+            }
         }
     }
 
