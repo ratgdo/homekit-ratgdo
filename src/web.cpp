@@ -870,6 +870,7 @@ void handle_setgdo()
     const char *value;
     bool reboot = false;
     bool error = false;
+    bool configChanged = false;
 
     if (!((server.args() == 1) && (server.argName(0) == "timeZone")))
     {
@@ -948,11 +949,13 @@ void handle_setgdo()
                 // save values...
                 strlcpy(userConfig->wwwUsername, newUsername, sizeof(userConfig->wwwUsername));
                 strlcpy(userConfig->wwwCredentials, newCredentials, sizeof(userConfig->wwwCredentials));
+                configChanged = true;
             }
             else
             {
                 // old implementation... before JSON form of parameter.
                 strlcpy(userConfig->wwwCredentials, value, sizeof(userConfig->wwwCredentials));
+                configChanged = true;
             }
         }
         else if (!strcmp(key, "GDOSecurityType"))
@@ -964,6 +967,7 @@ void handle_setgdo()
                 // reset the door opener ID, rolling code and presence of motion sensor.
                 reset_door();
                 userConfig->gdoSecurityType = type;
+                configChanged = true;
                 reboot = true;
             }
             else
@@ -982,15 +986,18 @@ void handle_setgdo()
         {
             RINFO("Request to boot into soft access point mode");
             userConfig->softAPmode = true;
+            configChanged = true;
             reboot = true;
         }
         else if (!strcmp(key, "passwordRequired"))
         {
             userConfig->wwwPWrequired = atoi(value) != 0;
+            configChanged = true;
         }
         else if (!strcmp(key, "rebootSeconds"))
         {
             userConfig->rebootSeconds = atoi(value);
+            configChanged = true;
             reboot = (userConfig->rebootSeconds != 0);
         }
         else if (!strcmp(key, "deviceName"))
@@ -999,6 +1006,7 @@ void handle_setgdo()
             {
                 strlcpy(device_name, value, sizeof(device_name));
                 strlcpy(userConfig->deviceName, value, sizeof(userConfig->deviceName));
+                configChanged = true;
             }
         }
         else if (!strcmp(key, "wifiPhyMode"))
@@ -1009,6 +1017,7 @@ void handle_setgdo()
                 // Setting has changed.  Write new value and note that change has taken place
                 userConfig->wifiPhyMode = wifiPhyMode;
                 userConfig->wifiSettingsChanged = true;
+                configChanged = true;
                 reboot = true;
             }
         }
@@ -1020,6 +1029,7 @@ void handle_setgdo()
                 // Setting has changed.  Write new value and note that change has taken place
                 userConfig->wifiPower = wifiPower;
                 userConfig->wifiSettingsChanged = true;
+                configChanged = true;
                 reboot = true;
             }
         }
@@ -1027,6 +1037,7 @@ void handle_setgdo()
         {
             userConfig->staticIP = atoi(value) != 0;
             userConfig->wifiSettingsChanged = true;
+            configChanged = true;
             reboot = true;
         }
         else if (!strcmp(key, "subnetMask"))
@@ -1036,6 +1047,7 @@ void handle_setgdo()
                 strlcpy(userConfig->IPnetmask, value, sizeof(userConfig->IPnetmask));
 
                 userConfig->wifiSettingsChanged = true;
+                configChanged = true;
                 reboot = true;
             }
         }
@@ -1046,6 +1058,7 @@ void handle_setgdo()
                 strlcpy(userConfig->IPgateway, value, sizeof(userConfig->IPgateway));
 
                 userConfig->wifiSettingsChanged = true;
+                configChanged = true;
                 reboot = true;
             }
         }
@@ -1056,6 +1069,7 @@ void handle_setgdo()
                 strlcpy(userConfig->IPnameserver, value, sizeof(userConfig->IPnameserver));
 
                 userConfig->wifiSettingsChanged = true;
+                configChanged = true;
                 reboot = true;
             }
         }
@@ -1065,6 +1079,7 @@ void handle_setgdo()
             {
                 strlcpy(userConfig->IPaddress, value, sizeof(userConfig->IPaddress));
                 userConfig->wifiSettingsChanged = true;
+                configChanged = true;
                 reboot = true;
             }
         }
@@ -1073,6 +1088,7 @@ void handle_setgdo()
             RINFO("Setting SyslogEN to %s", value);
             syslogEn = atoi(value) != 0;
             userConfig->syslogEn = syslogEn;
+            configChanged = true;
         }
         else if (!strcmp(key, "syslogIP"))
         {
@@ -1080,15 +1096,18 @@ void handle_setgdo()
             {
                 RINFO("Setting SyslogIP to %s", value);
                 strlcpy(userConfig->syslogIP, value, sizeof(userConfig->syslogIP));
+                configChanged = true;
             }
         }
         else if (!strcmp(key, "syslogPort"))
         {
             userConfig->syslogPort = atoi(value);
+            configChanged = true;
         }
         else if (!strcmp(key, "TTCseconds"))
         {
             userConfig->TTCdelay = atoi(value);
+            configChanged = true;
         }
         else if (!strcmp(key, "motionTriggers"))
         {
@@ -1097,21 +1116,25 @@ void handle_setgdo()
             reboot = (((triggers == 0) && (motionTriggers.asInt != 0)) || ((triggers != 0) && (motionTriggers.asInt == 0)));
             motionTriggers.asInt = triggers;
             userConfig->motionTriggers = motionTriggers.asInt;
+            configChanged = true;
         }
         else if (!strcmp(key, "LEDidle"))
         {
             userConfig->ledIdleState = atoi(value);
             led.setIdleState(userConfig->ledIdleState);
+            configChanged = true;
         }
 #ifdef NTP_CLIENT
         else if (!strcmp(key, "enableNTP"))
         {
             userConfig->enableNTP = atoi(value) != 0;
+            configChanged = true;
             reboot = true;
         }
         else if (!strcmp(key, "timeZone"))
         {
             strlcpy(userConfig->timeZone, value, sizeof(userConfig->timeZone));
+            configChanged = true;
             // semicolon separates continent/city from POSIX time zone string
             char *tz = strchr(userConfig->timeZone, ';');
             if (tz)
@@ -1173,7 +1196,10 @@ void handle_setgdo()
         return;
     }
 
-    write_config_to_file();
+    if (configChanged)
+    {
+        write_config_to_file();
+    }
     if (reboot)
     {
         // Some settings require reboot to take effect
