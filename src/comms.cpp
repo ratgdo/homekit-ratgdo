@@ -796,6 +796,27 @@ void comms_loop_sec2()
                     notify_homekit_current_lock();
                 }
 
+                // Handle obstruction from status packet if pin-based detection not available
+                if (!obstruction_sensor_detected)
+                {
+                    // Status packet obstruction field is inverted: 1=clear, 0=obstructed
+                    bool status_obstructed = !pkt.m_data.value.status.obstruction;
+                    if (garage_door.obstructed != status_obstructed)
+                    {
+                        garage_door.obstructed = status_obstructed;
+                        RINFO("Obstruction %s (Status packet)", status_obstructed ? "Detected" : "Clear");
+                        notify_homekit_obstruction();
+                        digitalWrite(STATUS_OBST_PIN, garage_door.obstructed);
+                        
+                        if (motionTriggers.bit.obstruction)
+                        {
+                            garage_door.motion_timer = millis() + 5000;
+                            garage_door.motion = garage_door.obstructed;
+                            notify_homekit_motion();
+                        }
+                    }
+                }
+
                 status_done = true;
                 break;
             }
@@ -936,6 +957,7 @@ void comms_loop_sec2()
                     garage_door.obstructed = currently_obstructed;
                     RINFO("Obstruction %s (Pair3Resp parity %d)", 
                           currently_obstructed ? "Detected" : "Clear", parity);
+                    
                     
                     // Notify HomeKit of the state change
                     notify_homekit_obstruction();

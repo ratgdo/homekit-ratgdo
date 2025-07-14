@@ -66,6 +66,7 @@ struct obstruction_sensor_t
 {
     unsigned int low_count = 0;    // count obstruction low pulses
     unsigned long last_asleep = 0; // count time between high pulses from the obst ISR
+    bool pin_ever_changed = false; // track if pin has ever changed from initial state
 } obstruction_sensor;
 
 // long unsigned int led_reset_time = 0; // Stores time when LED should return to idle state
@@ -298,6 +299,7 @@ void obstruction_timer()
         if (pulse_count > PULSES_LOWER_LIMIT)
         {
             // We're getting pulses, so pin detection is working
+            obstruction_sensor.pin_ever_changed = true;
             if (!obstruction_sensor_detected) {
                 obstruction_sensor_detected = true;
                 RINFO("Pin-based obstruction detection active");
@@ -322,15 +324,22 @@ void obstruction_timer()
             // if there have been no pulses the line is steady high or low
             if (!digitalRead(INPUT_OBST_PIN))
             {
-                // asleep
+                // asleep - pin went LOW, so it's not stuck HIGH
                 obstruction_sensor.last_asleep = current_millis;
+                obstruction_sensor.pin_ever_changed = true;
             }
             else
             {
                 // if the line is high and was last asleep more than 700ms ago, then there is an obstruction present
-                // BUT only trust this if we've confirmed the sensor works by detecting pulses
-                if (obstruction_sensor_detected && current_millis - obstruction_sensor.last_asleep > 700)
+                if (current_millis - obstruction_sensor.last_asleep > 700)
                 {
+                    // Don't trust a HIGH pin that has never changed - likely floating/stuck
+                    if (!obstruction_sensor.pin_ever_changed)
+                    {
+                        // Pin has been HIGH since boot, probably no sensor connected
+                        return;
+                    }
+                    
                     // Only update if we are changing state
                     if (!garage_door.obstructed)
                     {
