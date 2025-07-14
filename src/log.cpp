@@ -111,8 +111,18 @@ void logToBuffer_P(const char *fmt, ...)
         Serial.printf_P(PSTR("IRAM heap size %d\n"), MMU_SEC_HEAP_SIZE);
 #endif
         msgBuffer = (logBuffer *)malloc(sizeof(logBuffer));
+        if (!msgBuffer) {
+            Serial.println("FATAL: Failed to allocate message log buffer");
+            ESP.restart();
+            return;
+        }
         Serial.printf_P(PSTR("Allocated %d bytes for message log buffer\n"), sizeof(logBuffer));
         lineBuffer = (char *)malloc(LINE_BUFFER_SIZE);
+        if (!lineBuffer) {
+            Serial.println("FATAL: Failed to allocate line buffer");
+            ESP.restart();
+            return;
+        }
         Serial.printf_P(PSTR("Allocated %d bytes for line buffer\n"), LINE_BUFFER_SIZE);
         // Fill the buffer with space chars... because if we crash and dump buffer before it fills
         // up, we want blank space not garbage! Nothing is null-terminated in this circular buffer.

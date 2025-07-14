@@ -93,6 +93,7 @@ public:
 };
 
 extern LED led;
+extern bool obstruction_sensor_detected;
 
 #define LOOP_SYSTEM 0
 #define LOOP_IMPROV 1

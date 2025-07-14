@@ -320,6 +320,7 @@ bool connect_wifi(const std::string &ssid, const std::string &password)
 bool connect_wifi(const std::string &ssid, const std::string &password, const uint8_t *bssid)
 {
     uint8_t count = 0;
+    unsigned long start_time = millis();
 
     WiFi.persistent(true); // Set persist to store wifi credentials
     WiFi.begin(ssid.c_str(), password.c_str(), 0, bssid);
@@ -327,14 +328,21 @@ bool connect_wifi(const std::string &ssid, const std::string &password, const ui
 
     while (WiFi.status() != WL_CONNECTED)
     {
-        delay(500);
+        delay(100); // Reduced delay for better responsiveness
         yield();
-        if (count > MAX_ATTEMPTS_WIFI_CONNECTION)
+        
+        // Check both attempt count and total time to prevent watchdog timeout
+        if (count > MAX_ATTEMPTS_WIFI_CONNECTION || (millis() - start_time) > 10000) // 10 second timeout
         {
+            RINFO("WiFi connection timeout after %lu ms, %d attempts", millis() - start_time, count);
             WiFi.disconnect();
             return false;
         }
-        count++;
+        
+        // Only increment count every 500ms to maintain same retry logic
+        if (count * 100 % 500 == 0) {
+            count++;
+        }
     }
     return true;
 }
@@ -430,8 +438,20 @@ bool on_command_callback(improv::ImprovCommand cmd)
 void get_available_wifi_networks()
 {
     int networkNum = WiFi.scanNetworks();
+    
+    // Limit to prevent stack overflow in dense WiFi environments (reduced from 50 to 20 for ESP8266)
+    const int MAX_NETWORKS = 20;
+    if (networkNum > MAX_NETWORKS) {
+        RINFO("Found %d networks, limiting to %d to prevent stack overflow", networkNum, MAX_NETWORKS);
+        networkNum = MAX_NETWORKS;
+    }
 
-    int sortedIndicies[networkNum];
+    // Allocate dynamically to prevent stack overflow
+    int *sortedIndicies = (int*)malloc(sizeof(int) * networkNum);
+    if (!sortedIndicies) {
+        RERROR("Failed to allocate memory for WiFi network sorting");
+        return;
+    }
     for (int i = 0; i < networkNum; i++)
     {
         sortedIndicies[i] = i;
@@ -478,6 +498,9 @@ void get_available_wifi_networks()
     std::vector<uint8_t> data =
         improv::build_rpc_response(improv::GET_WIFI_NETWORKS, std::vector<std::string>{}, false);
     send_response(data);
+
+    // Clean up dynamically allocated memory
+    free(sortedIndicies);
 
     // delete scan from memory
     WiFi.scanDelete();

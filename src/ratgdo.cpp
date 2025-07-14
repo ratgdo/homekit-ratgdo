@@ -85,6 +85,10 @@ extern "C" uint32_t __crc_val;
 // Track our memory usage
 uint32_t free_heap = 65535;
 uint32_t min_heap = 65535;
+#ifdef MMU_IRAM_HEAP
+uint32_t free_iram = 65535;
+uint32_t min_iram = 65535;
+#endif
 
 bool status_done = false;
 unsigned long status_start = 0;
@@ -264,8 +268,13 @@ void IRAM_ATTR isr_obstruction()
     obstruction_sensor.low_count++;
 }
 
+// Track if we've detected a working obstruction sensor
+bool obstruction_sensor_detected = false;  // Make it globally accessible for comms.cpp
+
 void obstruction_timer()
 {
+    // Always try pin-based detection
+    
     unsigned long current_millis = millis();
     static unsigned long last_millis = 0;
 
@@ -279,9 +288,21 @@ void obstruction_timer()
     const long PULSES_LOWER_LIMIT = 3;
     if (current_millis - last_millis > CHECK_PERIOD)
     {
+        // Atomically read and reset the pulse count to prevent race with ISR
+        noInterrupts();
+        unsigned int pulse_count = obstruction_sensor.low_count;
+        obstruction_sensor.low_count = 0;
+        interrupts();
+        
         // check to see if we got more then PULSES_LOWER_LIMIT pulses
-        if (obstruction_sensor.low_count > PULSES_LOWER_LIMIT)
+        if (pulse_count > PULSES_LOWER_LIMIT)
         {
+            // We're getting pulses, so pin detection is working
+            if (!obstruction_sensor_detected) {
+                obstruction_sensor_detected = true;
+                RINFO("Pin-based obstruction detection active");
+            }
+            
             // Only update if we are changing state
             if (garage_door.obstructed)
             {
@@ -296,7 +317,7 @@ void obstruction_timer()
                 }
             }
         }
-        else if (obstruction_sensor.low_count == 0)
+        else if (pulse_count == 0)
         {
             // if there have been no pulses the line is steady high or low
             if (!digitalRead(INPUT_OBST_PIN))
@@ -307,7 +328,8 @@ void obstruction_timer()
             else
             {
                 // if the line is high and was last asleep more than 700ms ago, then there is an obstruction present
-                if (current_millis - obstruction_sensor.last_asleep > 700)
+                // BUT only trust this if we've confirmed the sensor works by detecting pulses
+                if (obstruction_sensor_detected && current_millis - obstruction_sensor.last_asleep > 700)
                 {
                     // Only update if we are changing state
                     if (!garage_door.obstructed)
@@ -327,7 +349,6 @@ void obstruction_timer()
         }
 
         last_millis = current_millis;
-        obstruction_sensor.low_count = 0;
     }
 }
 
@@ -358,7 +379,7 @@ void service_timer_loop()
         notify_homekit_motion();
     }
 
-    // Check heap
+    // Check heap (both regular and IRAM)
     static unsigned long last_heap_check = 0;
     if (current_millis - last_heap_check >= 1000)
     {
@@ -369,6 +390,19 @@ void service_timer_loop()
             min_heap = free_heap;
             RINFO("Free heap dropped to %d", min_heap);
         }
+        
+#ifdef MMU_IRAM_HEAP
+        // Also track IRAM heap usage
+        {
+            HeapSelectIram ephemeral;
+            free_iram = ESP.getFreeHeap();
+            if (free_iram < min_iram)
+            {
+                min_iram = free_iram;
+                RINFO("Free IRAM heap dropped to %d", min_iram);
+            }
+        }
+#endif
     }
 }
 
