@@ -969,7 +969,6 @@ void handle_setgdo()
                 userConfig->gdoSecurityType = type;
                 configChanged = true;
                 reboot = true;
-                configChanged = true;
             }
             else
             {
@@ -989,7 +988,6 @@ void handle_setgdo()
             userConfig->softAPmode = true;
             configChanged = true;
             reboot = true;
-            configChanged = true;
         }
         else if (!strcmp(key, "passwordRequired"))
         {
@@ -1001,7 +999,6 @@ void handle_setgdo()
             userConfig->rebootSeconds = atoi(value);
             configChanged = true;
             reboot = (userConfig->rebootSeconds != 0);
-            configChanged = true;
         }
         else if (!strcmp(key, "deviceName"))
         {
@@ -1022,7 +1019,6 @@ void handle_setgdo()
                 userConfig->wifiSettingsChanged = true;
                 configChanged = true;
                 reboot = true;
-                configChanged = true;
             }
         }
         else if (!strcmp(key, "wifiPower"))
@@ -1035,7 +1031,6 @@ void handle_setgdo()
                 userConfig->wifiSettingsChanged = true;
                 configChanged = true;
                 reboot = true;
-                configChanged = true;
             }
         }
         else if (!strcmp(key, "staticIP"))
@@ -1044,7 +1039,6 @@ void handle_setgdo()
             userConfig->wifiSettingsChanged = true;
             configChanged = true;
             reboot = true;
-            configChanged = true;
         }
         else if (!strcmp(key, "subnetMask"))
         {
@@ -1055,7 +1049,6 @@ void handle_setgdo()
                 userConfig->wifiSettingsChanged = true;
                 configChanged = true;
                 reboot = true;
-                configChanged = true;
             }
         }
         else if (!strcmp(key, "gatewayIP"))
@@ -1067,7 +1060,6 @@ void handle_setgdo()
                 userConfig->wifiSettingsChanged = true;
                 configChanged = true;
                 reboot = true;
-                configChanged = true;
             }
         }
         else if (!strcmp(key, "nameserverIP"))
@@ -1079,7 +1071,6 @@ void handle_setgdo()
                 userConfig->wifiSettingsChanged = true;
                 configChanged = true;
                 reboot = true;
-                configChanged = true;
             }
         }
         else if (!strcmp(key, "localIP"))
@@ -1090,7 +1081,6 @@ void handle_setgdo()
                 userConfig->wifiSettingsChanged = true;
                 configChanged = true;
                 reboot = true;
-                configChanged = true;
             }
         }
         else if (!strcmp(key, "syslogEn"))
