@@ -245,6 +245,7 @@ struct SSESubscription
     IPAddress clientIP;
     WiFiClient client;
     Ticker heartbeatTimer;
+    float heartbeatInterval;
     bool SSEconnected;
     int SSEfailCount;
     String clientUUID;
@@ -1270,7 +1271,8 @@ void SSEheartbeat(SSESubscription *s)
         }
         END_JSON(json);
         REMOVE_NL(json);
-        s->client.printf("event: message\nretry: 15000\ndata: %s\n\n", json);
+        // retry needed to before event:
+        s->client.printf("retry: 15000\nevent: message\ndata: %s\n\n", json);
     }
     else
     {
@@ -1312,8 +1314,9 @@ void SSEHandler(uint8_t channel)
     server.sendContent_P(PSTR("HTTP/1.1 200 OK\nContent-Type: text/event-stream;\nConnection: keep-alive\nCache-Control: no-cache\nAccess-Control-Allow-Origin: *\n\n"));
     s.SSEconnected = true;
     s.SSEfailCount = 0;
-    s.heartbeatTimer.attach_scheduled(1.0, [channel, &s]
-                                      { SSEheartbeat(&s); });
+    s.heartbeatTimer.attach_scheduled(s.heartbeatInterval, [channel, &s]{ SSEheartbeat(&s); });
+    // do one now, why make client wait
+    SSEheartbeat(&s);
     RINFO("Client %s listening for SSE events on channel %d", client.remoteIP().toString().c_str(), channel);
 }
 
@@ -1348,15 +1351,18 @@ void handle_subscribe()
         return;
     }
 
-    // find the UUID and whether client wants to receive log messages
+    // find the UUID and whether client wants to receive log messages and setting a heartbeat interval time
     int id = 0;
     bool logViewer = false;
+    int heartbeatIntervalArgIdx = 0;
     for (int i = 0; i < server.args(); i++)
     {
         if (server.argName(i) == "id")
             id = i;
         else if (server.argName(i) == "log")
             logViewer = true;
+        else if (server.argName(i) == "heartbeat")
+            heartbeatIntervalArgIdx = i;
     }
 
     // check if we already have a subscription for this UUID
@@ -1410,7 +1416,23 @@ void handle_subscribe()
         server.send(400, "text/plain", "Invalid client connection");
         return;
     }
-    
+
+    // validate optional heartbeat interval
+    float heartBeatInterval = 1.0;  // default
+    if (heartbeatIntervalArgIdx) {
+        float hbi = server.arg(heartbeatIntervalArgIdx).toFloat();
+        // in range of 0 (no heartbeat) to 60 seconds
+        if (hbi < 0.0 || hbi > 60.00) {
+            RINFO("Invalid client for SSE subscription");
+            server.send(400, "text/plain", "Invalid heartbeat interval (0 - 60)");
+            return;
+        }
+        else {
+            heartBeatInterval = hbi;
+        }
+        RINFO("SSE Subscription for client %s has specified a heartBeatInterval of %2.1f seconds", server.arg(id).c_str(), heartBeatInterval);
+    }
+
     // Safe assignment with validation
     subscription[channel].clientIP = clientIP;
     subscription[channel].client = client;
@@ -1419,6 +1441,7 @@ void handle_subscribe()
     subscription[channel].SSEfailCount = 0;
     subscription[channel].clientUUID = server.arg(id);
     subscription[channel].logViewer = logViewer;
+    subscription[channel].heartbeatInterval = heartBeatInterval;
     
     SSEurl += channel;
     RINFO("SSE Subscription for client %s with IP %s: event bus location: %s, Total subscribed: %d", server.arg(id).c_str(), clientIP.toString().c_str(), SSEurl.c_str(), subscriptionCount);
