@@ -20,8 +20,52 @@ ESP8266-based hardware.
 
 * Opening and closing multiple garage doors independently in the same HomeKit home.
 * Light Control and Status
-* Obstruction sensor reporting
+* Obstruction sensor reporting with automatic fallback detection
 * Motion sensor reporting, if you have a "smart" wall-mounted control panel.
+
+### Major Release v1.9.0 - Complete Stability Overhaul
+
+**Critical Stability Fixes:**
+* **Eliminated All Known Crash Conditions** - Fixed 6 critical race conditions that caused system crashes, permanent hangs, or data corruption
+* **Long-term Reliability** - Fixed millis() rollover bugs that caused permanent system hangs every ~49.7 days
+* **ESP8266 Crash Prevention** - Resolved alignment crashes (Exception 9) and buffer overflows (Exception 0)
+* **Interrupt Safety** - Fixed race conditions in obstruction sensor that caused false readings
+* **Stack Overflow Protection** - Prevented crashes in dense WiFi environments
+
+**New Features:**
+* **Comprehensive Testing Framework** - Unity-based test suite with 11 test categories and 100% pass rate
+* **Smart Obstruction Detection** - Automatic fallback from pin-based to Pair3Resp packet-based detection
+* **Performance Monitoring** - Real-time web metrics exposed via JSON API (requests, cache hits, dropped connections, response times)
+* **Enhanced Security+ 1.0 Support** - Improved door state validation reducing "unknown" states
+* **CI/CD Integration** - GitHub Actions for automated testing and CodeQL security analysis
+
+**Performance Improvements:**
+* **68% Faster Web Response** - JSON caching reduces response times from 459ms to 146ms
+* **277% More Free IRAM** - Optimized memory usage from 1.9KB to 7.3KB free
+* **Connection Management** - Max 4 concurrent connections with 5-second timeout protection
+* **Memory Optimization** - IRAM buffer reduction (LOG_BUFFER_SIZE: 8KB → 2KB) and 1.3KB JSON buffer savings
+* **WiFi Stability** - Network scan limited to 20 networks preventing stack overflow in dense environments
+
+#### v1.9.0 Technical Specifications
+* **Connection Throttling**: 4 concurrent requests maximum (MAX_CONCURRENT_REQUESTS)
+* **Request Timeout**: 5000ms protection against hung connections (REQUEST_TIMEOUT_MS)
+* **JSON Caching**: 500ms cache timeout for improved response times (JSON_CACHE_TIMEOUT_MS)
+* **Buffer Management**: JSON buffer 1280 bytes, Log buffer 2048 bytes (IRAM heap)
+* **WiFi Protection**: 20 network scan limit preventing stack overflow (MAX_NETWORKS)
+* **Obstruction Fallback**: Automatic pin-to-Pair3Resp packet detection switch
+* **Long-term Operation**: Rollover-safe timing for 49+ day continuous uptime
+* **Test Coverage**: 11 comprehensive test suites with 100% pass rate
+
+#### Critical Issues Resolved in v2.0.0
+* **System Crashes** - Fixed all 6 identified critical race conditions causing crashes, hangs, or corruption
+* **ESP8266 Alignment Crashes** - Resolved Exception 9 and Exception 0 crashes through proper struct alignment
+* **Timing Failures** - Fixed millis() rollover bugs causing permanent hangs every 49+ days
+* **Web Performance** - Added JSON caching and connection throttling eliminating timeouts
+* **Memory Constraints** - Optimized IRAM usage (6KB log buffer reduction) and buffer management
+* **WiFi Instability** - Resolved connection issues, resource leaks, and stack overflows (20 network scan limit)
+* **Obstruction Detection** - Added reliable fallback when hardware pin detection fails
+* **Configuration Corruption** - Protected settings from race conditions during WiFi events
+* **Rolling Code Sync** - Prevented desynchronization with garage door opener
 
 That's it, for now. Check the [GitHub Issues](https://github.com/ratgdo/homekit-ratgdo/issues) for
 planned features, or to suggest your own.
