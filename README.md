@@ -56,7 +56,7 @@ ESP8266-based hardware.
 * **Long-term Operation**: Rollover-safe timing for 49+ day continuous uptime
 * **Test Coverage**: 11 comprehensive test suites with 100% pass rate
 
-#### Critical Issues Resolved in v2.0.0
+#### Critical Issues Resolved in v1.9.0
 * **System Crashes** - Fixed all 6 identified critical race conditions causing crashes, hangs, or corruption
 * **ESP8266 Alignment Crashes** - Resolved Exception 9 and Exception 0 crashes through proper struct alignment
 * **Timing Failures** - Fixed millis() rollover bugs causing permanent hangs every 49+ days
