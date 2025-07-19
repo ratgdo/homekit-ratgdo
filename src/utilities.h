@@ -23,13 +23,13 @@ extern bool enableNTP;
 #define IRAM_START \
     {              \
         HeapSelectIram ephemeral;
-#define IRAM_END(location)                                         \
-    RINFO("Free IRAM heap (%s): %d", location, ESP.getFreeHeap()); \
+#define IRAM_END(location)                                                                \
+    ESP_LOGI("ratgdo-utilities", "Free IRAM heap (%s): %d", location, ESP.getFreeHeap()); \
     }
 #else
 #define IRAM_START {
-#define IRAM_END(location)                                    \
-    RINFO("Free heap (%s): %d", location, ESP.getFreeHeap()); \
+#define IRAM_END(location)                                                           \
+    ESP_LOGI("ratgdo-utilities", "Free heap (%s): %d", location, ESP.getFreeHeap()); \
     }
 #endif
 

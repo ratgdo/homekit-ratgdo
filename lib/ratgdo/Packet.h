@@ -69,7 +69,8 @@
 //   implementation.
 
 // Tag for union of data structures attached to packets
-enum class PacketDataType {
+enum class PacketDataType
+{
     NoData,
     Status,
     Light,
@@ -86,7 +87,8 @@ const uint8_t COMMAND_PARITY_SHIFT = 12;
 const uint8_t DOOR_ACTION_MASK = 0b11;
 const uint8_t DOOR_ACTION_SHIFT = 8;
 // valid values for DoorActionCommandData
-enum class DoorAction : uint8_t {
+enum class DoorAction : uint8_t
+{
     Close = 0,
     Open = 1,
     Toggle = 2,
@@ -98,21 +100,24 @@ const uint8_t DOOR_ACTION_PRESSED_SHIFT = 16;
 const uint8_t DOOR_ACTION_ID_MASK = 0b11; // total guess
 const uint8_t DOOR_ACTION_ID_SHIFT = 24;
 // data attached to PacketCommand::DoorAction
-struct DoorActionCommandData {
+struct DoorActionCommandData
+{
     DoorAction action;
     uint8_t parity;
     bool pressed;
     uint8_t id;
 
     DoorActionCommandData() = default;
-    DoorActionCommandData(uint32_t pkt_data) {
+    DoorActionCommandData(uint32_t pkt_data)
+    {
         action = static_cast<DoorAction>((pkt_data >> DOOR_ACTION_SHIFT) & DOOR_ACTION_MASK);
         parity = ((pkt_data >> COMMAND_PARITY_SHIFT) & COMMAND_PARITY_MASK);
         pressed = ((pkt_data >> DOOR_ACTION_PRESSED_SHIFT) & DOOR_ACTION_PRESSED_MASK);
         id = ((pkt_data >> DOOR_ACTION_ID_SHIFT) & DOOR_ACTION_ID_MASK);
     };
 
-    uint32_t to_data(void) {
+    uint32_t to_data(void)
+    {
         uint32_t pkt_data = 0;
         pkt_data |= static_cast<uint32_t>(action) << DOOR_ACTION_SHIFT;
         pkt_data |= parity << COMMAND_PARITY_SHIFT;
@@ -121,83 +126,91 @@ struct DoorActionCommandData {
         return pkt_data;
     };
 
-    void to_string(char* buf, size_t buflen) {
-        const char* d = "invalid door action";
-        switch (action) {
-            case DoorAction::Close:
-                d = "Close";
-                break;
-            case DoorAction::Open:
-                d = "Open";
-                break;
-            case DoorAction::Toggle:
-                d = "Toggle";
-                break;
-            case DoorAction::Stop:
-                d = "Stop";
-                break;
+    void to_string(char *buf, size_t buflen)
+    {
+        const char *d = "invalid door action";
+        switch (action)
+        {
+        case DoorAction::Close:
+            d = "Close";
+            break;
+        case DoorAction::Open:
+            d = "Open";
+            break;
+        case DoorAction::Toggle:
+            d = "Toggle";
+            break;
+        case DoorAction::Stop:
+            d = "Stop";
+            break;
         }
         snprintf(buf, buflen, "DoorAction %s, Pressed %d, Id %02X", d, pressed, id);
     };
 };
 
-const uint8_t LOCK_DATA_MASK   = 0b11;
-const uint8_t LOCK_DATA_SHIFT  = 8;
-//const uint8_t LOCK_DATA_OFF    = 0b00;
-//const uint8_t LOCK_DATA_ON     = 0b01;
-//const uint8_t LOCK_DATA_TOGGLE = 0b10;
-// valid values for LockCommandData
-enum class LockState : uint8_t {
+const uint8_t LOCK_DATA_MASK = 0b11;
+const uint8_t LOCK_DATA_SHIFT = 8;
+// const uint8_t LOCK_DATA_OFF    = 0b00;
+// const uint8_t LOCK_DATA_ON     = 0b01;
+// const uint8_t LOCK_DATA_TOGGLE = 0b10;
+//  valid values for LockCommandData
+enum class LockState : uint8_t
+{
     Off = 0,
     On = 1,
     Toggle = 2
 };
 
 // data attached to PacketCommand::Lock
-struct LockCommandData {
+struct LockCommandData
+{
     LockState lock;
     uint8_t parity;
     bool pressed;
 
     LockCommandData() = default;
-    LockCommandData(uint32_t pkt_data) {
+    LockCommandData(uint32_t pkt_data)
+    {
         lock = static_cast<LockState>((pkt_data >> LOCK_DATA_SHIFT) & LOCK_DATA_MASK);
         parity = ((pkt_data >> COMMAND_PARITY_SHIFT) & COMMAND_PARITY_MASK);
     };
 
-    uint32_t to_data(void) {
+    uint32_t to_data(void)
+    {
         uint32_t pkt_data = 0;
         pkt_data |= static_cast<uint32_t>(lock) << LOCK_DATA_SHIFT;
         pkt_data |= parity << COMMAND_PARITY_SHIFT;
         return pkt_data;
     };
 
-    void to_string(char* buf, size_t buflen) {
-        const char* l = "invalid lock command";
-        switch (lock) {
-            case LockState::Off:
-                l = "Off";
-                break;
-            case LockState::On:
-                l = "On";
-                break;
-            case LockState::Toggle:
-                l = "Toggle";
-                break;
+    void to_string(char *buf, size_t buflen)
+    {
+        const char *l = "invalid lock command";
+        switch (lock)
+        {
+        case LockState::Off:
+            l = "Off";
+            break;
+        case LockState::On:
+            l = "On";
+            break;
+        case LockState::Toggle:
+            l = "Toggle";
+            break;
         }
         snprintf(buf, buflen, "LockState %s", l);
     };
-
 };
 
-const uint8_t LIGHT_DATA_MASK   = 0b11;
-const uint8_t LIGHT_DATA_SHIFT  = 8;
-//const uint8_t LIGHT_DATA_OFF    = 0b00;
-//const uint8_t LIGHT_DATA_ON     = 0b01;
-//const uint8_t LIGHT_DATA_TOGGLE = 0b10;
-//const uint8_t LIGHT_DATA_OFF    = 0b11;
-// valid values for LightCommandData
-enum class LightState : uint8_t {
+const uint8_t LIGHT_DATA_MASK = 0b11;
+const uint8_t LIGHT_DATA_SHIFT = 8;
+// const uint8_t LIGHT_DATA_OFF    = 0b00;
+// const uint8_t LIGHT_DATA_ON     = 0b01;
+// const uint8_t LIGHT_DATA_TOGGLE = 0b10;
+// const uint8_t LIGHT_DATA_OFF    = 0b11;
+//  valid values for LightCommandData
+enum class LightState : uint8_t
+{
     Off = 0,
     On = 1,
     Toggle = 2,
@@ -205,49 +218,54 @@ enum class LightState : uint8_t {
 };
 
 // data attached to PacketCommand::Light
-struct LightCommandData {
+struct LightCommandData
+{
     LightState light;
     uint8_t parity;
     bool pressed;
 
     LightCommandData() = default;
-    LightCommandData(uint32_t pkt_data) {
+    LightCommandData(uint32_t pkt_data)
+    {
         light = static_cast<LightState>((pkt_data >> LIGHT_DATA_SHIFT) & LIGHT_DATA_MASK);
         parity = ((pkt_data >> COMMAND_PARITY_SHIFT) & COMMAND_PARITY_MASK);
     };
 
-    uint32_t to_data(void) {
+    uint32_t to_data(void)
+    {
         uint32_t pkt_data = 0;
         pkt_data |= static_cast<uint32_t>(light) << LIGHT_DATA_SHIFT;
         pkt_data |= parity << COMMAND_PARITY_SHIFT;
         return pkt_data;
     };
 
-    void to_string(char* buf, size_t buflen) {
-        const char* l = "invalid light command";
-        switch (light) {
-            case LightState::Off:
-                l = "Off";
-                break;
-            case LightState::On:
-                l = "On";
-                break;
-            case LightState::Toggle:
-                l = "Toggle";
-                break;
-            case LightState::Toggle2:
-                l = "Toggle2";
-                break;
+    void to_string(char *buf, size_t buflen)
+    {
+        const char *l = "invalid light command";
+        switch (light)
+        {
+        case LightState::Off:
+            l = "Off";
+            break;
+        case LightState::On:
+            l = "On";
+            break;
+        case LightState::Toggle:
+            l = "Toggle";
+            break;
+        case LightState::Toggle2:
+            l = "Toggle2";
+            break;
         }
         snprintf(buf, buflen, "LightState %s", l);
     };
-
 };
 
 const uint8_t STATUS_DOOR_STATE_MASK = 0b1111;
 const uint8_t STATUS_DOOR_STATE_SHIFT = 8;
 // valid states for doors in StatusCommandData
-enum class DoorState : uint8_t {
+enum class DoorState : uint8_t
+{
     Unknown = 0,
     Open = 1,
     Closed = 2,
@@ -267,7 +285,8 @@ const uint8_t STATUS_LIGHT_STATE_SHIFT = 25;
 const uint8_t STATUS_UNKNOWN2_MASK = 0b1;
 const uint8_t STATUS_UNKNOWN2_SHIFT = 30;
 // data attached to PacketCommand::Status
-struct StatusCommandData {
+struct StatusCommandData
+{
     DoorState door;
     uint8_t parity;
     bool unknown1;
@@ -278,7 +297,8 @@ struct StatusCommandData {
 
     StatusCommandData() = default;
 
-    StatusCommandData(uint32_t pkt_data) {
+    StatusCommandData(uint32_t pkt_data)
+    {
         door = static_cast<DoorState>((pkt_data >> STATUS_DOOR_STATE_SHIFT) & STATUS_DOOR_STATE_MASK);
         parity = ((pkt_data >> COMMAND_PARITY_SHIFT) & COMMAND_PARITY_MASK);
         unknown1 = ((pkt_data >> STATUS_UNKNOWN1_SHIFT) & STATUS_UNKNOWN1_MASK);
@@ -288,7 +308,8 @@ struct StatusCommandData {
         unknown2 = ((pkt_data >> STATUS_UNKNOWN2_SHIFT) & STATUS_UNKNOWN2_MASK);
     };
 
-    uint32_t to_data(void) {
+    uint32_t to_data(void)
+    {
         uint32_t pkt_data = 0;
         pkt_data |= static_cast<uint8_t>(door) << STATUS_DOOR_STATE_SHIFT;
         pkt_data |= parity << COMMAND_PARITY_SHIFT;
@@ -300,27 +321,29 @@ struct StatusCommandData {
         return pkt_data;
     };
 
-    void to_string(char* buf, size_t buflen) {
-        const char* d = "invalid door state";
-        switch (door) {
-            case DoorState::Unknown:
-                d = "Unknown";
-                break;
-            case DoorState::Open:
-                d = "Open";
-                break;
-            case DoorState::Closed:
-                d = "Closed";
-                break;
-            case DoorState::Stopped:
-                d = "Stopped";
-                break;
-            case DoorState::Opening:
-                d = "Opening";
-                break;
-            case DoorState::Closing:
-                d = "Closing";
-                break;
+    void to_string(char *buf, size_t buflen)
+    {
+        const char *d = "invalid door state";
+        switch (door)
+        {
+        case DoorState::Unknown:
+            d = "Unknown";
+            break;
+        case DoorState::Open:
+            d = "Open";
+            break;
+        case DoorState::Closed:
+            d = "Closed";
+            break;
+        case DoorState::Stopped:
+            d = "Stopped";
+            break;
+        case DoorState::Opening:
+            d = "Opening";
+            break;
+        case DoorState::Closing:
+            d = "Closing";
+            break;
         }
 
         snprintf(buf, buflen, "DoorState %s, Parity 0x%X, Obs %d, Lock %d, Light %d", d, parity, obstruction, lock, light);
@@ -331,12 +354,14 @@ const uint8_t GET_OPENINGS_LO_BYTE_MASK = 0xFF;
 const uint8_t GET_OPENINGS_LO_BYTE_SHIFT = 24;
 const uint8_t GET_OPENINGS_HI_BYTE_MASK = 0xFF;
 const uint8_t GET_OPENINGS_HI_BYTE_SHIFT = 16;
-struct OpeningsCommandData {
+struct OpeningsCommandData
+{
     uint16_t count;
     uint8_t parity;
 
     OpeningsCommandData() = default;
-    OpeningsCommandData(uint32_t pkt_data) {
+    OpeningsCommandData(uint32_t pkt_data)
+    {
         uint8_t lo = ((pkt_data >> GET_OPENINGS_LO_BYTE_SHIFT) & GET_OPENINGS_LO_BYTE_MASK);
         uint8_t hi = ((pkt_data >> GET_OPENINGS_HI_BYTE_SHIFT) & GET_OPENINGS_HI_BYTE_MASK);
         parity = ((pkt_data >> COMMAND_PARITY_SHIFT) & COMMAND_PARITY_MASK);
@@ -344,7 +369,8 @@ struct OpeningsCommandData {
         count = hi << 8 | lo;
     };
 
-    uint32_t to_data(void) {
+    uint32_t to_data(void)
+    {
         uint32_t pkt_data = 0;
         uint8_t lo = count & 0xFF;
         uint8_t hi = count >> 8;
@@ -354,7 +380,8 @@ struct OpeningsCommandData {
         return pkt_data;
     };
 
-    void to_string(char* buf, size_t buflen) {
+    void to_string(char *buf, size_t buflen)
+    {
         snprintf(buf, buflen, "Openings %02d", count);
     };
 };
@@ -362,29 +389,35 @@ struct OpeningsCommandData {
 // okay, so this is a weird one. for some messages, no bits except the parity bits are expected to
 // be set. we want to preserve the parity bits, however, for round-trip testing (and possible future
 // validation). the other bits _should_ always be zero.
-struct NoData {
+struct NoData
+{
     uint32_t no_bits_set;
     uint8_t parity;
 
     NoData() = default;
-    NoData(uint32_t pkt_data) {
+    NoData(uint32_t pkt_data)
+    {
         no_bits_set = pkt_data & ~(COMMAND_PARITY_MASK << COMMAND_PARITY_SHIFT);
         no_bits_set = no_bits_set & ~0xFF; // skip cmd byte
         parity = ((pkt_data >> COMMAND_PARITY_SHIFT) & COMMAND_PARITY_MASK);
     };
 
-    uint32_t to_data(void) {
+    uint32_t to_data(void)
+    {
         return no_bits_set | (parity << COMMAND_PARITY_SHIFT);
     };
 
-    void to_string(char* buf, size_t buflen) {
+    void to_string(char *buf, size_t buflen)
+    {
         snprintf(buf, buflen, "Zero: 0x%08X, Parity: 0x%X", no_bits_set, parity);
     };
 };
 
-struct PacketData {
+struct PacketData
+{
     PacketDataType type;
-    union {
+    union
+    {
         NoData no_data;
         StatusCommandData status;
         LockCommandData lock;
@@ -394,383 +427,393 @@ struct PacketData {
         uint32_t cmd;
     } value;
 
-    void to_string(char* buf, size_t buflen) {
+    void to_string(char *buf, size_t buflen)
+    {
         size_t subbuflen = 128;
         char subbuf[subbuflen];
-        switch (type) {
-            case PacketDataType::NoData:
-                value.no_data.to_string(subbuf, subbuflen);
-                snprintf(buf, buflen, "NoData: [%s]", subbuf);
-                break;
-            case PacketDataType::Status:
-                value.status.to_string(subbuf, subbuflen);
-                snprintf(buf, buflen, "Status: [%s]", subbuf);
-                break;
-            case PacketDataType::Lock:
-                value.lock.to_string(subbuf, subbuflen);
-                snprintf(buf, buflen, "Lock: [%s]", subbuf);
-                break;
-            case PacketDataType::Light:
-                value.light.to_string(subbuf, subbuflen);
-                snprintf(buf, buflen, "Light: [%s]", subbuf);
-                break;
-            case PacketDataType::DoorAction:
-                value.door_action.to_string(subbuf, subbuflen);
-                snprintf(buf, buflen, "DoorAction: [%s]", subbuf);
-                break;
-            case PacketDataType::Openings:
-                value.openings.to_string(subbuf, subbuflen);
-                snprintf(buf, buflen, "Openings: [%s]", subbuf);
-                break;
-            case PacketDataType::Unknown:
-                snprintf(buf, buflen, "Unknown: [%03X]", value.cmd);
-                break;
+        switch (type)
+        {
+        case PacketDataType::NoData:
+            value.no_data.to_string(subbuf, subbuflen);
+            snprintf(buf, buflen, "NoData: [%s]", subbuf);
+            break;
+        case PacketDataType::Status:
+            value.status.to_string(subbuf, subbuflen);
+            snprintf(buf, buflen, "Status: [%s]", subbuf);
+            break;
+        case PacketDataType::Lock:
+            value.lock.to_string(subbuf, subbuflen);
+            snprintf(buf, buflen, "Lock: [%s]", subbuf);
+            break;
+        case PacketDataType::Light:
+            value.light.to_string(subbuf, subbuflen);
+            snprintf(buf, buflen, "Light: [%s]", subbuf);
+            break;
+        case PacketDataType::DoorAction:
+            value.door_action.to_string(subbuf, subbuflen);
+            snprintf(buf, buflen, "DoorAction: [%s]", subbuf);
+            break;
+        case PacketDataType::Openings:
+            value.openings.to_string(subbuf, subbuflen);
+            snprintf(buf, buflen, "Openings: [%s]", subbuf);
+            break;
+        case PacketDataType::Unknown:
+            snprintf(buf, buflen, "Unknown: [%03X]", value.cmd);
+            break;
         }
     };
-
 };
 
-class PacketCommand {
-    public:
-        enum PacketCommandValue : uint16_t {
-            Unknown     = 0x000,
-            GetStatus   = 0x080,
-            Status      = 0x081,
-            Obst1       = 0x084,  // sent when an obstruction happens?
-            Obst2       = 0x085,  // sent when an obstruction happens?
-            Pair3       = 0x0a0,
-            Pair3Resp   = 0x0a1,
-            Learn2      = 0x181,
-            Lock        = 0x18c,
-            DoorAction  = 0x280,
-            Light       = 0x281,
-            MotorOn     = 0x284,
-            Motion      = 0x285,
-            Learn1      = 0x391,
-            Ping        = 0x392,
-            PingResp    = 0x393,
-            Pair2       = 0x400,
-            Pair2Resp   = 0x401,
-            SetTtc      = 0x402,  // ttc_in_seconds = (byte1<<8)+byte2
-            CancelTtc   = 0x408,  // ?
-            Ttc         = 0x40a,  // Time to close
-            GetOpenings = 0x48b,
-            Openings    = 0x48c,  // openings = (byte1<<8)+byte2
-        };
+class PacketCommand
+{
+public:
+    enum PacketCommandValue : uint16_t
+    {
+        Unknown = 0x000,
+        GetStatus = 0x080,
+        Status = 0x081,
+        Obst1 = 0x084, // sent when an obstruction happens?
+        Obst2 = 0x085, // sent when an obstruction happens?
+        Pair3 = 0x0a0,
+        Pair3Resp = 0x0a1,
+        Learn2 = 0x181,
+        Lock = 0x18c,
+        DoorAction = 0x280,
+        Light = 0x281,
+        MotorOn = 0x284,
+        Motion = 0x285,
+        Learn1 = 0x391,
+        Ping = 0x392,
+        PingResp = 0x393,
+        Pair2 = 0x400,
+        Pair2Resp = 0x401,
+        SetTtc = 0x402,    // ttc_in_seconds = (byte1<<8)+byte2
+        CancelTtc = 0x408, // ?
+        Ttc = 0x40a,       // Time to close
+        GetOpenings = 0x48b,
+        Openings = 0x48c, // openings = (byte1<<8)+byte2
+    };
 
+    PacketCommand() = default;
+    constexpr PacketCommand(PacketCommandValue value) : m_value(value) {};
 
-        PacketCommand() = default;
-        constexpr PacketCommand(PacketCommandValue value) : m_value(value) {};
+    constexpr operator PacketCommandValue() const { return m_value; };
+    explicit operator bool() const = delete;
 
-        constexpr operator PacketCommandValue() const { return m_value; };
-        explicit operator bool() const = delete;
-
-        static const char* to_string(PacketCommand cmd) {
-            switch (cmd) {
-                case PacketCommandValue::Unknown:
-                    return "UNKNOWN";
-                case PacketCommandValue::GetStatus:
-                    return "GetStatus";
-                case PacketCommandValue::Status:
-                    return "Status";
-                case PacketCommandValue::Obst1:
-                    return "Obst1";
-                case PacketCommandValue::Obst2:
-                    return "Obst2";
-                case PacketCommandValue::Pair3:
-                    return "Pair3";
-                case PacketCommandValue::Pair3Resp:
-                    return "Pair3Resp";
-                case PacketCommandValue::Learn2:
-                    return "Learn2";
-                case PacketCommandValue::Lock:
-                    return "Lock";
-                case PacketCommandValue::DoorAction:
-                    return "DoorAction";
-                case PacketCommandValue::Light:
-                    return "Light";
-                case PacketCommandValue::MotorOn:
-                    return "MotorOn";
-                case PacketCommandValue::Motion:
-                    return "Motion";
-                case PacketCommandValue::Learn1:
-                    return "Learn1";
-                case PacketCommandValue::Ping:
-                    return "Ping";
-                case PacketCommandValue::PingResp:
-                    return "PingResp";
-                case PacketCommandValue::Pair2:
-                    return "Pair2";
-                case PacketCommandValue::Pair2Resp:
-                    return "Pair2Resp";
-                case PacketCommandValue::SetTtc:
-                    return "SetTtc";
-                case PacketCommandValue::CancelTtc:
-                    return "CancelTtc";
-                case PacketCommandValue::Ttc:
-                    return "Ttc";
-                case PacketCommandValue::GetOpenings:
-                    return "GetOpenings";
-                case PacketCommandValue::Openings:
-                    return "Openings";
-            }
-            return "Invalid PacketCommandValue";
+    static const char *to_string(PacketCommand cmd)
+    {
+        switch (cmd)
+        {
+        case PacketCommandValue::Unknown:
+            return "UNKNOWN";
+        case PacketCommandValue::GetStatus:
+            return "GetStatus";
+        case PacketCommandValue::Status:
+            return "Status";
+        case PacketCommandValue::Obst1:
+            return "Obst1";
+        case PacketCommandValue::Obst2:
+            return "Obst2";
+        case PacketCommandValue::Pair3:
+            return "Pair3";
+        case PacketCommandValue::Pair3Resp:
+            return "Pair3Resp";
+        case PacketCommandValue::Learn2:
+            return "Learn2";
+        case PacketCommandValue::Lock:
+            return "Lock";
+        case PacketCommandValue::DoorAction:
+            return "DoorAction";
+        case PacketCommandValue::Light:
+            return "Light";
+        case PacketCommandValue::MotorOn:
+            return "MotorOn";
+        case PacketCommandValue::Motion:
+            return "Motion";
+        case PacketCommandValue::Learn1:
+            return "Learn1";
+        case PacketCommandValue::Ping:
+            return "Ping";
+        case PacketCommandValue::PingResp:
+            return "PingResp";
+        case PacketCommandValue::Pair2:
+            return "Pair2";
+        case PacketCommandValue::Pair2Resp:
+            return "Pair2Resp";
+        case PacketCommandValue::SetTtc:
+            return "SetTtc";
+        case PacketCommandValue::CancelTtc:
+            return "CancelTtc";
+        case PacketCommandValue::Ttc:
+            return "Ttc";
+        case PacketCommandValue::GetOpenings:
+            return "GetOpenings";
+        case PacketCommandValue::Openings:
+            return "Openings";
         }
+        return "Invalid PacketCommandValue";
+    }
 
-        static PacketCommand from_word(uint16_t raw) {
-            switch (raw) {
-                case PacketCommand::GetStatus:
-                    return PacketCommand::GetStatus;
-                case PacketCommandValue::Status:
-                    return PacketCommandValue::Status;
-                case PacketCommandValue::Obst1:
-                    return PacketCommandValue::Obst1;
-                case PacketCommandValue::Obst2:
-                    return PacketCommandValue::Obst2;
-                case PacketCommandValue::Pair3:
-                    return PacketCommandValue::Pair3;
-                case PacketCommandValue::Pair3Resp:
-                    return PacketCommandValue::Pair3Resp;
-                case PacketCommandValue::Learn2:
-                    return PacketCommandValue::Learn2;
-                case PacketCommandValue::Lock:
-                    return PacketCommandValue::Lock;
-                case PacketCommandValue::DoorAction:
-                    return PacketCommandValue::DoorAction;
-                case PacketCommandValue::Light:
-                    return PacketCommandValue::Light;
-                case PacketCommandValue::MotorOn:
-                    return PacketCommandValue::MotorOn;
-                case PacketCommandValue::Motion:
-                    return PacketCommandValue::Motion;
-                case PacketCommandValue::Learn1:
-                    return PacketCommandValue::Learn1;
-                case PacketCommandValue::Ping:
-                    return PacketCommandValue::Ping;
-                case PacketCommandValue::PingResp:
-                    return PacketCommandValue::PingResp;
-                case PacketCommandValue::Pair2:
-                    return PacketCommandValue::Pair2;
-                case PacketCommandValue::Pair2Resp:
-                    return PacketCommandValue::Pair2Resp;
-                case PacketCommandValue::SetTtc:
-                    return PacketCommandValue::SetTtc;
-                case PacketCommandValue::CancelTtc:
-                    return PacketCommandValue::CancelTtc;
-                case PacketCommandValue::Ttc:
-                    return PacketCommandValue::Ttc;
-                case PacketCommandValue::GetOpenings:
-                    return PacketCommandValue::GetOpenings;
-                case PacketCommandValue::Openings:
-                    return PacketCommandValue::Openings;
-                default:
-                    return PacketCommandValue::Unknown;
-            }
+    static PacketCommand from_word(uint16_t raw)
+    {
+        switch (raw)
+        {
+        case PacketCommand::GetStatus:
+            return PacketCommand::GetStatus;
+        case PacketCommandValue::Status:
+            return PacketCommandValue::Status;
+        case PacketCommandValue::Obst1:
+            return PacketCommandValue::Obst1;
+        case PacketCommandValue::Obst2:
+            return PacketCommandValue::Obst2;
+        case PacketCommandValue::Pair3:
+            return PacketCommandValue::Pair3;
+        case PacketCommandValue::Pair3Resp:
+            return PacketCommandValue::Pair3Resp;
+        case PacketCommandValue::Learn2:
+            return PacketCommandValue::Learn2;
+        case PacketCommandValue::Lock:
+            return PacketCommandValue::Lock;
+        case PacketCommandValue::DoorAction:
+            return PacketCommandValue::DoorAction;
+        case PacketCommandValue::Light:
+            return PacketCommandValue::Light;
+        case PacketCommandValue::MotorOn:
+            return PacketCommandValue::MotorOn;
+        case PacketCommandValue::Motion:
+            return PacketCommandValue::Motion;
+        case PacketCommandValue::Learn1:
+            return PacketCommandValue::Learn1;
+        case PacketCommandValue::Ping:
+            return PacketCommandValue::Ping;
+        case PacketCommandValue::PingResp:
+            return PacketCommandValue::PingResp;
+        case PacketCommandValue::Pair2:
+            return PacketCommandValue::Pair2;
+        case PacketCommandValue::Pair2Resp:
+            return PacketCommandValue::Pair2Resp;
+        case PacketCommandValue::SetTtc:
+            return PacketCommandValue::SetTtc;
+        case PacketCommandValue::CancelTtc:
+            return PacketCommandValue::CancelTtc;
+        case PacketCommandValue::Ttc:
+            return PacketCommandValue::Ttc;
+        case PacketCommandValue::GetOpenings:
+            return PacketCommandValue::GetOpenings;
+        case PacketCommandValue::Openings:
+            return PacketCommandValue::Openings;
+        default:
+            return PacketCommandValue::Unknown;
         }
+    }
 
-    private:
-        PacketCommandValue m_value;
+private:
+    PacketCommandValue m_value;
 };
 
-struct Packet {
+struct Packet
+{
 
-        Packet() = default;
-        Packet(PacketCommand cmd, PacketData data, uint32_t remote_id) :
-            m_pkt_cmd(cmd), m_data(data), m_remote_id(remote_id), m_rolling(0) {};
+    Packet() = default;
+    Packet(PacketCommand cmd, PacketData data, uint32_t remote_id) : m_pkt_cmd(cmd), m_data(data), m_remote_id(remote_id), m_rolling(0) {};
 
-        Packet(const uint8_t pktbuf[SECPLUS2_CODE_LEN]) {
-            uint32_t pkt_rolling = 0;   // three bytes
-            uint64_t pkt_remote_id = 0; // three bytes
-            uint32_t pkt_data = 0;
+    Packet(const uint8_t pktbuf[SECPLUS2_CODE_LEN])
+    {
+        uint32_t pkt_rolling = 0;   // three bytes
+        uint64_t pkt_remote_id = 0; // three bytes
+        uint32_t pkt_data = 0;
 
-            decode_wireline(pktbuf, &pkt_rolling, &pkt_remote_id, &pkt_data);
-            RINFO("DECODED  %08X %016llX %08X", pkt_rolling, pkt_remote_id, pkt_data);
+        decode_wireline(pktbuf, &pkt_rolling, &pkt_remote_id, &pkt_data);
+        ESP_LOGI("ratgdo-packet", "DECODED  %08X %016llX %08X", pkt_rolling, pkt_remote_id, pkt_data);
 
-            uint16_t cmd = ((pkt_remote_id >> 24) & 0xF00) | (pkt_data & 0xFF);
+        uint16_t cmd = ((pkt_remote_id >> 24) & 0xF00) | (pkt_data & 0xFF);
 
-            m_pkt_cmd = PacketCommand::from_word(cmd);
-            m_rolling = pkt_rolling;
-            m_remote_id = (pkt_remote_id & 0xFFffff);
+        m_pkt_cmd = PacketCommand::from_word(cmd);
+        m_rolling = pkt_rolling;
+        m_remote_id = (pkt_remote_id & 0xFFffff);
 
-            switch (m_pkt_cmd) {
+        switch (m_pkt_cmd)
+        {
 
-                case PacketCommand::Unknown:
-                    {
-                        m_data.type = PacketDataType::Unknown;
-                        m_data.value.cmd = cmd;
-                        break;
-                    }
-
-                case PacketCommand::GetStatus:
-                    {
-                        m_data.type = PacketDataType::NoData;
-                        m_data.value.no_data = NoData(pkt_data);
-                        break;
-                    }
-
-                case PacketCommand::Status:
-                    {
-                        m_data.type = PacketDataType::Status;
-                        m_data.value.status = StatusCommandData(pkt_data);
-                        break;
-                    }
-
-                case PacketCommand::Obst1:
-                case PacketCommand::Obst2:
-                case PacketCommand::Pair3:
-                case PacketCommand::Pair3Resp:
-                case PacketCommand::Learn2:
-                    // no data or unimplemented
-                    {
-                        m_data.type = PacketDataType::NoData;
-                        m_data.value.no_data = NoData(pkt_data);
-                        break;
-                    }
-
-                case PacketCommand::Lock:
-                    {
-                        m_data.type = PacketDataType::Lock;
-                        m_data.value.lock = LockCommandData(pkt_data);
-                        break;
-                    }
-
-                case PacketCommand::DoorAction:
-                    {
-                        m_data.type = PacketDataType::DoorAction;
-                        m_data.value.door_action = DoorActionCommandData(pkt_data);
-                        break;
-                    }
-
-                case PacketCommand::Light:
-                    {
-                        m_data.type = PacketDataType::Light;
-                        m_data.value.light = LightCommandData(pkt_data);
-                        break;
-                    }
-
-                case PacketCommand::MotorOn:
-                case PacketCommand::Motion:
-                case PacketCommand::Learn1:
-                case PacketCommand::Ping:
-                case PacketCommand::PingResp:
-                case PacketCommand::Pair2:
-                case PacketCommand::Pair2Resp:
-                case PacketCommand::SetTtc:
-                case PacketCommand::CancelTtc:
-                case PacketCommand::Ttc:
-                case PacketCommand::GetOpenings:
-                    // no data or unimplemented
-                    {
-                        m_data.type = PacketDataType::NoData;
-                        m_data.value.no_data = NoData(pkt_data);
-                        break;
-                    }
-
-                case PacketCommand::Openings:
-                    {
-                        m_data.type = PacketDataType::Openings;
-                        m_data.value.openings = OpeningsCommandData(pkt_data);
-                        break;
-                    }
-
-            }
+        case PacketCommand::Unknown:
+        {
+            m_data.type = PacketDataType::Unknown;
+            m_data.value.cmd = cmd;
+            break;
         }
 
-        int8_t encode(uint32_t rolling, uint8_t* out_pktbuf) {
-            m_rolling = rolling;
-
-            uint32_t pkt_data = 0;
-            auto cmd = static_cast<uint64_t>(m_pkt_cmd);
-            uint64_t fixed = ((cmd & ~0xff) << 24) | static_cast<uint64_t>(m_remote_id & 0xFFffff);
-
-            switch (m_pkt_cmd) {
-                case PacketCommand::Unknown:
-                    // nothing to do?
-                    break;
-
-                case PacketCommand::GetStatus:
-                    // no data
-                    break;
-
-                case PacketCommand::Status:
-                    {
-                        pkt_data = m_data.value.status.to_data();
-                        break;
-                    }
-
-                case PacketCommand::Obst1:
-                case PacketCommand::Obst2:
-                case PacketCommand::Pair3:
-                case PacketCommand::Pair3Resp:
-                case PacketCommand::Learn2:
-                    // no data or unimplemented
-                    break;
-
-                case PacketCommand::Lock:
-                    {
-                        pkt_data = m_data.value.lock.to_data();
-                        break;
-                    }
-                    break;
-
-                case PacketCommand::DoorAction:
-                    {
-                        pkt_data = m_data.value.door_action.to_data();
-                        break;
-                    }
-
-                case PacketCommand::Light:
-                    {
-                        pkt_data = m_data.value.light.to_data();
-                        break;
-                    }
-
-                case PacketCommand::MotorOn:
-                case PacketCommand::Motion:
-                case PacketCommand::Learn1:
-                case PacketCommand::Ping:
-                case PacketCommand::PingResp:
-                case PacketCommand::Pair2:
-                case PacketCommand::Pair2Resp:
-                case PacketCommand::SetTtc:
-                case PacketCommand::CancelTtc:
-                case PacketCommand::Ttc:
-                case PacketCommand::GetOpenings:
-                    // no data or unimplemented
-                    break;
-
-                case PacketCommand::Openings:
-                    {
-                        pkt_data = m_data.value.openings.to_data();
-                        break;
-                    }
-            }
-
-            pkt_data |= (m_pkt_cmd & 0xFF);
-
-            RINFO("ENCODING %08X %016llX %08X", m_rolling, fixed, pkt_data);
-            return encode_wireline(m_rolling, fixed, pkt_data, out_pktbuf);
+        case PacketCommand::GetStatus:
+        {
+            m_data.type = PacketDataType::NoData;
+            m_data.value.no_data = NoData(pkt_data);
+            break;
         }
 
-        /*
-        PacketCommand cmd(void) { return m_pkt_cmd; }
-        PacketData data(void) { return m_data; }
-        uint32_t rolling(void) { return m_rolling; }
-        uint64_t remote_id(void) { return m_remote_id; }
-        */
+        case PacketCommand::Status:
+        {
+            m_data.type = PacketDataType::Status;
+            m_data.value.status = StatusCommandData(pkt_data);
+            break;
+        }
 
-        void print(void) {
-            size_t buflen = 128;
-            char buf[buflen];
-            m_data.to_string(buf, buflen);
+        case PacketCommand::Obst1:
+        case PacketCommand::Obst2:
+        case PacketCommand::Pair3:
+        case PacketCommand::Pair3Resp:
+        case PacketCommand::Learn2:
+            // no data or unimplemented
+            {
+                m_data.type = PacketDataType::NoData;
+                m_data.value.no_data = NoData(pkt_data);
+                break;
+            }
 
-            RINFO("PACKET(0x%X @ 0x%X) %s - %s", m_remote_id, m_rolling, PacketCommand::to_string(m_pkt_cmd), buf);
-        };
+        case PacketCommand::Lock:
+        {
+            m_data.type = PacketDataType::Lock;
+            m_data.value.lock = LockCommandData(pkt_data);
+            break;
+        }
 
-        PacketCommand m_pkt_cmd;
-        PacketData m_data;
-        uint32_t m_remote_id; // 3 bytes
-        uint32_t m_rolling;
+        case PacketCommand::DoorAction:
+        {
+            m_data.type = PacketDataType::DoorAction;
+            m_data.value.door_action = DoorActionCommandData(pkt_data);
+            break;
+        }
+
+        case PacketCommand::Light:
+        {
+            m_data.type = PacketDataType::Light;
+            m_data.value.light = LightCommandData(pkt_data);
+            break;
+        }
+
+        case PacketCommand::MotorOn:
+        case PacketCommand::Motion:
+        case PacketCommand::Learn1:
+        case PacketCommand::Ping:
+        case PacketCommand::PingResp:
+        case PacketCommand::Pair2:
+        case PacketCommand::Pair2Resp:
+        case PacketCommand::SetTtc:
+        case PacketCommand::CancelTtc:
+        case PacketCommand::Ttc:
+        case PacketCommand::GetOpenings:
+            // no data or unimplemented
+            {
+                m_data.type = PacketDataType::NoData;
+                m_data.value.no_data = NoData(pkt_data);
+                break;
+            }
+
+        case PacketCommand::Openings:
+        {
+            m_data.type = PacketDataType::Openings;
+            m_data.value.openings = OpeningsCommandData(pkt_data);
+            break;
+        }
+        }
+    }
+
+    int8_t encode(uint32_t rolling, uint8_t *out_pktbuf)
+    {
+        m_rolling = rolling;
+
+        uint32_t pkt_data = 0;
+        auto cmd = static_cast<uint64_t>(m_pkt_cmd);
+        uint64_t fixed = ((cmd & ~0xff) << 24) | static_cast<uint64_t>(m_remote_id & 0xFFffff);
+
+        switch (m_pkt_cmd)
+        {
+        case PacketCommand::Unknown:
+            // nothing to do?
+            break;
+
+        case PacketCommand::GetStatus:
+            // no data
+            break;
+
+        case PacketCommand::Status:
+        {
+            pkt_data = m_data.value.status.to_data();
+            break;
+        }
+
+        case PacketCommand::Obst1:
+        case PacketCommand::Obst2:
+        case PacketCommand::Pair3:
+        case PacketCommand::Pair3Resp:
+        case PacketCommand::Learn2:
+            // no data or unimplemented
+            break;
+
+        case PacketCommand::Lock:
+        {
+            pkt_data = m_data.value.lock.to_data();
+            break;
+        }
+        break;
+
+        case PacketCommand::DoorAction:
+        {
+            pkt_data = m_data.value.door_action.to_data();
+            break;
+        }
+
+        case PacketCommand::Light:
+        {
+            pkt_data = m_data.value.light.to_data();
+            break;
+        }
+
+        case PacketCommand::MotorOn:
+        case PacketCommand::Motion:
+        case PacketCommand::Learn1:
+        case PacketCommand::Ping:
+        case PacketCommand::PingResp:
+        case PacketCommand::Pair2:
+        case PacketCommand::Pair2Resp:
+        case PacketCommand::SetTtc:
+        case PacketCommand::CancelTtc:
+        case PacketCommand::Ttc:
+        case PacketCommand::GetOpenings:
+            // no data or unimplemented
+            break;
+
+        case PacketCommand::Openings:
+        {
+            pkt_data = m_data.value.openings.to_data();
+            break;
+        }
+        }
+
+        pkt_data |= (m_pkt_cmd & 0xFF);
+
+        ESP_LOGI("ratgdo-packet", "ENCODING %08X %016llX %08X", m_rolling, fixed, pkt_data);
+        return encode_wireline(m_rolling, fixed, pkt_data, out_pktbuf);
+    }
+
+    /*
+    PacketCommand cmd(void) { return m_pkt_cmd; }
+    PacketData data(void) { return m_data; }
+    uint32_t rolling(void) { return m_rolling; }
+    uint64_t remote_id(void) { return m_remote_id; }
+    */
+
+    void print(void)
+    {
+        size_t buflen = 128;
+        char buf[buflen];
+        m_data.to_string(buf, buflen);
+
+        ESP_LOGI("ratgdo-packet", "PACKET(0x%X @ 0x%X) %s - %s", m_remote_id, m_rolling, PacketCommand::to_string(m_pkt_cmd), buf);
+    };
+
+    PacketCommand m_pkt_cmd;
+    PacketData m_data;
+    uint32_t m_remote_id; // 3 bytes
+    uint32_t m_rolling;
 };
 
 #endif // _PACKET_H

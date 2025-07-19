@@ -19,9 +19,9 @@ static const char *TAG = "ratgdo-logger";
 
 void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN])
 {
-    RINFO("decoded packet: [%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X]",
-          pkt[0], pkt[1], pkt[2], pkt[3], pkt[4], pkt[5], pkt[6], pkt[7], pkt[8], pkt[9],
-          pkt[10], pkt[11], pkt[12], pkt[13], pkt[14], pkt[15], pkt[16], pkt[17], pkt[18]);
+    ESP_LOGI(TAG, "decoded packet: [%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X]",
+             pkt[0], pkt[1], pkt[2], pkt[3], pkt[4], pkt[5], pkt[6], pkt[7], pkt[8], pkt[9],
+             pkt[10], pkt[11], pkt[12], pkt[13], pkt[14], pkt[15], pkt[16], pkt[17], pkt[18]);
 }
 
 #else // UNIT_TEST
@@ -153,14 +153,16 @@ void logToBuffer_P(const char *fmt, ...)
         Serial.printf_P(PSTR("IRAM heap size %d\n"), MMU_SEC_HEAP_SIZE);
 #endif
         msgBuffer = (logBuffer *)malloc(sizeof(logBuffer));
-        if (!msgBuffer) {
+        if (!msgBuffer)
+        {
             Serial.println("FATAL: Failed to allocate message log buffer");
             ESP.restart();
             return;
         }
         Serial.printf_P(PSTR("Allocated %d bytes for message log buffer\n"), sizeof(logBuffer));
         lineBuffer = (char *)malloc(LINE_BUFFER_SIZE);
-        if (!lineBuffer) {
+        if (!lineBuffer)
+        {
             Serial.println("FATAL: Failed to allocate line buffer");
             ESP.restart();
             return;

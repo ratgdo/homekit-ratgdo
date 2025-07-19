@@ -55,8 +55,8 @@ void onCloseSwitchPress();
 void onOpenSwitchRelease();
 void onCloseSwitchRelease();
 
-//Define OneButton objects for open/close pins
-OneButton buttonOpen(DRY_CONTACT_OPEN_PIN, true, true);  // Active low, with internal pull-up
+// Define OneButton objects for open/close pins
+OneButton buttonOpen(DRY_CONTACT_OPEN_PIN, true, true); // Active low, with internal pull-up
 OneButton buttonClose(DRY_CONTACT_CLOSE_PIN, true, true);
 bool dryContactDoorOpen = false;
 bool dryContactDoorClose = false;
@@ -120,14 +120,14 @@ void setup()
     // For CRC calculation purposes, those two long (32 bit) values are assumed to be zero.
     // The CRC calculation then proceeds until it get to 0x4020000 plus __crc_len.
     // Any memory writes/corruption within these blocks will cause checkFlashCRC() to fail.
-    RINFO("Firmware CRC value: 0x%08X, CRC length: 0x%X (%d), Memory address of __crc_len,__crc_val: 0x%08X,0x%08X", __crc_val, __crc_len, __crc_len, &__crc_len, &__crc_val);
+    ESP_LOGI(TAG, "Firmware CRC value: 0x%08X, CRC length: 0x%X (%d), Memory address of __crc_len,__crc_val: 0x%08X,0x%08X", __crc_val, __crc_len, __crc_len, &__crc_len, &__crc_val);
     if (flashCRC)
     {
-        RINFO("checkFlashCRC: true");
+        ESP_LOGI(TAG, "checkFlashCRC: true");
     }
     else
     {
-        RERROR("checkFlashCRC: false");
+        ESP_LOGE(TAG, "checkFlashCRC: false");
     }
     load_all_config_settings();
     wifi_connect();
@@ -140,8 +140,8 @@ void setup()
     }
 
     led.idle();
-    RINFO("=== RATGDO setup complete ===");
-    RINFO("=============================");
+    ESP_LOGI(TAG, "=== RATGDO setup complete ===");
+    ESP_LOGI(TAG, "=============================");
     status_start = millis();
 }
 
@@ -164,7 +164,7 @@ void loop()
     }
     else if (millis() - status_start > 2000)
     {
-        RINFO("Status timeout, starting homekit");
+        ESP_LOGI(TAG, "Status timeout, starting homekit");
         status_done = true;
     }
     service_timer_loop();
@@ -177,22 +177,21 @@ void loop()
 
 void setup_pins()
 {
-    RINFO("Setting up pins");
+    ESP_LOGI(TAG, "Setting up pins");
 
     pinMode(UART_TX_PIN, OUTPUT);
     pinMode(UART_RX_PIN, INPUT_PULLUP);
 
     pinMode(INPUT_OBST_PIN, INPUT);
 
-   
     pinMode(STATUS_DOOR_PIN, OUTPUT);
-    
+
     pinMode(STATUS_OBST_PIN, OUTPUT);
-    
+
     pinMode(DRY_CONTACT_OPEN_PIN, INPUT_PULLUP);
     pinMode(DRY_CONTACT_CLOSE_PIN, INPUT_PULLUP);
-    
-	// Attach OneButton handlers
+
+    // Attach OneButton handlers
     buttonOpen.attachPress(onOpenSwitchPress);
     buttonClose.attachPress(onCloseSwitchPress);
     buttonOpen.attachLongPressStop(onOpenSwitchRelease);
@@ -207,66 +206,86 @@ void setup_pins()
 
 /*************************** DRY CONTACT CONTROL OF LIGHT & DOOR ***************************/
 
-//Functions for sensing GDO open/closed
-void onOpenSwitchPress() {
+// Functions for sensing GDO open/closed
+void onOpenSwitchPress()
+{
     dryContactDoorOpen = true;
-    RINFO("Open switch pressed");
+    ESP_LOGI(TAG, "Open switch pressed");
 }
 
-void onCloseSwitchPress() {
+void onCloseSwitchPress()
+{
     dryContactDoorClose = true;
-    RINFO("Close switch pressed");
+    ESP_LOGI(TAG, "Close switch pressed");
 }
 
-void onOpenSwitchRelease() {
+void onOpenSwitchRelease()
+{
     dryContactDoorOpen = false;
-    RINFO("Open switch released");
+    ESP_LOGI(TAG, "Open switch released");
 }
 
-void onCloseSwitchRelease() {
+void onCloseSwitchRelease()
+{
     dryContactDoorClose = false;
-    RINFO("Close switch released");
+    ESP_LOGI(TAG, "Close switch released");
 }
 
 // handle changes to the dry contact state
-void dryContactLoop(){
+void dryContactLoop()
+{
 
-	if(dryContactDoorOpen){
-		if(userConfig->gdoSecurityType == 3){
-			doorState = DoorState::Open;
-		}else{
-			Serial.println("Dry Contact: open the door");
-			open_door();
-			dryContactDoorOpen = false;
-		}
-	}
+    if (dryContactDoorOpen)
+    {
+        if (userConfig->gdoSecurityType == 3)
+        {
+            doorState = DoorState::Open;
+        }
+        else
+        {
+            Serial.println("Dry Contact: open the door");
+            open_door();
+            dryContactDoorOpen = false;
+        }
+    }
 
-	if(dryContactDoorClose){
-		if(userConfig->gdoSecurityType == 3){
-			doorState = DoorState::Closed;
-		}else{
-			Serial.println("Dry Contact: close the door");
-			close_door();
-			dryContactDoorClose = false;
-		}
-	}
+    if (dryContactDoorClose)
+    {
+        if (userConfig->gdoSecurityType == 3)
+        {
+            doorState = DoorState::Closed;
+        }
+        else
+        {
+            Serial.println("Dry Contact: close the door");
+            close_door();
+            dryContactDoorClose = false;
+        }
+    }
 
-	if(userConfig->gdoSecurityType == 3){
-		if(!dryContactDoorClose && !dryContactDoorOpen){
-			if(previousDryContactDoorClose){
-				doorState = DoorState::Opening;
-			} else if (previousDryContactDoorOpen){
-				doorState = DoorState::Closing;
-			}
-		}
+    if (userConfig->gdoSecurityType == 3)
+    {
+        if (!dryContactDoorClose && !dryContactDoorOpen)
+        {
+            if (previousDryContactDoorClose)
+            {
+                doorState = DoorState::Opening;
+            }
+            else if (previousDryContactDoorOpen)
+            {
+                doorState = DoorState::Closing;
+            }
+        }
 
-		if(previousDryContactDoorOpen != dryContactDoorOpen){
-			previousDryContactDoorOpen = dryContactDoorOpen;
-		}
-		if(previousDryContactDoorClose != dryContactDoorClose){
-			previousDryContactDoorClose = dryContactDoorClose;
-		}
-	}
+        if (previousDryContactDoorOpen != dryContactDoorOpen)
+        {
+            previousDryContactDoorOpen = dryContactDoorOpen;
+        }
+        if (previousDryContactDoorClose != dryContactDoorClose)
+        {
+            previousDryContactDoorClose = dryContactDoorClose;
+        }
+    }
 }
 
 /*************************** OBSTRUCTION DETECTION ***************************/
@@ -276,12 +295,12 @@ void IRAM_ATTR isr_obstruction()
 }
 
 // Track if we've detected a working obstruction sensor
-bool obstruction_sensor_detected = false;  // Make it globally accessible for comms.cpp
+bool obstruction_sensor_detected = false; // Make it globally accessible for comms.cpp
 
 void obstruction_timer()
 {
     // Always try pin-based detection
-    
+
     unsigned long current_millis = millis();
     static unsigned long last_millis = 0;
 
@@ -300,21 +319,22 @@ void obstruction_timer()
         unsigned int pulse_count = obstruction_sensor.low_count;
         obstruction_sensor.low_count = 0;
         interrupts();
-        
+
         // check to see if we got more then PULSES_LOWER_LIMIT pulses
         if (pulse_count > PULSES_LOWER_LIMIT)
         {
             // We're getting pulses, so pin detection is working
             obstruction_sensor.pin_ever_changed = true;
-            if (!obstruction_sensor_detected) {
+            if (!obstruction_sensor_detected)
+            {
                 obstruction_sensor_detected = true;
-                RINFO("Pin-based obstruction detection active");
+                ESP_LOGI(TAG, "Pin-based obstruction detection active");
             }
-            
+
             // Only update if we are changing state
             if (garage_door.obstructed)
             {
-                RINFO("Obstruction Clear");
+                ESP_LOGI(TAG, "Obstruction Clear");
                 garage_door.obstructed = false;
                 notify_homekit_obstruction();
                 digitalWrite(STATUS_OBST_PIN, garage_door.obstructed);
@@ -345,11 +365,11 @@ void obstruction_timer()
                         // Pin has been HIGH since boot, probably no sensor connected
                         return;
                     }
-                    
+
                     // Only update if we are changing state
                     if (!garage_door.obstructed)
                     {
-                        RINFO("Obstruction Detected");
+                        ESP_LOGI(TAG, "Obstruction Detected");
                         garage_door.obstructed = true;
                         notify_homekit_obstruction();
                         digitalWrite(STATUS_OBST_PIN, garage_door.obstructed);
@@ -379,7 +399,7 @@ void service_timer_loop()
     if (enableNTP && clockSet && lastRebootAt == 0)
     {
         lastRebootAt = time(NULL) - (current_millis / 1000);
-        RINFO("System boot time: %s", timeString(lastRebootAt));
+        ESP_LOGI(TAG, "System boot time: %s", timeString(lastRebootAt));
     }
 #endif
 
@@ -389,7 +409,7 @@ void service_timer_loop()
     // Motion Clear Timer
     if (garage_door.motion && garage_door.motion_timer > 0 && (int32_t)(current_millis - garage_door.motion_timer) >= 0)
     {
-        RINFO("Motion Cleared");
+        ESP_LOGI(TAG, "Motion Cleared");
         garage_door.motion = false;
         notify_homekit_motion();
     }
@@ -403,9 +423,9 @@ void service_timer_loop()
         if (free_heap < min_heap)
         {
             min_heap = free_heap;
-            RINFO("Free heap dropped to %d", min_heap);
+            ESP_LOGI(TAG, "Free heap dropped to %d", min_heap);
         }
-        
+
 #ifdef MMU_IRAM_HEAP
         // Also track IRAM heap usage
         {
@@ -414,7 +434,7 @@ void service_timer_loop()
             if (free_iram < min_iram)
             {
                 min_iram = free_iram;
-                RINFO("Free IRAM heap dropped to %d", min_iram);
+                ESP_LOGI(TAG, "Free IRAM heap dropped to %d", min_iram);
             }
         }
 #endif

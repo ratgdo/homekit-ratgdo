@@ -8,6 +8,9 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
 
+// Logger tag
+static const char *TAG = "ratgdo-utils";
+
 #ifdef LEGACY_SETTINGS_MIGRATION
 // Filenames for legacy user configuation, replaced by single file.
 const char staticIPfile[] = "static_ip_file";
@@ -58,7 +61,7 @@ bool get_tz()
     HTTPClient http;
     bool success = false;
 
-    RINFO("Get timezone automatically based on IP address");
+    ESP_LOGI(TAG, "Get timezone automatically based on IP address");
     if (http.begin(client, "http://ip-api.com/csv/?fields=timezone"))
     {
         // start connection and send HTTP header
@@ -69,7 +72,7 @@ bool get_tz()
             String tz = http.getString();
             tz.trim();
             strlcpy(userConfig->timeZone, tz.c_str(), sizeof(userConfig->timeZone));
-            RINFO("Automatic timezone set to: %s", userConfig->timeZone);
+            ESP_LOGI(TAG, "Automatic timezone set to: %s", userConfig->timeZone);
             success = true;
         }
         http.end();
@@ -79,10 +82,11 @@ bool get_tz()
 
 void time_is_set(bool from_sntp)
 {
-    RINFO("Clock set from NTP server: %d", from_sntp ? 1 : 0);
+    ESP_LOGI(TAG, "Clock set from NTP server: %d", from_sntp ? 1 : 0);
     clockSet = true;
-    RINFO("Current time: %s", timeString());
-    if (strlen(userConfig->timeZone) == 0) {
+    ESP_LOGI(TAG, "Current time: %s", timeString());
+    if (strlen(userConfig->timeZone) == 0)
+    {
         // no timeZone set, try and find it automatically
         get_tz();
         // if successful this will have set the region and city, but not
@@ -155,7 +159,7 @@ char *make_rfc952(char *dest, const char *src, int size)
 void load_all_config_settings()
 {
     snprintf(device_name, DEVICE_NAME_SIZE, "Garage Door %06X", ESP.getChipId());
-    RINFO("=== Load all config settings for %s", device_name);
+    ESP_LOGI(TAG, "=== Load all config settings for %s", device_name);
     if (!userConfig)
     {
         IRAM_START
@@ -164,7 +168,8 @@ void load_all_config_settings()
         // to exceed available IRAM.  We can adjust the LOG_BUFFER_SIZE (in log.h) if we
         // need to make more space available for initialization.
         userConfig = (userConfig_t *)malloc(sizeof(userConfig_t));
-        if (!userConfig) {
+        if (!userConfig)
+        {
             Serial.println("FATAL: Failed to allocate userConfig memory");
             ESP.restart();
             return;
@@ -179,7 +184,7 @@ void load_all_config_settings()
 #ifdef LEGACY_SETTINGS_MIGRATION
         // Config file does not exist, load all settings from legacy files (if they exist!)
         // SOMETIME in the future we can delete this whole block of code, we only need it for migraion from old files
-        RINFO("Loading user configuration from legacy files");
+        ESP_LOGI(TAG, "Loading user configuration from legacy files");
         read_string_from_file(device_name_file, userConfig->deviceName, device_name, sizeof(userConfig->deviceName));
         delete_file(device_name_file);
         Serial.print(".");
@@ -247,7 +252,7 @@ void load_all_config_settings()
         Serial.print("\n");
 // Save to file so we never have to read from individual files again.
 #else
-        RINFO("No settings saved, using factory defaults.");
+        ESP_LOGI(TAG, "No settings saved, using factory defaults.");
 #endif
         write_config_to_file();
     }
@@ -284,34 +289,34 @@ void load_all_config_settings()
 #endif
     syslogEn = userConfig->syslogEn;
     // Now log what we have loaded
-    RINFO("RFC952 compliant device hostname: %s", device_name_rfc952);
-    RINFO("User Configuration...");
-    RINFO("   deviceName:          %s", userConfig->deviceName);
-    RINFO("   wifiSettingsChanged: %s", userConfig->wifiSettingsChanged ? "true" : "false");
-    RINFO("   wifiPower:           %d", userConfig->wifiPower);
-    RINFO("   wifiPhyMode:         %d", userConfig->wifiPhyMode);
-    RINFO("   staticIP:            %s", userConfig->staticIP ? "true" : "false");
-    RINFO("   IPaddress:           %s", userConfig->IPaddress);
-    RINFO("   IPnetmask:           %s", userConfig->IPnetmask);
-    RINFO("   IPgateway:           %s", userConfig->IPgateway);
-    RINFO("   IPnameserver:        %s", userConfig->IPnameserver);
-    RINFO("   wwwPWrequired:       %s", userConfig->wwwPWrequired ? "true" : "false");
-    RINFO("   wwwUsername:         %s", userConfig->wwwUsername);
-    RINFO("   wwwCredentials:      %s", userConfig->wwwCredentials);
-    RINFO("   gdoSecurityType:     %d", userConfig->gdoSecurityType);
-    RINFO("   TTCdelay:            %d", userConfig->TTCdelay);
-    RINFO("   rebootSeconds:       %d", userConfig->rebootSeconds);
-    RINFO("   ledIdleState:        %d", userConfig->ledIdleState);
-    RINFO("   motionTriggers:      %d", userConfig->motionTriggers);
+    ESP_LOGI(TAG, "RFC952 compliant device hostname: %s", device_name_rfc952);
+    ESP_LOGI(TAG, "User Configuration...");
+    ESP_LOGI(TAG, "   deviceName:          %s", userConfig->deviceName);
+    ESP_LOGI(TAG, "   wifiSettingsChanged: %s", userConfig->wifiSettingsChanged ? "true" : "false");
+    ESP_LOGI(TAG, "   wifiPower:           %d", userConfig->wifiPower);
+    ESP_LOGI(TAG, "   wifiPhyMode:         %d", userConfig->wifiPhyMode);
+    ESP_LOGI(TAG, "   staticIP:            %s", userConfig->staticIP ? "true" : "false");
+    ESP_LOGI(TAG, "   IPaddress:           %s", userConfig->IPaddress);
+    ESP_LOGI(TAG, "   IPnetmask:           %s", userConfig->IPnetmask);
+    ESP_LOGI(TAG, "   IPgateway:           %s", userConfig->IPgateway);
+    ESP_LOGI(TAG, "   IPnameserver:        %s", userConfig->IPnameserver);
+    ESP_LOGI(TAG, "   wwwPWrequired:       %s", userConfig->wwwPWrequired ? "true" : "false");
+    ESP_LOGI(TAG, "   wwwUsername:         %s", userConfig->wwwUsername);
+    ESP_LOGI(TAG, "   wwwCredentials:      %s", userConfig->wwwCredentials);
+    ESP_LOGI(TAG, "   gdoSecurityType:     %d", userConfig->gdoSecurityType);
+    ESP_LOGI(TAG, "   TTCdelay:            %d", userConfig->TTCdelay);
+    ESP_LOGI(TAG, "   rebootSeconds:       %d", userConfig->rebootSeconds);
+    ESP_LOGI(TAG, "   ledIdleState:        %d", userConfig->ledIdleState);
+    ESP_LOGI(TAG, "   motionTriggers:      %d", userConfig->motionTriggers);
 #ifdef NTP_CLIENT
-    RINFO("   enableNTP:           %s", userConfig->enableNTP ? "true" : "false");
-    RINFO("   doorUpdateAt:        %d", userConfig->doorUpdateAt);
-    RINFO("   timeZone:            %s", userConfig->timeZone);
+    ESP_LOGI(TAG, "   enableNTP:           %s", userConfig->enableNTP ? "true" : "false");
+    ESP_LOGI(TAG, "   doorUpdateAt:        %d", userConfig->doorUpdateAt);
+    ESP_LOGI(TAG, "   timeZone:            %s", userConfig->timeZone);
 #endif
-    RINFO("   softAPmode:          %s", userConfig->softAPmode ? "true" : "false");
-    RINFO("   syslogEn:            %s", userConfig->syslogEn ? "true" : "false");
-    RINFO("   syslogIP:            %s", userConfig->syslogIP);
-    RINFO("   syslogPort:          %d", userConfig->syslogPort);
+    ESP_LOGI(TAG, "   softAPmode:          %s", userConfig->softAPmode ? "true" : "false");
+    ESP_LOGI(TAG, "   syslogEn:            %s", userConfig->syslogEn ? "true" : "false");
+    ESP_LOGI(TAG, "   syslogIP:            %s", userConfig->syslogIP);
+    ESP_LOGI(TAG, "   syslogPort:          %d", userConfig->syslogPort);
 }
 
 void sync_and_restart()
@@ -327,7 +332,7 @@ void sync_and_restart()
         // In soft AP mode we never initialized garage door comms, so don't save rolling code.
         save_rolling_code();
     }
-    // RINFO("checkFlashCRC: %s", ESP.checkFlashCRC() ? "true" : "false");
+    // ESP_LOGI(TAG,"checkFlashCRC: %s", ESP.checkFlashCRC() ? "true" : "false");
     WiFi.mode(WIFI_OFF);
     WiFi.forceSleepBegin();
     // Save current logs in case needed for future analysis
@@ -355,7 +360,7 @@ uint32_t read_int_from_file(const char *filename, uint32_t defaultValue)
 void write_int_to_file(const char *filename, uint32_t value)
 {
     File file = LittleFS.open(filename, "w");
-    RINFO("writing %lu to file %s", value, filename);
+    ESP_LOGI(TAG, "writing %lu to file %s", value, filename);
     file.print(value);
     file.close();
 }
@@ -372,7 +377,7 @@ char *read_string_from_file(const char *filename, const char *defaultValue, char
 void write_string_to_file(const char *filename, const char *value)
 {
     File file = LittleFS.open(filename, "w");
-    RINFO("Writing string to file: %s", value);
+    ESP_LOGI(TAG, "Writing string to file: %s", value);
     file.print(value);
     file.close();
 }
@@ -384,16 +389,17 @@ void delete_file(const char *filename)
 
 void write_config_to_file()
 {
-    RINFO("Writing user configuration to file: %s", userConfigFile);
-    
+    ESP_LOGI(TAG, "Writing user configuration to file: %s", userConfigFile);
+
     // Atomic write: write to temp file first, then rename
     String tempFile = String(userConfigFile) + ".tmp";
     File file = LittleFS.open(tempFile.c_str(), "w");
-    if (!file) {
-        RERROR("Failed to open temp config file for writing: %s", tempFile.c_str());
+    if (!file)
+    {
+        ESP_LOGE(TAG, "Failed to open temp config file for writing: %s", tempFile.c_str());
         return;
     }
-    
+
     file.printf_P(PSTR("deviceName,,%s\n"), userConfig->deviceName);
     file.printf_P(PSTR("wifiSettingsChanged,,%s\n"), userConfig->wifiSettingsChanged ? "true" : "false");
     file.printf_P(PSTR("wifiPower,,%d\n"), userConfig->wifiPower);
@@ -421,23 +427,25 @@ void write_config_to_file()
     file.printf_P(PSTR("syslogIP,,%s\n"), userConfig->syslogIP);
     file.printf_P(PSTR("syslogPort,,%d\n"), userConfig->syslogPort);
     file.close();
-    
+
     // Atomic operation: rename temp file to final file
-    if (LittleFS.exists(userConfigFile)) {
+    if (LittleFS.exists(userConfigFile))
+    {
         LittleFS.remove(userConfigFile);
     }
-    if (!LittleFS.rename(tempFile.c_str(), userConfigFile)) {
-        RERROR("Failed to rename temp config file to final: %s -> %s", tempFile.c_str(), userConfigFile);
+    if (!LittleFS.rename(tempFile.c_str(), userConfigFile))
+    {
+        ESP_LOGE(TAG, "Failed to rename temp config file to final: %s -> %s", tempFile.c_str(), userConfigFile);
         LittleFS.remove(tempFile.c_str()); // Clean up temp file
         return;
     }
-    
-    RINFO("Config file written atomically");
+
+    ESP_LOGI(TAG, "Config file written atomically");
 }
 
 bool read_config_from_file()
 {
-    RINFO("Read user configuration from file: %s", userConfigFile);
+    ESP_LOGI(TAG, "Read user configuration from file: %s", userConfigFile);
     File file = LittleFS.open(userConfigFile, "r");
     if (!file)
         return false;
@@ -446,14 +454,16 @@ bool read_config_from_file()
         String line = file.readStringUntil('\n');
         const char *key = line.c_str();
         char *type = strchr(key, ',');
-        if (!type) {
-            RINFO("Malformed config line, skipping: %s", key);
+        if (!type)
+        {
+            ESP_LOGI(TAG, "Malformed config line, skipping: %s", key);
             continue;
         }
         *type++ = 0;
         char *value = strchr(type, ',');
-        if (!value) {
-            RINFO("Malformed config line, missing value: %s", key);
+        if (!value)
+        {
+            ESP_LOGI(TAG, "Malformed config line, missing value: %s", key);
             continue;
         }
         *value++ = 0;

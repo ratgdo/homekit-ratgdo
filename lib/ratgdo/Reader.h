@@ -51,7 +51,7 @@ class SecPlus2Reader {
             }
 
             if (msg_ready) {
-                RINFO("reader completed packet");
+                ESP_LOGI("ratgdo-reader","reader completed packet");
             }
             return msg_ready;
         };
