@@ -33,16 +33,47 @@ typedef struct logBuffer
     char buffer[LOG_BUFFER_SIZE - 4]; // sized so whole struct is LOG_BUFFER_SIZE bytes
 } logBuffer;
 
+#ifndef ESP_LOG_LEVEL_T
+#define ESP_LOG_LEVEL_T
+typedef enum
+{
+    ESP_LOG_NONE,   /*!< No log output */
+    ESP_LOG_ERROR,  /*!< Critical errors, software module can not recover on its own */
+    ESP_LOG_WARN,   /*!< Error conditions from which recovery measures have been taken */
+    ESP_LOG_INFO,   /*!< Information messages which describe normal flow of events */
+    ESP_LOG_DEBUG,  /*!< Extra information which is not necessary for normal use (values, pointers, sizes, etc). */
+    ESP_LOG_VERBOSE /*!< Bigger chunks of debugging information, or frequent messages which can potentially flood the output. */
+} esp_log_level_t;
+#endif
+
+extern "C" esp_log_level_t logLevel;
 extern "C" void logToBuffer_P(const char *fmt, ...);
 void printSavedLog(File file, Print &outDevice = Serial);
 void printSavedLog(Print &outDevice = Serial);
 void printMessageLog(Print &outDevice = Serial);
 void crashCallback();
 
-#define RATGDO_PRINTF(message, ...) logToBuffer_P(PSTR(message), ##__VA_ARGS__)
+// #define RATGDO_PRINTF(message, ...) logToBuffer_P(PSTR(message), ##__VA_ARGS__)
 
-#define RINFO(message, ...) RATGDO_PRINTF(">>> [%7lu] RATGDO: " message "\r\n", millis(), ##__VA_ARGS__)
-#define RERROR(message, ...) RATGDO_PRINTF("!!! [%7lu] RATGDO: " message "\r\n", millis(), ##__VA_ARGS__)
+// #define RINFO(message, ...) RATGDO_PRINTF(">>> [%7lu] RATGDO: " message "\r\n", millis(), ##__VA_ARGS__)
+// #define RERROR(message, ...) RATGDO_PRINTF("!!! [%7lu] RATGDO: " message "\r\n", millis(), ##__VA_ARGS__)
+
+#define RATGDO_PRINTF(level, message, ...)               \
+    do                                                   \
+    {                                                    \
+        if (level <= logLevel)                           \
+            logToBuffer_P(PSTR(message), ##__VA_ARGS__); \
+    } while (0)
+
+#define ESP_LOGE(tag, message, ...) RATGDO_PRINTF(ESP_LOG_ERROR, "E (%lu) %s: " message "\r\n", millis(), tag, ##__VA_ARGS__)
+#define ESP_LOGW(tag, message, ...) RATGDO_PRINTF(ESP_LOG_WARN, "W (%lu) %s: " message "\r\n", millis(), tag, ##__VA_ARGS__)
+#define ESP_LOGI(tag, message, ...) RATGDO_PRINTF(ESP_LOG_INFO, "I (%lu) %s: " message "\r\n", millis(), tag, ##__VA_ARGS__)
+#define ESP_LOGD(tag, message, ...) RATGDO_PRINTF(ESP_LOG_DEBUG, "D (%lu) %s: " message "\r\n", millis(), tag, ##__VA_ARGS__)
+#define ESP_LOGV(tag, message, ...) RATGDO_PRINTF(ESP_LOG_VERBOSE, "V (%lu) %s: " message "\r\n", millis(), tag, ##__VA_ARGS__)
+
+#define RINFO(message, ...) ESP_LOGI("unknown", message, ##__VA_ARGS__)
+#define RERROR(message, ...) ESP_LOGE("unknown", message, ##__VA_ARGS__)
+
 #else // LOG_MSG_BUFFER
 
 #ifndef UNIT_TEST
