@@ -14,6 +14,9 @@
 #include <time.h>
 #include <coredecls.h>
 
+// Logger tag
+static const char *TAG = "ratgdo-main";
+
 time_t now = 0;
 tm timeInfo;
 
@@ -103,13 +106,16 @@ void setup()
     flashCRC = ESP.checkFlashCRC();
     LittleFS.begin();
 
-    Serial.printf("\n"); // newline before we start
+    while (!Serial)
+        ; // Wait for serial port to open
+    Serial.printf("\n\n\n=== R A T G D O ===\n");
     led = LED();
-    RINFO("=== Starting RATGDO Homekit version %s", AUTO_VERSION);
-    RINFO("%s", ESP.getFullVersion().c_str());
-    RINFO("Flash chip size 0x%X", ESP.getFlashChipSize());
-    RINFO("Flash chip mode 0x%X", ESP.getFlashChipMode());
-    RINFO("Flash chip speed 0x%X (%d MHz)", ESP.getFlashChipSpeed(), ESP.getFlashChipSpeed() / 1000000);
+
+    ESP_LOGI(TAG, "=== Starting RATGDO Homekit version %s", AUTO_VERSION);
+    ESP_LOGI(TAG, "%s", ESP.getFullVersion().c_str());
+    ESP_LOGI(TAG, "Flash chip size 0x%X", ESP.getFlashChipSize());
+    ESP_LOGI(TAG, "Flash chip mode 0x%X", ESP.getFlashChipMode());
+    ESP_LOGI(TAG, "Flash chip speed 0x%X (%d MHz)", ESP.getFlashChipSpeed(), ESP.getFlashChipSpeed() / 1000000);
     // CRC checking starts at memory location 0x40200000, and proceeds until the address of __crc_len and __crc_val...
     // For CRC calculation purposes, those two long (32 bit) values are assumed to be zero.
     // The CRC calculation then proceeds until it get to 0x4020000 plus __crc_len.

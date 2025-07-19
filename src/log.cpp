@@ -14,6 +14,9 @@
 
 #include <Arduino.h>
 
+// Logger tag
+static const char *TAG = "ratgdo-logger";
+
 void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN])
 {
     RINFO("decoded packet: [%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X]",
@@ -45,7 +48,9 @@ File logMessageFile;
 #define SYSLOG_NIL "-"
 #define SYSLOG_BOM "\xEF\xBB\xBF"
 
+esp_log_level_t logLevel = ESP_LOG_VERBOSE;
 WiFiUDP syslog;
+
 void logToSyslog(char *message)
 {
     if (!syslogEn || !WiFi.isConnected())
@@ -56,43 +61,80 @@ void logToSyslog(char *message)
         PRI += SYSLOG_INFO;
     else if (*message == '!')
         PRI += SYSLOG_ERROR;
+    else if (*message == 'I')
+        PRI += SYSLOG_INFO;
+    else if (*message == 'E')
+        PRI += SYSLOG_ERROR;
+    else if (*message == 'W')
+        PRI += SYSLOG_WARN;
+    else if (*message == 'D')
+        PRI += SYSLOG_DEBUG;
+    else if (*message == 'V')
+        PRI += SYSLOG_DEBUG;
 
     char *app_name;
     char *msg;
+    static char unk[] = "unknown";
 
-    app_name = strtok(message, "]");
-    while (*app_name == ' ')
-        app_name++;
-    app_name = strtok(NULL, ":");
-    while (*app_name == ' ')
-        app_name++;
-    msg = strtok(NULL, "\r\n");
-    while (*msg == ' ')
-        msg++;
+    // Strip out the TAG name which is embedded in the log message.
+    // Can be bound by [timestamp] tagname: message
+    // So extract from the close square bracket to the colon.
+    // If no close square bracket, then message format may be
+    // (timestamp) tagname:
+    char *sqr = strchr(message, ']');
+    char *brk = strchr(message, ')');
+    if (sqr && brk)
+    {
+        if (sqr < brk)
+            app_name = strtok(message, "]");
+        else
+            app_name = strtok(message, ")");
+    }
+    else if (sqr)
+        app_name = strtok(message, "]");
+    else if (brk)
+        app_name = strtok(message, ")");
+    else
+        app_name = NULL;
 
+    if (app_name)
+    {
+        while (*app_name == ' ')
+            app_name++;
+        app_name = strtok(NULL, ":");
+        while (*app_name == ' ')
+            app_name++;
+        msg = strtok(NULL, "\r\n");
+        while (*msg == ' ')
+            msg++;
+    }
+    else
+    {
+        // neither a close close square or regular bracket then cannot determine tag name
+        app_name = unk;
+        msg = message;
+    }
     syslog.beginPacket(userConfig->syslogIP, userConfig->syslogPort);
-
     // Use RFC5424 Format
     syslog.printf("<%u>1 ", PRI); // PRI code
-#if defined(NTP_CLIENT) && defined(USE_NTP_TIMESTAMP)
+#if defined(USE_NTP_TIMESTAMP)
     syslog.print((enableNTP && clockSet) ? timeString(0, true) : SYSLOG_NIL);
 #else
-    syslog.print(SYSLOG_NIL);         // Time - let the syslog server insert time
+    syslog.print(SYSLOG_NIL); // Time - let the syslog server insert time
 #endif
     syslog.print(" ");
     syslog.print(device_name_rfc952); // hostname
     syslog.print(" ");
-    syslog.print(app_name);        // application name
-    syslog.printf(" %d", loop_id); // process ID
-    syslog.print(" " SYSLOG_NIL    // message ID
-                 " " SYSLOG_NIL    // structured data
+    syslog.print(app_name);     // application name
+    syslog.printf(" 0");        // process ID
+    syslog.print(" " SYSLOG_NIL // message ID
+                 " " SYSLOG_NIL // structured data
 #ifdef USE_UTF8_BOM
-                 " " SYSLOG_BOM);  // BOM - indicates UTF-8 encoding
+                 " " SYSLOG_BOM); // BOM - indicates UTF-8 encoding
 #else
-                 " " );            // No BOM
+                 " "); // No BOM
 #endif
-    syslog.print(msg);             // message
-
+    syslog.print(msg); // message
     syslog.endPacket();
 }
 
@@ -140,6 +182,19 @@ void logToBuffer_P(const char *fmt, ...)
     va_start(args, fmt);
     vsnprintf_P(lineBuffer, LINE_BUFFER_SIZE, fmt, args);
     va_end(args);
+    // If timestamp is wrapped in () and not [] then message is from one of the ESP_LOGx() functions.
+    // Insert a period into the milliseconds timestamp, so number of seconds is easier to read.
+    if (strchr(lineBuffer, '(') - lineBuffer == 2)
+    {
+        char *closeBracket = strchr(lineBuffer, ')');
+        int i = closeBracket - lineBuffer;
+        if (i > 6)
+        {
+            memmove(&closeBracket[-2], &closeBracket[-3], LINE_BUFFER_SIZE - (i - 1));
+            closeBracket[-3] = '.';
+        }
+    }
+
     // print line to the serial port
     Serial.print(lineBuffer);
     // copy the line into the message save buffer
@@ -157,9 +212,20 @@ void logToBuffer_P(const char *fmt, ...)
     {
         msgBuffer->head += len;
     }
-    // send it to subscribed browsers
-    SSEBroadcastState(lineBuffer, LOG_MESSAGE);
-    logToSyslog(lineBuffer);
+    msgBuffer->buffer[msgBuffer->head] = 0; // null terminate
+
+    static bool inFn = false;
+    if (!inFn)
+    {
+        // Control recursion... make sure we don't get into a loop if any
+        // of the functions we use here log a message.
+        inFn = true;
+        // send it to subscribed browsers
+        SSEBroadcastState(lineBuffer, LOG_MESSAGE);
+        // send it to syslog server
+        logToSyslog(lineBuffer);
+        inFn = false;
+    }
 }
 
 #ifdef ENABLE_CRASH_LOG
