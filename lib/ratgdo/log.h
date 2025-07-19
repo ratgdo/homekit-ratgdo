@@ -11,8 +11,6 @@
 
 void print_packet(uint8_t pkt[SECPLUS2_CODE_LEN]);
 
-// #define LOG_MSG_BUFFER
-
 #ifdef LOG_MSG_BUFFER
 
 #define CRASH_LOG_MSG_FILE "crash_log"
@@ -53,11 +51,6 @@ void printSavedLog(Print &outDevice = Serial);
 void printMessageLog(Print &outDevice = Serial);
 void crashCallback();
 
-// #define RATGDO_PRINTF(message, ...) logToBuffer_P(PSTR(message), ##__VA_ARGS__)
-
-// #define RINFO(message, ...) RATGDO_PRINTF(">>> [%7lu] RATGDO: " message "\r\n", millis(), ##__VA_ARGS__)
-// #define RERROR(message, ...) RATGDO_PRINTF("!!! [%7lu] RATGDO: " message "\r\n", millis(), ##__VA_ARGS__)
-
 #define RATGDO_PRINTF(level, message, ...)               \
     do                                                   \
     {                                                    \
@@ -65,30 +58,16 @@ void crashCallback();
             logToBuffer_P(PSTR(message), ##__VA_ARGS__); \
     } while (0)
 
+#else // LOG_MSG_BUFFER
+
+#define RATGDO_PRINTF(level, message, ...) XPGM_PRINTF(message, ##__VA_ARGS__)
+
+#endif // LOG_MSG_BUFFER
+
 #define ESP_LOGE(tag, message, ...) RATGDO_PRINTF(ESP_LOG_ERROR, "E (%lu) %s: " message "\r\n", millis(), tag, ##__VA_ARGS__)
 #define ESP_LOGW(tag, message, ...) RATGDO_PRINTF(ESP_LOG_WARN, "W (%lu) %s: " message "\r\n", millis(), tag, ##__VA_ARGS__)
 #define ESP_LOGI(tag, message, ...) RATGDO_PRINTF(ESP_LOG_INFO, "I (%lu) %s: " message "\r\n", millis(), tag, ##__VA_ARGS__)
 #define ESP_LOGD(tag, message, ...) RATGDO_PRINTF(ESP_LOG_DEBUG, "D (%lu) %s: " message "\r\n", millis(), tag, ##__VA_ARGS__)
 #define ESP_LOGV(tag, message, ...) RATGDO_PRINTF(ESP_LOG_VERBOSE, "V (%lu) %s: " message "\r\n", millis(), tag, ##__VA_ARGS__)
-
-#define RINFO(message, ...) ESP_LOGI("unknown", message, ##__VA_ARGS__)
-#define RERROR(message, ...) ESP_LOGE("unknown", message, ##__VA_ARGS__)
-
-#else // LOG_MSG_BUFFER
-
-#ifndef UNIT_TEST
-
-#define RINFO(message, ...) XPGM_PRINTF(">>> [%7lu] RATGDO: " message "\r\n", millis(), ##__VA_ARGS__)
-#define RERROR(message, ...) XPGM_PRINTF("!!! [%7lu] RATGDO: " message "\r\n", millis(), ##__VA_ARGS__)
-
-#else // UNIT_TEST
-
-#include <stdio.h>
-#define RINFO(message, ...) printf(">>> RATGDO: " message "\n", ##__VA_ARGS__)
-#define RERROR(message, ...) printf("!!! RATGDO: " message "\n", ##__VA_ARGS__)
-
-#endif // UNIT_TEST
-
-#endif // LOG_MSG_BUFFER
 
 #endif // _LOG_H

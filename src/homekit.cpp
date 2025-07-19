@@ -10,6 +10,9 @@
 #include "homekit_decl.h"
 #include "web.h"
 
+// Logger tag
+static const char *TAG = "ratgdo-homekit";
+
 // Bring in config and characteristics defined in homekit_decl.c
 extern "C" homekit_server_config_t config;
 extern "C" homekit_characteristic_t current_door_state;
@@ -49,7 +52,7 @@ void homekit_loop()
 
 void setup_homekit()
 {
-    RINFO("=== Starting HomeKit Server");
+    ESP_LOGI(TAG, "=== Starting HomeKit Server");
     String macAddress = WiFi.macAddress();
     snprintf(serial_number, SERIAL_NAME_SIZE, "%s", macAddress.c_str());
 
@@ -67,12 +70,12 @@ void setup_homekit()
     garage_door.has_motion_sensor = (bool)read_int_from_file("has_motion");
     if (!garage_door.has_motion_sensor && (userConfig->motionTriggers == 0))
     {
-        RINFO("Motion Sensor not detected.  Disabling Service");
+        ESP_LOGI(TAG, "Motion Sensor not detected.  Disabling Service");
         config.accessories[0]->services[3] = NULL;
     }
     if (userConfig->gdoSecurityType == 3)
     {
-        RINFO("Dry contact does not support light control.  Disabling Service");
+        ESP_LOGI(TAG, "Dry contact does not support light control.  Disabling Service");
         config.accessories[0]->services[2] = NULL;
     }
 
@@ -89,21 +92,21 @@ void setup_homekit()
 
 homekit_value_t current_door_state_get()
 {
-    RINFO("get current door state: %d", garage_door.current_state);
+    ESP_LOGI(TAG, "get current door state: %d", garage_door.current_state);
 
     return HOMEKIT_UINT8_CPP(garage_door.current_state);
 }
 
 homekit_value_t target_door_state_get()
 {
-    RINFO("get target door state: %d", garage_door.target_state);
+    ESP_LOGI(TAG, "get target door state: %d", garage_door.target_state);
 
     return HOMEKIT_UINT8_CPP(garage_door.target_state);
 }
 
 void target_door_state_set(const homekit_value_t value)
 {
-    RINFO("set door state: %d", value.uint8_value);
+    ESP_LOGI(TAG, "set door state: %d", value.uint8_value);
 
     switch (value.uint8_value)
     {
@@ -121,33 +124,33 @@ void target_door_state_set(const homekit_value_t value)
 
 homekit_value_t obstruction_detected_get()
 {
-    RINFO("get obstruction: %d", garage_door.obstructed);
+    ESP_LOGI(TAG, "get obstruction: %d", garage_door.obstructed);
     return HOMEKIT_BOOL_CPP(garage_door.obstructed);
 }
 
 homekit_value_t active_state_get()
 {
-    RINFO("get active: %d", garage_door.active);
+    ESP_LOGI(TAG, "get active: %d", garage_door.active);
     return HOMEKIT_BOOL_CPP(garage_door.active);
 }
 
 homekit_value_t current_lock_state_get()
 {
-    RINFO("get current lock state: %d", garage_door.current_lock);
+    ESP_LOGI(TAG, "get current lock state: %d", garage_door.current_lock);
 
     return HOMEKIT_UINT8_CPP(garage_door.current_lock);
 }
 
 homekit_value_t target_lock_state_get()
 {
-    RINFO("get target lock state: %d", garage_door.target_lock);
+    ESP_LOGI(TAG, "get target lock state: %d", garage_door.target_lock);
 
     return HOMEKIT_UINT8_CPP(garage_door.target_lock);
 }
 
 void target_lock_state_set(const homekit_value_t value)
 {
-    RINFO("set lock state: %d", value.uint8_value);
+    ESP_LOGI(TAG, "set lock state: %d", value.uint8_value);
 
     set_lock(value.uint8_value);
 }
@@ -184,14 +187,14 @@ void notify_homekit_active()
 
 homekit_value_t light_state_get()
 {
-    RINFO("get light state: %s", garage_door.light ? "On" : "Off");
+    ESP_LOGI(TAG, "get light state: %s", garage_door.light ? "On" : "Off");
 
     return HOMEKIT_BOOL_CPP(garage_door.light);
 }
 
 void light_state_set(const homekit_value_t value)
 {
-    RINFO("set light: %s", value.bool_value ? "On" : "Off");
+    ESP_LOGI(TAG, "set light: %s", value.bool_value ? "On" : "Off");
 
     set_light(value.bool_value);
 }

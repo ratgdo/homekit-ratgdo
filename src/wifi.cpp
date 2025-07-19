@@ -27,6 +27,9 @@
 #include "utilities.h"
 #include "wifi.h"
 
+// Logger tag
+static const char *TAG = "ratgdo-wifi";
+
 // support for changeing WiFi settings
 unsigned long wifiConnectStart = 0;
 bool wifiConnectActive = false;
@@ -57,12 +60,12 @@ WiFiEventHandler dhcpTimeoutHandler;
 
 void onConnected(const WiFiEventStationModeConnected &evt)
 {
-    RINFO("WiFi connected SSID: %s, Channel: %d", evt.ssid.c_str(), evt.channel);
+    ESP_LOGI(TAG,"WiFi connected SSID: %s, Channel: %d", evt.ssid.c_str(), evt.channel);
 }
 
 void onDisconnected(const WiFiEventStationModeDisconnected &evt)
 {
-    RINFO("WiFi disconnected SSID: %s, BSSID: %02x:%02x:%02x:%02x:%02x:%02x, Reason: %d", evt.ssid.c_str(),
+    ESP_LOGI(TAG,"WiFi disconnected SSID: %s, BSSID: %02x:%02x:%02x:%02x:%02x:%02x, Reason: %d", evt.ssid.c_str(),
           evt.bssid[0], evt.bssid[1], evt.bssid[2], evt.bssid[3], evt.bssid[4], evt.bssid[5], evt.reason);
 }
 
@@ -73,29 +76,29 @@ void onGotIP(const WiFiEventStationModeGotIP &evt)
     strlcpy(userConfig->IPgateway, evt.gw.toString().c_str(), sizeof(userConfig->IPgateway));
     strlcpy(userConfig->IPnameserver, (WiFi.dnsIP().isSet()) ? WiFi.dnsIP().toString().c_str() : evt.gw.toString().c_str(), sizeof(userConfig->IPnameserver));
     write_config_to_file();
-    RINFO("WiFi Got IP: %s, Mask: %s, Gateway: %s, DNS: %s", userConfig->IPaddress, userConfig->IPnetmask, userConfig->IPgateway, userConfig->IPnameserver);
+    ESP_LOGI(TAG,"WiFi Got IP: %s, Mask: %s, Gateway: %s, DNS: %s", userConfig->IPaddress, userConfig->IPnetmask, userConfig->IPgateway, userConfig->IPnameserver);
 }
 
 void onDHCPTimeout()
 {
-    RINFO("WiFi DHCP Timeout");
+    ESP_LOGI(TAG,"WiFi DHCP Timeout");
 }
 
 void wifi_scan()
 {
     // scan for networks
-    RINFO("Scanning for networks...");
+    ESP_LOGI(TAG,"Scanning for networks...");
     wifiNet_t wifiNet;
     wifiNets.clear();
     int nNets = std::min((int)WiFi.scanNetworks(), 127);
-    RINFO("Found %d networks", nNets);
+    ESP_LOGI(TAG,"Found %d networks", nNets);
     for (int i = 0; i < nNets; i++)
     {
         wifiNet.ssid = WiFi.SSID(i);
         wifiNet.channel = WiFi.channel(i);
         wifiNet.rssi = WiFi.RSSI(i);
         memcpy(wifiNet.bssid, WiFi.BSSID(i), sizeof(wifiNet.bssid));
-        RINFO("Network: %s (Ch:%d, %ddBm) AP: %s", WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i), WiFi.BSSIDstr(i).c_str());
+        ESP_LOGI(TAG,"Network: %s (Ch:%d, %ddBm) AP: %s", WiFi.SSID(i).c_str(), WiFi.channel(i), WiFi.RSSI(i), WiFi.BSSIDstr(i).c_str());
         wifiNets.insert(wifiNet);
     }
     // delete scan from memory
@@ -104,7 +107,7 @@ void wifi_scan()
 
 void wifi_connect()
 {
-    RINFO("=== Initialize WiFi %s", (softAPmode) ? "Soft Access Point" : "Station");
+    ESP_LOGI(TAG,"=== Initialize WiFi %s", (softAPmode) ? "Soft Access Point" : "Station");
     IRAM_START
     // IRAM heap is used only for allocating globals, to leave as much regular heap
     // available during operations.  We need to carefully monitor useage so as not
@@ -113,15 +116,15 @@ void wifi_connect()
     WiFi.persistent(false);
     if (softAPmode)
     {
-        RINFO("Start AP mode for: %s", device_name_rfc952);
+        ESP_LOGI(TAG,"Start AP mode for: %s", device_name_rfc952);
         bool apStarted = WiFi.softAP(device_name_rfc952);
         if (apStarted)
         {
-            RINFO("AP started with IP %s", WiFi.softAPIP().toString().c_str());
+            ESP_LOGI(TAG,"AP started with IP %s", WiFi.softAPIP().toString().c_str());
         }
         else
         {
-            RINFO("Error starting AP mode");
+            ESP_LOGI(TAG,"Error starting AP mode");
         }
         userConfig->wifiSettingsChanged = false;
         wifi_scan();
@@ -130,21 +133,21 @@ void wifi_connect()
     {
         if (userConfig->wifiSettingsChanged)
         {
-            RINFO("WARNING: WiFi settings changed. Will check for connection after 30 seconds.");
+            ESP_LOGI(TAG,"WARNING: WiFi settings changed. Will check for connection after 30 seconds.");
         }
         switch (userConfig->wifiPhyMode)
         {
         case WIFI_PHY_MODE_11B:
-            RINFO("Setting WiFi preference to 802.11b (Wi-Fi 1)");
+            ESP_LOGI(TAG,"Setting WiFi preference to 802.11b (Wi-Fi 1)");
             break;
         case WIFI_PHY_MODE_11G:
-            RINFO("Setting WiFi preference to 802.11g (Wi-Fi 3)");
+            ESP_LOGI(TAG,"Setting WiFi preference to 802.11g (Wi-Fi 3)");
             break;
         case WIFI_PHY_MODE_11N:
-            RINFO("Setting WiFi preference to 802.11n (Wi-Fi 4)");
+            ESP_LOGI(TAG,"Setting WiFi preference to 802.11n (Wi-Fi 4)");
             break;
         default:
-            RINFO("Setting WiFi version preference to automatic");
+            ESP_LOGI(TAG,"Setting WiFi version preference to automatic");
         }
         WiFi.mode(WIFI_STA);
         WiFi.setSleepMode(WIFI_NONE_SLEEP);
@@ -152,12 +155,12 @@ void wifi_connect()
         if (userConfig->wifiPower < 20)
         {
             // Only set WiFi power if set to less than the maximum
-            RINFO("Setting WiFi power to %d", userConfig->wifiPower);
+            ESP_LOGI(TAG,"Setting WiFi power to %d", userConfig->wifiPower);
             WiFi.setOutputPower((float)userConfig->wifiPower);
         }
         WiFi.setAutoReconnect(true); // don't require explicit attempts to reconnect in the main loop
 
-        RINFO("Set WiFi Host Name: %s", device_name_rfc952);
+        ESP_LOGI(TAG,"Set WiFi Host Name: %s", device_name_rfc952);
         WiFi.hostname((const char *)device_name_rfc952);
 
         if (userConfig->staticIP)
@@ -175,7 +178,7 @@ void wifi_connect()
             }
             else
             {
-                RINFO("Failed to set static IP address, error parsing addresses");
+                ESP_LOGI(TAG,"Failed to set static IP address, error parsing addresses");
             }
         }
     }
@@ -188,14 +191,14 @@ void wifi_connect()
     wifi_station_get_config_default(&wifiConf);
     if (wifiConf.bssid_set)
     {
-        RINFO("Connecting to SSID: %s locked to Access Point: %02x:%02x:%02x:%02x:%02x:%02x, ", wifiConf.ssid,
+        ESP_LOGI(TAG,"Connecting to SSID: %s locked to Access Point: %02x:%02x:%02x:%02x:%02x:%02x, ", wifiConf.ssid,
               wifiConf.bssid[0], wifiConf.bssid[1], wifiConf.bssid[2], wifiConf.bssid[3], wifiConf.bssid[4], wifiConf.bssid[5]);
     }
     else
     {
-        RINFO("Connecting to SSID: %s", wifiConf.ssid);
+        ESP_LOGI(TAG,"Connecting to SSID: %s", wifiConf.ssid);
     }
-    RINFO("Starting WiFi connecting in background");
+    ESP_LOGI(TAG,"Starting WiFi connecting in background");
     wifiConnectStart = millis();
     wifiConnectActive = true;
     WiFi.begin(); // use credentials stored in flash
@@ -229,11 +232,11 @@ void improv_loop()
             // Log success once an hour
             if ((now - gw_report_start >= 60 * 60 * 1000) || (lat > 100)) {
                 gw_report_start = now;
-                RINFO("Gateway %s alive %u ms", WiFi.gatewayIP().toString().c_str(), lat);
+                ESP_LOGI(TAG,"Gateway %s alive %u ms", WiFi.gatewayIP().toString().c_str(), lat);
             }
         }
         else {
-            RINFO("No response from Gateway %s", WiFi.gatewayIP().toString().c_str());
+            ESP_LOGI(TAG,"No response from Gateway %s", WiFi.gatewayIP().toString().c_str());
         }
     }
 #endif
@@ -260,7 +263,7 @@ void improv_loop()
             soft_ap_timer_started = true;
         }
         if (millis() - soft_ap_start > 10 * 60 * 1000) {
-            RINFO("In Soft Access Point mode for over 10 minutes, reboot");
+            ESP_LOGI(TAG,"In Soft Access Point mode for over 10 minutes, reboot");
             sync_and_restart();
             return;
         }
@@ -269,11 +272,11 @@ void improv_loop()
     if (userConfig->wifiSettingsChanged && wifiConnectActive && (millis() - wifiConnectStart >= 30000))
     {
         bool connected = (WiFi.status() == WL_CONNECTED);
-        RINFO("30 seconds since WiFi settings change, connected to access point: %s", (connected) ? "true" : "false");
+        ESP_LOGI(TAG,"30 seconds since WiFi settings change, connected to access point: %s", (connected) ? "true" : "false");
         // If not connected, reset to auto.
         if (!connected)
         {
-            RINFO("Reset WiFi Power to 20.5 dBm and WiFiPhyMode to: 0");
+            ESP_LOGI(TAG,"Reset WiFi Power to 20.5 dBm and WiFiPhyMode to: 0");
             userConfig->wifiPower = 20;
             userConfig->wifiPhyMode = 0;
             WiFi.setOutputPower(20.5);
@@ -287,11 +290,11 @@ void improv_loop()
         }
         else
         {
-            RINFO("Connected, test Gatway IP reachable");
+            ESP_LOGI(TAG,"Connected, test Gatway IP reachable");
             IPAddress ip;
             if (!Ping.ping(WiFi.gatewayIP(), 1))
             {
-                RINFO("Unable to ping Gateway, reset to DHCP to acquire IP address and reconnect");
+                ESP_LOGI(TAG,"Unable to ping Gateway, reset to DHCP to acquire IP address and reconnect");
                 userConfig->staticIP = false;
                 write_config_to_file();
                 IPAddress ip;
@@ -303,7 +306,7 @@ void improv_loop()
                 WiFi.reconnect();
                 return;
             } else {
-                RINFO("Gateway %s alive %u ms", WiFi.gatewayIP().toString().c_str(), Ping.averageTime());
+                ESP_LOGI(TAG,"Gateway %s alive %u ms", WiFi.gatewayIP().toString().c_str(), Ping.averageTime());
             }
         }
         // reset flag
@@ -334,7 +337,7 @@ bool connect_wifi(const std::string &ssid, const std::string &password, const ui
         // Check both attempt count and total time to prevent watchdog timeout
         if (count > MAX_ATTEMPTS_WIFI_CONNECTION || (millis() - start_time) > 10000) // 10 second timeout
         {
-            RINFO("WiFi connection timeout after %lu ms, %d attempts", millis() - start_time, count);
+            ESP_LOGI(TAG,"WiFi connection timeout after %lu ms, %d attempts", millis() - start_time, count);
             WiFi.disconnect();
             return false;
         }
@@ -358,7 +361,7 @@ std::vector<std::string> get_local_url()
 
 void on_error_callback(improv::Error err)
 {
-    RERROR("improv error: %02X", err);
+    ESP_LOGE(TAG,"improv error: %02X", err);
 }
 
 bool on_command_callback(improv::ImprovCommand cmd)
@@ -442,14 +445,14 @@ void get_available_wifi_networks()
     // Limit to prevent stack overflow in dense WiFi environments (reduced from 50 to 20 for ESP8266)
     const int MAX_NETWORKS = 20;
     if (networkNum > MAX_NETWORKS) {
-        RINFO("Found %d networks, limiting to %d to prevent stack overflow", networkNum, MAX_NETWORKS);
+        ESP_LOGI(TAG,"Found %d networks, limiting to %d to prevent stack overflow", networkNum, MAX_NETWORKS);
         networkNum = MAX_NETWORKS;
     }
 
     // Allocate dynamically to prevent stack overflow
     int *sortedIndicies = (int*)malloc(sizeof(int) * networkNum);
     if (!sortedIndicies) {
-        RERROR("Failed to allocate memory for WiFi network sorting");
+        ESP_LOGE(TAG,"Failed to allocate memory for WiFi network sorting");
         return;
     }
     for (int i = 0; i < networkNum; i++)
