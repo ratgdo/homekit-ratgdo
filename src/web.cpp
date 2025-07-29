@@ -245,7 +245,7 @@ struct SSESubscription
     IPAddress clientIP;
     WiFiClient client;
     Ticker heartbeatTimer;
-    float heartbeatInterval;
+    int heartbeatInterval;
     bool SSEconnected;
     int SSEfailCount;
     String clientUUID;
@@ -1421,11 +1421,11 @@ void handle_subscribe()
     }
 
     // validate optional heartbeat interval
-    float heartbeatInterval = 1.0;  // default
+    int heartbeatInterval = 1;  // default
     if (heartbeatIntervalArgIdx >= 0) {
-        float hbi = server.arg(heartbeatIntervalArgIdx).toFloat();
+        int hbi = server.arg(heartbeatIntervalArgIdx).toInt();
         // in range of 0 (no heartbeat) to 60 seconds
-        if (hbi < 0.0 || hbi > 60.00) {
+        if (hbi < 0 || hbi > 60) {
             RINFO("Invalid client for SSE subscription");
             server.send(400, "text/plain", "Invalid heartbeat interval (0 - 60)");
             return;
@@ -1436,7 +1436,7 @@ void handle_subscribe()
         }
     }
     if (heartbeatInterval > 0) {
-        RINFO("SSE Subscription for client %s has specified a heartbeat Interval of %2.1f seconds", server.arg(id).c_str(), heartbeatInterval);
+        RINFO("SSE Subscription for client %s has specified a heartbeat Interval of %d seconds", server.arg(id).c_str(), heartbeatInterval);
     }
     else {
         RINFO("SSE Subscription for client %s has specified a heartbeat disabled", server.arg(id).c_str());
