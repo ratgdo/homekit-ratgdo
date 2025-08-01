@@ -8,19 +8,13 @@
  * Licensed under terms of the GPL-3.0 License.
  *
  * Contributions acknowledged from
- * Brandon Matthews... https://github.com/thenewwazoo
- * Jonathan Stroud...  https://github.com/jgstroud
+ * Thomas Hagan... https://github.com/tlhagan
  *
  */
 #pragma once
 
-#ifdef ESP8266
-// This whole file only applies for ESP8266.
-// On ESP32, WiFi is handled by the HomeSpan library
-#include <ESP8266WiFi.h>
+// RATGDO project includes
+#include <OneButton.h>
 
-void wifi_loop();
-void wifi_connect();
-extern station_config wifiConf;
-extern bool wifi_got_ip;
-#endif
+extern void setup_drycontact();
+extern void drycontact_loop();

@@ -1,407 +1,263 @@
+/****************************************************************************
+ * RATGDO HomeKit
+ * https://ratcloud.llc
+ * https://github.com/PaulWieland/ratgdo
+ *
+ * Copyright (c) 2023-25 David A Kerr... https://github.com/dkerr64/
+ * All Rights Reserved.
+ * Licensed under terms of the GPL-3.0 License.
+ *
+ * Contributions acknowledged from
+ * Brandon Matthews... https://github.com/thenewwazoo
+ * Jonathan Stroud...  https://github.com/jgstroud
+ *
+ */
 
-#include <user_interface.h>
-#include <LittleFS.h>
+// C/C++ language includes
 
-#include "ratgdo.h"
-#include "wifi.h"
-#include "homekit.h"
-#include "comms.h"
-#include "log.h"
-#include "web.h"
-#include "utilities.h"
-#include "Packet.h"
-
+// ESP system includes
+#ifdef ESP8266
 #include <time.h>
 #include <coredecls.h>
+#include <user_interface.h>
+#include <LittleFS.h>
+#else
+#include <esp_core_dump.h>
+#include <esp_log.h>
+#include <ping/ping_sock.h>
+#endif
+
+// RATGDO project includes
+#include "ratgdo.h"
+#include "config.h"
+#include "comms.h"
+#include "homekit.h"
+#include "web.h"
+#include "led.h"
+#include "provision.h"
+#include "softAP.h"
+#include "wifi.h"
+#ifndef ESP8266
+// Feature not available on ESP8266
+#include "vehicle.h"
+#endif
+
+#if defined(ESP8266) || !defined(USE_GDOLIB)
+#include "drycontact.h"
+#endif
 
 // Logger tag
 static const char *TAG = "ratgdo-main";
 
-time_t now = 0;
-tm timeInfo;
-
-void showTime()
-{
-    localtime_r(&now, &timeInfo); // update the structure tm with the current time
-    Serial.print("year:");
-    Serial.print(timeInfo.tm_year + 1900); // years since 1900
-    Serial.print("\tmonth:");
-    Serial.print(timeInfo.tm_mon + 1); // January = 0 (!)
-    Serial.print("\tday:");
-    Serial.print(timeInfo.tm_mday); // day of month
-    Serial.print("\thour:");
-    Serial.print(timeInfo.tm_hour); // hours since midnight  0-23
-    Serial.print("\tmin:");
-    Serial.print(timeInfo.tm_min); // minutes after the hour  0-59
-    Serial.print("\tsec:");
-    Serial.print(timeInfo.tm_sec); // seconds after the minute  0-61*
-    Serial.print("\twday");
-    Serial.print(timeInfo.tm_wday); // days since Sunday 0-6
-    if (timeInfo.tm_isdst == 1)     // Daylight Saving Time flag
-        Serial.print("\tDST");
-    else
-        Serial.print("\tstandard");
-    Serial.println();
-}
-
-/********************************* FWD DECLARATIONS *****************************************/
-
-void setup_pins();
-void IRAM_ATTR isr_obstruction();
-void service_timer_loop();
-void dryContactLoop();
-void onOpenSwitchPress();
-void onCloseSwitchPress();
-void onOpenSwitchRelease();
-void onCloseSwitchRelease();
-
-// Define OneButton objects for open/close pins
-OneButton buttonOpen(DRY_CONTACT_OPEN_PIN, true, true); // Active low, with internal pull-up
-OneButton buttonClose(DRY_CONTACT_CLOSE_PIN, true, true);
-bool dryContactDoorOpen = false;
-bool dryContactDoorClose = false;
-bool previousDryContactDoorOpen = false;
-bool previousDryContactDoorClose = false;
-
-/********************************* RUNTIME STORAGE *****************************************/
-
-struct obstruction_sensor_t
-{
-    unsigned int low_count = 0;    // count obstruction low pulses
-    unsigned long last_asleep = 0; // count time between high pulses from the obst ISR
-    bool pin_ever_changed = false; // track if pin has ever changed from initial state
-} obstruction_sensor;
-
-// long unsigned int led_reset_time = 0; // Stores time when LED should return to idle state
-// uint8_t led_active_state = LOW;       // LOW == LED on, HIGH == LED off
-// uint8_t led_idle_state = HIGH;        // opposite of active
-LED led;
-
-uint8_t loop_id;
-
-extern bool flashCRC;
-
-struct GarageDoor garage_door;
-
-extern "C" uint32_t __crc_len;
-extern "C" uint32_t __crc_val;
+// Initialize GDO status
+GarageDoor garage_door = {
+    .active = false,
+    .current_state = (GarageDoorCurrentState)0xFF,
+    .target_state = (GarageDoorTargetState)0xFF,
+    .obstructed = false,
+    .has_motion_sensor = false,
+#ifndef ESP8266
+    // Feature not available on ESP8266
+    .has_distance_sensor = false,
+#endif
+#if defined(ESP8266) || !defined(USE_GDOLIB)
+    .motion_timer = 0,
+#endif
+    .motion = false,
+    .light = false,
+    .current_lock = (LockCurrentState)0xFF,
+    .target_lock = (LockTargetState)0xFF,
+    .openingsCount = 0,
+    .batteryState = 0,
+    .openDuration = 0,
+    .closeDuration = 0,
+};
 
 // Track our memory usage
-uint32_t free_heap = 65535;
-uint32_t min_heap = 65535;
+uint32_t free_heap = (1024 * 1024);
+uint32_t min_heap = (1024 * 1024);
 #ifdef MMU_IRAM_HEAP
-uint32_t free_iram = 65535;
-uint32_t min_iram = 65535;
+uint32_t free_iram = (1024 * 1024);
+uint32_t min_iram = (1024 * 1024);
+#endif // MMU_IRAM_HEAP
+_millis_t next_heap_check = 0;
+#define MIN_FREE_HEAP (1024 * 4)
+#define FREE_HEAP_CHECK_MS 1000
+
+// Forward declare functions
+void service_timer_loop();
+
+// support for changeing WiFi settings
+#define WIFI_CONNECT_TIMEOUT (30 * 1000)
+static _millis_t wifiConnectTimeout = 0;
+
+#ifndef ESP8266
+// on ESP8266 ping is implemented in wifi.cpp
+static bool ping_failure = false;
+static bool ping_timed_out = false;
+static esp_ping_handle_t ping;
+static void ping_start();
+static void ping_stop();
 #endif
 
-bool status_done = false;
-unsigned long status_start = 0;
-
-/********************************** MAIN LOOP CODE *****************************************/
-
+/****************************************************************************
+ * Initialize RATGDO
+ */
 void setup()
 {
+#ifdef ESP8266
     disable_extra4k_at_link_time();
-    Serial.begin(115200);
-    flashCRC = ESP.checkFlashCRC();
-    LittleFS.begin();
-
-    while (!Serial)
-        ; // Wait for serial port to open
-    Serial.printf("\n\n\n=== R A T G D O ===\n");
-    led = LED();
-
+#else
+    esp_core_dump_init();
+    // No buzzer on ESP8266
+    tone(BEEPER_PIN, 1300, 500);
+#endif // ESP32
+    led.on();
     ESP_LOGI(TAG, "=== Starting RATGDO Homekit version %s", AUTO_VERSION);
+#ifdef ESP8266
     ESP_LOGI(TAG, "%s", ESP.getFullVersion().c_str());
     ESP_LOGI(TAG, "Flash chip size 0x%X", ESP.getFlashChipSize());
     ESP_LOGI(TAG, "Flash chip mode 0x%X", ESP.getFlashChipMode());
     ESP_LOGI(TAG, "Flash chip speed 0x%X (%d MHz)", ESP.getFlashChipSpeed(), ESP.getFlashChipSpeed() / 1000000);
-    // CRC checking starts at memory location 0x40200000, and proceeds until the address of __crc_len and __crc_val...
-    // For CRC calculation purposes, those two long (32 bit) values are assumed to be zero.
-    // The CRC calculation then proceeds until it get to 0x4020000 plus __crc_len.
-    // Any memory writes/corruption within these blocks will cause checkFlashCRC() to fail.
-    ESP_LOGI(TAG, "Firmware CRC value: 0x%08X, CRC length: 0x%X (%d), Memory address of __crc_len,__crc_val: 0x%08X,0x%08X", __crc_val, __crc_len, __crc_len, &__crc_len, &__crc_val);
-    if (flashCRC)
-    {
-        ESP_LOGI(TAG, "checkFlashCRC: true");
-    }
-    else
-    {
-        ESP_LOGE(TAG, "checkFlashCRC: false");
-    }
+    ESP_LOGI(TAG, "Free heap: %d", ESP.getFreeHeap());
+    // Load users saved configuration (or set defaults)
     load_all_config_settings();
+    // Now set log level to whatever user has requested
+    logLevel = (esp_log_level_t)userConfig->getLogLevel();
+#else
+    esp_reset_reason_t r = esp_reset_reason();
+    switch (r)
+    {
+    case ESP_RST_POWERON:
+    case ESP_RST_PWR_GLITCH:
+        ESP_LOGI(TAG, "System restart after power-on or power glitch: %d", r);
+        // RTC memory does not survive power interruption. Initialize values.
+        rebootTime = 0;
+        crashTime = 0;
+        crashCount = 0;
+        break;
+    default:
+        ESP_LOGI(TAG, "System restart reason: %d", r);
+        break;
+    }
+
+    // If there is a core dump image but no saved crash log, then set count to -1.
+    if ((crashCount == 0) && (esp_core_dump_image_check() == ESP_OK))
+        crashCount = -1;
+
+    // Set log to info level so logging within load_all_config_settings() will display
+    esp_log_level_set("*", ESP_LOG_INFO);
+    // We will intercept calls to standard ESP_LOGx so we can route them through our logger
+    esp_log_set_vprintf((vprintf_like_t)esp_log_hook);
+    // Load users saved configuration (or set defaults)
+    load_all_config_settings();
+    // Now set log level to whatever user has requested
+    esp_log_level_set("*", (esp_log_level_t)userConfig->getLogLevel());
+#endif
+
+    if (softAPmode)
+    {
+        start_soft_ap();
+        return;
+    }
+
+    if (userConfig->getWifiChanged())
+    {
+        wifiConnectTimeout = _millis() + WIFI_CONNECT_TIMEOUT;
+    }
+#ifdef ESP8266
+    // on ESP8266 we setup everything ourselves.
     wifi_connect();
     setup_web();
-    if (!softAPmode)
-    {
-        setup_pins();
-        setup_comms();
-        setup_homekit();
-    }
-
+    setup_comms();
+    ESP_LOGI(TAG, "Free heap after setup: %d", ESP.getFreeHeap());
+    // setup_homekit(); postpone HomeKit setup until we have an IP address
     led.idle();
-    ESP_LOGI(TAG, "=== RATGDO setup complete ===");
-    ESP_LOGI(TAG, "=============================");
-    status_start = millis();
+#else
+    // on ESP32 the HomeKit library we use does has callbacks which we use to setup everything else.
+    setup_homekit();
+#endif
 }
 
+/****************************************************************************
+ * Main loop
+ */
 void loop()
 {
-    improv_loop();
     comms_loop();
-    // Poll OneButton objects
-    buttonOpen.tick();
-    buttonClose.tick();
+#if defined(ESP8266) || !defined(USE_GDOLIB)
+    drycontact_loop();
+#endif
 
-    // wait for a status command to be processes to properly set the initial state of
-    // all homekit characteristics.  Also timeout if we don't receive a status in
-    // a reasonable amount of time.  This prevents unintentional state changes if
-    // a home hub reads the state before we initialize everything
-    // Note, secplus1 doesnt have a status command so it will just timeout
-    if (status_done)
+#ifdef ESP8266
+    // On ESP8266 we handle WiFi and HomeKit ourselves
+    wifi_loop();
+    if (!homekit_setup_done && wifi_got_ip && !softAPmode)
     {
-        homekit_loop();
+        // We have postponed homekit setup until after we have got a IP address, in hope
+        // that this improves stability.
+        setup_homekit();
     }
-    else if (millis() - status_start > 2000)
-    {
-        ESP_LOGI(TAG, "Status timeout, starting homekit");
-        status_done = true;
-    }
-    service_timer_loop();
+    YIELD();
+    homekit_loop();
+#else
+    // On ESP32 Wifi is handled within HomeSpan library which has its own freeRTOS task
+    // Features not available on ESP8266
+    YIELD();
+    vehicle_loop();
+#endif
+    YIELD();
     web_loop();
-    dryContactLoop();
-    loop_id = LOOP_SYSTEM;
+    YIELD();
+    improv_loop();
+    soft_ap_loop();
+    service_timer_loop();
 }
 
-/*********************************** HELPER FUNCTIONS **************************************/
-
-void setup_pins()
-{
-    ESP_LOGI(TAG, "Setting up pins");
-
-    pinMode(UART_TX_PIN, OUTPUT);
-    pinMode(UART_RX_PIN, INPUT_PULLUP);
-
-    pinMode(INPUT_OBST_PIN, INPUT);
-
-    pinMode(STATUS_DOOR_PIN, OUTPUT);
-
-    pinMode(STATUS_OBST_PIN, OUTPUT);
-
-    pinMode(DRY_CONTACT_OPEN_PIN, INPUT_PULLUP);
-    pinMode(DRY_CONTACT_CLOSE_PIN, INPUT_PULLUP);
-
-    // Attach OneButton handlers
-    buttonOpen.attachPress(onOpenSwitchPress);
-    buttonClose.attachPress(onCloseSwitchPress);
-    buttonOpen.attachLongPressStop(onOpenSwitchRelease);
-    buttonClose.attachLongPressStop(onCloseSwitchRelease);
-    /* pin-based obstruction detection
-    // FALLING from https://github.com/ratgdo/esphome-ratgdo/blob/e248c705c5342e99201de272cb3e6dc0607a0f84/components/ratgdo/ratgdo.cpp#L54C14-L54C14
-     */
-    attachInterrupt(INPUT_OBST_PIN, isr_obstruction, FALLING);
-}
-
-/*********************************** MODEL **************************************/
-
-/*************************** DRY CONTACT CONTROL OF LIGHT & DOOR ***************************/
-
-// Functions for sensing GDO open/closed
-void onOpenSwitchPress()
-{
-    dryContactDoorOpen = true;
-    ESP_LOGI(TAG, "Open switch pressed");
-}
-
-void onCloseSwitchPress()
-{
-    dryContactDoorClose = true;
-    ESP_LOGI(TAG, "Close switch pressed");
-}
-
-void onOpenSwitchRelease()
-{
-    dryContactDoorOpen = false;
-    ESP_LOGI(TAG, "Open switch released");
-}
-
-void onCloseSwitchRelease()
-{
-    dryContactDoorClose = false;
-    ESP_LOGI(TAG, "Close switch released");
-}
-
-// handle changes to the dry contact state
-void dryContactLoop()
-{
-
-    if (dryContactDoorOpen)
-    {
-        if (userConfig->gdoSecurityType == 3)
-        {
-            doorState = DoorState::Open;
-        }
-        else
-        {
-            Serial.println("Dry Contact: open the door");
-            open_door();
-            dryContactDoorOpen = false;
-        }
-    }
-
-    if (dryContactDoorClose)
-    {
-        if (userConfig->gdoSecurityType == 3)
-        {
-            doorState = DoorState::Closed;
-        }
-        else
-        {
-            Serial.println("Dry Contact: close the door");
-            close_door();
-            dryContactDoorClose = false;
-        }
-    }
-
-    if (userConfig->gdoSecurityType == 3)
-    {
-        if (!dryContactDoorClose && !dryContactDoorOpen)
-        {
-            if (previousDryContactDoorClose)
-            {
-                doorState = DoorState::Opening;
-            }
-            else if (previousDryContactDoorOpen)
-            {
-                doorState = DoorState::Closing;
-            }
-        }
-
-        if (previousDryContactDoorOpen != dryContactDoorOpen)
-        {
-            previousDryContactDoorOpen = dryContactDoorOpen;
-        }
-        if (previousDryContactDoorClose != dryContactDoorClose)
-        {
-            previousDryContactDoorClose = dryContactDoorClose;
-        }
-    }
-}
-
-/*************************** OBSTRUCTION DETECTION ***************************/
-void IRAM_ATTR isr_obstruction()
-{
-    obstruction_sensor.low_count++;
-}
-
-// Track if we've detected a working obstruction sensor
-bool obstruction_sensor_detected = false; // Make it globally accessible for comms.cpp
-
-void obstruction_timer()
-{
-    // Always try pin-based detection
-
-    unsigned long current_millis = millis();
-    static unsigned long last_millis = 0;
-
-    // the obstruction sensor has 3 states: clear (HIGH with LOW pulse every 7ms), obstructed (HIGH), asleep (LOW)
-    // the transitions between awake and asleep are tricky because the voltage drops slowly when falling asleep
-    // and is high without pulses when waking up
-
-    // If at least 3 low pulses are counted within 50ms, the door is awake, not obstructed and we don't have to check anything else
-
-    const long CHECK_PERIOD = 50;
-    const long PULSES_LOWER_LIMIT = 3;
-    if (current_millis - last_millis > CHECK_PERIOD)
-    {
-        // Atomically read and reset the pulse count to prevent race with ISR
-        noInterrupts();
-        unsigned int pulse_count = obstruction_sensor.low_count;
-        obstruction_sensor.low_count = 0;
-        interrupts();
-
-        // check to see if we got more then PULSES_LOWER_LIMIT pulses
-        if (pulse_count > PULSES_LOWER_LIMIT)
-        {
-            // We're getting pulses, so pin detection is working
-            obstruction_sensor.pin_ever_changed = true;
-            if (!obstruction_sensor_detected)
-            {
-                obstruction_sensor_detected = true;
-                ESP_LOGI(TAG, "Pin-based obstruction detection active");
-            }
-
-            // Only update if we are changing state
-            if (garage_door.obstructed)
-            {
-                ESP_LOGI(TAG, "Obstruction Clear");
-                garage_door.obstructed = false;
-                notify_homekit_obstruction();
-                digitalWrite(STATUS_OBST_PIN, garage_door.obstructed);
-                if (motionTriggers.bit.obstruction)
-                {
-                    garage_door.motion = false;
-                    notify_homekit_motion();
-                }
-            }
-        }
-        else if (pulse_count == 0)
-        {
-            // if there have been no pulses the line is steady high or low
-            if (!digitalRead(INPUT_OBST_PIN))
-            {
-                // asleep - pin went LOW, so it's not stuck HIGH
-                obstruction_sensor.last_asleep = current_millis;
-                obstruction_sensor.pin_ever_changed = true;
-            }
-            else
-            {
-                // if the line is high and was last asleep more than 700ms ago, then there is an obstruction present
-                if (current_millis - obstruction_sensor.last_asleep > 700)
-                {
-                    // Don't trust a HIGH pin that has never changed - likely floating/stuck
-                    if (!obstruction_sensor.pin_ever_changed)
-                    {
-                        // Pin has been HIGH since boot, probably no sensor connected
-                        return;
-                    }
-
-                    // Only update if we are changing state
-                    if (!garage_door.obstructed)
-                    {
-                        ESP_LOGI(TAG, "Obstruction Detected");
-                        garage_door.obstructed = true;
-                        notify_homekit_obstruction();
-                        digitalWrite(STATUS_OBST_PIN, garage_door.obstructed);
-                        if (motionTriggers.bit.obstruction)
-                        {
-                            garage_door.motion = true;
-                            notify_homekit_motion();
-                        }
-                    }
-                }
-            }
-        }
-
-        last_millis = current_millis;
-    }
-}
-
+/****************************************************************************
+ * Service loop
+ */
 void service_timer_loop()
 {
-    loop_id = LOOP_TIMER;
-    // Service the Obstruction Timer
-    obstruction_timer();
+    _millis_t current_millis = _millis();
+    static time_t lastSNTP = 0;
 
-    unsigned long current_millis = millis();
-
-#ifdef NTP_CLIENT
-    if (enableNTP && clockSet && lastRebootAt == 0)
+    if ((rebootSeconds != 0) && (rebootSeconds < (uint32_t)(current_millis / 1000)))
     {
-        lastRebootAt = time(NULL) - (current_millis / 1000);
-        ESP_LOGI(TAG, "System boot time: %s", timeString(lastRebootAt));
+        // Reboot the system if we have reached time...
+        ESP_LOGI(TAG, "Rebooting system as %lu seconds expired", rebootSeconds);
+        sync_and_restart();
+        return;
     }
-#endif
+
+    if (enableNTP && clockSet)
+    {
+        if (clockSet != lastSNTP)
+        {
+            lastSNTP = clockSet;
+            ESP_LOGI(TAG, "Current System time: %s", timeString());
+        }
+
+        if (lastRebootAt == 0)
+        {
+            time_t timeNow = time(NULL);
+            lastRebootAt = timeNow - (current_millis / 1000);
+            ESP_LOGI(TAG, "System boot time:    %s", timeString(lastRebootAt));
+            // Need to also set when last door open/close was
+            if (userConfig->getDoorUpdateAt() != 0)
+            {
+                lastDoorUpdateAt = (_millis_t)(((time_t)userConfig->getDoorUpdateAt() - timeNow) * 1000LL) + current_millis;
+                ESP_LOGI(TAG, "Last door update at: %s", timeString((time_t)userConfig->getDoorUpdateAt()));
+            }
+            if (strlen(userConfig->getTimeZone()) == 0)
+            {
+                // no timeZone set, try and find it automatically
+                get_auto_timezone();
+                // if successful this will have set the region and city, but not
+                // the POSIX time zone code. That will be done by browser.
+            }
+        }
+    }
 
     // LED flash timer
     led.flash();
@@ -410,13 +266,12 @@ void service_timer_loop()
     if (garage_door.motion && garage_door.motion_timer > 0 && (int32_t)(current_millis - garage_door.motion_timer) >= 0)
     {
         ESP_LOGI(TAG, "Motion Cleared");
-        garage_door.motion = false;
-        notify_homekit_motion();
+        notify_homekit_motion(false);
     }
 
-    // Check heap (both regular and IRAM)
-    static unsigned long last_heap_check = 0;
-    if (current_millis - last_heap_check >= 1000)
+    // Check heap
+    static _millis_t last_heap_check = 0;
+    if (current_millis - last_heap_check >= FREE_HEAP_CHECK_MS)
     {
         last_heap_check = current_millis;
         free_heap = ESP.getFreeHeap();
@@ -424,10 +279,16 @@ void service_timer_loop()
         {
             min_heap = free_heap;
             ESP_LOGI(TAG, "Free heap dropped to %d", min_heap);
+            if (free_heap < MIN_FREE_HEAP)
+            {
+                ESP_LOGW(TAG, "Free heap dropped below %d, rebooting to maintain stability", MIN_FREE_HEAP);
+                sync_and_restart();
+            }
         }
 
 #ifdef MMU_IRAM_HEAP
         // Also track IRAM heap usage
+        // IRAM heap is only allocated during initialization, so this should stabilize after setup.
         {
             HeapSelectIram ephemeral;
             free_iram = ESP.getFreeHeap();
@@ -437,61 +298,118 @@ void service_timer_loop()
                 ESP_LOGI(TAG, "Free IRAM heap dropped to %d", min_iram);
             }
         }
+#endif // MMU_IRAM_HEAP
+    }
+
+#ifndef ESP8266
+    if ((wifiConnectTimeout > 0) && (current_millis > wifiConnectTimeout))
+    {
+        bool connected = (WiFi.status() == WL_CONNECTED);
+        if (!connected)
+        {
+            ESP_LOGE(TAG, "30 seconds since WiFi settings change, failed to connect");
+            userConfig->set(cfg_wifiPower, WIFI_POWER_MAX);
+            userConfig->set(cfg_wifiPhyMode, 0);
+            // TODO support WiFi TX Power & PhyMode... set changes immediately here
+            // Now try and reconnect...
+            wifiConnectTimeout = _millis() + WIFI_CONNECT_TIMEOUT;
+            WiFi.reconnect();
+        }
+        else
+        {
+            ESP_LOGI(TAG, "30 seconds since WiFi settings change, successfully connected to access point");
+            if (userConfig->getStaticIP())
+            {
+                ESP_LOGI(TAG, "Connected with static IP, test gateway IP reachable");
+                ping_start();
+            }
+            wifiConnectTimeout = 0;
+        }
+        userConfig->set(cfg_wifiChanged, false);
+    }
+
+    if (ping_failure)
+    {
+        ping_failure = false; // reset, so we only come in here once
+        if (userConfig->getStaticIP())
+        {
+            // We timed out trying to ping gateway set by static IP, revert to DHCP
+            ping_stop();
+            ESP_LOGI(TAG, "Unable to ping Gateway, reset to DHCP to acquire IP address and reconnect");
+            userConfig->set(cfg_staticIP, false);
+            IPAddress ip;
+            ip.fromString("0.0.0.0");
+            WiFi.config(ip, ip, ip, ip);
+            // Now try and reconnect...
+            wifiConnectTimeout = _millis() + WIFI_CONNECT_TIMEOUT;
+            WiFi.reconnect();
+        }
+    }
 #endif
-    }
 }
 
-// Constructor for LED class
-LED::LED()
+#ifndef ESP8266
+/****************************************************************************
+ * Functions to ping gateway to test network okay
+ */
+static void ping_success(esp_ping_handle_t hdl, void *args)
 {
-    if (UART_TX_PIN != LED_BUILTIN)
-    {
-        // Serial.printf("Enabling built-in LED object\n");
-        pinMode(LED_BUILTIN, OUTPUT);
-        on();
-    }
+    uint8_t ttl;
+    uint32_t seqno;
+    uint32_t elapsed_time, recv_len;
+    ip_addr_t target_addr;
+    esp_ping_get_profile(hdl, ESP_PING_PROF_SEQNO, &seqno, sizeof(seqno));
+    esp_ping_get_profile(hdl, ESP_PING_PROF_TTL, &ttl, sizeof(ttl));
+    esp_ping_get_profile(hdl, ESP_PING_PROF_IPADDR, &target_addr, sizeof(target_addr));
+    esp_ping_get_profile(hdl, ESP_PING_PROF_SIZE, &recv_len, sizeof(recv_len));
+    esp_ping_get_profile(hdl, ESP_PING_PROF_TIMEGAP, &elapsed_time, sizeof(elapsed_time));
+    IPAddress ip_addr((uint32_t)target_addr.u_addr.ip4.addr);
+    ESP_LOGI(TAG, "Ping: %d bytes from %s icmp_seq=%d ttl=%d time=%dms",
+             recv_len, ip_addr.toString().c_str(), seqno, ttl, elapsed_time);
+    ping_timed_out = false;
 }
 
-void LED::on()
+static void ping_timeout(esp_ping_handle_t hdl, void *args)
 {
-    digitalWrite(LED_BUILTIN, 0);
+    uint32_t seqno;
+    ip_addr_t target_addr;
+    esp_ping_get_profile(hdl, ESP_PING_PROF_SEQNO, &seqno, sizeof(seqno));
+    esp_ping_get_profile(hdl, ESP_PING_PROF_IPADDR, &target_addr, sizeof(target_addr));
+    IPAddress ip_addr((uint32_t)target_addr.u_addr.ip4.addr);
+    ESP_LOGI(TAG, "Ping from %s icmp_seq=%d timeout", ip_addr.toString().c_str(), seqno);
+    ping_timed_out = true;
 }
 
-void LED::off()
+static void ping_end(esp_ping_handle_t hdl, void *args)
 {
-    digitalWrite(LED_BUILTIN, 1);
+    ping_failure = ping_timed_out;
+    ESP_LOGI(TAG, "Ping end: %s", (ping_failure) ? "failed" : "success");
 }
 
-void LED::idle()
+static void ping_start()
 {
-    digitalWrite(LED_BUILTIN, idleState);
+    ip_addr_t addr;
+    esp_ping_config_t ping_config = ESP_PING_DEFAULT_CONFIG();
+    WiFi.gatewayIP().to_ip_addr_t(&addr);
+    ESP_LOGI(TAG, "Ping to: %s", WiFi.gatewayIP().toString().c_str());
+    ping_config.target_addr = addr;
+    ping_config.count = 2;
+
+    esp_ping_callbacks_t cbs;
+    cbs.on_ping_success = ping_success;
+    cbs.on_ping_timeout = ping_timeout;
+    cbs.on_ping_end = ping_end;
+    cbs.cb_args = NULL;
+    esp_ping_new_session(&ping_config, &cbs, &ping);
+
+    ping_failure = false;
+    ping_timed_out = false;
+    esp_ping_start(ping);
 }
 
-void LED::setIdleState(uint8_t state)
+static void ping_stop()
 {
-    // 0 = LED flashes off (idle is on)
-    // 1 = LED flashes on (idle is off)
-    // 3 = LED disabled (active and idle both off)
-    if (state == 2)
-    {
-        idleState = activeState = 1;
-    }
-    else
-    {
-        idleState = state;
-        activeState = (state == 1) ? 0 : 1;
-    }
+    esp_ping_stop(ping);
+    esp_ping_delete_session(ping);
 }
-
-void LED::flash(unsigned long ms)
-{
-    if (ms)
-    {
-        digitalWrite(LED_BUILTIN, activeState);
-        resetTime = millis() + ms;
-    }
-    else if ((digitalRead(LED_BUILTIN) == activeState) && resetTime > 0 && (int32_t)(millis() - resetTime) >= 0)
-    {
-        digitalWrite(LED_BUILTIN, idleState);
-    }
-}
+#endif
