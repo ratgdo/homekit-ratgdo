@@ -1,13 +1,21 @@
-// Copyright 2023 Brandon Matthews <thenewwazoo@optimaltour.us>
-// All rights reserved. GPLv3 License
-
-#ifndef _PACKET_H
-#define _PACKET_H
+/****************************************************************************
+ * RATGDO HomeKit for ESP32
+ * https://ratcloud.llc
+ * https://github.com/PaulWieland/ratgdo
+ *
+ * Copyright (c) 2023-24 Brandon Matthews... https://github.com/thenewwazoo
+ * All Rights Reserved.
+ * Licensed under terms of the GPL-3.0 License.
+ *
+ * Contributions acknowledged from
+ * David Kerr...     https://github.com/dkerr64
+ * 
+ */
+#pragma once
 
 #include <stdint.h>
 #include "secplus2.h"
 #include <secplus.h>
-#include "log.h"
 
 // Chamberlain security+ 2.0 wireline packets (i.e. 0x55, 0x10, 0x00, ...) all decode (using
 // `decode_wireline`) into 16 bytes, split across three values:
@@ -65,7 +73,7 @@
 //   I named those "unknown" in the Status struct but don't use or print them.
 //
 //   There are many command types that are not implemented here, as they were not necessary for
-//   implmementing HomeKit support. That does not mean I would not like a more-complete
+//   implementing HomeKit support. That does not mean I would not like a more-complete
 //   implementation.
 
 // Tag for union of data structures attached to packets
@@ -77,6 +85,7 @@ enum class PacketDataType
     Lock,
     DoorAction,
     Openings,
+    Battery,
     Unknown,
 };
 
@@ -354,9 +363,12 @@ const uint8_t GET_OPENINGS_LO_BYTE_MASK = 0xFF;
 const uint8_t GET_OPENINGS_LO_BYTE_SHIFT = 24;
 const uint8_t GET_OPENINGS_HI_BYTE_MASK = 0xFF;
 const uint8_t GET_OPENINGS_HI_BYTE_SHIFT = 16;
+const uint8_t GET_OPENINGS_FLAG_MASK = 0x0F;
+const uint8_t GET_OPENINGS_FLAG_SHIFT = 8;
 struct OpeningsCommandData
 {
     uint16_t count;
+    uint8_t flags;
     uint8_t parity;
 
     OpeningsCommandData() = default;
@@ -364,6 +376,7 @@ struct OpeningsCommandData
     {
         uint8_t lo = ((pkt_data >> GET_OPENINGS_LO_BYTE_SHIFT) & GET_OPENINGS_LO_BYTE_MASK);
         uint8_t hi = ((pkt_data >> GET_OPENINGS_HI_BYTE_SHIFT) & GET_OPENINGS_HI_BYTE_MASK);
+        flags = ((pkt_data >> GET_OPENINGS_FLAG_SHIFT) & GET_OPENINGS_FLAG_MASK);
         parity = ((pkt_data >> COMMAND_PARITY_SHIFT) & COMMAND_PARITY_MASK);
 
         count = hi << 8 | lo;
@@ -382,7 +395,55 @@ struct OpeningsCommandData
 
     void to_string(char *buf, size_t buflen)
     {
-        snprintf(buf, buflen, "Openings %02d", count);
+        snprintf(buf, buflen, "Openings %02d, Flags 0x%02X, Parity 0x%X", count, flags, parity);
+    };
+};
+
+enum class BatteryState : uint8_t
+{
+    Unknown = 0,
+    Charging = 6,
+    Full = 8,
+};
+
+const uint8_t BATTERY_DATA_MASK = 0xFF;
+const uint8_t BATTERY_DATA_SHIFT = 16;
+struct BatteryCommandData
+{
+    BatteryState state;
+    uint8_t parity;
+
+    BatteryCommandData() = default;
+    BatteryCommandData(uint32_t pkt_data)
+    {
+        state = static_cast<BatteryState>((pkt_data >> BATTERY_DATA_SHIFT) & BATTERY_DATA_MASK);
+        parity = ((pkt_data >> COMMAND_PARITY_SHIFT) & COMMAND_PARITY_MASK);
+    };
+
+    uint32_t to_data(void)
+    {
+        uint32_t pkt_data = 0;
+        pkt_data |= static_cast<uint32_t>(state) << BATTERY_DATA_SHIFT;
+        pkt_data |= parity << COMMAND_PARITY_SHIFT;
+        return pkt_data;
+    };
+
+    void to_string(char *buf, size_t buflen)
+    {
+        const char *s = "Invalid command";
+        switch (state)
+        {
+        case BatteryState::Unknown:
+            s = "Unknown";
+            break;
+        case BatteryState::Charging:
+            s = "Charging";
+            break;
+        case BatteryState::Full:
+            s = "Full";
+            break;
+        }
+        snprintf(buf, buflen, "BatteryState %s, Parity 0x%X", s, parity);
     };
 };
 
@@ -409,7 +470,7 @@ struct NoData
 
     void to_string(char *buf, size_t buflen)
     {
-        snprintf(buf, buflen, "Zero: 0x%08X, Parity: 0x%X", no_bits_set, parity);
+        snprintf(buf, buflen, "Zero: 0x%08uX, Parity: 0x%X", no_bits_set, parity);
     };
 };
 
@@ -424,6 +485,7 @@ struct PacketData
         LightCommandData light;
         DoorActionCommandData door_action;
         OpeningsCommandData openings;
+        BatteryCommandData battery;
         uint32_t cmd;
     } value;
 
@@ -457,8 +519,12 @@ struct PacketData
             value.openings.to_string(subbuf, subbuflen);
             snprintf(buf, buflen, "Openings: [%s]", subbuf);
             break;
+        case PacketDataType::Battery:
+            value.battery.to_string(subbuf, subbuflen);
+            snprintf(buf, buflen, "Battery: [%s]", subbuf);
+            break;
         case PacketDataType::Unknown:
-            snprintf(buf, buflen, "Unknown: [%03X]", value.cmd);
+            snprintf(buf, buflen, "Unknown: [%03uX]", value.cmd);
             break;
         }
     };
@@ -474,6 +540,7 @@ public:
         Status = 0x081,
         Obst1 = 0x084, // sent when an obstruction happens?
         Obst2 = 0x085, // sent when an obstruction happens?
+        Battery = 0x09d,
         Pair3 = 0x0a0,
         Pair3Resp = 0x0a1,
         Learn2 = 0x181,
@@ -514,6 +581,8 @@ public:
             return "Obst1";
         case PacketCommandValue::Obst2:
             return "Obst2";
+        case PacketCommandValue::Battery:
+            return "Battery";
         case PacketCommandValue::Pair3:
             return "Pair3";
         case PacketCommandValue::Pair3Resp:
@@ -566,6 +635,8 @@ public:
             return PacketCommandValue::Obst1;
         case PacketCommandValue::Obst2:
             return PacketCommandValue::Obst2;
+        case PacketCommandValue::Battery:
+            return PacketCommandValue::Battery;
         case PacketCommandValue::Pair3:
             return PacketCommandValue::Pair3;
         case PacketCommandValue::Pair3Resp:
@@ -613,6 +684,7 @@ private:
 
 struct Packet
 {
+    const char *TAG = "ratgdo-packet";
 
     Packet() = default;
     Packet(PacketCommand cmd, PacketData data, uint32_t remote_id) : m_pkt_cmd(cmd), m_data(data), m_remote_id(remote_id), m_rolling(0) {};
@@ -623,8 +695,12 @@ struct Packet
         uint64_t pkt_remote_id = 0; // three bytes
         uint32_t pkt_data = 0;
 
-        decode_wireline(pktbuf, &pkt_rolling, &pkt_remote_id, &pkt_data);
-        ESP_LOGI("ratgdo-packet", "DECODED  %08X %016llX %08X", pkt_rolling, pkt_remote_id, pkt_data);
+        int8_t ret = decode_wireline(pktbuf, &pkt_rolling, &pkt_remote_id, &pkt_data);
+        if (ret < 0)
+        {
+            ESP_LOGE(TAG, "Failed to decode packet");
+        }
+        ESP_LOGI(TAG, "DECODED  %08lX %016" PRIX64 " %08lX", pkt_rolling, pkt_remote_id, pkt_data);
 
         uint16_t cmd = ((pkt_remote_id >> 24) & 0xF00) | (pkt_data & 0xFF);
 
@@ -713,6 +789,13 @@ struct Packet
             m_data.value.openings = OpeningsCommandData(pkt_data);
             break;
         }
+
+        case PacketCommand::Battery:
+        {
+            m_data.type = PacketDataType::Battery;
+            m_data.value.battery = BatteryCommandData(pkt_data);
+            break;
+        }
         }
     }
 
@@ -786,11 +869,17 @@ struct Packet
             pkt_data = m_data.value.openings.to_data();
             break;
         }
+
+        case PacketCommand::Battery:
+        {
+            pkt_data = m_data.value.battery.to_data();
+            break;
+        }
         }
 
         pkt_data |= (m_pkt_cmd & 0xFF);
 
-        ESP_LOGI("ratgdo-packet", "ENCODING %08X %016llX %08X", m_rolling, fixed, pkt_data);
+        ESP_LOGI(TAG, "ENCODING %08lX %016" PRIX64 " %08lX", m_rolling, fixed, pkt_data);
         return encode_wireline(m_rolling, fixed, pkt_data, out_pktbuf);
     }
 
@@ -807,7 +896,7 @@ struct Packet
         char buf[buflen];
         m_data.to_string(buf, buflen);
 
-        ESP_LOGI("ratgdo-packet", "PACKET(0x%X @ 0x%X) %s - %s", m_remote_id, m_rolling, PacketCommand::to_string(m_pkt_cmd), buf);
+        ESP_LOGI(TAG, "PACKET(0x%lX @ 0x%lX) %s - %s", m_remote_id, m_rolling, PacketCommand::to_string(m_pkt_cmd), buf);
     };
 
     PacketCommand m_pkt_cmd;
@@ -815,5 +904,3 @@ struct Packet
     uint32_t m_remote_id; // 3 bytes
     uint32_t m_rolling;
 };
-
-#endif // _PACKET_H

@@ -11,9 +11,6 @@
  * TODO add a service for the motion detector
  */
 
-#include <homekit/homekit.h>
-#include <homekit/characteristics.h>
-
 #include "homekit_decl.h"
 
 // Called to identify this accessory (HAP section 6.7.6 Identify Routine)
@@ -33,13 +30,13 @@ homekit_characteristic_t active_state = HOMEKIT_CHARACTERISTIC_(
     STATUS_ACTIVE, false);
 
 homekit_characteristic_t current_door_state = HOMEKIT_CHARACTERISTIC_(
-    CURRENT_DOOR_STATE, HOMEKIT_CHARACTERISTIC_CURRENT_DOOR_STATE_CLOSED
+    CURRENT_DOOR_STATE, 0
     //.getter=current_door_state_get,
     //.setter=NULL
 );
 
 homekit_characteristic_t target_door_state = HOMEKIT_CHARACTERISTIC_(
-    TARGET_DOOR_STATE, HOMEKIT_CHARACTERISTIC_TARGET_DOOR_STATE_CLOSED
+    TARGET_DOOR_STATE, 0
     //.getter=target_door_state_get,
     //.setter=target_door_state_set
 );
@@ -51,10 +48,10 @@ homekit_characteristic_t obstruction_detected = HOMEKIT_CHARACTERISTIC_(
 );
 
 homekit_characteristic_t current_lock_state = HOMEKIT_CHARACTERISTIC_(
-    LOCK_CURRENT_STATE, HOMEKIT_CHARACTERISTIC_CURRENT_LOCK_STATE_UNSECURED);
+    LOCK_CURRENT_STATE, 0);
 
 homekit_characteristic_t target_lock_state = HOMEKIT_CHARACTERISTIC_(
-    LOCK_TARGET_STATE, HOMEKIT_CHARACTERISTIC_TARGET_LOCK_STATE_UNSECURED);
+    LOCK_TARGET_STATE, 0);
 
 homekit_characteristic_t light_state = HOMEKIT_CHARACTERISTIC_(
     ON, false);
@@ -104,9 +101,6 @@ homekit_accessory_t *accessories[] = {
 };
 
 // Overall HomeKit server config
-homekit_server_config_t config = {
+homekit_server_config_t config  = {
     .accessories = accessories,
-    .password = "251-02-023", // On Oct 25, 2023, Chamberlain announced they were disabling API
-                              // access for "unauthorized" third parties.
-    .setupId = "RTGO",
 };

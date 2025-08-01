@@ -1,7 +1,7 @@
 /*************************************************************
  * Stylesheet for RATDGO web status page
- * 
- * Copyright (c) 2023-24 David Kerr, https://github.com/dkerr64
+ *
+ * Copyright (c) 2023-25 David Kerr, https://github.com/dkerr64
  *
  *************************************************************/
 
@@ -40,6 +40,7 @@ input[type="radio"],
 input[type="checkbox"] {
     vertical-align: middle;
     accent-color: darkgoldenrod;
+    margin: 0px;
 }
 
 input.slider {
@@ -110,10 +111,11 @@ div {
 }
 
 div.serverstatus {
-    width: 75%;
+    width: 100%;
     overflow: hidden;
     position: relative;
-
+    padding-left: 0px;
+    padding-right: 0px;
     td:nth-child(1) {
         text-align: right;
     }
@@ -121,9 +123,10 @@ div.serverstatus {
 
 div.qrcode {
     width: 25%;
+    left: 75%;
     max-width: 200px;
     overflow: hidden;
-    position: relative;
+    position: absolute;
 }
 
 div.fullwidth {
@@ -229,7 +232,7 @@ table.settings td.IPlabel,
 table.password td.label {
     vertical-align: middle;
     text-align: right;
-    font-size: 0.9em;
+    font-size: 0.8em;
 }
 
 table.settings input.TZinput,

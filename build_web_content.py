@@ -134,13 +134,22 @@ const char type_mjs[]  PROGMEM = "text/javascript";
 const char type_json[] PROGMEM = "application/json";
 // Must be at least one more than max string above...
 #define MAX_MIME_TYPE_LEN 20
-
 """
 )
 
 # Use an unordered_map so we can lookup the data, length and type based on filename...
 wf.write(
-    "const std::unordered_map<std::string, std::tuple<const unsigned char *, const unsigned int, const char *, std::string>> webcontent = {"
+    """
+struct pageContent
+{
+    const unsigned char *data;
+    const unsigned int length;
+    const char *type;
+    const std::string crc32;
+};
+
+const std::unordered_map<std::string, pageContent> webcontent = {
+    """
 )
 n = 0
 for file, var, crc32 in varnames:
@@ -154,7 +163,7 @@ for file, var, crc32 in varnames:
     n = n + 1
 
 # All done, close the file...
-wf.write("\n};\n")
+wf.write("\n\n};\n")
 wf.close()
 
 print("processed " + str(len(varnames)) + " files")

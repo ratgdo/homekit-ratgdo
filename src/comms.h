@@ -1,25 +1,34 @@
-// Copyright 2023 Brandon Matthews <thenewwazoo@optimaltour.us>
-// All rights reserved. GPLv3 License
+/****************************************************************************
+ * RATGDO HomeKit
+ * https://ratcloud.llc
+ * https://github.com/PaulWieland/ratgdo
+ *
+ * Copyright (c) 2023-25 David A Kerr... https://github.com/dkerr64/
+ * All Rights Reserved.
+ * Licensed under terms of the GPL-3.0 License.
+ *
+ * Contributions acknowledged from
+ * Brandon Matthews... https://github.com/thenewwazoo
+ * Jonathan Stroud...  https://github.com/jgstroud
+ *
+ */
+#pragma once
 
-#ifndef _COMMS_H
-#define _COMMS_H
-//Needed to define doorState
-#include "Packet.h"
+// C/C++ language includes
+#include <stdint.h>
 
-void setup_comms();
-void comms_loop();
+extern void setup_comms();
+extern void comms_loop();
 
-void open_door();
-void close_door();
+extern GarageDoorCurrentState open_door();
+extern GarageDoorCurrentState close_door();
 
-void set_lock(uint8_t value);
-void set_light(bool value);
+extern bool set_lock(bool value, bool verify = true);
+extern bool set_light(bool value, bool verify = true);
 
-void save_rolling_code();
-void reset_door();
+extern void save_rolling_code();
+extern void reset_door();
 
-//Adding external declaration so doorState can be used in dryContactLoop() ratgdo.cpp
-//Remove if dryContactLoop() is moved
-extern DoorState doorState;
-
-#endif // _COMMS_H
+extern uint32_t doorControlType;
+extern GarageDoorCurrentState doorState;
+extern bool comms_status_done;

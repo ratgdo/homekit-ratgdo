@@ -1,0 +1,15 @@
+<tr>
+    <td><input id='adv' name='advanced' type='checkbox' onclick='shAdv(this.checked)'></td>
+    <td colspan='2'>Advanced</td>
+</tr>
+<tr>
+    <th></th>
+    <th>SSID</th>
+    <th>RSSI</th>
+    <th>Chan</th>
+    <th>Hardware BSSID</th>
+</tr>
+<tr>
+    <td><input type='radio' name='net' value='0'></td>
+    <td colspan='2'><input type='text' name='userSSID' placeholder='SSID' value='KIoT'></td>
+</tr>

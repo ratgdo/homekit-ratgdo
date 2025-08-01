@@ -2,7 +2,7 @@
 <html lang="en">
 
 <head>
-  <!--  Copyright (c) 2023-24 David Kerr, https://github.com/dkerr64 -->
+  <!--  Copyright (c) 2023-25 David Kerr, https://github.com/dkerr64 -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=1">
   <meta name="apple-mobile-web-app-title" content="RATDGO">
@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="style.css?v=CRC-32">
   <link rel="icon" href="favicon.png?v=CRC-32" type="image/png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=CRC-32" type="image/png">
+  <script src="qrcode.js?v=CRC-32"></script>
   <script src="functions.js?v=CRC-32"></script>
 </head>
 
@@ -37,7 +38,7 @@
         <div style="float:right;vertical-align: middle; padding-left: 0; padding-right: 0; cursor: pointer;">
           <img id="settings-icon" src="settings-sliders.svg?v=CRC-32" alt="Settings" style="width:1.5em;height:1.5em;">
           <img id="main-icon" src="garage-car.svg?v=CRC-32" alt="Homepage" onclick="history.back()"
-            style="display:none; width:1.5em;height:1.5em;">
+            style="display:none; width:1.5em; height:1.5em;">
         </div>
       </div>
       <!-- Main section of page ------------------------------------------------------------------>
@@ -45,7 +46,7 @@
         <div class="serverstatus">
           <table>
             <tr>
-              <td style="width: 40%">Firmware:</td>
+              <td style="width: 30%">Firmware:</td>
               <td><span id="firmwareVersion"></span><br><sup style="font-size: 0.6em;"><span
                     id="newversion"></span><span id="dotdot1"></span></sup></td>
             </tr>
@@ -53,28 +54,29 @@
               <td style="white-space: pre;">Up Time:</td>
               <td><span id="upTime"></span><br><sup style="font-size: 0.6em;">(days:hrs:min:sec)</sup></td>
             </tr>
-            <tr style="height: 2px">
-              <td colspan="2"></td>
-            </tr>
             <tr>
-              <td>WiFi SSID:</td>
+              <td>WiFi&nbsp;SSID:</td>
               <td id="wifiSSID"></td>
             </tr>
             <tr>
-              <td>WiFi RSSI:</td>
+              <td>WiFi&nbsp;RSSI:</td>
               <td id="wifiRSSI"></td>
             </tr>
             <tr>
-              <td>WiFi AP:</td>
+              <td>WiFi&nbsp;AP:</td>
               <td><span id="wifiBSSID"></span><br><sup style="font-size: 0.6em;"><span id="lockedAP"
                     style="display: none">(Locked to AP)</span></sup></td>
             </tr>
             <tr>
-              <td>MAC Address:</td>
+              <td>MAC&nbsp;Address:</td>
               <td id="macAddress"></td>
             </tr>
+            <tr id="ipv6Row" style="display:none;">
+              <td>IPv6&nbsp;Address:</td>
+              <td id="ipv6Addresses" style="white-space:pre;"></td>
+            </tr>
             <tr>
-              <td>IP Address:</td>
+              <td>IP&nbsp;Address:</td>
               <td id="localIP"></td>
             </tr>
             <tr>
@@ -82,64 +84,83 @@
               <td id="subnetMask"></td>
             </tr>
             <tr>
-              <td>Gateway IP:</td>
+              <td>Gateway&nbsp;IP:</td>
               <td id="gatewayIP"></td>
             </tr>
-            <tr style="height: 10px">
-              <td colspan="2"></td>
-            </tr>
-            <tr>
-              <td>HomeKit ID:</td>
-              <td><span id="accessoryID"></span><br><sup style="font-size: 0.6em;">HomeKit connected: <span
-                    id="clients">No</span></sup></td>
+            <tr id="trAccessoryID" style="display: none;">
+              <td style="padding-top: 10px;">HomeKit ID:</td>
+              <td style="padding-top: 10px;"><span id="accessoryID"></span><br><sup style="font-size: 0.6em;">HomeKit
+                  connected: <span id="clients">No</span></sup></td>
             </tr>
           </table>
         </div>
         <div class="qrcode">
-          <img id="qrcode" src="qrcode.svg?v=CRC-32" alt="QR Code" style="display:none;">
+          <img id="qrcode" src="qrframe.svg?v=CRC-32" alt="QR Code" style="display:none;">
+          <svg id="qr-svg"
+            style="display:none; position:absolute; top:35%; left:5%; width:90%; height:60%; padding:0px 12px 12px">
+          </svg>
           <p id="re-pair-info" style="display:none; font-size: 10px;">If you wish to pair to another HomeKit home, you
             must first un-pair from existing home.
           </p>
         </div>
-        <div class="fullwidth" style="padding: 0px;">
-          <div class="serverstatus" style="padding: 0px; padding-bottom: 5px;">
-            <input type="button" value="Reboot RATGDO" onclick="rebootRATGDO(true)">
-            <input type="button" value="Firmware Update" onclick="showUpdateDialog()">
-          </div>
-          <div class="qrcode center">
-            <input type="button" id="unpair" value="Reset HomeKit" onclick="unpairRATGDO()">
-          </div>
+        <div class="fullwidth" style="padding: 0px; padding-bottom: 5px; display: flex; justify-content: space-evenly;">
+          <input type="button" value="Reboot RATGDO" onclick="rebootRATGDO(true)">
+          <input type="button" value="Firmware Update" onclick="showUpdateDialog()">
+          <input type="button" id="unpair" value="Reset HomeKit" onclick="unpairRATGDO()">
         </div>
         <div class="fullwidth">
-          <table>
+          <table style="width: 100%">
             <tr>
-              <td style="width: 35%;">Door State:</td>
+              <td style="width: 30%;">Door State:</td>
               <td style="width: 20%;" id="garageDoorState"></td>
-              <td style="width: 35%;">Light On:</td>
-              <td style="width: 10%;" id="garageLightOn"></td>
+              <td style="width: 25%;">Obstruction:</td>
+              <td style="width: 25%;" id="garageObstructed"></td>
             </tr>
-            <tr>
-              <td>Lock State:</td>
+            <tr id="lockLightRow">
+              <td>Lock&nbsp;State:</td>
               <td id="garageLockState"></td>
-              <td>Obstruction:</td>
-              <td id="garageObstructed"></td>
+              <td>Light&nbsp;On:</td>
+              <td id="garageLightOn"></td>
             </tr>
             <tr>
-              <td>Door Protocol:</td>
+              <td>Door&nbsp;Protocol:</td>
               <td id="GDOSecurityType"></td>
-              <td>Motion:</td>
+              <td id="motionLabel">Motion:</td>
               <td id="garageMotion"></td>
+            </tr>
+            <tr id="secPlus2Row" style="display:none;">
+              <td>Cycle&nbsp;Count:</td>
+              <td id="openingsCount"></td>
+              <td>Battery:</td>
+              <td id="batteryState"></td>
+            </tr>
+            <tr id="durationRow">
+              <td>Opening:</td>
+              <td id="openDuration">unknown</td>
+              <td>Closing:</td>
+              <td id="closeDuration">unknown</td>
+            </tr>
+            <tr id="vehicleRow" style="display:none;">
+              <td>Vehicle:</td>
+              <td id="vehicleStatus"></td>
+              <td>Distance:</td>
+              <td>
+                <span id="vehicleDist"></span>&nbsp;cm<span style="font-size: 0.8em;">&nbsp;(<span
+                    id="vehicleDistInch"></span>&nbsp;inch)</span>
+              </td>
             </tr>
           </table>
         </div>
         <div id="GDOcontrols" class="fullwidth"
-          style="padding-left: 0px; padding-right: 0px; display: flex; justify-content: space-between;">
-          <input type="button" value="Light On" onclick="setGDO('garageLightOn', '1')">
-          <input type="button" value="Light Off" onclick="setGDO('garageLightOn', '0')">
-          <input type="button" value="Door Open" onclick="setGDO('garageDoorState', '1')">
-          <input type="button" value="Door Close" onclick="setGDO('garageDoorState', '0')">
-          <input type="button" value="Door Lock" onclick="setGDO('garageLockState', '1')">
-          <input type="button" value="Door Unlock" onclick="setGDO('garageLockState', '0')">
+          style="padding-left: 20px; padding-right: 20px; display: flex; justify-content: space-evenly;">
+          <input type="button" id="lightButton" value="Light On"
+            onclick="setGDO('garageLightOn', (event.target.value === 'Light On') ? '1' : '0');">
+          <input type="button" id="doorButton" value="Open Door"
+            onclick="setGDO('garageDoorState', (event.target.value === 'Open Door') ? '1' : '0');">
+          <input type="button" id="lockButton" value="Lock Remotes"
+            onclick="setGDO('garageLockState', (event.target.value === 'Lock Remotes') ? '1' : '0');">
+          <input type="button" id="laserButton" value="Laser On" style="display:none;"
+            onclick="setGDO('assistLaser', (event.target.value === 'Laser On') ? '1' : '0');">
         </div>
       </div>
       <!-- Settings section of page ------------------------------------------------------------------>
@@ -178,7 +199,7 @@
           </div>
         </div>
         <div class="fullwidth" style="padding-top: 0px; padding-bottom: 0px;">
-          <div>
+          <div style="padding-left: 0; padding-right: 0; width: 100%">
             <table class="settings">
               <tr>
                 <td style="font-size: 0.65em;"><u>No reboot required:</u></td>
@@ -188,15 +209,6 @@
                 <td class="label">Name:</td>
                 <td>&nbsp;
                   <input id="newDeviceName" type="text" placeholder="" maxlength="30" minlength="1">
-                </td>
-              </tr>
-              <tr>
-                <td class="label">Door Close Delay:</td>
-                <td>&nbsp;
-                  <input type="range" min="0" max="60" value="0" id="TTCseconds" name="TTCseconds" class="slider"
-                    style="width:150px;">
-                  <span style="vertical-align: middle; font-size: 0.8em"><span id="TTCsecondsValue"></span>
-                    Seconds</span>
                 </td>
               </tr>
               <tr>
@@ -210,13 +222,13 @@
                 <td class="label">LED activity:</td>
                 <td>&nbsp;
                   <input type="radio" id="LEDidle0" name="LEDidle" value="0">
-                  <label for="LEDidle0">On when idle</label>
+                  <label for="LEDidle0">Off when idle</label>
                   <input type="radio" id="LEDidle1" name="LEDidle" value="1">
-                  <label for="LEDidle1">Off when idle</label>
+                  <label for="LEDidle1">On when idle</label>
                   <input type="radio" id="LEDidle2" name="LEDidle" value="2">
                   <label for="LEDidle2">Disable</label>
                 </td>
-              </tr>  
+              </tr>
               <tr>
                 <td class="label">Syslog:</td>
                 <td>&nbsp;
@@ -232,7 +244,7 @@
                       <td class="IPlabel">Server IP/Port:</td>
                       <td>&nbsp;
                         <input class="syslogIPinput IPinput" id="syslogIP" type="text" placeholder="0.0.0.0"
-                          minlength="7" maxlength="15" size="15">&nbsp;:
+                          minlength="7" maxlength="15" size="12">&nbsp;:
                         <input class="syslogIPinput IPinput" id="syslogPort" type="text" placeholder="514" minlength="1"
                           maxlength="5" size="5">
                       </td>
@@ -241,8 +253,51 @@
                 </td>
               </tr>
               <tr>
-                <td style="font-size: 0.65em;"><br><u>Reboot may be required:</u></td>
+                <td class="label">Log level:</td>
+                <td style="font-size: 0.65em;">&nbsp;
+                  <input type="radio" id="logLevel0" name="logLevel" value="0">
+                  <label for="logLevel0">None</label>
+                  <input type="radio" id="logLevel1" name="logLevel" value="1">
+                  <label for="logLevel1">Error</label>
+                  <input type="radio" id="logLevel2" name="logLevel" value="2">
+                  <label for="logLevel2">Warn</label>
+                  <input type="radio" id="logLevel3" name="logLevel" value="3" checked>
+                  <label for="logLevel3">Info</label>
+                  <input type="radio" id="logLevel4" name="logLevel" value="4">
+                  <label for="logLevel4">Debug</label>
+                  <input type="radio" id="logLevel5" name="logLevel" value="5">
+                  <label for="logLevel5">Verbose</label>
+                </td>
+              </tr>
+              <tr>
+                <td colspan="2">&nbsp;</td>
+              </tr>
+              <tr>
+                <td class="label">Door Close Delay:</td>
+                <td>&nbsp;
+                  <input type="range" min="0" max="21" value="5" id="TTCseconds" name="TTCseconds" class="slider"
+                    style="width:150px;">
+                  <span style="vertical-align: middle; font-size: 0.8em"><span
+                      id="TTCsecondsValue"></span>&nbsp;Seconds&nbsp;<a id="TTCwarning"
+                      style="display: none; color: red;" href="https://www.law.cornell.edu/cfr/text/16/1211.14"
+                      target="_blank">WARNING</a></span>
+                </td>
+              </tr>
+              <tr>
                 <td></td>
+                <td>&nbsp;
+                  <input type="checkbox" id="TTClight" name="TTClight" checked>
+                  <label for="TTClight">Flash light during time-to-close</label>&nbsp;<a id="TTCwarning2"
+                    style="display: none; color: red; font-size: 0.8em"
+                    href="https://www.law.cornell.edu/cfr/text/16/1211.14" target="_blank">WARNING</a></span>
+                </td>
+              </tr>
+              <tr id="builtInTTCrow" style="display:none;">
+                <td></td>
+                <td>&nbsp;
+                  <input type="checkbox" id="builtInTTC" name="builtInTTC" value="no" checked>
+                  <label for="builtInTTC">Use GDO built-in time-to-close</label>
+                </td>
               </tr>
               <tr>
                 <td class="label">Motion Triggers:</td>
@@ -251,16 +306,67 @@
                   <label for="motionMotion">Motion</label>
                   <input type="checkbox" id="motionObstruction" name="motionObstruction" value="no">
                   <label for="motionObstruction">Obstruction</label>
-                  <!--
-                  <input type="checkbox" id="motionLight" name="motionLight" value="no">
-                  <label for="motionLight">Light</label>
-                  <input type="checkbox" id="motionDoor" name="motionDoor" value="no">
-                  <label for="motionDoor">Door</label>
-                  <input type="checkbox" id="motionLock" name="motionLock" value="no">
-                  <label for="motionLock">Lock</label>
-                  -->
-                  <input type="checkbox" id="motionWallPanel" name="motionWallPanel" value="no">
-                  <label for="motionWallPanel">Wall Panel</label>
+                  <span id="motionWallPanelSpan">
+                    <input type="checkbox" id="motionWallPanel" name="motionWallPanel" value="no">
+                    <label for="motionWallPanel">Wall Panel</label>
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td>
+                  <table class="settings" id="roomOccupancy" style="display: none;">
+                    <tr>
+                      <td class="label">Occupancy&nbsp;Duration:</td>
+                      <td>&nbsp;
+                        <input type="range" min="0" max="32" value="0" id="occupancyDuration" name="occupancyDuration"
+                          class="slider" style="width:100px;">
+                        <span style="vertical-align: middle;"><span id="occupancyValue"></span>&nbsp;Mins</span>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr id="vehicleSetting" style="display:none;">
+                <td class="label">Vehicle Distance:</td>
+                <td>&nbsp;
+                  <input type="range" min="5" max="300" value="180" step="5" id="vehicleThreshold"
+                    name="vehicleThreshold" class="slider" style="width:130px;">
+                  <span style="vertical-align: middle; font-size: 0.8em">
+                    <span id="vehicleThresholdCM"></span>&nbsp;cm<span style="font-size: 0.8em;">&nbsp;(<span
+                        id="vehicleThresholdInch"></span>&nbsp;inch)</span>
+                </td>
+              </tr>
+              <tr id="vehicleHomeKitRow" style="display:none;">
+                <td></td>
+                <td>&nbsp;
+                  <input type="checkbox" id="vehicleHomeKit" name="vehicleHomeKit" value="no">
+                  <label for="vehicleHomeKit">HomeKit Vehicle Occupancy & Motion</label>
+                </td>
+              </tr>
+              <tr id="laserSetting" style="display:none;">
+                <td class="label">Laser:</td>
+                <td>&nbsp;
+                  <input type="checkbox" id="laserEnabled" name="laserEnabled" value="no"
+                    onchange="enableLaser(this.checked)">
+                  <label for="laserEnabled">Enabled</label>
+                  <input type="checkbox" id="laserHomeKit" name="laserHomeKit" value="no" disabled>
+                  <label for="laserHomeKit">HomeKit Light Switch</label>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td>
+                  <table class="settings" id="parkAssist" style="display: none;">
+                    <tr>
+                      <td class="label">Assist&nbsp;Duration:</td>
+                      <td>&nbsp;
+                        <input type="range" min="0" max="300" value="60" step="5" id="assistDuration"
+                          name="assistDuration" class="slider" style="width:100px;">
+                        <span style="vertical-align: middle;"><span id="assistValue"></span>&nbsp;Secs</span>
+                      </td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
               <tr>
@@ -268,17 +374,63 @@
                 <td></td>
               </tr>
               <tr>
-                <td class="label">Door Protocol:</td>
+                <td class="label">Door&nbsp;Protocol:</td>
                 <td>&nbsp;
-                  <input type="radio" id="gdosec1" name="gdosecuritysetting" value="1">
+                  <input type="radio" id="gdosec1" name="gdosecuritysetting" value="1"
+                    onclick="toggleDCOpenClose(this)">
                   <label for="gdosec1">Sec+</label>
-                  <input type="radio" id="gdosec2" name="gdosecuritysetting" value="2">
+                  <input type="radio" id="gdosec2" name="gdosecuritysetting" value="2"
+                    onclick="toggleDCOpenClose(this)">
                   <label for="gdosec2">Sec+ 2.0</label>
-                  <input type="radio" id="gdodrycontact" name="gdosecuritysetting" value="3">
+                  <input type="radio" id="gdodrycontact" name="gdosecuritysetting" value="3"
+                    onclick="toggleDCOpenClose(this)">
                   <label for="gdodrycontact">Dry Contact</label>
                 </td>
               </tr>
-              <tr>
+              <tr id="dcDebounceDurationRow" style="display:none;">
+                <td></td>
+                <td>
+                  <table class="settings">
+                    <tr>
+                      <td class="label">Debounce&nbsp;Duration:</td>
+                      <td>&nbsp;
+                        <input type="range" min="50" max="1000" value="50" step="50" id="dcDebounceDuration"
+                          name="dcDebounceDuration" class="slider" style="width:100px;">
+                        <span style="vertical-align: middle;"><span id="dcDebounceValue"></span>&nbsp;ms</span>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr id="dcOpenCloseRow" style="display:none;">
+                <td></td>
+                <td>&nbsp;
+                  <input type="checkbox" id="dcOpenClose" name="dcOpenClose" value="no">
+                  <label for="dcOpenClose">Enable hardwired open/close control</label>
+                </td>
+              </tr>
+              <tr id="useSWserialRow" style="display:none;">
+                <td></td>
+                <td>&nbsp;
+                  <input type="checkbox" id="useSWserial" name="useSWserial" value="no">
+                  <label for="useSWserial">Use software serial emulation rather than h/w UART</label>
+                </td>
+              </tr>
+              <tr id="obstFromStatusRow" style="display:none;">
+                <td></td>
+                <td>&nbsp;
+                  <input type="checkbox" id="obstFromStatus" name="obstFromStatus" value="no">
+                  <label for="obstFromStatus">Get obstruction from GDO status messages</label>
+                </td>
+              </tr>
+              <tr id="useToggleToCloseRow" style="display:none;">
+                <td></td>
+                <td>&nbsp;
+                  <input type="checkbox" id="useToggleToClose" name="useToggleToClose" value="no">
+                  <label for="useToggleToClose">Use TOGGLE command to close door</label>
+                </td>
+              </tr>
+              <tr id="trWifiPhyMode" style="display: none">
                 <td class="label">WiFi Version:</td>
                 <td>&nbsp;
                   <input type="radio" id="wifiPhyMode0" name="wifiPhyMode" value="0">
@@ -291,7 +443,7 @@
                   <label for="wifiPhyMode3">802.11n</label>
                 </td>
               </tr>
-              <tr>
+              <tr id="trWifiPower" style="display: none">
                 <td class="label">WiFi Tx Power:</td>
                 <td>&nbsp;
                   <input type="range" min="0" max="20" value="20" id="wifiPower" name="wifiPower" class="slider"
@@ -299,8 +451,15 @@
                   <span style="vertical-align: middle; font-size: 0.8em"><span id="wifiPowerValue"></span> dBm</span>
                 </td>
               </tr>
+              <tr id="trEnableIPv6" style="display: none">
+                <td class="label">Enable IPv6:</td>
+                <td>&nbsp;
+                  <input type="checkbox" id="enableIPv6" name="enableIPv6" value="no">
+                  <label for="enableIPv6">Acquire IPv6 address from network.</label>
+                </td>
+              </tr>
               <tr>
-                <td class="label">Static IP:</td>
+                <td class="label">Static IPv4:</td>
                 <td>&nbsp;
                   <input type="checkbox" id="staticIP" name="staticIP" value="no" onchange="toggleStaticIP()">
                 </td>
@@ -313,28 +472,28 @@
                       <td class="IPlabel">IP Address:</td>
                       <td>&nbsp;
                         <input class="staticIPinput IPinput" id="IPaddress" type="text" placeholder="0.0.0.0"
-                          minlength="7" maxlength="15" size="15">
+                          minlength="7" maxlength="15" size="12">
                       </td>
                     </tr>
                     <tr>
                       <td class="IPlabel">Netmask:</td>
                       <td>&nbsp;
                         <input class="staticIPinput IPinput" id="IPnetmask" type="text" placeholder="0.0.0.0"
-                          minlength="7" maxlength="15" size="15">
+                          minlength="7" maxlength="15" size="12">
                       </td>
                     </tr>
                     <tr>
                       <td class="IPlabel">Gateway:</td>
                       <td>&nbsp;
                         <input class="staticIPinput IPinput" id="IPgateway" type="text" placeholder="0.0.0.0"
-                          minlength="7" maxlength="15" size="15">
+                          minlength="7" maxlength="15" size="12">
                       </td>
                     </tr>
                     <tr>
                       <td class="IPlabel">DNS Server:</td>
                       <td>&nbsp;
                         <input class="staticIPinput IPinput" id="IPnameserver" type="text" placeholder="0.0.0.0"
-                          minlength="7" maxlength="15" size="15">
+                          minlength="7" maxlength="15" size="12">
                       </td>
                     </tr>
                   </table>
@@ -379,23 +538,29 @@
                 <td></td>
               </tr>
               <tr>
-                <td colspan="2" style="text-align: center;">
-                  <input type="button" value="Save Settings" onclick="saveSettings()">&nbsp;
-                  <input type="button" value="Reset Door" onclick="resetDoor()">&nbsp;
-                  <input type="button" value="Set WiFi SSID" onclick="setSSID()">
+                <td></td>
+                <td>&nbsp;
+                  <input type="button" value="Save Settings" onclick="saveSettings()">
                 </td>
               </tr>
             </table>
           </div>
+        </div>
+        <div class="fullwidth"
+          style="padding-left: 20px;padding-right: 20px; display: flex; justify-content: space-evenly;">
+          <input type="button" value="Reset Door" onclick="resetDoor()">
+          <input type="button" value="Set WiFi SSID" onclick="setSSID()">
+          <input type="button" value="Boot Soft AP" onclick="bootSoftAP()">
+          <input type="button" value="Factory Reset" onclick="factoryReset()">
         </div>
       </div>
     </main>
     <!-- Footer section of page ------------------------------------------------------------------>
     <footer>
       <div class="footer">
-        <p style="margin:0px;">For documentation and support see the <a
+        <p style="margin:0px;">For documentation and support see the <a id="docsLink"
             href="https://github.com/ratgdo/homekit-ratgdo">GitHub</a>
-          page.<br>Copyright (c) 2023-24 <a
+          page.<br>Copyright (c) 2023-25 <a id="contribLink"
             href="https://github.com/ratgdo/homekit-ratgdo/graphs/contributors">homekit-ratgdo
             contributors.</a><br>Licensed under terms of the <a
             href="https://www.gnu.org/licenses/gpl-3.0.en.html">GPL-3.0
@@ -404,13 +569,13 @@
         <br>
         <table style="border-collapse: collapse">
           <tr id="freeMemRow">
-            <td colspan="2" style="width: 30%; padding: 0px">
+            <td colspan="2" style="width: 45%; padding: 0px">
               freeHeap:&nbsp;<span id="freeHeap">0</span>&nbsp;
             </td>
-            <td colspan="2" style="width: 30%; padding: 0px; text-align: center;">
+            <td colspan="2" style="width: 45%; padding: 0px; text-align: center;">
               minHeap:&nbsp;<span id="minHeap">0</span>&nbsp;
             </td>
-            <td colspan="2" style="width: 30%; padding: 0px; text-align: right;">
+            <td id="tdStack" colspan="2" style="width: 30%; padding: 0px; text-align: right; display: none;">
               minStack:&nbsp;<span id="minStack">0</span>&nbsp;
             </td>
           </tr>
@@ -428,11 +593,6 @@
         <p style="margin:0px;">
           <a href="logs.html" target="_blank">Show system logs</a>&nbsp;(crashCount:&nbsp;<span id="crashCount"></span>)
         </p>
-        <p style="margin:0px; color:red;">
-          <span id="checkFlashCRC" style="display:none;">
-            checkFlashCRC() failed. Flash new firmware by USB cable to recover.
-          </span>
-        </p>
       </div>
     </footer>
   </div>
@@ -444,7 +604,6 @@
         onclick="document.getElementById('myModal').style.display = 'none'">&times;</span>
       <span id="modalTitle">Installed Firmware:&nbsp;<span id="firmwareVersion2">xxx</span><br></span><br>
       <div id="updateDialog" style="float: none; padding:0px">
-        <span id="modalFlashCRC" style="font-size: 0.8em; display: block">xxx</span><br>
         <fieldset>
           <legend>Update from GitHub</legend>
           <table>
@@ -473,19 +632,9 @@
     </div>
   </div>
 
-  <!-- Simple please wait dialog --------------------------------------------------------------->
-  <!-- Only used for CRC check at reboot which we no longer do.
-  <div id="pleaseWait" class="modal">
-    <div class="modal-content">
-      Checking flash CRC. please wait...
-    </div>
-  </div>
-  -->
-
   <!-- Initialization scripts ------------------------------------------------------------------>
   <script>
     const loaderElem = document.getElementById("loader"); // Spinner while pages load
-
 
     // Retrieve status from the server
     loaderElem.style.visibility = "visible";
@@ -600,10 +749,49 @@
     };
     TTCslider = document.getElementById("TTCseconds");
     TTCtext = document.getElementById("TTCsecondsValue");
-    TTCtext.innerHTML = TTCslider.value;
+    TTClight = document.getElementById("TTClight");
+    TTCwarning = document.getElementById("TTCwarning");
+    TTCwarning2 = document.getElementById("TTCwarning2");
+    TTCtext.innerHTML = (TTCslider.value <= 10) ? TTCslider.value : (TTCslider.value <= 20) ? ((TTCslider.value - 10) * 5) + 10 : 300;
     TTCslider.oninput = function () {
-      TTCtext.innerHTML = this.value;
-    }
+      TTCtext.innerHTML = (this.value <= 10) ? this.value : (this.value <= 20) ? ((this.value - 10) * 5) + 10 : 300;
+      TTCwarning.style.display = (this.value < 5) ? "inline" : "none";
+    };
+    TTClight.onclick = function () {
+      TTCwarning2.style.display = (this.checked) ? "none" : "inline";
+    };
+
+    vDistSlider = document.getElementById("vehicleThreshold");
+    vDistText1 = document.getElementById("vehicleThresholdCM");
+    vDistText2 = document.getElementById("vehicleThresholdInch");
+    vDistText1.innerHTML = vDistSlider.value;
+    vDistText2.innerHTML = Math.round(vDistSlider.value / .254) / 10;
+    vDistSlider.oninput = function () {
+      vDistText1.innerHTML = this.value;
+      vDistText2.innerHTML = Math.round(this.value / .254) / 10;
+    };
+
+    PAslider = document.getElementById("assistDuration");
+    PAtext = document.getElementById("assistValue");
+    PAtext.innerHTML = PAslider.value;
+    PAslider.oninput = function () {
+      PAtext.innerHTML = this.value;
+    };
+
+    DBslider = document.getElementById("dcDebounceDuration");
+    DBtext = document.getElementById("dcDebounceValue");
+    DBtext.innerHTML = DBslider.value;
+    DBslider.oninput = function () {
+      DBtext.innerHTML = this.value;
+    };
+
+    occSlider = document.getElementById("occupancyDuration");
+    occText = document.getElementById("occupancyValue");
+    occText.innerHTML = (occSlider.value <= 10) ? occSlider.value : (occSlider.value <= 32) ? ((occSlider.value - 10) * 5) + 10 : 0;
+    occSlider.oninput = function () {
+      occText.innerHTML = (this.value <= 10) ? this.value : (this.value <= 32) ? ((this.value - 10) * 5) + 10 : 0;
+    };
+
   </script>
 </body>
 

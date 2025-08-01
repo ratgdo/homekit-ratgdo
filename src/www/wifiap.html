@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        .adv {
+            display: none;
+        }
+
+        td,
+        th {
+            text-align: left;
+        }
+
+        th:nth-child(1n+4),
+        td:nth-child(1n+4) {
+            display: none;
+            text-align: right;
+        }
+    </style>
+    <script>
+        const warnTxt = 'Selecting SSID in advanced mode locks the device to a specific WiFi ' +
+            'access point by its unique hardware BSSID. If that access point goes offline, or you replace ' +
+            'it, then the device will NOT connect to WiFi.';
+        const setTxt = 'Set SSID and password, are you sure?';
+        function showAdvanced(checked) {
+            Array.from(document.getElementsByClassName('adv')).forEach((elem) => {
+                elem.style.display = checked ? 'table-row' : 'none';
+            });
+            Array.from(document.querySelectorAll('th:nth-child(1n+4), td:nth-child(1n+4)')).forEach((elem) => {
+                elem.style.display = checked ? 'table-cell' : 'none';
+            });
+            document.getElementById('warn').innerHTML = checked ? '<p><b>WARNING: </b>' + warnTxt + '</p>' : '';
+        }
+        function confirmAdvanced() {
+            if (document.getElementById('adv').checked) {
+                return confirm('WARNING: ' + warnTxt + '\n\n' + setTxt);
+            } else {
+                return confirm(setTxt);
+            }
+        }
+        function confirmCancel() {
+            if (location.hostname == "192.168.4.1") {
+                return confirm("Reboot without changes, are you sure?");
+            }
+            else {
+                location.href = "/";
+                return false;
+            }
+        }
+
+        fetch('rescan', { method: "POST" }).then(response => {
+            fetch('wifinets')
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('wifinets').innerHTML = html;
+                });
+        })
+            .catch(error => console.error('Error fetching HTML:', error));
+    </script>
+</head>
+
+<body style='font-family: monospace'>
+    <p>Select from available networks, or manually enter SSID:</p>
+    <form action='/setssid' method='post'>
+        <table id="wifinets">
+            <tr>
+                <td colspan='2'>Scanning...</td>
+            </tr>
+        </table>
+        <br><label for='pw'>Network password:&nbsp;</label>
+        <input id='pw' name='pw' type='password' placeholder='password'>
+        <p id='warn'></p>
+        <input type='submit' value='Submit' formaction='/setssid' onclick='return confirmAdvanced();'>&nbsp;
+        <input type='submit' value='Rescan' formaction='/wifiap'>&nbsp;
+        <input type='submit' value='Cancel' formaction='/reboot' onclick='return confirmCancel();'>
+    </form>
+</body>
+
+</html>
