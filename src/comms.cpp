@@ -901,7 +901,8 @@ void comms_loop_sec1()
         if (key == secplus1Codes::DoorStatus || key == secplus1Codes::ObstructionStatus || key == secplus1Codes::LightLockStatus)
         {
 
-            ESP_LOGD(TAG, "SEC1 STATUS MSG: %X%02X", key, value);
+            // only use for real sec1 commm debugging, its just too chatty
+            //ESP_LOGD(TAG, "SEC1 STATUS MSG: %X%02X", key, value);
 
             switch (key)
             {
@@ -1794,7 +1795,7 @@ void door_command(DoorAction action)
         // do button release
         pkt_ac.pkt.m_data.value.door_action.pressed = false;
         pkt_ac.inc_counter = true;
-        pkt_ac.delay = 0;
+        pkt_ac.delay = 40;
 #ifdef ESP8266
         if (!q_push(&pkt_q, &pkt_ac))
 #else
@@ -1802,6 +1803,19 @@ void door_command(DoorAction action)
 #endif
         {
             ESP_LOGE(TAG, "packet queue full, dropping door command release pkt");
+        }
+
+        // if sec+1.0, repeat the release
+        if (doorControlType == 1)
+        {
+#ifdef ESP8266
+            if (!q_push(&pkt_q, &pkt_ac))
+#else
+            if (xQueueSendToBack(pkt_q, &pkt_ac, 0) == errQUEUE_FULL)
+#endif
+            {
+                ESP_LOGE(TAG, "packet queue full, dropping door command release pkt");
+            }
         }
         send_get_status();
     }
@@ -1915,16 +1929,24 @@ void delayFnCall(uint32_t ms, void (*callback)())
                             TTCtimer.detach();
                             // Turn light off. It will turn on as part of the door close action and then go off after a timeout
                             ESP_LOGI(TAG, "End of function delay timer");
+                            
+                            /*
                             if (light && (doorControlType != 3)) {
                                 // dry contact cannot control lights
                                 set_light(false);
                             }
+                            */
+
                             if (callback)
                             {
                                 // delay so that set_light() can do its thing
                                 callbackDelay.once_ms(interval, [callback]()
                                 {
-                                    ESP_LOGI(TAG,"Calling delayed function 0x%08lX", (uint32_t)callback);
+                                    if (callback == door_command_close)
+                                    {
+                                        ESP_LOGI(TAG,"Calling delayed function 'door_command_close()'");
+                                    }
+
                                     callback();
                                 });
                             }
@@ -2081,7 +2103,16 @@ bool set_lock(bool value, bool verify)
         }
         // button release
         pkt_ac.pkt.m_data.value.lock.pressed = false;
-        pkt_ac.delay = 0;
+        pkt_ac.delay = 40;
+#ifdef ESP8266
+        if (!q_push(&pkt_q, &pkt_ac))
+#else
+        if (xQueueSendToBack(pkt_q, &pkt_ac, 0) == errQUEUE_FULL)
+#endif
+        {
+            ESP_LOGE(TAG, "packet queue full, dropping lock pkt");
+        }
+        // repeat the release
 #ifdef ESP8266
         if (!q_push(&pkt_q, &pkt_ac))
 #else
@@ -2150,7 +2181,16 @@ bool set_light(bool value, bool verify)
         }
         // button release
         pkt_ac.pkt.m_data.value.light.pressed = false;
-        pkt_ac.delay = 0;
+        pkt_ac.delay = 40;
+#ifdef ESP8266
+        if (!q_push(&pkt_q, &pkt_ac))
+#else
+        if (xQueueSendToBack(pkt_q, &pkt_ac, 0) == errQUEUE_FULL)
+#endif
+        {
+            ESP_LOGE(TAG, "packet queue full, dropping light pkt");
+        }
+        // repeat the release
 #ifdef ESP8266
         if (!q_push(&pkt_q, &pkt_ac))
 #else

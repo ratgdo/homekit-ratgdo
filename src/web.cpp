@@ -1389,7 +1389,7 @@ void SSEBroadcastState(const char *data, BroadcastType type)
             else if (type == RATGDO_STATUS)
             {
                 String IPaddrstr = IPAddress(subscription[i].clientIP).toString();
-                ESP_LOGD(TAG, "SSE send to client %s on channel %d, data: %s", IPaddrstr.c_str(), i, data);
+                ESP_LOGV(TAG, "SSE send to client %s on channel %d, data: %s", IPaddrstr.c_str(), i, data);
                 subscription[i].client.printf_P(PSTR("event: message\ndata: %s\n\n"), data);
             }
         }
