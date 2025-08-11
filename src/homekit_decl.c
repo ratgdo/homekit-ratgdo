@@ -26,9 +26,6 @@ char device_name[DEVICE_NAME_SIZE] = "";
 char device_name_rfc952[DEVICE_NAME_SIZE] = "";
 char serial_number[SERIAL_NAME_SIZE] = "";
 
-homekit_characteristic_t active_state = HOMEKIT_CHARACTERISTIC_(
-    STATUS_ACTIVE, false);
-
 homekit_characteristic_t current_door_state = HOMEKIT_CHARACTERISTIC_(
     CURRENT_DOOR_STATE, 0
     //.getter=current_door_state_get,
@@ -75,7 +72,6 @@ homekit_accessory_t *accessories[] = {
         HOMEKIT_SERVICE(GARAGE_DOOR_OPENER, .primary = true, .characteristics = (homekit_characteristic_t *[])
         {
             HOMEKIT_CHARACTERISTIC(NAME, "ratgdo"),
-            &active_state,
             &current_door_state,
             &target_door_state,
             &obstruction_detected,

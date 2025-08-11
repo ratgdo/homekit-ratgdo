@@ -29,14 +29,13 @@ extern void enable_service_homekit_motion(bool reboot);
 extern void notify_homekit_motion(bool state);
 
 extern char qrPayload[];
+extern bool homekit_setup_done;
 
 #ifdef ESP8266
 // On ESP8266 we have our own HomeKit module
 void homekit_loop();
-extern void notify_homekit_active();
-extern bool homekit_setup_done;
 
-#else
+#else // not ESP8266
 // One ESP32 we use HomeSpan module.
 // Accessory IDs
 #define HOMEKIT_AID_BRIDGE 1
@@ -132,4 +131,4 @@ struct DEV_Occupancy : Service::OccupancySensor
     DEV_Occupancy();
     void loop();
 };
-#endif
+#endif // ESP8266
