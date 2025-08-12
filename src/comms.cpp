@@ -902,7 +902,7 @@ void comms_loop_sec1()
         {
 
             // only use for real sec1 commm debugging, its just too chatty
-            //ESP_LOGD(TAG, "SEC1 STATUS MSG: %X%02X", key, value);
+            // ESP_LOGD(TAG, "SEC1 STATUS MSG: %X%02X", key, value);
 
             switch (key)
             {
@@ -950,9 +950,19 @@ void comms_loop_sec1()
                 switch (value)
                 {
                 case 0x00:
+                    if (garage_door.current_state == CURR_CLOSED || garage_door.current_state == CURR_OPEN)
+                    {
+                        ESP_LOGI(TAG, "Ignoring invalid door state change from OPEN or CLOSED to STOPPED (0x00)");
+                        break;
+                    }
                     current_state = GarageDoorCurrentState::CURR_STOPPED;
                     break;
                 case 0x01:
+                    if (garage_door.current_state == CURR_OPEN)
+                    {
+                        ESP_LOGI(TAG, "Ignoring invalid door state change from OPEN to OPENING");
+                        break;
+                    }
                     current_state = GarageDoorCurrentState::CURR_OPENING;
                     break;
                 case 0x02:
@@ -960,12 +970,22 @@ void comms_loop_sec1()
                     break;
                 // no 0x03 known
                 case 0x04:
+                    if (garage_door.current_state == CURR_CLOSED)
+                    {
+                        ESP_LOGI(TAG, "Ignoring invalid door state change from CLOSED to CLOSING");
+                        break;
+                    }
                     current_state = GarageDoorCurrentState::CURR_CLOSING;
                     break;
                 case 0x05:
                     current_state = GarageDoorCurrentState::CURR_CLOSED;
                     break;
                 case 0x06:
+                    if (garage_door.current_state == CURR_CLOSED || garage_door.current_state == CURR_OPEN)
+                    {
+                        ESP_LOGI(TAG, "Ignoring invalid door state change from OPEN or CLOSED to STOPPED (0x06)");
+                        break;
+                    }
                     current_state = GarageDoorCurrentState::CURR_STOPPED;
                     break;
                 default:
