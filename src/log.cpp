@@ -447,48 +447,9 @@ void logToSyslog(char *message)
     else if (*message == 'V')
         PRI += SYSLOG_DEBUG;
 
-    char *app_name;
-    char *msg;
-    static char unk[] = "unknown";
+    // Replace newline with null terminator
+    strtok(message, "\r\n");
 
-    // Strip out the TAG name which is embedded in the log message.
-    // Can be bound by [timestamp] tagname: message
-    // So extract from the close square bracket to the colon.
-    // If no close square bracket, then message format may be
-    // (timestamp) tagname:
-    char *sqr = strchr(message, ']');
-    char *brk = strchr(message, ')');
-    if (sqr && brk)
-    {
-        if (sqr < brk)
-            app_name = strtok(message, "]");
-        else
-            app_name = strtok(message, ")");
-    }
-    else if (sqr)
-        app_name = strtok(message, "]");
-    else if (brk)
-        app_name = strtok(message, ")");
-    else
-        app_name = NULL;
-
-    if (app_name)
-    {
-        while (*app_name == ' ')
-            app_name++;
-        app_name = strtok(NULL, ":");
-        while (*app_name == ' ')
-            app_name++;
-        msg = strtok(NULL, "\r\n");
-        while (*msg == ' ')
-            msg++;
-    }
-    else
-    {
-        // neither a close close square or regular bracket then cannot determine tag name
-        app_name = unk;
-        msg = message;
-    }
     syslog.beginPacket(syslogIP, syslogPort);
     // Use RFC5424 Format
     syslog.printf("<%u>1 ", PRI); // PRI code
@@ -499,16 +460,19 @@ void logToSyslog(char *message)
 #endif
     syslog.print(" ");
     syslog.print(device_name_rfc952); // hostname
-    syslog.print(" ");
-    syslog.print(app_name);     // application name
-    syslog.printf(" 0");        // process ID
-    syslog.print(" " SYSLOG_NIL // message ID
+#ifdef ESP8266
+    syslog.print(" ratgdo"); // application name
+#else
+    syslog.print(" ratgdo32"); // application name
+#endif
+    syslog.print(" " SYSLOG_NIL // process ID
+                 " " SYSLOG_NIL // message ID
                  " " SYSLOG_NIL // structured data
 #ifdef USE_UTF8_BOM
                  " " SYSLOG_BOM); // BOM - indicates UTF-8 encoding
 #else
                  " "); // No BOM
 #endif
-    syslog.print(msg); // message
+    syslog.print(message); // message
     syslog.endPacket();
 }
