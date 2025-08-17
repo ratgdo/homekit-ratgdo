@@ -304,6 +304,23 @@ void wifiBegin(const char *ssid, const char *pw)
         }
     }
     WiFi.begin(ssid, pw);
+
+    // Setting power has to be after WiFi.begin()
+    if (userConfig->getWifiPower() < 20)
+    {
+        // Only set WiFi power if set to less than the maximum
+        // Our range is 1..20, ESP32 range is 8..84
+        wifi_power_t wifiPower = (wifi_power_t)std::min(84, std::max(8, (int)(userConfig->getWifiPower() * 4)));
+        if (WiFi.setTxPower(wifiPower))
+        {
+            ESP_LOGI(TAG, "Setting WiFi TX power to %d", wifiPower);
+        }
+        else
+        {
+            ESP_LOGW(TAG, "Failed to set user requested WiFi TX power");
+        }
+    }
+    ESP_LOGI(TAG, "WiFi TX power: %d", (int)WiFi.getTxPower());
 }
 
 void connectionCallback(int count)

@@ -679,7 +679,12 @@ void handle_status()
     JSON_ADD_STR("wifiSSID", WiFi.SSID().c_str());
     JSON_ADD_STR("wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm, Channel " + std::to_string(WiFi.channel())).c_str());
     JSON_ADD_STR("wifiBSSID", WiFi.BSSIDstr().c_str());
+#ifdef ESP8266
+    JSON_ADD_BOOL("lockedAP", wifiConf.bssid_set);
+#else
     JSON_ADD_BOOL("lockedAP", false);
+#endif
+    JSON_ADD_INT("wifiPower", userConfig->getWifiPower());
     JSON_ADD_INT(cfg_GDOSecurityType, (uint32_t)userConfig->getGDOSecurityType());
     JSON_ADD_BOOL(cfg_useToggleToClose, userConfig->getUseToggleToClose());
     JSON_ADD_STR("garageDoorState", garage_door.active ? DOOR_STATE(garage_door.current_state) : DOOR_STATE(255));
@@ -733,7 +738,6 @@ void handle_status()
     JSON_ADD_INT("clients", clientCount);
     JSON_ADD_BOOL("lockedAP", wifiConf.bssid_set);
     JSON_ADD_INT("wifiPhyMode", userConfig->getWifiPhyMode());
-    JSON_ADD_INT("wifiPower", userConfig->getWifiPower());
     JSON_ADD_INT("minStack", ESP.getFreeContStack());
 #else
     JSON_ADD_INT("occupancyDuration", userConfig->getOccupancyDuration());
