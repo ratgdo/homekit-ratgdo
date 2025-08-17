@@ -74,6 +74,7 @@ async function loadTimeZones() {
     catch {
         // failed to retrieve timezones so use built-in defaults
         tzCSV = timeZoneDefaults;
+        console.warm("Failed to load timezones");
     }
     // Now convert it into our global array
     timeZones.length = 0;
@@ -85,7 +86,7 @@ async function loadTimeZones() {
             maxLength = timeZones[index].length;
     });
     timeZonesLoaded = true;
-    console.log(`Maximum length of timezone strings: ${maxLength}`);
+    console.log(`Loaded ${timeZones.length} timezones, maximum length of strings: ${maxLength}`);
 }
 
 function waitTimeZoneLoad() {
@@ -485,73 +486,105 @@ async function checkStatus() {
     // clean up any awaiting timeouts...
     clearTimeout(checkHeartbeat);
     while (delayStatusFn.length) clearTimeout(delayStatusFn.pop());
-    try {
-        const response = await fetch("status.json")
+
+    loaderElem.style.visibility = "visible";
+    console.log("Start loading server logs and status");
+
+    function checkCondition(condition) {
+        return new Promise((resolve, reject) => {
+            if (condition) {
+                // If the condition is true, resolve the Promise
+                resolve("Operation successful!");
+            } else {
+                // If the condition is false, reject the Promise
+                reject("Operation failed: condition not met.");
+            }
+        });
+    }
+
+    Promise.allSettled([
+        fetch("status.json")
+            .then((response) => {
+                if (!response.ok || response.status !== 200) {
+                    throw new Error(`HTTP error: ${response.status}`)
+                } else {
+                    return response.text();
+                }
+            })
+            .then((text) => {
+                serverStatus = JSON.parse(text);
+                console.log(serverStatus);
+                serverStatus = { ...serverStatus, ...setGDOcmds }; // merge-in setGDO command constants
+                // Add letter 'v' to front of returned firmware version.
+                // Hack because firmware uses v0.0.0 and 0.0.0 for different purposes.
+                serverStatus.firmwareVersion = "v" + serverStatus.firmwareVersion;
+                setElementsFromStatus(serverStatus);
+            })
             .catch((error) => {
                 console.warn(`Promise rejection error fetching status from RATGDO, try again in 5 seconds: ${error}`);
-                throw ("Promise rejection");
-            });
-        if (!response.ok || response.status !== 200) {
-            console.warn(`Error RC ${response.status} fetching status from RATGDO, try again in 5 seconds.`);
-            throw ("Error RC");
-        }
-        serverStatus = await response.json();
-        serverStatus = { ...serverStatus, ...setGDOcmds }; // merge-in setGDO command constants
-    }
-    catch {
-        delayStatusFn.push(setTimeout(checkStatus, 5000));
-        return;
-    }
-    console.log(serverStatus);
-    // Add letter 'v' to front of returned firmware version.
-    // Hack because firmware uses v0.0.0 and 0.0.0 for different purposes.
-    serverStatus.firmwareVersion = "v" + serverStatus.firmwareVersion;
+                delayStatusFn.push(setTimeout(checkStatus, 5000));
+            }),
 
-    setElementsFromStatus(serverStatus);
-    // Use Server Sent Events to keep status up-to-date, 2 == CLOSED
-    if (!evtSource || evtSource.readyState == 2) {
-        const evtResponse = await fetch("rest/events/subscribe?id=" + clientUUID);
-        if (evtResponse.status !== 200) {
-            console.warn("Error registering for Server Sent Events");
-            return;
-        }
-        const evtUrl = (await evtResponse.text()) + '?id=' + clientUUID;
+        checkCondition((!evtSource || evtSource.readyState == 2))
+            .then((text) => {
+                fetch("rest/events/subscribe?id=" + clientUUID)
+                    .then((response) => {
+                        if (!response.ok || response.status !== 200) {
+                            throw new Error(`HTTP error: ${response.status}`)
+                        } else {
+                            return response.text();
+                        }
+                    })
+                    .then((text) => {
+                        const evtUrl = text + '?id=' + clientUUID;
+                        console.log(`Register for server sent events at ${evtUrl}`);
+                        evtSource = new EventSource(evtUrl);
+                        evtSource.addEventListener("message", (event) => {
+                            //console.log(`Message received: ${event.data}`);
+                            clearTimeout(checkHeartbeat);
+                            checkHeartbeat = setTimeout(() => {
+                                // if no message received since last check then close connection and try again.
+                                console.log(`SSE timeout, no message received in 30 seconds. Last upTime: ${serverStatus.upTime} (${msToTime(serverStatus.upTime)})`);
+                                evtSource.close();
+                                delayStatusFn.push(setTimeout(checkStatus, 1000));
+                            }, 30000);
+                            var msgJson = JSON.parse(event.data);
+                            serverStatus = { ...serverStatus, ...msgJson };
+                            // Update the HTML for those values that were present in the message...
+                            setElementsFromStatus(msgJson);
+                        });
+                        evtSource.addEventListener("logger", (event) => {
+                            console.log(event.data);
+                        });
+                        evtSource.addEventListener("uploadStatus", (event) => {
+                            //console.log(event.data);
+                            let msgJson = JSON.parse(event.data);
+                            let spanPercent = document.getElementById("updatePercent");
+                            spanPercent.style.display = 'initial';
+                            spanPercent.innerHTML = msgJson.uploadPercent.toString() + '%&nbsp';
+                        });
+                        evtSource.addEventListener("error", (event) => {
+                            // If an error occurs close the connection, then wait 5 seconds and try again.
+                            console.warn(`SSE error while attempting to connect to ${evtSource.url}`);
+                            evtSource.close();
+                            delayStatusFn.push(setTimeout(checkStatus, 5000));
+                        });
 
-        console.log(`Register for server sent events at ${evtUrl}`);
-        evtSource = new EventSource(evtUrl);
-        evtSource.addEventListener("message", (event) => {
-            //console.log(`Message received: ${event.data}`);
-            clearTimeout(checkHeartbeat);
-            checkHeartbeat = setTimeout(() => {
-                // if no message received since last check then close connection and try again.
-                console.log(`SSE timeout, no message received in 30 seconds. Last upTime: ${serverStatus.upTime} (${msToTime(serverStatus.upTime)})`);
-                evtSource.close();
-                delayStatusFn.push(setTimeout(checkStatus, 1000));
-            }, 30000);
-            var msgJson = JSON.parse(event.data);
-            serverStatus = { ...serverStatus, ...msgJson };
-            // Update the HTML for those values that were present in the message...
-            setElementsFromStatus(msgJson);
+                    })
+                    .catch((error) => {
+                        console.warn(`Error registering for Server Sent Events, RC: ${error}`);
+                    });
+            })
+            .catch((error) => {
+                console.log(`SSE already setup at ${evtSource.url}, State: ${evtSource.readyState}`);
+            }),
+    ])
+        .then((results) => {
+            // Once all loaded reset the progress indicator
+            loaderElem.style.visibility = "hidden";
+            console.log(results);
         });
-        evtSource.addEventListener("logger", (event) => {
-            console.log(event.data);
-        });
-        evtSource.addEventListener("uploadStatus", (event) => {
-            //console.log(event.data);
-            let msgJson = JSON.parse(event.data);
-            let spanPercent = document.getElementById("updatePercent");
-            spanPercent.style.display = 'initial';
-            spanPercent.innerHTML = msgJson.uploadPercent.toString() + '%&nbsp';
-        });
-        evtSource.addEventListener("error", (event) => {
-            // If an error occurs close the connection, then wait 5 seconds and try again.
-            console.log(`SSE error occurred while attempting to connect to ${evtSource.url}`);
-            evtSource.close();
-            delayStatusFn.push(setTimeout(checkStatus, 5000));
-        });
-    } else {
-        console.log(`SSE already setup at ${evtSource.url}, State: ${evtSource.readyState}`);
-    }
+
     return;
 };
 

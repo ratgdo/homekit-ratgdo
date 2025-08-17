@@ -638,25 +638,17 @@
     const loaderElem = document.getElementById("loader"); // Spinner while pages load
 
     // Retrieve status from the server
-    loaderElem.style.visibility = "visible";
-    checkStatus()
-      .then(() => {
-        loaderElem.style.visibility = "hidden";
-        checkVersion("dotdot1");
-        console.log('Client UUID: ' + clientUUID);
-      });
+    checkStatus();
+    // And latest version from GitHub
+    checkVersion("dotdot1");
     // Load time zone info, this runs asynchronously
     loadTimeZones();
 
     // reload status if visibility change
     window.addEventListener("visibilitychange", (event) => {
       if (document.visibilityState === "visible") {
-        loaderElem.style.visibility = "visible";
-        checkStatus()
-          .then(() => {
-            loaderElem.style.visibility = "hidden";
-            checkVersion("dotdot1");
-          });
+        checkStatus();
+        checkVersion("dotdot1");
       }
     });
 
