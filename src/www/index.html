@@ -103,10 +103,11 @@
             must first un-pair from existing home.
           </p>
         </div>
-        <div class="fullwidth" style="padding: 0px; padding-bottom: 5px; display: flex; justify-content: space-evenly;">
-          <input type="button" value="Reboot RATGDO" onclick="rebootRATGDO(true)">
-          <input type="button" value="Firmware Update" onclick="showUpdateDialog()">
-          <input type="button" id="unpair" value="Reset HomeKit" onclick="unpairRATGDO()">
+        <div class="fullwidth"
+          style="padding-top: 0px; padding-bottom: 5px; padding-left:5%; padding-right: 5%; display: flex; justify-content: space-between;">
+          <input type="button" value="Reboot RATGDO" style="width: 28%;" onclick="rebootRATGDO(true)">
+          <input type="button" value="Firmware Update" style="width: 28%;" onclick="showUpdateDialog()">
+          <input type="button" id="unpair" value="Reset HomeKit" style="width: 28%;" onclick="unpairRATGDO()">
         </div>
         <div class="fullwidth">
           <table style="width: 100%">
@@ -152,14 +153,14 @@
           </table>
         </div>
         <div id="GDOcontrols" class="fullwidth"
-          style="padding-left: 20px; padding-right: 20px; display: flex; justify-content: space-evenly;">
-          <input type="button" id="lightButton" value="Light On"
+          style="padding-left: 5%; padding-right: 5%; display: flex; justify-content: space-between;">
+          <input type="button" id="lightButton" value="Light On" style="width: 23%;"
             onclick="setGDO('garageLightOn', (event.target.value === 'Light On') ? '1' : '0');">
-          <input type="button" id="doorButton" value="Open Door"
+          <input type="button" id="doorButton" value="Open Door" style="width: 23%;"
             onclick="setGDO('garageDoorState', (event.target.value === 'Open Door') ? '1' : '0');">
-          <input type="button" id="lockButton" value="Lock Remotes"
+          <input type="button" id="lockButton" value="Lock Remotes" style="width: 23%;"
             onclick="setGDO('garageLockState', (event.target.value === 'Lock Remotes') ? '1' : '0');">
-          <input type="button" id="laserButton" value="Laser On" style="display:none;"
+          <input type="button" id="laserButton" value="Laser On" style="display:none; width: 23%;"
             onclick="setGDO('assistLaser', (event.target.value === 'Laser On') ? '1' : '0');">
         </div>
       </div>
@@ -547,11 +548,11 @@
           </div>
         </div>
         <div class="fullwidth"
-          style="padding-left: 20px;padding-right: 20px; display: flex; justify-content: space-evenly;">
-          <input type="button" value="Reset Door" onclick="resetDoor()">
-          <input type="button" value="Set WiFi SSID" onclick="setSSID()">
-          <input type="button" value="Boot Soft AP" onclick="bootSoftAP()">
-          <input type="button" value="Factory Reset" onclick="factoryReset()">
+          style="padding-left: 5%;padding-right: 5%; display: flex; justify-content: space-between;">
+          <input type="button" value="Reset Door" style="width: 23%;" onclick="resetDoor()">
+          <input type="button" value="Set WiFi SSID" style="width: 23%;" onclick="setSSID()">
+          <input type="button" value="Boot Soft AP" style="width: 23%;" onclick="bootSoftAP()">
+          <input type="button" value="Factory Reset" style="width: 23%;" onclick="factoryReset()">
         </div>
       </div>
     </main>
