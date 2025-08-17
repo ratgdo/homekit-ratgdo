@@ -1,5 +1,5 @@
 /****************************************************************************
- * RATGDO HomeKit for ESP32
+ * RATGDO HomeKit
  * https://ratcloud.llc
  * https://github.com/PaulWieland/ratgdo
  *
@@ -9,7 +9,7 @@
  *
  * Contributions acknowledged from
  * David Kerr...     https://github.com/dkerr64
- * 
+ *
  */
 #pragma once
 
