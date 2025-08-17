@@ -428,8 +428,27 @@ void userSettings::load()
             continue;
         }
         *value++ = 0;
-        // Force use of the string overload
-        set(key, value);
+        // one-time conversion of legacy (v1.9.x and older) into current keynames.
+        if (!strcmp(key, "wifiSettingsChanged"))
+            set(cfg_wifiChanged, value);
+        else if (!strcmp(key, "IPaddress"))
+            set(cfg_localIP, value);
+        else if (!strcmp(key, "IPnetmask"))
+            set(cfg_subnetMask, value);
+        else if (!strcmp(key, "IPgateway"))
+            set(cfg_gatewayIP, value);
+        else if (!strcmp(key, "IPnameserver"))
+            set(cfg_nameserverIP, value);
+        else if (!strcmp(key, "wwwPWrequired"))
+            set(cfg_passwordRequired, value);
+        else if (!strcmp(key, "gdoSecurityType"))
+            set(cfg_GDOSecurityType, value);
+        else if (!strcmp(key, "TTCdelay"))
+            set(cfg_TTCseconds, value);
+        else if (!strcmp(key, "ledIdleState"))
+            set(cfg_LEDidle, value);
+        else
+            set(key, value);
     }
     file.close();
     return;
