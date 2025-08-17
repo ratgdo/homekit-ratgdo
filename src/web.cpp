@@ -159,8 +159,8 @@ uint32_t subscriptionCount = 0;
 #define MIN_REQUEST_INTERVAL_MS 100
 
 // Performance monitoring
-static unsigned long request_count = 0;
-static unsigned long dropped_connections = 0;
+static uint32_t request_count = 0;
+static uint32_t dropped_connections = 0;
 
 // JSON response caching
 #ifdef ESP8266
@@ -168,7 +168,7 @@ static unsigned long dropped_connections = 0;
 #else
 #define STATUS_JSON_BUFFER_SIZE (256 * 8)
 #endif
-#define STATUS_JSON_CACHE_TIMEOUT_MS 500
+//#define STATUS_JSON_CACHE_TIMEOUT_MS 500
 #define LOOP_JSON_BUFFER_SIZE 512
 
 static char *status_json = NULL;
@@ -270,7 +270,7 @@ void web_loop()
     _millis_t upTime = _millis();
     static _millis_t last_request_time = 0;
     TAKE_MUTEX();
-    START_JSON(json);
+    JSON_START(json);
     if (garage_door.active && garage_door.current_state != lastDoorState)
     {
         ESP_LOGI(TAG, "Current Door State changing from %s to %s", DOOR_STATE(lastDoorState), DOOR_STATE(garage_door.current_state));
@@ -298,7 +298,7 @@ void web_loop()
         lastDoorState = garage_door.current_state;
         // We send milliseconds relative to current time... ie updated X milliseconds ago
         // First time through, zero offset from upTime, which is when we last rebooted)
-        ADD_INT(json, "lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
+        JSON_ADD_INT("lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
     }
 #ifndef ESP8266
     // Feature not available on ESP8266
@@ -307,35 +307,35 @@ void web_loop()
         if (vehicleStatusChange)
         {
             vehicleStatusChange = false;
-            ADD_STR(json, "vehicleStatus", vehicleStatus);
+            JSON_ADD_STR("vehicleStatus", vehicleStatus);
         }
-        ADD_BOOL_C(json, "assistLaser", laser.state(), last_reported_assist_laser);
+        JSON_ADD_BOOL_C( "assistLaser", laser.state(), last_reported_assist_laser);
     }
 #endif
     // Conditional macros, only add if value has changed
-    ADD_BOOL_C(json, "paired", homekit_is_paired(), last_reported_paired);
-    ADD_STR_C(json, "garageDoorState", DOOR_STATE(garage_door.current_state), garage_door.current_state, last_reported_garage_door.current_state);
-    ADD_STR_C(json, "garageLockState", LOCK_STATE(garage_door.current_lock), garage_door.current_lock, last_reported_garage_door.current_lock);
-    ADD_BOOL_C(json, "garageLightOn", garage_door.light, last_reported_garage_door.light);
-    ADD_BOOL_C(json, "garageMotion", garage_door.motion, last_reported_garage_door.motion);
-    ADD_BOOL_C(json, "garageObstructed", garage_door.obstructed, last_reported_garage_door.obstructed);
+    JSON_ADD_BOOL_C( "paired", homekit_is_paired(), last_reported_paired);
+    JSON_ADD_STR_C( "garageDoorState", DOOR_STATE(garage_door.current_state), garage_door.current_state, last_reported_garage_door.current_state);
+    JSON_ADD_STR_C( "garageLockState", LOCK_STATE(garage_door.current_lock), garage_door.current_lock, last_reported_garage_door.current_lock);
+    JSON_ADD_BOOL_C( "garageLightOn", garage_door.light, last_reported_garage_door.light);
+    JSON_ADD_BOOL_C( "garageMotion", garage_door.motion, last_reported_garage_door.motion);
+    JSON_ADD_BOOL_C( "garageObstructed", garage_door.obstructed, last_reported_garage_door.obstructed);
     if (doorControlType == 2)
     {
-        ADD_INT_C(json, "batteryState", garage_door.batteryState, last_reported_garage_door.batteryState);
-        ADD_INT_C(json, "openingsCount", garage_door.openingsCount, last_reported_garage_door.openingsCount);
+        JSON_ADD_INT_C( "batteryState", garage_door.batteryState, last_reported_garage_door.batteryState);
+        JSON_ADD_INT_C( "openingsCount", garage_door.openingsCount, last_reported_garage_door.openingsCount);
     }
-    ADD_INT_C(json, "openDuration", garage_door.openDuration, last_reported_garage_door.openDuration);
-    ADD_INT_C(json, "closeDuration", garage_door.closeDuration, last_reported_garage_door.closeDuration);
+    JSON_ADD_INT_C( "openDuration", garage_door.openDuration, last_reported_garage_door.openDuration);
+    JSON_ADD_INT_C( "closeDuration", garage_door.closeDuration, last_reported_garage_door.closeDuration);
     if (strlen(json) > 2)
     {
         // Have we added anything to the JSON string?
-        ADD_INT(json, "upTime", upTime);
-        END_JSON(json);
+        JSON_ADD_INT("upTime", upTime);
+        JSON_END();
         if (strlen(json) > LOOP_JSON_BUFFER_SIZE * 8 / 10)
         {
             ESP_LOGW(TAG, "WARNING web_loop JSON length: %d is over 80%% of available buffer", strlen(json));
         }
-        REMOVE_NL(json);
+        JSON_REMOVE_NL(json);
         SSEBroadcastState(json);
     }
     GIVE_MUTEX();
@@ -600,7 +600,7 @@ void handle_everything()
     {
         // Request for "/rest/events/" with a channel number appended
         uri += strlen(restEvents);
-        unsigned int channel = atoi(uri);
+        uint32_t channel = atoi(uri);
         if (channel < SSE_MAX_CHANNELS)
         {
             SSEHandler(channel);
@@ -635,16 +635,17 @@ void handle_everything()
 void handle_status()
 {
     static uint32_t max_response_time = 0;
-    static uint32_t cache_hits = 0;
+    //static uint32_t cache_hits = 0;
     _millis_t startTime = _millis();
     _millis_t upTime = startTime;
-    static _millis_t json_cache_time = 0;
+    //static _millis_t json_cache_time = 0;
     uint32_t response_time;
     static char *json = status_json;
 
     TAKE_MUTEX();
     request_count++;
 
+    /* Improved JSON built functione make this redundant...
     // Check if we can use the last JSON response rather than build a new string
     if (upTime - json_cache_time < STATUS_JSON_CACHE_TIMEOUT_MS)
     {
@@ -657,110 +658,111 @@ void handle_status()
         GIVE_MUTEX();
         return;
     }
-
+*/
     // Build the JSON string
-    START_JSON(json);
+    JSON_START(json);
 #ifdef ESP8266
-    ADD_STR(json, "gitRepo", "homekit-ratgdo");
+    JSON_ADD_STR("gitRepo", "homekit-ratgdo");
 #else
-    ADD_STR(json, "gitRepo", "homekit-ratgdo32");
+    JSON_ADD_STR("gitRepo", "homekit-ratgdo32");
 #endif
-    ADD_INT(json, "upTime", upTime);
-    ADD_STR(json, cfg_deviceName, userConfig->getDeviceName());
-    ADD_STR(json, "userName", userConfig->getwwwUsername());
-    ADD_BOOL(json, "paired", homekit_is_paired());
-    ADD_STR(json, "firmwareVersion", std::string(AUTO_VERSION).c_str());
-    ADD_STR(json, cfg_localIP, userConfig->getLocalIP());
-    ADD_STR(json, cfg_subnetMask, userConfig->getSubnetMask());
-    ADD_STR(json, cfg_gatewayIP, userConfig->getGatewayIP());
-    ADD_STR(json, cfg_nameserverIP, userConfig->getNameserverIP());
-    ADD_STR(json, "macAddress", WiFi.macAddress().c_str());
-    ADD_STR(json, "wifiSSID", WiFi.SSID().c_str());
-    ADD_STR(json, "wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm, Channel " + std::to_string(WiFi.channel())).c_str());
-    ADD_STR(json, "wifiBSSID", WiFi.BSSIDstr().c_str());
-    ADD_BOOL(json, "lockedAP", false);
-    ADD_INT(json, cfg_GDOSecurityType, userConfig->getGDOSecurityType());
-    ADD_BOOL(json, cfg_useToggleToClose, userConfig->getUseToggleToClose());
-    ADD_STR(json, "garageDoorState", garage_door.active ? DOOR_STATE(garage_door.current_state) : DOOR_STATE(255));
-    ADD_STR(json, "garageLockState", LOCK_STATE(garage_door.current_lock));
-    ADD_BOOL(json, "garageLightOn", garage_door.light);
-    ADD_BOOL(json, "garageMotion", garage_door.motion);
-    ADD_BOOL(json, "garageObstructed", garage_door.obstructed);
-    ADD_BOOL(json, cfg_passwordRequired, userConfig->getPasswordRequired());
-    ADD_INT(json, cfg_rebootSeconds, userConfig->getRebootSeconds());
-    ADD_INT(json, "freeHeap", free_heap);
-    ADD_INT(json, "minHeap", min_heap);
-    ADD_INT(json, "crashCount", abs(crashCount));
-    ADD_BOOL(json, cfg_staticIP, userConfig->getStaticIP());
-    ADD_BOOL(json, cfg_syslogEn, userConfig->getSyslogEn());
-    ADD_STR(json, cfg_syslogIP, userConfig->getSyslogIP());
-    ADD_INT(json, cfg_syslogPort, userConfig->getSyslogPort());
-    ADD_INT(json, cfg_logLevel, userConfig->getLogLevel());
-    ADD_INT(json, cfg_TTCseconds, userConfig->getTTCseconds());
-    ADD_BOOL(json, cfg_TTClight, userConfig->getTTClight());
-    ADD_INT(json, cfg_motionTriggers, motionTriggers.asInt);
-    ADD_INT(json, cfg_LEDidle, userConfig->getLEDidle());
+    JSON_ADD_INT("upTime", upTime);
+    JSON_ADD_STR(cfg_deviceName, userConfig->getDeviceName());
+    JSON_ADD_STR("userName", userConfig->getwwwUsername());
+    JSON_ADD_BOOL("paired", homekit_is_paired());
+    JSON_ADD_STR("firmwareVersion", std::string(AUTO_VERSION).c_str());
+    JSON_ADD_STR(cfg_localIP, userConfig->getLocalIP());
+    JSON_ADD_STR(cfg_subnetMask, userConfig->getSubnetMask());
+    JSON_ADD_STR(cfg_gatewayIP, userConfig->getGatewayIP());
+    JSON_ADD_STR(cfg_nameserverIP, userConfig->getNameserverIP());
+    JSON_ADD_STR("macAddress", WiFi.macAddress().c_str());
+    JSON_ADD_STR("wifiSSID", WiFi.SSID().c_str());
+    JSON_ADD_STR("wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm, Channel " + std::to_string(WiFi.channel())).c_str());
+    JSON_ADD_STR("wifiBSSID", WiFi.BSSIDstr().c_str());
+    JSON_ADD_BOOL("lockedAP", false);
+    JSON_ADD_INT(cfg_GDOSecurityType, (uint32_t)userConfig->getGDOSecurityType());
+    JSON_ADD_BOOL(cfg_useToggleToClose, userConfig->getUseToggleToClose());
+    JSON_ADD_STR("garageDoorState", garage_door.active ? DOOR_STATE(garage_door.current_state) : DOOR_STATE(255));
+    JSON_ADD_STR("garageLockState", LOCK_STATE(garage_door.current_lock));
+    JSON_ADD_BOOL("garageLightOn", garage_door.light);
+    JSON_ADD_BOOL("garageMotion", garage_door.motion);
+    JSON_ADD_BOOL("garageObstructed", garage_door.obstructed);
+    JSON_ADD_BOOL(cfg_passwordRequired, userConfig->getPasswordRequired());
+    JSON_ADD_INT(cfg_rebootSeconds, (uint32_t)userConfig->getRebootSeconds());
+    JSON_ADD_INT("freeHeap", free_heap);
+    JSON_ADD_INT("minHeap", min_heap);
+    JSON_ADD_INT("crashCount", abs(crashCount));
+    JSON_ADD_BOOL(cfg_staticIP, userConfig->getStaticIP());
+    JSON_ADD_BOOL(cfg_syslogEn, userConfig->getSyslogEn());
+    JSON_ADD_STR(cfg_syslogIP, userConfig->getSyslogIP());
+    JSON_ADD_INT(cfg_syslogPort, userConfig->getSyslogPort());
+    JSON_ADD_INT(cfg_logLevel, userConfig->getLogLevel());
+    JSON_ADD_INT(cfg_TTCseconds, userConfig->getTTCseconds());
+    JSON_ADD_BOOL(cfg_TTClight, userConfig->getTTClight());
+    JSON_ADD_INT(cfg_motionTriggers, (uint32_t)motionTriggers.asInt);
+    JSON_ADD_INT(cfg_LEDidle, userConfig->getLEDidle());
     // We send milliseconds relative to current time... ie updated X milliseconds ago
-    ADD_INT(json, "lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
-    ADD_BOOL(json, "enableNTP", enableNTP);
+    JSON_ADD_INT("lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
+    JSON_ADD_BOOL("enableNTP", enableNTP);
     if (enableNTP && (bool)clockSet)
     {
-        ADD_INT(json, "serverTime", time(NULL));
+        JSON_ADD_INT("serverTime", time(NULL));
     }
-    ADD_STR(json, cfg_timeZone, userConfig->getTimeZone());
-    ADD_BOOL(json, cfg_dcOpenClose, userConfig->getDCOpenClose());
-    ADD_BOOL(json, cfg_obstFromStatus, userConfig->getObstFromStatus());
-    ADD_INT(json, cfg_dcDebounceDuration, userConfig->getDCDebounceDuration());
-    ADD_STR(json, "qrPayload", qrPayload);
+    JSON_ADD_STR(cfg_timeZone, userConfig->getTimeZone());
+    JSON_ADD_BOOL(cfg_dcOpenClose, userConfig->getDCOpenClose());
+    JSON_ADD_BOOL(cfg_obstFromStatus, userConfig->getObstFromStatus());
+    JSON_ADD_INT(cfg_dcDebounceDuration, userConfig->getDCDebounceDuration());
+    JSON_ADD_STR("qrPayload", qrPayload);
     if (doorControlType == 2)
     {
-        ADD_INT(json, "batteryState", garage_door.batteryState);
-        ADD_INT(json, "openingsCount", garage_door.openingsCount);
+        JSON_ADD_INT("batteryState", garage_door.batteryState);
+        JSON_ADD_INT("openingsCount", garage_door.openingsCount);
     }
     if (garage_door.openDuration)
     {
-        ADD_INT(json, "openDuration", garage_door.openDuration);
+        JSON_ADD_INT("openDuration", garage_door.openDuration);
     }
     if (garage_door.closeDuration)
     {
-        ADD_INT(json, "closeDuration", garage_door.closeDuration);
+        JSON_ADD_INT("closeDuration", garage_door.closeDuration);
     }
 #ifdef ESP8266
 #define accessoryID arduino_homekit_get_running_server() ? arduino_homekit_get_running_server()->accessory_id : "Inactive"
 #define clientCount arduino_homekit_get_running_server() ? arduino_homekit_get_running_server()->nfds : 0
-    ADD_STR(json, "accessoryID", accessoryID);
-    ADD_INT(json, "clients", clientCount);
-    ADD_BOOL(json, "lockedAP", wifiConf.bssid_set);
-    ADD_INT(json, "wifiPhyMode", userConfig->getWifiPhyMode());
-    ADD_INT(json, "wifiPower", userConfig->getWifiPower());
-    ADD_INT(json, "minStack", ESP.getFreeContStack());
+    JSON_ADD_STR("accessoryID", accessoryID);
+    JSON_ADD_INT("clients", clientCount);
+    JSON_ADD_BOOL("lockedAP", wifiConf.bssid_set);
+    JSON_ADD_INT("wifiPhyMode", userConfig->getWifiPhyMode());
+    JSON_ADD_INT("wifiPower", userConfig->getWifiPower());
+    JSON_ADD_INT("minStack", ESP.getFreeContStack());
 #else
-    ADD_INT(json, "occupancyDuration", userConfig->getOccupancyDuration());
-    ADD_BOOL(json, cfg_enableIPv6, userConfig->getEnableIPv6());
-    ADD_STR(json, "ipv6Addresses", ipv6_addresses);
-    ADD_BOOL(json, cfg_builtInTTC, userConfig->getBuiltInTTC());
+    JSON_ADD_INT("occupancyDuration", userConfig->getOccupancyDuration());
+    JSON_ADD_BOOL(cfg_enableIPv6, userConfig->getEnableIPv6());
+    JSON_ADD_STR("ipv6Addresses", ipv6_addresses);
+    JSON_ADD_BOOL(cfg_builtInTTC, userConfig->getBuiltInTTC());
 #ifdef USE_GDOLIB
-    ADD_BOOL(json, cfg_useSWserial, userConfig->getUseSWserial());
+    JSON_ADD_BOOL(cfg_useSWserial, userConfig->getUseSWserial());
 #endif
-    ADD_BOOL(json, "distanceSensor", garage_door.has_distance_sensor);
+    JSON_ADD_BOOL("distanceSensor", garage_door.has_distance_sensor);
     if (garage_door.has_distance_sensor)
     {
-        ADD_STR(json, "vehicleStatus", vehicleStatus);
-        ADD_INT(json, "vehicleDist", vehicleDistance);
+        JSON_ADD_STR("vehicleStatus", vehicleStatus);
+        JSON_ADD_INT("vehicleDist", (uint32_t)vehicleDistance);
         last_reported_assist_laser = laser.state();
-        ADD_BOOL(json, "assistLaser", last_reported_assist_laser);
+        JSON_ADD_BOOL("assistLaser", last_reported_assist_laser);
     }
-    ADD_BOOL(json, cfg_vehicleHomeKit, userConfig->getVehicleHomeKit());
-    ADD_INT(json, cfg_vehicleThreshold, userConfig->getVehicleThreshold());
-    ADD_BOOL(json, cfg_laserEnabled, userConfig->getLaserEnabled());
-    ADD_BOOL(json, cfg_laserHomeKit, userConfig->getLaserHomeKit());
-    ADD_INT(json, cfg_assistDuration, userConfig->getAssistDuration());
+    JSON_ADD_BOOL(cfg_vehicleHomeKit, userConfig->getVehicleHomeKit());
+    JSON_ADD_INT(cfg_vehicleThreshold, userConfig->getVehicleThreshold());
+    JSON_ADD_BOOL(cfg_laserEnabled, userConfig->getLaserEnabled());
+    JSON_ADD_BOOL(cfg_laserHomeKit, userConfig->getLaserHomeKit());
+    JSON_ADD_INT(cfg_assistDuration, userConfig->getAssistDuration());
 #endif
-    ADD_INT(json, "webRequests", request_count);
-    ADD_INT(json, "webCacheHits", cache_hits);
-    ADD_INT(json, "webDroppedConns", dropped_connections);
-    ADD_INT(json, "webMaxResponseTime", max_response_time);
-    END_JSON(json);
+    JSON_ADD_INT("webRequests", request_count);
+    //JSON_ADD_INT("webCacheHits", cache_hits);
+    JSON_ADD_INT("webDroppedConns", dropped_connections);
+    JSON_ADD_INT("webMaxResponseTime", max_response_time);
+    JSON_END();
+    ESP_LOGI(TAG, "JSON build time: %lums", _millis() - startTime);
     YIELD();
     // send JSON straight to serial port
     Serial.printf("%s\n", json);
@@ -769,7 +771,7 @@ void handle_status()
     server.sendHeader(F("Cache-Control"), F("no-cache, no-store"));
     server.send_P(200, type_json, json);
     response_time = _millis() - startTime;
-    json_cache_time = _millis();
+    //json_cache_time = _millis();
     max_response_time = std::max(max_response_time, response_time);
     if (strlen(json) > STATUS_JSON_BUFFER_SIZE * 85 / 100)
     {
@@ -1058,37 +1060,37 @@ void SSEheartbeat(SSESubscription *s)
         static int32_t lastVehicleDistance = 0;
         static char *json = loop_json;
         TAKE_MUTEX();
-        START_JSON(json);
-        ADD_INT(json, "upTime", _millis());
-        ADD_INT(json, "freeHeap", free_heap);
-        ADD_INT(json, "minHeap", min_heap);
-        // TODO monitor stack... ADD_INT(json, "minStack", ESP.getFreeContStack());
+        JSON_START(json);
+        JSON_ADD_INT("upTime", _millis());
+        JSON_ADD_INT("freeHeap", free_heap);
+        JSON_ADD_INT("minHeap", min_heap);
+        // TODO monitor stack... JSON_ADD_INT("minStack", ESP.getFreeContStack());
 #ifndef ESP8266
         if (garage_door.has_distance_sensor && (lastVehicleDistance != vehicleDistance))
         {
             lastVehicleDistance = vehicleDistance;
-            ADD_INT(json, "vehicleDist", vehicleDistance);
+            JSON_ADD_INT("vehicleDist", (uint32_t)vehicleDistance);
         }
 #endif
         if (lastRSSI != WiFi.RSSI())
         {
             lastRSSI = WiFi.RSSI();
-            ADD_STR(json, "wifiRSSI", (std::to_string(lastRSSI) + " dBm, Channel " + std::to_string(WiFi.channel())).c_str());
+            JSON_ADD_STR("wifiRSSI", (std::to_string(lastRSSI) + " dBm, Channel " + std::to_string(WiFi.channel())).c_str());
         }
 #ifdef ESP8266
         static int lastClientCount = 0;
         if (arduino_homekit_get_running_server() && arduino_homekit_get_running_server()->nfds != lastClientCount)
         {
             lastClientCount = arduino_homekit_get_running_server()->nfds;
-            ADD_INT(json, "clients", lastClientCount);
+            JSON_ADD_INT("clients", lastClientCount);
         }
 #endif
-        END_JSON(json);
+        JSON_END();
         if (strlen(json) > LOOP_JSON_BUFFER_SIZE * 8 / 10)
         {
             ESP_LOGW(TAG, "WARNING heartbeat JSON length: %d is over 80%% of available buffer", strlen(json));
         }
-        REMOVE_NL(json);
+        JSON_REMOVE_NL(json);
         YIELD();
         // retry needed to before event:
         s->client.flush(); // make sure previous data all sent.
@@ -1450,7 +1452,7 @@ void handle_firmware_upload()
     // handler for the file upload, gets the sketch bytes, and writes
     // them through the Update object
     static size_t uploadProgress;
-    static unsigned int nextPrintPercent;
+    static uint32_t nextPrintPercent;
     HTTPUpload &upload = server.upload();
     static bool verify = false;
     static size_t size = 0;
@@ -1525,7 +1527,7 @@ void handle_firmware_upload()
         if (firmwareSize > 0)
         {
             uploadProgress += upload.currentSize;
-            unsigned int uploadPercent = (uploadProgress * 100) / firmwareSize;
+            uint32_t uploadPercent = (uploadProgress * 100) / firmwareSize;
             if (uploadPercent >= nextPrintPercent)
             {
                 Serial.printf("\n"); // newline after the dot dot dots
@@ -1537,15 +1539,14 @@ void handle_firmware_upload()
                 {
                     static char *json = loop_json;
                     TAKE_MUTEX();
-                    START_JSON(json);
-                    ADD_INT(json, "uploadPercent", uploadPercent);
-                    END_JSON(json);
+                    JSON_START(json);
+                    JSON_ADD_INT("uploadPercent", uploadPercent);
+                    JSON_END();
                     if (strlen(json) > LOOP_JSON_BUFFER_SIZE * 8 / 10)
                     {
                         ESP_LOGW(TAG, "WARNING firmware upload JSON length: %d is over 80%% of available buffer", strlen(json));
                     }
-                    REMOVE_NL(json);
-                    firmwareUpdateSub->client.flush(); // make sure previous data all sent.
+                    JSON_REMOVE_NL(json);
                     firmwareUpdateSub->client.printf_P(PSTR("event: uploadStatus\ndata: %s\n\n"), json);
                     GIVE_MUTEX();
                 }

@@ -22,11 +22,11 @@
 #endif
 
 #ifdef ESP8266
-typedef unsigned long _millis_t;
+typedef uint32_t _millis_t;
 #define _millis() ((_millis_t)millis())
 #define YIELD() esp_yield()
 #else
-typedef long long _millis_t;
+typedef int64_t _millis_t;
 #define _millis() ((_millis_t)(esp_timer_get_time() / 1000LL))
 #define YIELD() vTaskDelay(1 / portTICK_PERIOD_MS)
 #endif
