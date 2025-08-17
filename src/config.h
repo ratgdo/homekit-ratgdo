@@ -155,8 +155,8 @@ public:
 
     char *getDeviceName() { return (std::get<configStr>(get(cfg_deviceName)).str); };
     bool getWifiChanged() { return std::get<bool>(get(cfg_wifiChanged)); };
-    int getWifiPower() { return std::get<int>(get(cfg_wifiPower)); };
-    int getWifiPhyMode() { return std::get<int>(get(cfg_wifiPhyMode)); };
+    uint32_t getWifiPower() { return std::get<int>(get(cfg_wifiPower)); };
+    uint32_t getWifiPhyMode() { return std::get<int>(get(cfg_wifiPhyMode)); };
     bool getStaticIP() { return std::get<bool>(get(cfg_staticIP)); };
     char *getLocalIP() { return (std::get<configStr>(get(cfg_localIP)).str); };
     char *getSubnetMask() { return (std::get<configStr>(get(cfg_subnetMask)).str); };
@@ -165,33 +165,33 @@ public:
     bool getPasswordRequired() { return std::get<bool>(get(cfg_passwordRequired)); };
     char *getwwwUsername() { return (std::get<configStr>(get(cfg_wwwUsername)).str); };
     char *getwwwCredentials() { return (std::get<configStr>(get(cfg_wwwCredentials)).str); };
-    int getGDOSecurityType() { return std::get<int>(get(cfg_GDOSecurityType)); };
-    int getTTCseconds() { return std::get<int>(get(cfg_TTCseconds)); };
+    uint32_t getGDOSecurityType() { return std::get<int>(get(cfg_GDOSecurityType)); };
+    uint32_t getTTCseconds() { return std::get<int>(get(cfg_TTCseconds)); };
     bool getTTClight() { return std::get<bool>(get(cfg_TTClight)); };
-    int getRebootSeconds() { return std::get<int>(get(cfg_rebootSeconds)); };
-    int getLEDidle() { return std::get<int>(get(cfg_LEDidle)); };
-    int getMotionTriggers() { return std::get<int>(get(cfg_motionTriggers)); };
+    uint32_t getRebootSeconds() { return std::get<int>(get(cfg_rebootSeconds)); };
+    uint32_t getLEDidle() { return std::get<int>(get(cfg_LEDidle)); };
+    uint32_t getMotionTriggers() { return std::get<int>(get(cfg_motionTriggers)); };
     bool getEnableNTP() { return std::get<bool>(get(cfg_enableNTP)); };
-    int getDoorUpdateAt() { return std::get<int>(get(cfg_doorUpdateAt)); };
+    uint32_t getDoorUpdateAt() { return std::get<int>(get(cfg_doorUpdateAt)); };
     char *getTimeZone() { return (std::get<configStr>(get(cfg_timeZone)).str); };
     bool getSoftAPmode() { return std::get<bool>(get(cfg_softAPmode)); };
     bool getSyslogEn() { return std::get<bool>(get(cfg_syslogEn)); };
     char *getSyslogIP() { return (std::get<configStr>(get(cfg_syslogIP)).str); };
-    int getSyslogPort() { return std::get<int>(get(cfg_syslogPort)); };
-    int getLogLevel() { return std::get<int>(get(cfg_logLevel)); };
+    uint32_t getSyslogPort() { return std::get<int>(get(cfg_syslogPort)); };
+    uint32_t getLogLevel() { return std::get<int>(get(cfg_logLevel)); };
     bool getDCOpenClose() { return std::get<bool>(get(cfg_dcOpenClose)); };
-    int getDCDebounceDuration() { return std::get<int>(get(cfg_dcDebounceDuration)); };
+    uint32_t getDCDebounceDuration() { return std::get<int>(get(cfg_dcDebounceDuration)); };
     bool getObstFromStatus() { return std::get<bool>(get(cfg_obstFromStatus)); };
     bool getUseToggleToClose() { return std::get<bool>(get(cfg_useToggleToClose)); };
 #ifndef ESP8266
     bool getBuiltInTTC() { return std::get<bool>(get(cfg_builtInTTC)); };
-    int getVehicleThreshold() { return std::get<int>(get(cfg_vehicleThreshold)); };
+    uint32_t getVehicleThreshold() { return std::get<int>(get(cfg_vehicleThreshold)); };
     bool getLaserEnabled() { return std::get<bool>(get(cfg_laserEnabled)); };
     bool getLaserHomeKit() { return std::get<bool>(get(cfg_laserHomeKit)); };
     bool getVehicleHomeKit() { return std::get<bool>(get(cfg_vehicleHomeKit)); };
-    int getAssistDuration() { return std::get<int>(get(cfg_assistDuration)); };
+    uint32_t getAssistDuration() { return std::get<int>(get(cfg_assistDuration)); };
     bool getUseSWserial() { return std::get<bool>(get(cfg_useSWserial)); };
-    int getOccupancyDuration() { return std::get<int>(get(cfg_occupancyDuration)); };
+    uint32_t getOccupancyDuration() { return std::get<int>(get(cfg_occupancyDuration)); };
     bool getEnableIPv6() { return std::get<bool>(get(cfg_enableIPv6)); };
 #endif
 };
