@@ -762,7 +762,7 @@ void handle_status()
     JSON_ADD_INT("webDroppedConns", dropped_connections);
     JSON_ADD_INT("webMaxResponseTime", max_response_time);
     JSON_END();
-    ESP_LOGI(TAG, "JSON build time: %lums", _millis() - startTime);
+    ESP_LOGI(TAG, "JSON build time: %lums", (uint32_t)(_millis() - startTime));
     YIELD();
     // send JSON straight to serial port
     Serial.printf("%s\n", json);
