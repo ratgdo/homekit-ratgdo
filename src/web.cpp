@@ -10,6 +10,7 @@
  * Contributions acknowledged from
  * Brandon Matthews... https://github.com/thenewwazoo
  * Jonathan Stroud...  https://github.com/jgstroud
+ * Mitchell Solomon... https://github.com/mitchjs
  *
  */
 
@@ -168,7 +169,7 @@ static uint32_t dropped_connections = 0;
 #else
 #define STATUS_JSON_BUFFER_SIZE (256 * 8)
 #endif
-//#define STATUS_JSON_CACHE_TIMEOUT_MS 500
+// #define STATUS_JSON_CACHE_TIMEOUT_MS 500
 #define LOOP_JSON_BUFFER_SIZE 512
 
 static char *status_json = NULL;
@@ -309,23 +310,23 @@ void web_loop()
             vehicleStatusChange = false;
             JSON_ADD_STR("vehicleStatus", vehicleStatus);
         }
-        JSON_ADD_BOOL_C( "assistLaser", laser.state(), last_reported_assist_laser);
+        JSON_ADD_BOOL_C("assistLaser", laser.state(), last_reported_assist_laser);
     }
 #endif
     // Conditional macros, only add if value has changed
-    JSON_ADD_BOOL_C( "paired", homekit_is_paired(), last_reported_paired);
-    JSON_ADD_STR_C( "garageDoorState", DOOR_STATE(garage_door.current_state), garage_door.current_state, last_reported_garage_door.current_state);
-    JSON_ADD_STR_C( "garageLockState", LOCK_STATE(garage_door.current_lock), garage_door.current_lock, last_reported_garage_door.current_lock);
-    JSON_ADD_BOOL_C( "garageLightOn", garage_door.light, last_reported_garage_door.light);
-    JSON_ADD_BOOL_C( "garageMotion", garage_door.motion, last_reported_garage_door.motion);
-    JSON_ADD_BOOL_C( "garageObstructed", garage_door.obstructed, last_reported_garage_door.obstructed);
+    JSON_ADD_BOOL_C("paired", homekit_is_paired(), last_reported_paired);
+    JSON_ADD_STR_C("garageDoorState", DOOR_STATE(garage_door.current_state), garage_door.current_state, last_reported_garage_door.current_state);
+    JSON_ADD_STR_C("garageLockState", LOCK_STATE(garage_door.current_lock), garage_door.current_lock, last_reported_garage_door.current_lock);
+    JSON_ADD_BOOL_C("garageLightOn", garage_door.light, last_reported_garage_door.light);
+    JSON_ADD_BOOL_C("garageMotion", garage_door.motion, last_reported_garage_door.motion);
+    JSON_ADD_BOOL_C("garageObstructed", garage_door.obstructed, last_reported_garage_door.obstructed);
     if (doorControlType == 2)
     {
-        JSON_ADD_INT_C( "batteryState", garage_door.batteryState, last_reported_garage_door.batteryState);
-        JSON_ADD_INT_C( "openingsCount", garage_door.openingsCount, last_reported_garage_door.openingsCount);
+        JSON_ADD_INT_C("batteryState", garage_door.batteryState, last_reported_garage_door.batteryState);
+        JSON_ADD_INT_C("openingsCount", garage_door.openingsCount, last_reported_garage_door.openingsCount);
     }
-    JSON_ADD_INT_C( "openDuration", garage_door.openDuration, last_reported_garage_door.openDuration);
-    JSON_ADD_INT_C( "closeDuration", garage_door.closeDuration, last_reported_garage_door.closeDuration);
+    JSON_ADD_INT_C("openDuration", garage_door.openDuration, last_reported_garage_door.openDuration);
+    JSON_ADD_INT_C("closeDuration", garage_door.closeDuration, last_reported_garage_door.closeDuration);
     if (strlen(json) > 2)
     {
         // Have we added anything to the JSON string?
@@ -635,10 +636,10 @@ void handle_everything()
 void handle_status()
 {
     static uint32_t max_response_time = 0;
-    //static uint32_t cache_hits = 0;
+    // static uint32_t cache_hits = 0;
     _millis_t startTime = _millis();
     _millis_t upTime = startTime;
-    //static _millis_t json_cache_time = 0;
+    // static _millis_t json_cache_time = 0;
     uint32_t response_time;
     static char *json = status_json;
 
@@ -762,7 +763,7 @@ void handle_status()
     JSON_ADD_INT(cfg_assistDuration, userConfig->getAssistDuration());
 #endif
     JSON_ADD_INT("webRequests", request_count);
-    //JSON_ADD_INT("webCacheHits", cache_hits);
+    // JSON_ADD_INT("webCacheHits", cache_hits);
     JSON_ADD_INT("webDroppedConns", dropped_connections);
     JSON_ADD_INT("webMaxResponseTime", max_response_time);
     JSON_END();
@@ -775,7 +776,7 @@ void handle_status()
     server.sendHeader(F("Cache-Control"), F("no-cache, no-store"));
     server.send_P(200, type_json, json);
     response_time = _millis() - startTime;
-    //json_cache_time = _millis();
+    // json_cache_time = _millis();
     max_response_time = std::max(max_response_time, response_time);
     if (strlen(json) > STATUS_JSON_BUFFER_SIZE * 85 / 100)
     {
