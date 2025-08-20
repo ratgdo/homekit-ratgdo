@@ -68,7 +68,7 @@ SoftwareSerial sw_serial;
 #define SECPLUS1_DIGITAL_WALLPLATE_TIMEOUT 15000
 #define SECPLUS1_RX_MESSAGE_TIMEOUT 10
 #define SECPLUS1_TX_WINDOW 150
-#define SECPLUS1_TX_MINIMUM_DELAY 40
+#define SECPLUS1_TX_MINIMUM_DELAY 30
 
 #define COMMS_STATUS_TIMEOUT 2000
 bool comms_status_done = false;
@@ -161,6 +161,7 @@ _millis_t cts_signal;
 bool clearToSend = false;
 bool lastClearToSend = false;
 
+bool wallPanelConnected = true;
 bool wallplateBooting = false;
 bool wallPanelDetected = false;
 GarageDoorCurrentState doorState = GarageDoorCurrentState::UNKNOWN;
@@ -374,6 +375,13 @@ void setup_comms()
     if (doorControlType == 1)
     {
         ESP_LOGI(TAG, "=== Setting up comms for SECURITY+1.0 protocol");
+
+        // GPIO16
+        // enable wall panel
+        wallPanelConnected = true;
+        pinMode(STATUS_DOOR_PIN, OUTPUT);
+        digitalWrite(STATUS_DOOR_PIN, 1);
+
         sw_serial.begin(1200, SWSERIAL_8E1, UART_RX_PIN, UART_TX_PIN, true, 32);
         wallPanelDetected = false;
         wallplateBooting = false;
@@ -786,24 +794,42 @@ void update_door_state(GarageDoorCurrentState current_state)
 
 void sec1_process_message(uint8_t key, uint8_t value)
 {
-    // timestamp message
-    last_rx_msg = _millis();
+    static _millis_t lastTime = 0;
 
-    // ESP_LOGD(TAG, "SEC1 RX MSG: %02X:%02X", key, value);
+    _millis_t now = _millis();
+    // time between messages
+    _millis_t since = _millis() - lastTime;
 
-    if (key == secplus1Codes::DoorButtonPress)
+    // temp code
+    if (key == 0xBB)
+        ESP_LOGD(TAG, "SEC1 RX IDLE:%lums - MSG: 0x%02X:0x%02X !!! INVALID KEY BYTE !!!", since, key, value);
+    else
+        ESP_LOGD(TAG, "SEC1 RX IDLE:%lums - MSG: 0x%02X:0x%02X", since, key, value);
+
+    lastTime = now;
+
+    switch (key)
+    {
+    // door button press
+    case secplus1Codes::DoorButtonPress:
     {
         ESP_LOGI(TAG, "SEC1 RX 0x30 (door press)");
+
         manual_recovery();
         if (motionTriggers.bit.doorKey)
         {
             notify_homekit_motion(true);
         }
+
+        break;
     }
-    // wall panel is sending out 0x31 (Door Button Release) when it starts up
-    // but also on release of door button
-    else if (key == secplus1Codes::DoorButtonRelease)
+
+    // door button release
+    case secplus1Codes::DoorButtonRelease:
     {
+        // wall panel is sending out 0x31 (Door Button Release) when it starts up
+        // but also on release of door button
+
         ESP_LOGI(TAG, "SEC1 RX 0x31 (door release)");
 
         // Possible power up of 889LM
@@ -811,187 +837,190 @@ void sec1_process_message(uint8_t key, uint8_t value)
         {
             wallplateBooting = true;
         }
+
+        break;
     }
-    else if (key == secplus1Codes::LightButtonPress)
+
+    // light button press
+    case secplus1Codes::LightButtonPress:
     {
         ESP_LOGI(TAG, "SEC1 RX 0x32 (light press)");
         manual_recovery();
+
+        break;
     }
-    else if (key == secplus1Codes::LightButtonRelease)
+
+    // light button release
+    case secplus1Codes::LightButtonRelease:
     {
         ESP_LOGI(TAG, "SEC1 RX 0x33 (light release)");
+
+        break;
     }
 
-    // 2 byte status messages (0x38 - 0x3A)
-    // its the byte sent out by the wallplate + the byte transmitted by the opener
-    if (key == secplus1Codes::DoorStatus || key == secplus1Codes::ObstructionStatus || key == secplus1Codes::LightLockStatus)
+    // door status
+    case secplus1Codes::DoorStatus:
+    {
+        // 0x5X = stopped
+        // 0x0X = moving
+        // best attempt to trap invalid values (due to collisions)
+        if (((value & 0xF0) != 0x00) && ((value & 0xF0) != 0x50) && ((value & 0xF0) != 0xB0))
+        {
+            ESP_LOGI(TAG, "SEC1 RX DoorStatus(0x38) \"value\" upper nibble not 0x0 or 0x5 or 0xB, received: 0x%02X", value);
+            break;
+        }
+
+        // sec+1 doors sometimes report wrong door status
+        // back to origional code, MJS 8/14/2025 confirmed logging
+        // it could report a valid byte but its not really valid
+        // ie: opening when its already open
+        static uint8_t prevDoor = 0xFF; // Initialize to invalid value
+        if (prevDoor != value)
+        {
+            prevDoor = value;
+            break;
+        }
+
+        // mask off door status bits
+        value = (value & 0x7);
+        // 000 0x0 stopped
+        // 001 0x1 opening
+        // 010 0x2 open
+        // 100 0x4 closing
+        // 101 0x5 closed
+        // 110 0x6 stopped
+
+        GarageDoorCurrentState current_state = garage_door.current_state;
+        switch (value)
+        {
+        case 0x00:
+            if (garage_door.current_state == CURR_CLOSED || garage_door.current_state == CURR_OPEN)
+            {
+                ESP_LOGI(TAG, "Ignoring invalid door state change from %s to STOPPED (0x00)", (garage_door.current_state == CURR_CLOSED) ? "CLOSED" : "OPEN");
+                break;
+            }
+            current_state = GarageDoorCurrentState::CURR_STOPPED;
+            break;
+        case 0x01:
+            if (garage_door.current_state == CURR_OPEN)
+            {
+                ESP_LOGI(TAG, "Ignoring invalid door state change from OPEN to OPENING");
+                break;
+            }
+            current_state = GarageDoorCurrentState::CURR_OPENING;
+            break;
+        case 0x02:
+            current_state = GarageDoorCurrentState::CURR_OPEN;
+            break;
+        // no 0x03 known
+        case 0x04:
+            if (garage_door.current_state == CURR_CLOSED)
+            {
+                ESP_LOGI(TAG, "Ignoring invalid door state change from CLOSED to CLOSING");
+                break;
+            }
+            current_state = GarageDoorCurrentState::CURR_CLOSING;
+            break;
+        case 0x05:
+            current_state = GarageDoorCurrentState::CURR_CLOSED;
+            break;
+        case 0x06:
+            if (garage_door.current_state == CURR_CLOSED || garage_door.current_state == CURR_OPEN)
+            {
+                ESP_LOGI(TAG, "Ignoring invalid door state change from %s to STOPPED (0x06)", (garage_door.current_state == CURR_CLOSED) ? "CLOSED" : "OPEN");
+                break;
+            }
+            current_state = GarageDoorCurrentState::CURR_STOPPED;
+            break;
+        default:
+            ESP_LOGE(TAG, "SEC1 RX Got unknown \"value\" for door state");
+            current_state = GarageDoorCurrentState::UNKNOWN;
+            break;
+        }
+        update_door_state(current_state);
+        break;
+    }
+
+    // obstruction states (not confirmed)
+    case secplus1Codes::ObstructionStatus:
+    {
+        // currently not using
+        // BIT0
+        // BIT3 set is obstructed
+
+        if (value > 0)
+            ESP_LOGD(TAG, "SEC1 TX MSG 0x39: value: 0x%02X", value);
+
+        break;
+    }
+
+    // light & lock
+    case secplus1Codes::LightLockStatus:
     {
         // only use for real sec1 commm debugging, its just too chatty
-#ifdef DEBUG_SECPLUS1_COMMS
-        ESP_LOGD(TAG, "SEC1 RX STATUS MSG: %02X:%02X", key, value);
-#endif
+        // ESP_LOGI(TAG, "SEC1 RX 0x3A value: 0x%02X", value);
 
-        switch (key)
+        // upper nibble must be 0x5 or 0x1
+        if (((value & 0xF0) != 0x50) && ((value & 0xF0) != 0x10))
         {
-        // door status
-        case secplus1Codes::DoorStatus:
-        {
-            // 0x5X = stopped
-            // 0x0X = moving
-            // best attempt to trap invalid values (due to collisions)
-            if (((value & 0xF0) != 0x00) && ((value & 0xF0) != 0x50) && ((value & 0xF0) != 0xB0))
-            {
-                ESP_LOGI(TAG, "SEC1 RX DoorStatus(0x38) \"value\" upper nibble not 0x0 or 0x5 or 0xB, received: 0x%02X", value);
-                break;
-            }
-
-            // sec+1 doors sometimes report wrong door status
-            // back to origional code, MJS 8/14/2025 confirmed logging
-            // it could report a valid byte but its not really valid
-            // ie: opening when its already open
-            static uint8_t prevDoor = 0xFF; // Initialize to invalid value
-            if (prevDoor != value)
-            {
-                prevDoor = value;
-                break;
-            }
-
-            // mask off door status bits
-            value = (value & 0x7);
-            // 000 0x0 stopped
-            // 001 0x1 opening
-            // 010 0x2 open
-            // 100 0x4 closing
-            // 101 0x5 closed
-            // 110 0x6 stopped
-
-            GarageDoorCurrentState current_state = garage_door.current_state;
-            switch (value)
-            {
-            case 0x00:
-                if (garage_door.current_state == CURR_CLOSED || garage_door.current_state == CURR_OPEN)
-                {
-                    ESP_LOGI(TAG, "Ignoring invalid door state change from %s to STOPPED (0x00)", (garage_door.current_state == CURR_CLOSED) ? "CLOSED" : "OPEN");
-                    break;
-                }
-                current_state = GarageDoorCurrentState::CURR_STOPPED;
-                break;
-            case 0x01:
-                if (garage_door.current_state == CURR_OPEN)
-                {
-                    ESP_LOGI(TAG, "Ignoring invalid door state change from OPEN to OPENING");
-                    break;
-                }
-                current_state = GarageDoorCurrentState::CURR_OPENING;
-                break;
-            case 0x02:
-                current_state = GarageDoorCurrentState::CURR_OPEN;
-                break;
-            // no 0x03 known
-            case 0x04:
-                if (garage_door.current_state == CURR_CLOSED)
-                {
-                    ESP_LOGI(TAG, "Ignoring invalid door state change from CLOSED to CLOSING");
-                    break;
-                }
-                current_state = GarageDoorCurrentState::CURR_CLOSING;
-                break;
-            case 0x05:
-                current_state = GarageDoorCurrentState::CURR_CLOSED;
-                break;
-            case 0x06:
-                if (garage_door.current_state == CURR_CLOSED || garage_door.current_state == CURR_OPEN)
-                {
-                    ESP_LOGI(TAG, "Ignoring invalid door state change from %s to STOPPED (0x06)", (garage_door.current_state == CURR_CLOSED) ? "CLOSED" : "OPEN");
-                    break;
-                }
-                current_state = GarageDoorCurrentState::CURR_STOPPED;
-                break;
-            default:
-                ESP_LOGE(TAG, "SEC1 RX Got unknown \"value\" for door state");
-                current_state = GarageDoorCurrentState::UNKNOWN;
-                break;
-            }
-            update_door_state(current_state);
+            ESP_LOGI(TAG, "SEC1 RX LightLockStatus(0x3A) \"value\" upper nibble not 0x5 or 0x1, received: 0x%02X", value);
             break;
         }
 
-        // obstruction states (not confirmed)
-        case secplus1Codes::ObstructionStatus:
+        // make sure 2 same in a row
+        // MJS 8/14/2025 during logging observed this situation
+        static uint8_t prevLightLock = 0xFF; // Initialize to invalid value
+        if (value != prevLightLock)
         {
-            // currently not using
-            // BIT3 set is obstructed
+            prevLightLock = value;
             break;
         }
 
-        // light & lock
-        case secplus1Codes::LightLockStatus:
+        lightState = bitRead(value, 2);
+        lockState = !bitRead(value, 3);
+
+        // light status
+        static uint8_t lastLightState = 0xff;
+        // light state change?
+        if (lightState != lastLightState)
         {
-            // only use for real sec1 commm debugging, its just too chatty
-            // ESP_LOGI(TAG, "SEC1 RX 0x3A value: 0x%02X", value);
-
-            // upper nibble must be 5
-            if ((value & 0xF0) != 0x50)
+            ESP_LOGI(TAG, "status LIGHT: %s", lightState ? "On" : "Off");
+            lastLightState = lightState;
+            notify_homekit_light((bool)lightState);
+            if (motionTriggers.bit.lightKey)
             {
-                ESP_LOGI(TAG, "SEC1 RX LightLockStatus(0x3A) \"value\" upper nibble not 0x5, received: 0x%02X", value);
-                break;
+                notify_homekit_motion(true);
             }
-
-            // make sure 2 same in a row
-            // MJS 8/14/2025 during logging observed this situation
-            static uint8_t prevLightLock = 0xFF; // Initialize to invalid value
-            if (value != prevLightLock)
-            {
-                prevLightLock = value;
-                break;
-            }
-
-            lightState = bitRead(value, 2);
-            lockState = !bitRead(value, 3);
-
-            // light status
-            static uint8_t lastLightState = 0xff;
-            // light state change?
-            if (lightState != lastLightState)
-            {
-                ESP_LOGI(TAG, "status LIGHT: %s", lightState ? "On" : "Off");
-                lastLightState = lightState;
-                notify_homekit_light((bool)lightState);
-                if (motionTriggers.bit.lightKey)
-                {
-                    notify_homekit_motion(true);
-                }
-            }
-
-            // lock status
-            static uint8_t lastLockState = 0xff;
-            // lock state change?
-            if (lockState != lastLockState)
-            {
-                ESP_LOGI(TAG, "status LOCK: %s", lockState ? "Secured" : "Unsecured");
-                lastLockState = lockState;
-
-                if (lockState)
-                {
-                    garage_door.current_lock = CURR_LOCKED;
-                    garage_door.target_lock = TGT_LOCKED;
-                }
-                else
-                {
-                    garage_door.current_lock = CURR_UNLOCKED;
-                    garage_door.target_lock = TGT_UNLOCKED;
-                }
-                notify_homekit_target_lock(garage_door.target_lock);
-                notify_homekit_current_lock(garage_door.current_lock);
-                if (motionTriggers.bit.lockKey)
-                {
-                    notify_homekit_motion(true);
-                }
-            }
-
-            break;
         }
+
+        // lock status
+        static uint8_t lastLockState = 0xff;
+        // lock state change?
+        if (lockState != lastLockState)
+        {
+            ESP_LOGI(TAG, "status LOCK: %s", lockState ? "Secured" : "Unsecured");
+            lastLockState = lockState;
+
+            if (lockState)
+            {
+                garage_door.current_lock = CURR_LOCKED;
+                garage_door.target_lock = TGT_LOCKED;
+            }
+            else
+            {
+                garage_door.current_lock = CURR_UNLOCKED;
+                garage_door.target_lock = TGT_UNLOCKED;
+            }
+            notify_homekit_target_lock(garage_door.target_lock);
+            notify_homekit_current_lock(garage_door.current_lock);
+            if (motionTriggers.bit.lockKey)
+            {
+                notify_homekit_motion(true);
+            }
         }
+
+        break;
+    }
     }
 }
 
@@ -1003,83 +1032,112 @@ void comms_loop_sec1()
     bool gotMessage = false;
 
     // CTS timer, after xxx, clear CTS
-    if (clearToSend)
+    // more than 20ms elasped after a complete message arrives
+    // if one arrives before that (ie multiple in rx buffers, the cts_signal is reset)
+    if (!clearToSend)
     {
-        // more than 150ms elasped?
-        if ((_millis() - cts_signal) > SECPLUS1_TX_WINDOW)
+        if ((_millis() - cts_signal) > 20)
         {
-            clearToSend = false;
+            clearToSend = true;
+
+            // ESP_LOGD(TAG, "SEC1 TX CLEAR TO SEND");
         }
     }
 
     // get all the rxed bytes processed now
-    while (sw_serial.available())
+    if (int available = sw_serial.available())
     {
-        uint8_t ser_byte = sw_serial.read();
+        if (available > 1)
+            ESP_LOGD(TAG, "sw_serial.available() = %d", available);
 
-        clearToSend = false;
-
-        if (!reading_msg)
+        do
         {
-            // valid?
-            if (ser_byte >= 0x30 && ser_byte <= 0x3A)
+            uint8_t ser_byte = sw_serial.read();
+
+            if (clearToSend)
             {
-                byte_count = 0;
-                rx_packet[byte_count++] = ser_byte;
-                reading_msg = true;
-                // timestamp beinging of message
-                msg_start = _millis();
+                clearToSend = false;
+
+                // ESP_LOGD(TAG, "SEC1 TX not CLEAR TO SEND");
+            }
+
+            if (reading_msg == false)
+            {
+                if (ser_byte == 0xFF)
+                {
+                    ESP_LOGD(TAG, "SEC1 RX HELLO FROM GDO 0x%02X", ser_byte);
+
+                    // count them, if say 5, start emulator?
+                    byte_count++;
+                    if (byte_count > 4)
+                    {
+                        byte_count = 0;
+
+                        ESP_LOGD(TAG, "SEC1 RX got 5 of 0xFFs");
+                    }
+                }
+                // valid?
+                else if (ser_byte >= 0x30 && ser_byte <= 0x3A)
+                {
+                    byte_count = 1;
+                    rx_packet[0] = ser_byte;
+
+                    reading_msg = true;
+
+                    // timestamp beinging of message
+                    msg_start = _millis();
+
+                    // is it single byte command? (PRESS/RELEASE FROM WALL PLATE)
+                    if (ser_byte >= 0x30 && ser_byte <= 0x37)
+                    {
+                        reading_msg = false;
+                        gotMessage = true;
+                        sec1_process_message(rx_packet[0], rx_packet[1]);
+                    }
+                }
+                else
+                {
+                    ESP_LOGD(TAG, "SEC1 RX invalid cmd byte 0x%02X", ser_byte);
+                }
             }
             else
             {
-                ESP_LOGD(TAG, "SEC1 RX invalid byte 0x%02X", ser_byte);
-            }
-            // is it single byte command?
-            // really all commands are single byte
-            // is it a button push or release? (FROM WALL PANEL)
-            if (ser_byte >= 0x30 && ser_byte <= 0x37)
-            {
-                rx_packet[1] = 0;
-                reading_msg = false;
-                byte_count = 0;
+                // we only allow 2 bytes max, and the reading_msg controls that
+
+                // this is the value to response of the GDO query
+                byte_count = 2;
+                rx_packet[1] = ser_byte;
+
                 gotMessage = true;
+                sec1_process_message(rx_packet[0], rx_packet[1]);
+
+                // reset cts signal, after 10ms ok to send
+                cts_signal = _millis();
             }
-        }
-        else
-        {
-            // save next byte with bounds checking to prevent overflow
-            if (byte_count < sizeof(rx_packet))
+
+            if (gotMessage == true)
             {
-                rx_packet[byte_count++] = ser_byte;
-            }
-            else
-            {
-                ESP_LOGE(TAG, "SEC1 RX buffer overflow, discarding byte");
+                gotMessage = false;
+
+                // reset start of message
                 reading_msg = false;
                 byte_count = 0;
-                return;
+
+                // temp code, preload to aid detect bad rx (good news i havent seen any bads)
+                rx_packet[0] = 0xBB;
+                rx_packet[1] = 0xAA;
             }
+        } while ((available = sw_serial.available())); // double brackets to avoid [-Wparentheses] compiler warning
+    }
+    if (sw_serial.available())
+    {
+        ESP_LOGD(TAG, "SEC1 RX, after while loop, sw_serial.available()=0x%02X!!! exiting comm_loop", sw_serial.peek());
 
-            if (byte_count == RX_LENGTH)
-            {
-                reading_msg = false;
-                byte_count = 0;
-                gotMessage = true;
-            }
-        }
+        return;
+    }
 
-        if (gotMessage == true)
-        {
-            sec1_process_message(rx_packet[0], rx_packet[1]);
-            // window to tx is open, set CTS
-            cts_signal = _millis();
-            clearToSend = true;
-        }
-    } // while
-
-    // timout check was incorrectly inside of the sw_serial.available() if above
     // incomplete message timeout?
-    if (gotMessage == false && reading_msg == true && ((_millis() - msg_start) > SECPLUS1_RX_MESSAGE_TIMEOUT))
+    if (reading_msg == true && gotMessage == false && ((_millis() - msg_start) > SECPLUS1_RX_MESSAGE_TIMEOUT))
     {
         ESP_LOGE(TAG, "SEC1 RX message timeout, 1 byte of 2 byte message received [rx_packet[0]=0x%02X]", rx_packet[0]);
 
@@ -1091,7 +1149,6 @@ void comms_loop_sec1()
         // ⁡⁢⁣⁡⁢⁣⁢MJS-8/12/2025 - measued time 9-10ms for 2byte messages⁡
         reading_msg = false;
         byte_count = 0;
-        return;
     }
 
     // if still reading the message in, no need to process further
@@ -1137,7 +1194,11 @@ void comms_loop_sec1()
 
         now = _millis();
 
-        okToSend = ((int32_t)(now - last_tx) > SECPLUS1_TX_MINIMUM_DELAY); // after TX minmum delay between messages
+        okToSend = true;
+        if (last_tx)
+            okToSend = ((int32_t)(now - last_tx) > SECPLUS1_TX_MINIMUM_DELAY); // after TX minmum delay between messages
+        if (!okToSend)
+            ESP_LOGD(TAG, "waiting for last_tx > 30ms");
         // not using any cmd delays anymore
         // okToSend &= ((int32_t)(now - last_tx) > (int32_t)cmdDelay);        // after any extended command delays ( > MINIMUM )
 
@@ -1146,26 +1207,27 @@ void comms_loop_sec1()
         {
             okToSend &= clearToSend;
 
-            if (clearToSend != lastClearToSend)
-            {
-                if (clearToSend == true)
-                {
-                    ESP_LOGD(TAG, "SEC1 TX CTS");
-                }
-                else
-                {
-                    ESP_LOGD(TAG, "SEC1 TX !CTS");
-                }
-
-                lastClearToSend = clearToSend;
-            }
-
             // extra safety
             if (sw_serial.available())
             {
                 ESP_LOGD(TAG, "SEC1 TX about to send, rx data present 0x%02X, delaying send", sw_serial.peek());
                 okToSend = false;
             }
+        }
+
+        // just to log
+        if (clearToSend != lastClearToSend)
+        {
+            if (clearToSend == true)
+            {
+                ESP_LOGD(TAG, "SEC1 TX CTS");
+            }
+            else
+            {
+                ESP_LOGD(TAG, "SEC1 TX !CTS");
+            }
+
+            lastClearToSend = clearToSend;
         }
 
         // OK to send based on above rules
@@ -1660,6 +1722,15 @@ bool transmitSec1(byte toSend)
         return false;
     }
 
+    if (wallPanelDetected)
+    {
+        ESP_LOGD(TAG, "SEC1 TX DISCONNECT WP");
+
+        // disconnect wall panel
+        digitalWrite(STATUS_DOOR_PIN, 0);
+        delay(1);
+    }
+
     // sending a poll?
     bool poll_cmd = (toSend == 0x38) || (toSend == 0x39) || (toSend == 0x3A);
     // if not a poll command (and polls only with wall panel emulation),
@@ -1675,6 +1746,7 @@ bool transmitSec1(byte toSend)
     // write byte *takes aprox 10ms
     sw_serial.write(toSend);
     sw_serial.flush(); // wait till sent
+
     // timestamp tx
     last_tx = _millis();
     // re-enable rx
@@ -1682,6 +1754,17 @@ bool transmitSec1(byte toSend)
     {
         // enable rx
         sw_serial.enableRx(true);
+    }
+
+    if (wallPanelDetected)
+    {
+        ESP_LOGD(TAG, "SEC1 TX CONNECT WP");
+
+        // connect wall panel
+        digitalWrite(STATUS_DOOR_PIN, 1);
+        delay(1);
+
+        sw_serial.flush();
     }
 
     return true;
