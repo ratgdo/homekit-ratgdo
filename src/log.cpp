@@ -382,9 +382,11 @@ void LOG::printMessageLog(Print &outputDev)
     TAKE_MUTEX();
     if (enableNTP && clockSet)
     {
-        outputDev.printf("Server time: %s\n", timeString());
+        time_t now = time(NULL);
+        outputDev.printf("Server time: %lld (%s)\n", now, timeString(now));
     }
-    outputDev.printf("Server uptime: %s\n", toHHMMSSmmm(_millis()));
+    int64_t upTime = (int64_t)_millis();
+    outputDev.printf("Server uptime: %lld ms (%s)\n", upTime, toHHMMSSmmm((_millis_t)upTime));
     outputDev.printf("Firmware version: %s\n", AUTO_VERSION);
 #ifdef ESP8266
     outputDev.write("Flash CRC: 0x");

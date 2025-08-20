@@ -12,7 +12,7 @@
   <title>HomeKit Garage Door Logs</title>
   <link rel="stylesheet" href="style.css?v=CRC-32">
   <link rel="icon" href="favicon.png?v=CRC-32" type="image/png">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=CRC-32" type="image/png"> 
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=CRC-32" type="image/png">
   <script src="logs.js?v=CRC-32"></script>
 </head>
 
@@ -40,8 +40,14 @@
       <button class="tablinks" onclick="openTab(event, 'statusTab')">Status</button>
       <button class="tablinks" onclick="openTab(event, 'rebootTab')">Reboot Log</button>
       <button class="tablinks" onclick="openTab(event, 'crashTab')">Crash Log</button>
+      <input id="clearLogBtn" type="button" value="Clear log"
+        style="display: none; margin-left: 1em; margin-top: 0.8em;"
+        onclick="return confirm('Clear log, are you sure?') && clearLog(false);">
+      <input id="reloadLogButton" type="button" value="Reload"
+        style="display: none;"
+        onclick="return confirm('Clear log, are you sure?') && clearLog(true);">
       <input id="clearBtn" type="button" value="Clear crash log"
-        style="display: none; margin-left: 2em; margin-top: 0.8em;"
+        style="display: none; margin-left: 1em; margin-top: 0.8em;"
         onclick="return confirm('Clear crash log, are you sure?') && clearCrashLog();">
     </div>
     <!-- Main section of page ------------------------------------------------------------------>
@@ -52,11 +58,13 @@ Loading...
         </pre>
     </div>
     <div id="logTab" class="tabcontent">
-      <p style="margin: 0px;  color: darkgoldenrod">Current server message log...</p>
+      <p style="margin: 0px;  color: #b8860b">Current server message log...</p>
+      <span id="showLogHeader" style="margin: 0px;  color: #b8860b; font-size: 0.6em;"></span>
       <pre id="showlog" style="font-size: 0.6em; margin-top: 0px"></pre>
     </div>
     <div id="rebootTab" class="tabcontent">
-      <p style="margin: 0px; color: darkgoldenrod">Messages logged immediately before last user requested reboot or reset...</p>
+      <p style="margin: 0px; color: darkgoldenrod">Messages logged immediately before last user requested reboot or
+        reset...</p>
       <pre id="rebootlog" style="font-size: 0.6em; margin-top: 0px"></pre>
     </div>
     <div id="crashTab" class="tabcontent">

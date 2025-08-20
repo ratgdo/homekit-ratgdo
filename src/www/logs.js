@@ -23,13 +23,13 @@ function findStartTime(text) {
 
     let i = text.indexOf(':', text.indexOf('Server uptime')) + 2;
     let j = search(text, regex, i);
-    upTime = Number(text.substring(i, j)) * 1000;
+    upTime = Number(text.substring(i, j)); // Value is in milliseconds
 
     i = text.indexOf('Server time');
     if (i >= 0) {
         i = text.indexOf(':', i) + 2;
         let j = search(text, regex, i);
-        serverTime = Number(text.substring(i, j)) * 1000;
+        serverTime = Number(text.substring(i, j)) * 1000; // Convert to milliseconds
         bootTime = serverTime - upTime;
     }
 
@@ -38,20 +38,6 @@ function findStartTime(text) {
         upTime: upTime,
         bootTime: bootTime
     };
-}
-
-function insertTimeStamp(text, startTime) {
-    if (startTime) {
-        let i = 0;
-        let date = new Date();
-        while ((i = text.indexOf('>>> [', i) + 1) > 0) {
-            let j = text.indexOf(']', i);
-            let logTime = Number(text.substring(i + 4, j));
-            date.setTime(startTime + logTime);
-            text = text.substring(0, i - 1) + '[' + date.toJSON() + text.substring(j);
-        }
-    }
-    return text;
 }
 
 function msToTime(duration) {
@@ -74,6 +60,8 @@ function openTab(evt, tabName) {
     for (i = 0; i < tabcontent.length; i++) {
         tabcontent[i].style.display = "none";
     }
+    document.getElementById("clearLogBtn").style.display = "none";
+    document.getElementById("reloadLogButton").style.display = "none";
     document.getElementById("clearBtn").style.display = "none";
     // Get all elements with class="tablinks" and remove the class "active"
     tablinks = document.getElementsByClassName("tablinks");
@@ -83,7 +71,10 @@ function openTab(evt, tabName) {
     // Show the current tab, and add an "active" class to the button that opened the tab
     document.getElementById(tabName).style.display = "block";
     evt.currentTarget.className += " active";
-    if (tabName === "crashTab") {
+    if (tabName === "logTab") {
+        document.getElementById("clearLogBtn").style.display = "inline-block";
+        document.getElementById("reloadLogButton").style.display = "inline-block";
+    } else if (tabName === "crashTab") {
         if (msgJson?.crashCount != 0) {
             document.getElementById("clearBtn").style.display = "inline-block";
         }
@@ -144,14 +135,14 @@ async function loadLogs() {
                 if (bootTime) {
                     let date = new Date();
                     date.setTime(bootTime);
-                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.8em;">Server started at:  ${date.toUTCString()}</pre>`);
+                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.6em;">Server started at:  ${date.toUTCString()}</pre>`);
                     date.setTime(serverTime);
-                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.8em;">Server shutdown at: ${date.toUTCString()}</pre>`);
+                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.6em;">Server shutdown at: ${date.toUTCString()}</pre>`);
                 }
                 if (upTime) {
-                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.8em;">Server upTime:      ${msToTime(upTime)}</pre>`);
+                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.6em;">Server upTime:      ${msToTime(upTime)}</pre>`);
                 }
-                elem.innerText = insertTimeStamp(text, bootTime);
+                elem.innerText = text;
             })
             .catch(error => console.warn(error)),
 
@@ -169,14 +160,14 @@ async function loadLogs() {
                 if (bootTime) {
                     let date = new Date();
                     date.setTime(bootTime);
-                    elem.insertAdjacentHTML('beforeend', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.8em;">Server started at: ${date.toUTCString()}</pre>`);
+                    elem.insertAdjacentHTML('beforeend', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.6em;">Server started at: ${date.toUTCString()}</pre>`);
                     date.setTime(serverTime);
-                    elem.insertAdjacentHTML('beforeend', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.8em;">Server crashed at: ${date.toUTCString()}</pre>`);
+                    elem.insertAdjacentHTML('beforeend', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.6em;">Server crashed at: ${date.toUTCString()}</pre>`);
                 }
                 if (upTime) {
-                    elem.insertAdjacentHTML('beforeend', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.8em;">Server upTime:     ${msToTime(upTime)}</pre>`);
+                    elem.insertAdjacentHTML('beforeend', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.6em;">Server upTime:     ${msToTime(upTime)}</pre>`);
                 }
-                document.getElementById("crashlog").innerText = insertTimeStamp(text, bootTime);
+                document.getElementById("crashlog").innerText = text;
             })
             .catch(error => console.warn(error)),
 
@@ -195,7 +186,7 @@ async function loadLogs() {
                 evtSource.addEventListener("logger", (event) => {
                     let divElem = document.getElementById("logTab");
                     let scroll = (divElem.scrollHeight - divElem.scrollTop - divElem.clientHeight) < 10;
-                    document.getElementById("showlog").insertAdjacentText('beforeend', insertTimeStamp(event.data, serverBootTime) + "\n");
+                    document.getElementById("showlog").insertAdjacentText('beforeend', event.data + "\n");
                     // Only scroll the page if we are already at bottom of the page
                     if (scroll) divElem.scrollTop = divElem.scrollHeight;
                 });
@@ -217,19 +208,20 @@ async function loadLogs() {
             })
             .then((text) => {
                 const elem = document.getElementById("showlog");
+                const header = document.getElementById("showLogHeader");
                 const { serverTime, upTime, bootTime } = findStartTime(text);
                 serverBootTime = bootTime;
                 if (bootTime) {
                     let date = new Date();
                     date.setTime(bootTime);
-                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.8em;">Server started at:   ${date.toUTCString()}</pre>`);
+                    header.insertAdjacentHTML('beforeend', `<pre style="margin: 0px">Server started at:   ${date.toUTCString()}</pre>`);
                     date.setTime(serverTime);
-                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.8em;">Server current time: ${date.toUTCString()}</pre>`);
+                    header.insertAdjacentHTML('beforeend', `<pre style="margin: 0px">Server current time: ${date.toUTCString()}</pre>`);
                 }
                 if (upTime) {
-                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.8em;">Server upTime:       ${msToTime(upTime)}</pre>`);
+                    header.insertAdjacentHTML('beforeend', `<pre style="margin: 0px">Server upTime:       ${msToTime(upTime)}</pre>`);
                 }
-                elem.insertAdjacentText('afterbegin', insertTimeStamp(text, serverBootTime));
+                elem.insertAdjacentText('afterbegin', text);
                 let divElem = document.getElementById("logTab");
                 // Scroll to the bottom
                 divElem.scrollTop = divElem.scrollHeight;
@@ -242,6 +234,14 @@ async function loadLogs() {
             console.log("All logs loaded");
             //console.log(results);
         });
+}
+
+async function clearLog(reload) {
+    // Erase current content
+    document.getElementById("showlog").innerText = "";
+    document.getElementById("showLogHeader").innerHTML = "";
+    // Load logs
+    if (reload) loadLogs();
 }
 
 async function clearCrashLog() {
