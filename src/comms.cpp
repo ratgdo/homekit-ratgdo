@@ -50,6 +50,7 @@ static bool rolling_code_operation_in_progress = false;
 #define MAX_CODES_WITHOUT_FLASH_WRITE 10
 
 /******************************* SECURITY 1.0 *********************************/
+#define SEC1_MSG_RECEIVE_TIMEOUT      25
 
 static const uint8_t RX_LENGTH = 2;
 typedef uint8_t RxPacket[RX_LENGTH * 4];
@@ -319,17 +320,18 @@ void comms_loop_sec1()
 
                 gotMessage = true;
             }
-
-            if (gotMessage == false && ((int32_t)(millis() - last_rx) > 100))
-            {
-                RINFO("RX message timeout");
-                // if we have a partial packet and it's been over 100ms since last byte was read,
-                // the rest is not coming (a full packet should be received in ~20ms),
-                // discard it so we can read the following packet correctly
-                reading_msg = false;
-                byte_count = 0;
-            }
         }
+    }
+
+    // did a 2 byte message start, but no end
+    if (reading_msg == true && gotMessage == false && ((int32_t)(millis() - last_rx) > SEC1_MSG_RECEIVE_TIMEOUT))
+    {
+        RINFO("RX message timeout");
+        // if we have a partial packet and it's been over 20ms since last byte was read,
+        // the rest is not coming (a full packet should be received in ~20ms),
+        // discard it so we can read the following packet correctly
+        reading_msg = false;
+        byte_count = 0;
     }
 
     // got data?
@@ -398,6 +400,16 @@ void comms_loop_sec1()
                     break;
                 }
 
+                // sec+1 doors sometimes report wrong door status
+                // back to origional code, MJS 8/14/2025 confirmed logging
+                // it could report a valid byte but its not really valid
+                // ie: opening when its already open
+                static uint8_t prevDoor = 0xFF; // Initialize to invalid value
+                if (prevDoor != val){
+                    prevDoor = val;
+                    break;
+                }
+
                 val = (val & 0x7);
                 // 000 0x0 stopped
                 // 001 0x1 opening
@@ -405,30 +417,6 @@ void comms_loop_sec1()
                 // 100 0x4 closing
                 // 101 0x5 closed
                 // 110 0x6 stopped
-
-                // sec+1 doors sometimes report wrong door status
-                // Use improved validation: accept single state if valid, require confirmation for suspicious values
-                static uint8_t prevDoor = 0xFF; // Initialize to invalid value
-                static uint8_t stateConfirmCount = 0;
-                
-                // Accept valid states immediately, but require confirmation for edge cases
-                bool isValidState = (val <= 0x06 && val != 0x03); // 0x03 is not a known valid state
-                
-                if (prevDoor == val)
-                {
-                    stateConfirmCount++;
-                }
-                else
-                {
-                    prevDoor = val;
-                    stateConfirmCount = 1;
-                }
-                
-                // Accept immediately if valid state, or if confirmed twice for edge cases
-                if (!isValidState && stateConfirmCount < 2)
-                {
-                    break; // Wait for confirmation on suspicious values
-                }
 
                 switch (val)
                 {
@@ -561,6 +549,16 @@ void comms_loop_sec1()
                 if ((val & 0xF0) != 0x50)
                 {
                     RINFO("0x3A val upper nible not 5: %02X", val);
+                    break;
+                }
+
+                // make sure 2 same in a row
+                // MJS 8/14/2025 during logging observed this situation
+                static uint8_t prevLightLock = 0xFF; // Initialize to invalid value
+                if (val != prevLightLock)
+                {
+                    prevLightLock = val;
+
                     break;
                 }
 
