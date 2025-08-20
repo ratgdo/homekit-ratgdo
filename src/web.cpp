@@ -768,8 +768,8 @@ void handle_status()
     JSON_ADD_INT("webMaxResponseTime", max_response_time);
     JSON_END();
     ESP_LOGI(TAG, "JSON build time: %lums", (uint32_t)(_millis() - startTime));
-    YIELD();
-    // send JSON straight to serial port
+    // YIELD(); // No longer needed as JSON builds in ~8ms or less
+    //  send JSON straight to serial port
     Serial.printf("%s\n", json);
 
     last_reported_garage_door = garage_door;
@@ -992,7 +992,7 @@ void handle_setgdo()
             ESP_LOGW(TAG, "Invalid Key: %s, Value: %s (F)", key.c_str(), value.c_str());
             error = true;
         }
-        YIELD();
+        YIELD(); // Yield while looping over all received settings, just-in-case!
         if (error)
             break;
     }
@@ -1098,7 +1098,9 @@ void SSEheartbeat(SSESubscription *s)
         JSON_REMOVE_NL(json);
         YIELD();
         // retry needed to before event:
+#ifdef ESP8266
         s->client.flush(); // make sure previous data all sent.
+#endif
         s->client.printf("retry: 15000\nevent: message\ndata: %s\n\n", json);
         GIVE_MUTEX();
     }
@@ -1108,11 +1110,6 @@ void SSEheartbeat(SSESubscription *s)
             subscriptionCount--; // Prevent negative count
         s->heartbeatTimer.detach();
         ESP_LOGI(TAG, "Client %s not listening, remove SSE subscription. Total subscribed: %d", s->clientIP.toString().c_str(), subscriptionCount);
-#ifdef ESP8266
-        s->client.flush();
-#else
-        s->client.clear();
-#endif
         s->client.stop();
         s->clientIP = INADDR_NONE;
         s->clientUUID.clear();
@@ -1207,11 +1204,6 @@ void handle_subscribe()
                 // Already connected.  We need to close it down as client will be reconnecting
                 ESP_LOGI(TAG, "SSE Subscribe - client %s with IP %s already connected on channel %d, remove subscription", server.arg(id).c_str(), clientIP.toString().c_str(), channel);
                 subscription[channel].heartbeatTimer.detach();
-#ifdef ESP8266
-                subscription[channel].client.flush();
-#else
-                subscription[channel].client.clear();
-#endif
                 subscription[channel].client.stop();
                 subscription[channel].SSEconnected = false;
             }
@@ -1301,6 +1293,9 @@ void handle_crashlog()
 {
     ESP_LOGI(TAG, "Request to display crash log...");
     WiFiClient client = server.client();
+#ifdef ESP8266
+    client.flush(); // make sure previous data all sent.
+#endif
     client.print(response200);
 #ifdef ESP8266
     saveCrash.print(client);
@@ -1315,6 +1310,9 @@ void handle_crashlog()
 void handle_showlog()
 {
     WiFiClient client = server.client();
+#ifdef ESP8266
+    client.flush(); // make sure previous data all sent.
+#endif
     client.print(response200);
     ratgdoLogger->printMessageLog(client);
     client.stop();
@@ -1323,6 +1321,9 @@ void handle_showlog()
 void handle_showrebootlog()
 {
     WiFiClient client = server.client();
+#ifdef ESP8266
+    client.flush(); // make sure previous data all sent.
+#endif
     client.print(response200);
 #ifdef ESP8266
     File file = LittleFS.open(REBOOT_LOG_MSG_FILE, "r");
@@ -1389,7 +1390,9 @@ void SSEBroadcastState(const char *data, BroadcastType type)
             {
                 if (subscription[i].logViewer)
                 {
+#ifdef ESP8266
                     subscription[i].client.flush(); // make sure previous data all sent.
+#endif
                     subscription[i].client.printf_P(PSTR("event: logger\ndata: %s\n\n"), data);
                 }
             }
@@ -1397,10 +1400,13 @@ void SSEBroadcastState(const char *data, BroadcastType type)
             {
                 String IPaddrstr = IPAddress(subscription[i].clientIP).toString();
                 ESP_LOGV(TAG, "SSE send to client %s on channel %d, data: %s", IPaddrstr.c_str(), i, data);
+#ifdef ESP8266
+                subscription[i].client.flush(); // make sure previous data all sent.
+#endif
                 subscription[i].client.printf_P(PSTR("event: message\ndata: %s\n\n"), data);
             }
         }
-        YIELD();
+        YIELD(); // yield between each SSE client
     }
 }
 
@@ -1552,6 +1558,9 @@ void handle_firmware_upload()
                         ESP_LOGW(TAG, "WARNING firmware upload JSON length: %d is over 80%% of available buffer", strlen(json));
                     }
                     JSON_REMOVE_NL(json);
+#ifdef ESP8266
+                    firmwareUpdateSub->client.flush(); // make sure previous data all sent.
+#endif
                     firmwareUpdateSub->client.printf_P(PSTR("event: uploadStatus\ndata: %s\n\n"), json);
                     GIVE_MUTEX();
                 }
@@ -1585,5 +1594,5 @@ void handle_firmware_upload()
             Update.end();
         ESP_LOGI(TAG, "%s was aborted", verify ? "Verify" : "Update");
     }
-    YIELD();
+    YIELD(); // Not sure if this is necessary as we should be returning to main loop?
 }
