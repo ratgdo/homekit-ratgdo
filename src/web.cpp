@@ -1272,6 +1272,7 @@ void SSEheartbeat(SSESubscription *s)
         END_JSON(json);
         REMOVE_NL(json);
         // retry needed to before event:
+        s->client.flush(); // make sure previous data all sent.
         s->client.printf("retry: 15000\nevent: message\ndata: %s\n\n", json);
     }
     else
@@ -1547,6 +1548,7 @@ void SSEBroadcastState(const char *data, BroadcastType type)
             {
                 if (subscription[i].logViewer)
                 {
+                    subscription[i].client.flush(); // make sure previous data all sent.
                     subscription[i].client.printf_P(PSTR("event: logger\ndata: %s\n\n"), data);
                 }
             }
@@ -1554,9 +1556,11 @@ void SSEBroadcastState(const char *data, BroadcastType type)
             {
                 String IPaddrstr = IPAddress(subscription[i].clientIP).toString();
                 RINFO("SSE send to client %s on channel %d, data: %s", IPaddrstr.c_str(), i, data);
+                subscription[i].client.flush(); // make sure previous data all sent.
                 subscription[i].client.printf_P(PSTR("event: message\ndata: %s\n\n"), data);
             }
         }
+        esp_yield(); // yield between each SSE client
     }
 }
 
@@ -1728,6 +1732,7 @@ void handle_firmware_upload()
                     ADD_INT(json, "uploadPercent", uploadPercent);
                     END_JSON(json);
                     REMOVE_NL(json);
+                    firmwareUpdateSub->client.flush(); // make sure previous data all sent.
                     firmwareUpdateSub->client.printf_P(PSTR("event: uploadStatus\ndata: %s\n\n"), json);
                 }
             }
