@@ -396,7 +396,7 @@ void comms_loop_sec1()
                 // best attempt to trap invalid values (due to collisions)
                 if (((val & 0xF0) != 0x00) && ((val & 0xF0) != 0x50) && ((val & 0xF0) != 0xB0))
                 {
-                    RINFO("0x38 val upper nible not 0x0 or 0x5 or 0xB: %02X", val);
+                    RINFO("DoorStatus(0x38) val upper nible not 0x0 or 0x5 or 0xB: %02X", val);
                     break;
                 }
 
@@ -545,10 +545,11 @@ void comms_loop_sec1()
 
                 // RINFO("0x3A MSG: %X%02X",key,val);
 
-                // upper nibble must be 5
-                if ((val & 0xF0) != 0x50)
+                // upper nibble must be 0x5 or 0x1
+                // MJS 8/20/2025 verifyed when door is obstucted for > 10 secs, BIT7 clears
+                if (((val & 0xF0) != 0x50) && ((val & 0xF0) != 0x10))
                 {
-                    RINFO("0x3A val upper nible not 5: %02X", val);
+                    RINFO("LightLockStatus(0x3A) \"value\" upper nibble not 0x5 or 0x1, received: 0x%02X", val);
                     break;
                 }
 
