@@ -2,6 +2,18 @@
 
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v1.9.1 (2025-08-21)
+
+### What's Changed
+
+* Bugfix... Handle invalid packets on Sec+1.0 doors that was incorrectly causing door state change to be reported. With thanks to @mitchjs
+* Bugfix... Make sure that a previous WiFi packet has finished sending before attempting to send another, fixes occasional crashes we were seeing.
+* Other... Strategically add esp_yield() around HomeKit crypto functions to protect against WatchDog timeouts.
+
+### Known Issues
+
+* None
+
 ## v1.9.0 (2025-07-18)
 
 ### Major Release - Comprehensive Stability and Performance Overhaul
