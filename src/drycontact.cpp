@@ -50,6 +50,9 @@ void setup_drycontact()
     pinMode(DRY_CONTACT_OPEN_PIN, INPUT_PULLUP);
     pinMode(DRY_CONTACT_CLOSE_PIN, INPUT_PULLUP);
 
+    buttonOpen.setDebounceMs(userConfig->getDCDebounceDuration());
+    buttonClose.setDebounceMs(userConfig->getDCDebounceDuration());
+
     // Attach OneButton handlers
     buttonOpen.attachPress(onOpenSwitchPress);
     buttonClose.attachPress(onCloseSwitchPress);
@@ -102,7 +105,7 @@ void drycontact_loop()
             previousDryContactDoorClose = dryContactDoorClose;
         }
     }
-    else
+    else if (userConfig->getDCOpenClose())
     {
         // Dry contacts are repurposed as optional door open/close when we
         // are using Sec+ 1.0 or Sec+ 2.0 door control type

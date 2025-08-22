@@ -316,7 +316,7 @@ userSettings::userSettings()
         {cfg_syslogPort, {false, false, 514, NULL}},
         {cfg_logLevel, {false, false, ESP_LOG_INFO, helperLogLevel}}, // call fn to set log level
         {cfg_dcOpenClose, {true, false, false, NULL}},
-        {cfg_dcDebounceDuration, {false, false, 50, NULL}},
+        {cfg_dcDebounceDuration, {true, false, 50, NULL}},
         {cfg_obstFromStatus, {true, false, true, NULL}},
         {cfg_useToggleToClose, {false, false, false, NULL}},
 #ifndef ESP8266
