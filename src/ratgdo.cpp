@@ -170,6 +170,7 @@ void setup()
     wifi_connect();
     setup_web();
     setup_comms();
+    setup_drycontact();
     ESP_LOGI(TAG, "Free heap after setup: %d", ESP.getFreeHeap());
     // setup_homekit(); postpone HomeKit setup until we have an IP address
     led.idle();
