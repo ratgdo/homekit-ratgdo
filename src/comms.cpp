@@ -375,12 +375,6 @@ void setup_comms()
     {
         ESP_LOGI(TAG, "=== Setting up comms for SECURITY+1.0 protocol");
 
-        // MJS testing here... remove when finalized
-        // GPIO16
-        // enable wall panel
-        pinMode(STATUS_DOOR_PIN, OUTPUT);
-        digitalWrite(STATUS_DOOR_PIN, 1);
-
         sw_serial.begin(1200, SWSERIAL_8E1, UART_RX_PIN, UART_TX_PIN, true, 32);
         wallPanelDetected = false;
         wallPanelBooting = false;
@@ -802,11 +796,9 @@ void sec1_process_message(uint8_t key, uint8_t value)
     // time between messages
     _millis_t since = _millis() - lastTime;
 
-    // temp code
-    if (key == 0xBB)
-        ESP_LOGD(TAG, "SEC1 RX IDLE:%lums - MSG: 0x%02X:0x%02X !!! INVALID KEY BYTE !!!", since, key, value);
-    else
-        ESP_LOGV(TAG, "SEC1 RX IDLE:%lums - MSG: 0x%02X:0x%02X", since, key, value);
+#ifdef SEC1_EXTENDED_COMMS_DEBUG
+    ESP_LOGD(TAG, "SEC1 RX IDLE:%lums - MSG: 0x%02X:0x%02X", since, key, value);
+#endif
 
     lastTime = now;
 
@@ -818,6 +810,7 @@ void sec1_process_message(uint8_t key, uint8_t value)
         ESP_LOGI(TAG, "SEC1 RX 0x30 (door press)");
 
         manual_recovery();
+
         if (motionTriggers.bit.doorKey)
         {
             notify_homekit_motion(true);
@@ -847,6 +840,7 @@ void sec1_process_message(uint8_t key, uint8_t value)
     case secplus1Codes::LightButtonPress:
     {
         ESP_LOGI(TAG, "SEC1 RX 0x32 (light press)");
+
         manual_recovery();
 
         break;
@@ -952,8 +946,10 @@ void sec1_process_message(uint8_t key, uint8_t value)
         // 0x01 -> 0x04 Obstruction removed, implies motion
         // 0x04 -> 0x00 No obstruction
 
+#ifdef SEC1_EXTENDED_COMMS_DEBUG
         if (value > 0)
             ESP_LOGD(TAG, "SEC1 TX MSG 0x39: value: 0x%02X", value);
+#endif
 
         // Handle obstruction from status packet if pin-based detection not used
         static uint8_t prevObstruction = 0xFF; // Initialize to invalid value
@@ -1079,15 +1075,16 @@ void comms_loop_sec1()
         {
             if (ser_byte == 0xFF)
             {
-                ESP_LOGD(TAG, "SEC1 RX HELLO FROM GDO 0x%02X", ser_byte);
-
-                // count them, if say 5, start emulator?
+#ifdef SEC1_EXTENDED_COMMS_DEBUG
+                ESP_LOGD(TAG, "SEC1 RX GDO sync byte(0xFF) received");
+#endif
+                // count them, if say 10, start emulator? (future idea)
                 byte_count++;
-                if (byte_count > 4)
+                if (byte_count == 10)
                 {
                     byte_count = 0;
 
-                    ESP_LOGD(TAG, "SEC1 RX got 5 of 0xFFs");
+                    ESP_LOGD(TAG, "SEC1 RX GDO sync bytes(0xFF)");
                 }
             }
             // valid?
@@ -1686,7 +1683,9 @@ bool transmitSec1(byte toSend)
     sw_serial.write(toSend);
     sw_serial.flush(); // wait till sent
 
-    // ESP_LOGD(TAG, "SEC1 TX sent: 0x%02X", toSend);
+#ifdef SEC1_EXTENDED_COMMS_DEBUG
+    ESP_LOGD(TAG, "SEC1 TX sent: 0x%02X", toSend);
+#endif
 
     // timestamp tx
     last_tx = _millis();
