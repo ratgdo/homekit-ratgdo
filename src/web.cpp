@@ -741,7 +741,7 @@ void handle_status()
     JSON_ADD_INT("wifiPhyMode", userConfig->getWifiPhyMode());
     JSON_ADD_INT("minStack", ESP.getFreeContStack());
 #else
-    JSON_ADD_INT("occupancyDuration", userConfig->getOccupancyDuration());
+    JSON_ADD_INT(cfg_occupancyDuration, userConfig->getOccupancyDuration());
     JSON_ADD_BOOL(cfg_enableIPv6, userConfig->getEnableIPv6());
     JSON_ADD_STR("ipv6Addresses", ipv6_addresses);
     JSON_ADD_BOOL(cfg_builtInTTC, userConfig->getBuiltInTTC());

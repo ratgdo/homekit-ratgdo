@@ -283,6 +283,7 @@ function setElementsFromStatus(status) {
                 let mins = value / 60;
                 document.getElementById(key).value = (mins <= 10) ? mins : (mins <= 32) ? (mins - 10) / 5 + 10 : 0;
                 document.getElementById("occupancyValue").innerHTML = mins;
+                document.getElementById("trOccupancyDuration").style.display = "table-row";
                 break;
             case "distanceSensor":
                 document.getElementById("vehicleRow").style.display = (value) ? "table-row" : "none";
@@ -968,17 +969,14 @@ function getMotionTriggers() {
 }
 
 function setMotionTriggers(bitset) {
-    document.getElementById("motionLabel").style.display = (bitset) ? "table-cell" : "none";
-    document.getElementById("garageMotion").style.display = (bitset) ? "table-cell" : "none";
-    document.getElementById("roomOccupancy").style.display = (bitset) ? "table-cell" : "none";
+    //document.getElementById("motionLabel").style.display = (bitset) ? "table-cell" : "none";
+    //document.getElementById("garageMotion").style.display = (bitset) ? "table-cell" : "none";
     document.getElementById("motionMotion").checked = (bitset & 1) ? true : false;
     document.getElementById("motionObstruction").checked = (bitset & 2) ? true : false;
-    //document.getElementById("motionLight").checked = (bitset & 4) ? true : false;
-    //document.getElementById("motionDoor").checked = (bitset & 8) ? true : false;
-    //document.getElementById("motionLock").checked = (bitset & 16) ? true : false;
     document.getElementById("motionWallPanel").checked = (bitset & 28) ? true : false;
     // Hide checkbox to trigger motion from wall panel, because not implemented with GDOLIB
     document.getElementById("motionWallPanelSpan").style.display = "none";
+    //document.getElementById("trOccupancyDuration").style.display = (bitset) ? "table-row" : "none";
 };
 
 async function saveSettings() {
