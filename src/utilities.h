@@ -24,7 +24,7 @@
 #ifdef ESP8266
 typedef uint32_t _millis_t;
 #define _millis() ((_millis_t)millis())
-#define YIELD() esp_yield()
+#define YIELD() system_soft_wdt_feed()
 #else
 typedef int64_t _millis_t;
 #define _millis() ((_millis_t)(esp_timer_get_time() / 1000LL))
