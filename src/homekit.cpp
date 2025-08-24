@@ -184,19 +184,19 @@ void homekit_loop()
 
 homekit_value_t current_door_state_get()
 {
-    ESP_LOGI(TAG, "get current door state: %d", garage_door.current_state);
+    ESP_LOGD(TAG, "get current door state: %d", garage_door.current_state);
     return HOMEKIT_UINT8_CPP(garage_door.current_state);
 }
 
 homekit_value_t target_door_state_get()
 {
-    ESP_LOGI(TAG, "get target door state: %d", garage_door.target_state);
+    ESP_LOGD(TAG, "get target door state: %d", garage_door.target_state);
     return HOMEKIT_UINT8_CPP(garage_door.target_state);
 }
 
 void target_door_state_set(const homekit_value_t value)
 {
-    ESP_LOGI(TAG, "set door state: %d", value.uint8_value);
+    ESP_LOGD(TAG, "set door state: %d", value.uint8_value);
     switch (value.uint8_value)
     {
     case TGT_OPEN:
@@ -213,37 +213,37 @@ void target_door_state_set(const homekit_value_t value)
 
 homekit_value_t obstruction_detected_get()
 {
-    ESP_LOGI(TAG, "get obstruction: %d", garage_door.obstructed);
+    ESP_LOGD(TAG, "get obstruction: %d", garage_door.obstructed);
     return HOMEKIT_BOOL_CPP(garage_door.obstructed);
 }
 
 homekit_value_t current_lock_state_get()
 {
-    ESP_LOGI(TAG, "get current lock state: %d", garage_door.current_lock);
+    ESP_LOGD(TAG, "get current lock state: %d", garage_door.current_lock);
     return HOMEKIT_UINT8_CPP(garage_door.current_lock);
 }
 
 homekit_value_t target_lock_state_get()
 {
-    ESP_LOGI(TAG, "get target lock state: %d", garage_door.target_lock);
+    ESP_LOGD(TAG, "get target lock state: %d", garage_door.target_lock);
     return HOMEKIT_UINT8_CPP(garage_door.target_lock);
 }
 
 void target_lock_state_set(const homekit_value_t value)
 {
-    ESP_LOGI(TAG, "set lock state: %d", value.uint8_value);
+    ESP_LOGD(TAG, "set lock state: %d", value.uint8_value);
     set_lock(value.uint8_value);
 }
 
 homekit_value_t light_state_get()
 {
-    ESP_LOGI(TAG, "get light state: %s", garage_door.light ? "On" : "Off");
+    ESP_LOGD(TAG, "get light state: %s", garage_door.light ? "On" : "Off");
     return HOMEKIT_BOOL_CPP(garage_door.light);
 }
 
 void light_state_set(const homekit_value_t value)
 {
-    ESP_LOGI(TAG, "set light: %s", value.bool_value ? "On" : "Off");
+    ESP_LOGD(TAG, "set light: %s", value.bool_value ? "On" : "Off");
     set_light(value.bool_value);
 }
 
@@ -455,8 +455,8 @@ void printTaskInfo(const char *buf)
     if (tasks != NULL)
     {
         uxTaskGetSystemState(tasks, count, NULL);
-        Serial.printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
-        Serial.printf("Name                    Core\tPri\tStack\tState\n");
+        Serial.print("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
+        Serial.print("Name                    Core\tPri\tStack\tState\n");
         for (size_t i = 0; i < count; i++)
         {
             Serial.printf("%s\t%s\t%4d\t%3d\t%5d\t%s\n", (char *)tasks[i].pcTaskName,
@@ -466,7 +466,7 @@ void printTaskInfo(const char *buf)
                           (int)tasks[i].usStackHighWaterMark,
                           (magic_enum::enum_name(tasks[i].eCurrentState)).data());
         }
-        Serial.printf("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n\n");
+        Serial.print("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n\n");
     }
     vPortFree(tasks);
 };
@@ -500,7 +500,7 @@ void setLogLevel(const char *buf)
     }
     else
     {
-        Serial.printf("Invalid log level, value must be between 0(none) and 5(verbose)\n");
+        Serial.print("Invalid log level, value must be between 0(none) and 5(verbose)\n");
     }
 }
 
@@ -527,7 +527,7 @@ void testMoveDoor(const char *buf)
     }
     else
     {
-        Serial.printf("Invalid door postion, value must be between 0(open) and 100(closed)\n");
+        Serial.print("Invalid door postion, value must be between 0(open) and 100(closed)\n");
     }
 }
 #endif // USE_GDOLIB
