@@ -66,7 +66,7 @@ void esp_log_hook(const char *fmt, va_list args)
         Serial.begin(115200);
         while (!Serial)
             ; // Wait for serial port to open
-        Serial.printf("\n\n\n");
+        Serial.print("\n\n\n");
     }
     if (ratgdoLogger)
     {
@@ -383,23 +383,34 @@ void LOG::printMessageLog(Print &outputDev)
     if (enableNTP && clockSet)
     {
         time_t now = time(NULL);
-        outputDev.printf("Server time: %lld (%s)\n", now, timeString(now));
+        outputDev.print("Server time: ");
+        outputDev.print(now);
+        outputDev.print(" (");
+        outputDev.print(timeString(now));
+        outputDev.println(")");
     }
     int64_t upTime = (int64_t)_millis();
-    outputDev.printf("Server uptime: %lld ms (%s)\n", upTime, toHHMMSSmmm((_millis_t)upTime));
-    outputDev.printf("Firmware version: %s\n", AUTO_VERSION);
+    outputDev.print("Server uptime: ");
+    outputDev.print(upTime);
+    outputDev.print(" ms (");
+    outputDev.print(toHHMMSSmmm((_millis_t)upTime));
+    outputDev.println(")");
+    outputDev.print("Firmware version: ");
+    outputDev.println(AUTO_VERSION);
 #ifdef ESP8266
-    outputDev.write("Flash CRC: 0x");
+    outputDev.print("Flash CRC: 0x");
     outputDev.println(__crc_val, 16);
-    outputDev.write("Flash length: ");
+    outputDev.print("Flash length: ");
     outputDev.println(__crc_len);
 #if defined(MMU_IRAM_HEAP)
-    outputDev.write("IRAM heap size: ");
+    outputDev.print("IRAM heap size: ");
     outputDev.println(MMU_SEC_HEAP_SIZE);
 #endif
 #endif
-    outputDev.printf("Free heap: %u\n", free_heap);
-    outputDev.printf("Minimum heap: %u\n\n", min_heap);
+    outputDev.print("Free heap: ");
+    outputDev.println(free_heap);
+    outputDev.print("Minimum heap: ");
+    outputDev.println(min_heap);
     if (msgBuffer)
     {
         // head points to a zero (null terminator of previous log line) which we need to skip.
@@ -454,7 +465,9 @@ void logToSyslog(char *message)
 
     syslog.beginPacket(syslogIP, syslogPort);
     // Use RFC5424 Format
-    syslog.printf("<%u>1 ", PRI); // PRI code
+    syslog.print("<");
+    syslog.print(PRI);
+    syslog.print(">1 ");
 #if defined(USE_NTP_TIMESTAMP)
     syslog.print((enableNTP && clockSet) ? timeString(0, true) : SYSLOG_NIL);
 #else

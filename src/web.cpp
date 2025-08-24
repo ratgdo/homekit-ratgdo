@@ -196,7 +196,7 @@ static SemaphoreHandle_t jsonMutex = NULL;
 
 // Connection throttling
 #define MAX_CONCURRENT_REQUESTS 4
-#define REQUEST_TIMEOUT_MS 5000
+#define REQUEST_TIMEOUT_MS 2000
 struct ActiveRequest
 {
     IPAddress clientIP;
@@ -205,6 +205,36 @@ struct ActiveRequest
 };
 ActiveRequest activeRequests[MAX_CONCURRENT_REQUESTS];
 int activeRequestCount = 0;
+
+#define CLIENT_WRITE_TIMEOUT 500
+static char writeBuffer[512];
+bool clientWrite(WiFiClient client, const char *data)
+{
+    // Default timout of 5000ms is way too long, WDT could fire.
+    client.setTimeout(CLIENT_WRITE_TIMEOUT);
+    size_t len = strlen(data);
+    size_t written = 0;
+    constexpr uint32_t max_attempts = 3;
+    uint32_t attempts = 0;
+    while (attempts++ < max_attempts && written == 0)
+    {
+#ifdef ESP8266
+        client.flush(); // make sure previous data all sent.
+#endif
+        written = client.write(data, len);
+        if (attempts > 0 && written == 0)
+        {
+            YIELD();
+            ESP_LOGW(TAG, "Failed writing to WiFi Client (%d of %d)", written, len);
+        }
+    }
+    if (attempts >= max_attempts)
+    {
+        ESP_LOGE(TAG, "Error writing to WiFi Client (%d of %d)", written, len);
+        return false;
+    }
+    return true;
+}
 
 // Helper functions for connection throttling
 bool registerRequest()
@@ -768,9 +798,9 @@ void handle_status()
     JSON_ADD_INT("webMaxResponseTime", max_response_time);
     JSON_END();
     ESP_LOGI(TAG, "JSON build time: %lums", (uint32_t)(_millis() - startTime));
-    // YIELD(); // No longer needed as JSON builds in ~8ms or less
     //  send JSON straight to serial port
-    Serial.printf("%s\n", json);
+    Serial.print(json);
+    Serial.print("\n");
 
     last_reported_garage_door = garage_door;
     server.sendHeader(F("Cache-Control"), F("no-cache, no-store"));
@@ -1091,17 +1121,11 @@ void SSEheartbeat(SSESubscription *s)
         }
 #endif
         JSON_END();
-        if (strlen(json) > LOOP_JSON_BUFFER_SIZE * 8 / 10)
-        {
-            ESP_LOGW(TAG, "WARNING heartbeat JSON length: %d is over 80%% of available buffer", strlen(json));
-        }
         JSON_REMOVE_NL(json);
         YIELD();
         // retry needed to before event:
-#ifdef ESP8266
-        s->client.flush(); // make sure previous data all sent.
-#endif
-        s->client.printf("retry: 15000\nevent: message\ndata: %s\n\n", json);
+        snprintf(writeBuffer, sizeof(writeBuffer), "retry: 15000\nevent: message\ndata: %s\n\n", json);
+        clientWrite(s->client, writeBuffer);
         GIVE_MUTEX();
     }
     else
@@ -1134,6 +1158,7 @@ void SSEHandler(uint32_t channel)
         return handle_notfound();
     }
     client.setNoDelay(true);
+    client.setTimeout(CLIENT_WRITE_TIMEOUT);         // default is 5000ms which is way too long (Watchdog will fire)
     s.client = client;                               // capture SSE server client connection
     server.setContentLength(CONTENT_LENGTH_UNKNOWN); // the payload can go on forever
     server.sendContent_P(PSTR("HTTP/1.1 200 OK\nContent-Type: text/event-stream;\nConnection: keep-alive\nCache-Control: no-cache\nAccess-Control-Allow-Origin: *\n\n"));
@@ -1384,30 +1409,48 @@ void SSEBroadcastState(const char *data, BroadcastType type)
 
     for (uint32_t i = 0; i < SSE_MAX_CHANNELS; i++)
     {
+        YIELD(); // yield between each SSE client
         if (subscription[i].SSEconnected && subscription[i].client.connected())
         {
             if (type == LOG_MESSAGE)
             {
                 if (subscription[i].logViewer)
                 {
+                    // retry needed to before event:
+                    if (snprintf(writeBuffer, sizeof(writeBuffer), "event: logger\ndata: %s\n\n", data) >= (int)sizeof(writeBuffer))
+                    {
+                        // Will not fit in our write buffer, let system printf handle
 #ifdef ESP8266
-                    subscription[i].client.flush(); // make sure previous data all sent.
+                        subscription[i].client.flush(); // make sure previous data all sent.
 #endif
-                    subscription[i].client.printf_P(PSTR("event: logger\ndata: %s\n\n"), data);
+                        subscription[i].client.printf("event: logger\ndata: %s\n\n", data);
+                    }
+                    else
+                    {
+                        clientWrite(subscription[i].client, writeBuffer);
+                    }
                 }
             }
             else if (type == RATGDO_STATUS)
             {
                 String IPaddrstr = IPAddress(subscription[i].clientIP).toString();
                 ESP_LOGV(TAG, "SSE send to client %s on channel %d, data: %s", IPaddrstr.c_str(), i, data);
+                if (snprintf(writeBuffer, sizeof(writeBuffer), "event: message\ndata: %s\n\n", data) >= (int)sizeof(writeBuffer))
+                {
+                    // Will not fit in our write buffer, let system printf handle
 #ifdef ESP8266
-                subscription[i].client.flush(); // make sure previous data all sent.
+                    subscription[i].client.flush(); // make sure previous data all sent.
 #endif
-                subscription[i].client.printf_P(PSTR("event: message\ndata: %s\n\n"), data);
+                    subscription[i].client.printf("event: message\ndata: %s\n\n", data);
+                }
+                else
+                {
+                    clientWrite(subscription[i].client, writeBuffer);
+                }
             }
         }
-        YIELD(); // yield between each SSE client
     }
+    YIELD();
 }
 
 // Implement our own firmware update so can enforce MD5 check.
@@ -1534,14 +1577,14 @@ void handle_firmware_upload()
     else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_WRITE && !_updaterError.length())
     {
         // Progress dot dot dot
-        Serial.printf(".");
+        Serial.print(".");
         if (firmwareSize > 0)
         {
             uploadProgress += upload.currentSize;
             uint32_t uploadPercent = (uploadProgress * 100) / firmwareSize;
             if (uploadPercent >= nextPrintPercent)
             {
-                Serial.printf("\n"); // newline after the dot dot dots
+                Serial.print("\n"); // newline after the dot dot dots
                 ESP_LOGI(TAG, "%s progress: %i", verify ? "Verify" : "Update", uploadPercent);
                 SSEheartbeat(firmwareUpdateSub); // keep SSE connection alive.
                 nextPrintPercent += 10;
@@ -1553,15 +1596,9 @@ void handle_firmware_upload()
                     JSON_START(json);
                     JSON_ADD_INT("uploadPercent", uploadPercent);
                     JSON_END();
-                    if (strlen(json) > LOOP_JSON_BUFFER_SIZE * 8 / 10)
-                    {
-                        ESP_LOGW(TAG, "WARNING firmware upload JSON length: %d is over 80%% of available buffer", strlen(json));
-                    }
                     JSON_REMOVE_NL(json);
-#ifdef ESP8266
-                    firmwareUpdateSub->client.flush(); // make sure previous data all sent.
-#endif
-                    firmwareUpdateSub->client.printf_P(PSTR("event: uploadStatus\ndata: %s\n\n"), json);
+                    snprintf(writeBuffer, sizeof(writeBuffer), "event: uploadStatus\ndata: %s\n\n", json);
+                    clientWrite(firmwareUpdateSub->client, writeBuffer);
                     GIVE_MUTEX();
                 }
             }
@@ -1575,7 +1612,7 @@ void handle_firmware_upload()
     }
     else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_END && !_updaterError.length())
     {
-        Serial.printf("\n"); // newline after last of the dot dot dots
+        Serial.print("\n"); // newline after last of the dot dot dots
         if (!verify)
         {
             if (Update.end(true))
