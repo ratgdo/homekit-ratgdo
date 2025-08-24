@@ -66,7 +66,7 @@ SoftwareSerial sw_serial;
 #endif // not USE_GDOLIB
 
 #define SECPLUS1_DIGITAL_WALLPLATE_TIMEOUT 15000
-#define SECPLUS1_RX_MESSAGE_TIMEOUT 10
+#define SECPLUS1_RX_MESSAGE_TIMEOUT 20
 #define SECPLUS1_TX_WINDOW 20
 #define SECPLUS1_TX_MINIMUM_DELAY 30
 
@@ -687,7 +687,7 @@ void update_door_state(GarageDoorCurrentState current_state)
     static int32_t open_counter = 0;
     static _millis_t close_average = 0;
     static int32_t close_counter = 0;
-#define FACTOR 5 // Number of door operations to average across.
+    constexpr int32_t FACTOR = 5; // Number of door operations to average across.
     GarageDoorTargetState target_state = garage_door.target_state;
 
     // Determine target state
@@ -790,17 +790,12 @@ void update_door_state(GarageDoorCurrentState current_state)
 
 void sec1_process_message(uint8_t key, uint8_t value)
 {
-    static _millis_t lastTime = 0;
-
-    _millis_t now = _millis();
-    // time between messages
-    _millis_t since = _millis() - lastTime;
-
 #ifdef SEC1_EXTENDED_COMMS_DEBUG
-    ESP_LOGD(TAG, "SEC1 RX IDLE:%lums - MSG: 0x%02X:0x%02X", since, key, value);
-#endif
-
+    static _millis_t lastTime = 0;
+    _millis_t now = _millis();
+    ESP_LOGD(TAG, "SEC1 RX IDLE:%lums - MSG: 0x%02X:0x%02X", (uint32_t)(now - lastTime), key, value);
     lastTime = now;
+#endif
 
     switch (key)
     {
@@ -1162,8 +1157,6 @@ void comms_loop_sec1()
     // PROCESS TRANSMIT QUEUE
     //
     PacketAction pkt_ac;
-    // static uint32_t cmdDelay = 0;
-    _millis_t now;
     static uint32_t retryCount = 0;
     bool okToSend = false;
     uint32_t msgs;
@@ -1197,16 +1190,12 @@ void comms_loop_sec1()
 #endif
                 if (process_PacketAction(pkt_ac))
                 {
-
-                    // get next delay "between" transmits (currently not using)
-                    // cmdDelay = pkt_ac.delay;
 #ifdef ESP8266
                     q_drop(&pkt_q);
 #endif
                 }
                 else
                 {
-                    // cmdDelay = 0;
                     if (retryCount++ < MAX_COMMS_RETRY)
                     {
                         ESP_LOGD(TAG, "SEC1 TX send failed, will retry");
