@@ -1328,7 +1328,7 @@ void handle_crashlog()
     // browser client we chunk it in smaller pieces.  This improves reliability
     // on slow network links avoiding watchdog timeouts
     constexpr char CRASH_TEMP_FILE[] = "/crash_temp";
-    File crashTempFile = (LittleFS.exists(CRASH_TEMP_FILE)) ? LittleFS.open(CRASH_TEMP_FILE, "r+") : LittleFS.open(CRASH_TEMP_FILE, "w+");
+    File crashTempFile = LittleFS.open(CRASH_TEMP_FILE, "w");
     crashTempFile.truncate(0);
     crashTempFile.seek(0, fs::SeekSet);
     saveCrash.print(crashTempFile);
