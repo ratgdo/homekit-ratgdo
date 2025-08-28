@@ -77,6 +77,8 @@ _millis_t comms_status_start = 0;
 uint32_t doorControlType = 0;
 
 // For Time-to-close control
+static const uint32_t TTCinterval = 250;
+static uint32_t TTCiterations = 0;
 Ticker TTCtimer = Ticker();
 Ticker callbackDelay = Ticker();
 bool TTCwasLightOn = false;
@@ -2022,63 +2024,78 @@ GarageDoorCurrentState open_door()
     return GarageDoorCurrentState::CURR_OPENING;
 }
 
+void TTCtimerFn(void (*callback)(), bool light)
+{
+    if (TTCiterations > 0)
+    {
+        if (light && (TTCiterations % 2 == 0))
+        {
+            // If light is on, turn it off.  If off, turn it on.
+            if (doorControlType != 3)
+            {
+                // dry contact cannot control lights
+                set_light((TTCiterations % 4) != 0, false);
+            }
+        }
+#ifdef ESP32
+        tone(BEEPER_PIN, 1300, 125);
+#endif
+        TTCiterations--;
+    }
+    else
+    {
+        TTCtimer.detach();
+        ESP_LOGI(TAG, "End of function delay timer");
+        /*
+        if (light && (doorControlType != 3)) {
+            // dry contact cannot control lights
+            set_light(false);
+        }
+        */
+        if (callback)
+        {
+            // delay so that set_light() can do its thing
+            callbackDelay.once_ms(TTCinterval * 2, [callback]()
+                                  {
+#ifdef ESP8266
+                                      schedule_recurrent_function_us([callback]()
+                                                                     {
+                                                                         ESP_LOGI(TAG, "Calling delayed function 0x%08lX", (uint32_t)callback);
+                                                                         callback();
+                                                                         return false; // run the fn only once
+                                                                     },
+                                                                     0); // zero micro seconds (run asap)
+#else
+                                      ESP_LOGI(TAG, "Calling delayed function 0x%08lX", (uint32_t)callback);
+                                      callback();
+#endif
+                                  });
+        }
+    }
+}
+
 // Call function after ms milliseconds during which we flash and beep
 void delayFnCall(uint32_t ms, void (*callback)())
 {
-    static const uint32_t interval = 250;
-    static uint32_t iterations = 0;
-
     bool light = userConfig->getTTClight(); // Whether to flash light during delay
 
     TTCtimer.detach();                 // Terminate existing timer if any
-    iterations = ms / interval;        // Number of times to go through loop
+    TTCiterations = ms / TTCinterval;  // Number of times to go through loop
     TTCwasLightOn = garage_door.light; // Current state of light
-    ESP_LOGI(TAG, "Start function delay timer for %lums (%d iterations)", ms, iterations);
-    TTCtimer.attach_ms(interval, [callback, light]()
+    ESP_LOGI(TAG, "Start function delay timer for %lums (%d iterations)", ms, TTCiterations);
+    TTCtimer.attach_ms(TTCinterval, [callback, light]()
                        {
-                        if (iterations > 0)
-                        {
-                            if (light && (iterations % 2 == 0))
-                            {
-                                // If light is on, turn it off.  If off, turn it on.
-                                if (doorControlType != 3)
-                                {
-                                    // dry contact cannot control lights
-                                    set_light((iterations % 4) != 0, false);
-                                }
-                            }
-#ifdef ESP32
-                            tone(BEEPER_PIN, 1300, 125);
+#ifdef ESP8266
+                           schedule_recurrent_function_us([callback, light]()
+                                                          {
+                                                              TTCtimerFn(callback, light);
+                                                              return false; // run the fn only once
+                                                          },
+                                                          0); // zero micro seconds (run asap)
+#else
+                           TTCtimerFn(callback, light);
 #endif
-                            iterations--;
-                        }
-                        else
-                        {
-                            TTCtimer.detach();
-                            ESP_LOGI(TAG, "End of function delay timer");
-                            /*
-                            if (light && (doorControlType != 3)) {
-                                // dry contact cannot control lights
-                                set_light(false);
-                            }
-                            */
-                            if (callback)
-                            {
-                                // delay so that set_light() can do its thing
-                                callbackDelay.once_ms(interval * 2, [callback]()
-                                {
-                                    if (callback == door_command_close)
-                                    {
-                                        ESP_LOGI(TAG,"Calling delayed function 'door_command_close()'");
-                                    }
-                                    else
-                                    {
-                                        ESP_LOGI(TAG,"Calling delayed function 0x%08lX", (uint32_t)callback);
-                                    }
-                                    callback();
-                                });
-                            }
-                        } });
+                       });
 }
 
 GarageDoorCurrentState close_door()
