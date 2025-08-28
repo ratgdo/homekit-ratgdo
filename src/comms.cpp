@@ -169,7 +169,7 @@ uint8_t lockState;
 
 // keep this here incase at somepoint its needed
 // it is used for emulation of wall panel
-// byte secplus1States[19] = {0x35,0x35,0x35,0x35,0x33,0x33,0x53,0x53,0x38,0x3A,0x3A,0x3A,0x39,0x38,0x3A, 0x38,0x3A,0x39,0x3A};
+// byte secplus1States[19] = {0x35, 0x35, 0x35, 0x35, 0x33, 0x33, 0x53, 0x53, 0x38, 0x3A, 0x3A, 0x3A, 0x39, 0x38, 0x3A, 0x38, 0x3A, 0x39, 0x3A};
 // this is what MY 889LM exhibited when powered up (release of all buttons, and then polls)
 byte secplus1States[] = {0x35, 0x35, 0x33, 0x33, 0x38, 0x3A, 0x39};
 
@@ -1134,7 +1134,7 @@ void comms_loop_sec1()
     // incomplete message timeout?
     if (reading_msg == true && gotMessage == false && ((_millis() - msg_start) > SECPLUS1_RX_MESSAGE_TIMEOUT))
     {
-        ESP_LOGE(TAG, "SEC1 RX message timeout, 1 byte of 2 byte message received [rx_packet[0]=0x%02X]", rx_packet[0]);
+        ESP_LOGD(TAG, "SEC1 RX message timeout, 1 byte of 2 byte message received [rx_packet[0]=0x%02X]", rx_packet[0]);
 
         // if we have a partial packet and it's been over 15ms since last byte was read,
         // the rest is not coming (a full packet should be received in ~10ms),
