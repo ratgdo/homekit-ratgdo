@@ -105,6 +105,63 @@ async function loadLogs() {
     loaderElem.style.visibility = "visible";
     console.log("Start loading server logs and status");
     Promise.allSettled([
+        fetch("rest/events/subscribe?id=" + clientUUID + "&log=1")
+            .then((response) => {
+                if (!response.ok || response.status !== 200) {
+                    reject(`Error registering for Server Sent Events, RC: ${response.status}`);
+                } else {
+                    return response.text();
+                }
+            })
+            .then((text) => {
+                const evtUrl = text + '?id=' + clientUUID;
+                console.log(`Register for server sent events at ${evtUrl}`);
+                evtSource = new EventSource(evtUrl);
+                evtSource.addEventListener("logger", (event) => {
+                    let divElem = document.getElementById("logTab");
+                    let scroll = (divElem.scrollHeight - divElem.scrollTop - divElem.clientHeight) < 10;
+                    document.getElementById("showlog").insertAdjacentText('beforeend', event.data + "\n");
+                    // Only scroll the page if we are already at bottom of the page
+                    if (scroll) divElem.scrollTop = divElem.scrollHeight;
+                });
+                evtSource.addEventListener("error", (event) => {
+                    // If an error occurs close the connection.
+                    console.log(`SSE error occurred while attempting to connect to ${evtSource.url}`);
+                    evtSource.close();
+                });
+            })
+            .catch(error => console.warn(error)),
+
+        fetch("showlog")
+            .then((response) => {
+                if (!response.ok || response.status !== 200) {
+                    reject(`Error requsting logs, RC: ${response.status}`);
+                } else {
+                    return response.text();
+                }
+            })
+            .then((text) => {
+                const elem = document.getElementById("showlog");
+                const header = document.getElementById("showLogHeader");
+                const { serverTime, upTime, bootTime } = findStartTime(text);
+                serverBootTime = bootTime;
+                if (bootTime) {
+                    let date = new Date();
+                    date.setTime(bootTime);
+                    header.insertAdjacentHTML('beforeend', `<pre style="margin: 0px">Server started at:   ${date.toUTCString()}</pre>`);
+                    date.setTime(serverTime);
+                    header.insertAdjacentHTML('beforeend', `<pre style="margin: 0px">Server current time: ${date.toUTCString()}</pre>`);
+                }
+                if (upTime) {
+                    header.insertAdjacentHTML('beforeend', `<pre style="margin: 0px">Server upTime:       ${msToTime(upTime)}</pre>`);
+                }
+                elem.insertAdjacentText('afterbegin', text);
+                let divElem = document.getElementById("logTab");
+                // Scroll to the bottom
+                divElem.scrollTop = divElem.scrollHeight;
+            })
+            .catch(error => console.warn(error)),
+
         fetch("status.json")
             .then((response) => {
                 if (!response.ok || response.status !== 200) {
@@ -170,63 +227,6 @@ async function loadLogs() {
                 document.getElementById("crashlog").innerText = text;
             })
             .catch(error => console.warn(error)),
-
-        fetch("rest/events/subscribe?id=" + clientUUID + "&log=1")
-            .then((response) => {
-                if (!response.ok || response.status !== 200) {
-                    reject(`Error registering for Server Sent Events, RC: ${response.status}`);
-                } else {
-                    return response.text();
-                }
-            })
-            .then((text) => {
-                const evtUrl = text + '?id=' + clientUUID;
-                console.log(`Register for server sent events at ${evtUrl}`);
-                evtSource = new EventSource(evtUrl);
-                evtSource.addEventListener("logger", (event) => {
-                    let divElem = document.getElementById("logTab");
-                    let scroll = (divElem.scrollHeight - divElem.scrollTop - divElem.clientHeight) < 10;
-                    document.getElementById("showlog").insertAdjacentText('beforeend', event.data + "\n");
-                    // Only scroll the page if we are already at bottom of the page
-                    if (scroll) divElem.scrollTop = divElem.scrollHeight;
-                });
-                evtSource.addEventListener("error", (event) => {
-                    // If an error occurs close the connection.
-                    console.log(`SSE error occurred while attempting to connect to ${evtSource.url}`);
-                    evtSource.close();
-                });
-            })
-            .catch(error => console.warn(error)),
-
-        fetch("showlog")
-            .then((response) => {
-                if (!response.ok || response.status !== 200) {
-                    reject(`Error requsting logs, RC: ${response.status}`);
-                } else {
-                    return response.text();
-                }
-            })
-            .then((text) => {
-                const elem = document.getElementById("showlog");
-                const header = document.getElementById("showLogHeader");
-                const { serverTime, upTime, bootTime } = findStartTime(text);
-                serverBootTime = bootTime;
-                if (bootTime) {
-                    let date = new Date();
-                    date.setTime(bootTime);
-                    header.insertAdjacentHTML('beforeend', `<pre style="margin: 0px">Server started at:   ${date.toUTCString()}</pre>`);
-                    date.setTime(serverTime);
-                    header.insertAdjacentHTML('beforeend', `<pre style="margin: 0px">Server current time: ${date.toUTCString()}</pre>`);
-                }
-                if (upTime) {
-                    header.insertAdjacentHTML('beforeend', `<pre style="margin: 0px">Server upTime:       ${msToTime(upTime)}</pre>`);
-                }
-                elem.insertAdjacentText('afterbegin', text);
-                let divElem = document.getElementById("logTab");
-                // Scroll to the bottom
-                divElem.scrollTop = divElem.scrollHeight;
-            })
-            .catch(error => console.warn(error))
     ])
         .then((results) => {
             // Once all loaded reset the progress indicator

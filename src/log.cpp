@@ -98,9 +98,9 @@ void crashCallback()
     {
         ratgdoLogger->logMessageFile.truncate(0);
         ratgdoLogger->logMessageFile.seek(0, fs::SeekSet);
-        ratgdoLogger->logMessageFile.println();
+        ratgdoLogger->logMessageFile.print("\n");
         ratgdoLogger->logMessageFile.write(ESP.checkFlashCRC() ? "Flash CRC OK" : "Flash CRC BAD");
-        ratgdoLogger->logMessageFile.println();
+        ratgdoLogger->logMessageFile.print("\n");
         ratgdoLogger->printMessageLog(ratgdoLogger->logMessageFile);
         ratgdoLogger->logMessageFile.close();
     }
@@ -336,23 +336,36 @@ void LOG::saveMessageLog()
 #ifdef ESP8266
 void LOG::printSavedLog(File file, Print &outputDev)
 {
+    Serial.print("Send saved file.");
     if (file && file.size() > 0)
     {
-        int num = LINE_BUFFER_SIZE;
+        size_t num = LINE_BUFFER_SIZE;
+        size_t count = 0;
         file.seek(0, fs::SeekSet);
         while (num == LINE_BUFFER_SIZE)
         {
             num = file.read((uint8_t *)lineBuffer, LINE_BUFFER_SIZE);
+            // Progress dot dot dot
+            Serial.print(".");
+            YIELD();
             outputDev.write(lineBuffer, num);
+            if ((count += num) > TCP_SND_BUF / 2)
+            {
+                // Don't risk filling the TCP Send Buffer
+                // wait for it to empty with a flush.
+                count = num;
+                outputDev.flush();
+            }
         }
-        outputDev.println();
+        outputDev.print("\n");
+        outputDev.flush();
     }
+    Serial.print("\n");
 }
 #endif
 
 void LOG::printSavedLog(Print &outputDev, bool fromNVram)
 {
-    ESP_LOGI(TAG, "Print saved log%s", fromNVram ? " from NVRAM" : "");
 #ifdef ESP8266
     return printSavedLog(logMessageFile, outputDev);
 #else
@@ -383,43 +396,60 @@ void LOG::printMessageLog(Print &outputDev)
     if (enableNTP && clockSet)
     {
         time_t now = time(NULL);
-        outputDev.print("Server time: ");
-        outputDev.print(now);
-        outputDev.print(" (");
-        outputDev.print(timeString(now));
-        outputDev.println(")");
+        outputDev.printf_P(PSTR("Server time: %llu (%s)\n"), now, timeString(now));
     }
     int64_t upTime = (int64_t)_millis();
-    outputDev.print("Server uptime: ");
-    outputDev.print(upTime);
-    outputDev.print(" ms (");
-    outputDev.print(toHHMMSSmmm((_millis_t)upTime));
-    outputDev.println(")");
-    outputDev.print("Firmware version: ");
-    outputDev.println(AUTO_VERSION);
-#ifdef ESP8266
-    outputDev.print("Flash CRC: 0x");
-    outputDev.println(__crc_val, 16);
-    outputDev.print("Flash length: ");
-    outputDev.println(__crc_len);
-#if defined(MMU_IRAM_HEAP)
-    outputDev.print("IRAM heap size: ");
-    outputDev.println(MMU_SEC_HEAP_SIZE);
-#endif
-#endif
-    outputDev.print("Free heap: ");
-    outputDev.println(free_heap);
-    outputDev.print("Minimum heap: ");
-    outputDev.println(min_heap);
+    outputDev.printf_P(PSTR("Server uptime: %llu ms (%s)\n"), upTime, toHHMMSSmmm((_millis_t)upTime));
+    outputDev.println("Firmware version: " AUTO_VERSION);
+    outputDev.printf_P(PSTR("Free heap: %d\n"), free_heap);
+    YIELD();
+    _millis_t t1 = _millis();
+    outputDev.printf_P(PSTR("Minimum heap: %d\n"), min_heap);
+    outputDev.flush();
+    uint32_t latency = (uint32_t)(_millis() - t1);
+    Serial.printf("Latency: %d\n", latency);
+
     if (msgBuffer)
     {
-        // head points to a zero (null terminator of previous log line) which we need to skip.
-        size_t start = (msgBuffer->head + 1) % sizeof(msgBuffer->buffer);
+        // +1 head points to a zero (null terminator of previous log line) which we need to skip.
+        // +3 want to round up to multiple of 4
+        size_t start = ((msgBuffer->head + 1 + 3) & ~0x03) % sizeof(msgBuffer->buffer);
+        size_t len = sizeof(msgBuffer->buffer) - start;
+        size_t CHUNK;
+        if (latency < 75)
+            CHUNK = sizeof(logBuffer);
+        else
+            CHUNK = 512; // Less than TCP_SND_BUF
+        size_t chunk = CHUNK;
+        Serial.print("Send message log.");
         if (msgBuffer->wrapped != 0)
         {
-            outputDev.write(&msgBuffer->buffer[start], sizeof(msgBuffer->buffer) - start);
+            while (len)
+            {
+                chunk = std::min(len, CHUNK);
+                // Progress dot dot dot
+                Serial.print(".");
+                YIELD();
+                outputDev.write(&msgBuffer->buffer[start], chunk);
+                outputDev.flush();
+                len -= chunk;
+                start += chunk;
+            }
         }
-        outputDev.print(msgBuffer->buffer); // assumes null terminated
+        start = 0;
+        len = strlen(msgBuffer->buffer); // must be null terminated
+        while (len)
+        {
+            chunk = std::min(len, CHUNK);
+            // Progress dot dot dot
+            Serial.print(".");
+            YIELD();
+            outputDev.write(&msgBuffer->buffer[start], chunk);
+            outputDev.flush();
+            len -= chunk;
+            start += chunk;
+        }
+        Serial.print("\n");
     }
     GIVE_MUTEX();
 }
