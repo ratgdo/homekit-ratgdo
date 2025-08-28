@@ -210,27 +210,17 @@ int activeRequestCount = 0;
 static char writeBuffer[512];
 bool clientWrite(WiFiClient client, const char *data)
 {
-    // Default timout of 5000ms is way too long, WDT could fire.
-    client.setTimeout(CLIENT_WRITE_TIMEOUT);
     size_t len = strlen(data);
     size_t written = 0;
-    constexpr uint32_t max_attempts = 3;
-    uint32_t attempts = 0;
-    while (attempts++ < max_attempts && written == 0)
-    {
 #ifdef ESP8266
-        client.flush(); // make sure previous data all sent.
+    client.flush(); // make sure previous data all sent.
 #endif
-        written = client.write(data, len);
-        if (attempts > 0 && written == 0)
-        {
-            YIELD();
-            ESP_LOGW(TAG, "Failed writing to WiFi Client (%d of %d)", written, len);
-        }
-    }
-    if (attempts >= max_attempts)
+    written = client.write(data, len);
+    if (written == 0)
     {
-        ESP_LOGE(TAG, "Error writing to WiFi Client (%d of %d)", written, len);
+        YIELD();
+        client.stop();
+        ESP_LOGW(TAG, "Failed writing to WiFi Client (%d of %d), connection closed.", written, len);
         return false;
     }
     return true;
@@ -247,7 +237,7 @@ bool registerRequest()
     {
         if (activeRequests[i].inUse && (now - activeRequests[i].startTime > REQUEST_TIMEOUT_MS))
         {
-            ESP_LOGI(TAG, "Request timeout for client %s", activeRequests[i].clientIP.toString().c_str());
+            ESP_LOGD(TAG, "Request timeout for client %s", activeRequests[i].clientIP.toString().c_str());
             activeRequests[i].inUse = false;
             activeRequestCount--;
         }
@@ -525,6 +515,8 @@ void handle_reset()
 #endif
     server.client().setNoDelay(true);
     server.send_P(200, type_txt, PSTR("Device has been un-paired from HomeKit. Rebooting...\n"));
+    ESP_LOGI(TAG, "System boot time:   %s", timeString(lastRebootAt));
+    ESP_LOGI(TAG, "Un-pair restart at: %s", timeString());
     // Allow time to process send() before terminating web server...
     delay(500);
     server.stop();
@@ -797,7 +789,7 @@ void handle_status()
     JSON_ADD_INT("webDroppedConns", dropped_connections);
     JSON_ADD_INT("webMaxResponseTime", max_response_time);
     JSON_END();
-    ESP_LOGI(TAG, "JSON build time: %lums", (uint32_t)(_millis() - startTime));
+    ESP_LOGD(TAG, "JSON build time: %lums", (uint32_t)(_millis() - startTime));
     //  send JSON straight to serial port
     Serial.print(json);
     Serial.print("\n");
@@ -927,7 +919,8 @@ bool helperUpdateUnderway(const std::string &key, const char *value, configSetti
 
 bool helperFactoryReset(const std::string &key, const char *value, configSetting *action)
 {
-    ESP_LOGI(TAG, "Factory reset requested");
+    ESP_LOGI(TAG, "System boot time: %s", timeString(lastRebootAt));
+    ESP_LOGI(TAG, "Factory reset at: %s", timeString());
 #ifdef ESP8266
     userConfig->erase();
     reset_door();
@@ -1046,7 +1039,8 @@ void handle_setgdo()
     {
         // Some settings require reboot to take effect
         server.send_P(200, type_html, PSTR("<p>Success. Reboot.</p>"));
-        ESP_LOGI(TAG, "SetGDO Restart required");
+        ESP_LOGI(TAG, "System boot time:  %s", timeString(lastRebootAt));
+        ESP_LOGI(TAG, "SetGDO Restart at: %s", timeString());
         // Allow time to process send() before terminating web server...
         delay(500);
         server.stop();
@@ -1166,8 +1160,20 @@ void SSEHandler(uint32_t channel)
     s.SSEfailCount = 0;
     if (s.heartbeatInterval)
     {
-        s.heartbeatTimer.attach_ms(s.heartbeatInterval * 1000, [channel, &s]
-                                   { SSEheartbeat(&s); });
+        s.heartbeatTimer.attach_ms(s.heartbeatInterval * 1000, [&s]
+                                   {
+#ifdef ESP8266
+                                       schedule_recurrent_function_us([&s]()
+                                                                      {
+                                                                          SSEheartbeat(&s);
+                                                                          return false; // run the fn only once
+                                                                      },
+                                                                      0); // zero micro seconds (run asap)
+#else
+                                       SSEheartbeat(&s);
+                                       return;
+#endif
+                                   });
     }
     ESP_LOGI(TAG, "Client %s listening for SSE events on channel %d", client.remoteIP().toString().c_str(), channel);
 }
@@ -1291,7 +1297,7 @@ void handle_subscribe()
     }
     if (heartbeatInterval > 0)
     {
-        ESP_LOGI(TAG, "SSE Subscription for client %s has specified a heartbeat Interval of %d seconds", server.arg(id).c_str(), heartbeatInterval);
+        ESP_LOGD(TAG, "SSE Subscription for client %s has specified a heartbeat Interval of %d seconds", server.arg(id).c_str(), heartbeatInterval);
     }
     else
     {
@@ -1316,48 +1322,41 @@ void handle_subscribe()
 
 void handle_crashlog()
 {
-    ESP_LOGI(TAG, "Request to display crash log...");
-    WiFiClient client = server.client();
+    server.client().print(response200);
 #ifdef ESP8266
-    client.flush(); // make sure previous data all sent.
-#endif
-    client.print(response200);
-#ifdef ESP8266
-    saveCrash.print(client);
+    // We save data from crash EEPROM into a temp file so when we send to the
+    // browser client we chunk it in smaller pieces.  This improves reliability
+    // on slow network links avoiding watchdog timeouts
+    constexpr char CRASH_TEMP_FILE[] = "/crash_temp";
+    File crashTempFile = (LittleFS.exists(CRASH_TEMP_FILE)) ? LittleFS.open(CRASH_TEMP_FILE, "r+") : LittleFS.open(CRASH_TEMP_FILE, "w+");
+    crashTempFile.truncate(0);
+    crashTempFile.seek(0, fs::SeekSet);
+    saveCrash.print(crashTempFile);
+    ratgdoLogger->printSavedLog(crashTempFile);
+    crashTempFile.close();
     if (crashCount > 0)
-        ratgdoLogger->printSavedLog(client);
+        ratgdoLogger->printSavedLog(server.client());
 #else
-    ratgdoLogger->printCrashLog(client);
+    ratgdoLogger->printCrashLog(server.client());
 #endif
-    client.stop();
 }
 
 void handle_showlog()
 {
-    WiFiClient client = server.client();
-#ifdef ESP8266
-    client.flush(); // make sure previous data all sent.
-#endif
-    client.print(response200);
-    ratgdoLogger->printMessageLog(client);
-    client.stop();
+    server.client().print(response200);
+    ratgdoLogger->printMessageLog(server.client());
 }
 
 void handle_showrebootlog()
 {
-    WiFiClient client = server.client();
-#ifdef ESP8266
-    client.flush(); // make sure previous data all sent.
-#endif
-    client.print(response200);
+    server.client().print(response200);
 #ifdef ESP8266
     File file = LittleFS.open(REBOOT_LOG_MSG_FILE, "r");
-    ratgdoLogger->printSavedLog(file, client);
+    ratgdoLogger->printSavedLog(file, server.client());
     file.close();
 #else
-    ratgdoLogger->printSavedLog(client);
+    ratgdoLogger->printSavedLog(server.client());
 #endif
-    client.stop();
 }
 
 void handle_clearcrashlog()
@@ -1494,6 +1493,8 @@ void handle_update()
     {
         // Legacy... no query string args, so automatically reboot...
         server.send_P(200, type_txt, PSTR("Upload Success. Rebooting...\n"));
+        ESP_LOGI(TAG, "System boot time:   %s", timeString(lastRebootAt));
+        ESP_LOGI(TAG, "Firmware update at: %s", timeString());
         // Allow time to process send() before terminating web server...
         delay(500);
         server.stop();
