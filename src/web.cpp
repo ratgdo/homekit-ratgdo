@@ -340,6 +340,7 @@ void web_loop()
     JSON_ADD_BOOL_C("garageLightOn", garage_door.light, last_reported_garage_door.light);
     JSON_ADD_BOOL_C("garageMotion", garage_door.motion, last_reported_garage_door.motion);
     JSON_ADD_BOOL_C("garageObstructed", garage_door.obstructed, last_reported_garage_door.obstructed);
+    JSON_ADD_BOOL_C("garageSec1Emulated", garage_door.wallPanelEmulated, last_reported_garage_door.wallPanelEmulated);
     if (doorControlType == 2)
     {
         JSON_ADD_INT_C("batteryState", garage_door.batteryState, last_reported_garage_door.batteryState);
@@ -709,6 +710,7 @@ void handle_status()
 #endif
     JSON_ADD_INT("wifiPower", userConfig->getWifiPower());
     JSON_ADD_INT(cfg_GDOSecurityType, (uint32_t)userConfig->getGDOSecurityType());
+    JSON_ADD_BOOL("garageSec1Emulated", garage_door.wallPanelEmulated);
     JSON_ADD_BOOL(cfg_useToggleToClose, userConfig->getUseToggleToClose());
     JSON_ADD_STR("garageDoorState", garage_door.active ? DOOR_STATE(garage_door.current_state) : DOOR_STATE(255));
     JSON_ADD_STR("garageLockState", LOCK_STATE(garage_door.current_lock));
@@ -791,8 +793,8 @@ void handle_status()
     JSON_END();
     ESP_LOGD(TAG, "JSON build time: %lums", (uint32_t)(_millis() - startTime));
     //  send JSON straight to serial port
-    Serial.print(json);
-    Serial.print("\n");
+    //Serial.print(json);
+    //Serial.print("\n");
 
     last_reported_garage_door = garage_door;
     server.sendHeader(F("Cache-Control"), F("no-cache, no-store"));

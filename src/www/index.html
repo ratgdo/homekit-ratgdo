@@ -110,41 +110,51 @@
           <input type="button" id="unpair" value="Reset HomeKit" style="width: 28%;" onclick="unpairRATGDO()">
         </div>
         <div class="fullwidth">
-          <table style="width: 100%">
+          <table style="table-layout: fixed; width: 95%;">
+            <colgroup>
+              <col width="30%">
+              <col width="20%">
+              <col width="5%">
+              <col width="20%">
+              <col width="25%">
+            </colgroup>
             <tr>
-              <td style="width: 30%;">Door State:</td>
-              <td style="width: 20%;" id="garageDoorState"></td>
-              <td style="width: 25%;">Obstruction:</td>
-              <td style="width: 25%;" id="garageObstructed"></td>
+              <td>Door State:</td>
+              <td id="garageDoorState"></td>
+              <td colspan="2">Obstruction:</td>
+              <td id="garageObstructed"></td>
             </tr>
             <tr id="lockLightRow">
               <td>Lock&nbsp;State:</td>
               <td id="garageLockState"></td>
-              <td>Light&nbsp;On:</td>
+              <td colspan="2">Light&nbsp;On:</td>
               <td id="garageLightOn"></td>
             </tr>
             <tr>
               <td>Door&nbsp;Protocol:</td>
-              <td id="GDOSecurityType"></td>
+              <td colspan="2" style="width: 35%;">
+                <span id="GDOSecurityType"></span>
+                <span id="sec1emulation" style="font-size: 0.6em; display: none">(Emulation)</span>
+              </td>
               <td id="motionLabel">Motion:</td>
               <td id="garageMotion"></td>
             </tr>
             <tr id="secPlus2Row" style="display:none;">
               <td>Cycle&nbsp;Count:</td>
               <td id="openingsCount"></td>
-              <td>Battery:</td>
+              <td colspan="2">Battery:</td>
               <td id="batteryState"></td>
             </tr>
             <tr id="durationRow">
               <td>Opening:</td>
               <td id="openDuration">unknown</td>
-              <td>Closing:</td>
+              <td colspan="2">Closing:</td>
               <td id="closeDuration">unknown</td>
             </tr>
             <tr id="vehicleRow" style="display:none;">
               <td>Vehicle:</td>
               <td id="vehicleStatus"></td>
-              <td>Distance:</td>
+              <td colspan="2">Distance:</td>
               <td>
                 <span id="vehicleDist"></span>&nbsp;cm<span style="font-size: 0.8em;">&nbsp;(<span
                     id="vehicleDistInch"></span>&nbsp;inch)</span>
@@ -568,7 +578,7 @@
             License.</a>
         </p>
         <br>
-        <table style="border-collapse: collapse">
+        <table>
           <tr id="freeMemRow">
             <td colspan="2" style="width: 45%; padding: 0px">
               freeHeap:&nbsp;<span id="freeHeap">0</span>&nbsp;
@@ -581,7 +591,7 @@
             </td>
           </tr>
         </table>
-        <table style="border-collapse: collapse">
+        <table>
           <tr>
             <td style="width: 40%; padding: 0px">lastDoorChange:&nbsp;</td>
             <td style="width: 60%; padding: 0px" id="lastDoorUpdateAt"></td>
