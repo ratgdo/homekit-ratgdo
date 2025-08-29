@@ -141,6 +141,7 @@ extern "C" uint32_t min_heap;
 struct __attribute__((aligned(4))) GarageDoor
 {
     bool active;
+    bool wallPanelEmulated;
     GarageDoorCurrentState current_state;
     GarageDoorTargetState target_state;
     bool obstructed;

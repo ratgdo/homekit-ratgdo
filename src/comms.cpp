@@ -648,6 +648,8 @@ void wallPlate_Emulation()
         {
             emulateWallPanel = true;
             ESP_LOGI(TAG, "No DIGITAL wall panel detected. Switching to emulation mode.");
+
+            garage_door.wallPanelEmulated = true;
         }
 
         // transmit every 250ms

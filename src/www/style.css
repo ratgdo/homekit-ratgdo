@@ -219,6 +219,15 @@ td {
     vertical-align: top;
 }
 
+table {
+    border-collapse: collapse;
+}
+
+table.password,
+table.settings {
+    border-collapse: unset;
+}
+
 table.settings td,
 table.settings label,
 table.password td,
