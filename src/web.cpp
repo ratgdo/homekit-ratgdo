@@ -41,7 +41,7 @@
 #include "json.h"
 #include "led.h"
 #ifdef ESP8266
-#include "wifi.h"
+#include "wifi_8266.h"
 #include "EspSaveCrash.h"
 #else
 #include "vehicle.h"

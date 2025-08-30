@@ -26,7 +26,7 @@
 #include "config.h"
 #include "provision.h"
 #include "softAP.h"
-#include "wifi.h"
+#include "wifi_8266.h"
 
 // Logger tag
 static const char *TAG = "ratgdo-improv";
