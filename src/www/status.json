@@ -34,12 +34,12 @@
   "wifiPhyMode": 0,
   "wifiPower": 10,
   "TTCseconds": 10,
+  "builtInTTC": false,
   "motionTriggers": 3,
   "LEDidle": 1,
   "enableNTP": true,
   "lastDoorUpdateAt": 847155,
   "timeZone": "America/New_York;EST5EDT,M3.2.0,M11.1.0",
-  "distanceSensor": false,
   "qrPayload": "X-HM://0042WZMX3RTGO",
   "batteryState": 8,
   "openingsCount": 999,
@@ -49,5 +49,5 @@
   "dcOpenClose": false,
   "TTClight": true,
   "obstFromStatus": true,
-  "occupancyDuration": 300
+  "garageSec1Emulated": false
 }
