@@ -491,7 +491,8 @@ void logToSyslog(char *message)
         PRI += SYSLOG_DEBUG;
 
     // Replace newline with null terminator
-    strtok(message, "\r\n");
+    strtok(message, "\n");
+    strtok(message, "\r");
 
     syslog.beginPacket(syslogIP, syslogPort);
     // Use RFC5424 Format

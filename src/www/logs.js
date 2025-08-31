@@ -9,6 +9,8 @@
 var evtSource = undefined;      // for Server Sent Events (SSE)
 var msgJson = undefined;        // for status
 const clientUUID = uuidv4();    // uniquely identify this session
+var sysLogLoaded = false;
+var tmpLogMsgs = [];
 
 function findStartTime(text) {
     const regex = /[\s\r\n]/;
@@ -100,6 +102,8 @@ function openTab(evt, tabName) {
 }
 
 async function loadLogs() {
+    sysLogLoaded = false;
+    tmpLogMsgs.length = 0;
     // Load all the logs in parallel, showing progress indicator while we do...
     loaderElem.style.visibility = "visible";
     console.log("Subscribe to Server Sent Events")
@@ -123,6 +127,7 @@ async function loadLogs() {
                 let divElem = document.getElementById("logTab");
                 let scroll = (divElem.scrollHeight - divElem.scrollTop - divElem.clientHeight) < 10;
                 document.getElementById("showlog").insertAdjacentText('beforeend', event.data + "\n");
+                if (!sysLogLoaded) tmpLogMsgs.push(event.data);
                 // Only scroll the page if we are already at bottom of the page
                 if (scroll) divElem.scrollTop = divElem.scrollHeight;
             });
@@ -150,6 +155,7 @@ async function loadLogPages() {
                 }
             })
             .then((text) => {
+                sysLogLoaded = true;
                 const elem = document.getElementById("showlog");
                 const header = document.getElementById("showLogHeader");
                 const { serverTime, upTime, bootTime } = findStartTime(text);
@@ -162,6 +168,12 @@ async function loadLogPages() {
                 }
                 if (upTime) {
                     header.insertAdjacentHTML('beforeend', `<pre style="margin: 0px">Server upTime:       ${msToTime(upTime)}</pre>`);
+                }
+                // reduce newlines down to single \n
+                text = text.replaceAll('\r\n', '\n');
+                while (line = tmpLogMsgs.pop()) {
+                    console.log(`Remove dup: ${line}`);
+                    text = text.replace(line + '\n', '');
                 }
                 elem.insertAdjacentText('afterbegin', text);
                 let divElem = document.getElementById("logTab");
