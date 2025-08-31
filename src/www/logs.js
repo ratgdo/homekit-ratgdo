@@ -101,36 +101,45 @@ function openTab(evt, tabName) {
 
 async function loadLogs() {
     // Load all the logs in parallel, showing progress indicator while we do...
-    let serverBootTime = undefined;
     loaderElem.style.visibility = "visible";
-    console.log("Start loading server logs and status");
+    console.log("Subscribe to Server Sent Events")
+    fetch("rest/events/subscribe?id=" + clientUUID + "&log=1&heartbeat=0")
+        .then((response) => {
+            if (!response.ok || response.status !== 200) {
+                reject(`Error registering for Server Sent Events, RC: ${response.status}`);
+            } else {
+                return response.text();
+            }
+        })
+        .then((text) => {
+            const evtUrl = text + '?id=' + clientUUID;
+            console.log(`Register for Server Sent Events at ${evtUrl}`);
+            evtSource = new EventSource(evtUrl);
+            evtSource.onopen = () => {
+                console.log("Load each log page");
+                loadLogPages();
+            };
+            evtSource.addEventListener("logger", (event) => {
+                let divElem = document.getElementById("logTab");
+                let scroll = (divElem.scrollHeight - divElem.scrollTop - divElem.clientHeight) < 10;
+                document.getElementById("showlog").insertAdjacentText('beforeend', event.data + "\n");
+                // Only scroll the page if we are already at bottom of the page
+                if (scroll) divElem.scrollTop = divElem.scrollHeight;
+            });
+            evtSource.addEventListener("error", (event) => {
+                // If an error occurs close the connection.
+                console.log(`SSE error occurred while attempting to connect to ${evtSource.url}`);
+                evtSource.close();
+            });
+        })
+        .catch((error) => {
+            console.warn(`Failed to register for Server Sent Events: ${error}`);
+        });
+}
+
+async function loadLogPages() {
+    // Load the pages in background
     Promise.allSettled([
-        fetch("rest/events/subscribe?id=" + clientUUID + "&log=1")
-            .then((response) => {
-                if (!response.ok || response.status !== 200) {
-                    reject(`Error registering for Server Sent Events, RC: ${response.status}`);
-                } else {
-                    return response.text();
-                }
-            })
-            .then((text) => {
-                const evtUrl = text + '?id=' + clientUUID;
-                console.log(`Register for server sent events at ${evtUrl}`);
-                evtSource = new EventSource(evtUrl);
-                evtSource.addEventListener("logger", (event) => {
-                    let divElem = document.getElementById("logTab");
-                    let scroll = (divElem.scrollHeight - divElem.scrollTop - divElem.clientHeight) < 10;
-                    document.getElementById("showlog").insertAdjacentText('beforeend', event.data + "\n");
-                    // Only scroll the page if we are already at bottom of the page
-                    if (scroll) divElem.scrollTop = divElem.scrollHeight;
-                });
-                evtSource.addEventListener("error", (event) => {
-                    // If an error occurs close the connection.
-                    console.log(`SSE error occurred while attempting to connect to ${evtSource.url}`);
-                    evtSource.close();
-                });
-            })
-            .catch(error => console.warn(error)),
 
         fetch("showlog")
             .then((response) => {
@@ -144,7 +153,6 @@ async function loadLogs() {
                 const elem = document.getElementById("showlog");
                 const header = document.getElementById("showLogHeader");
                 const { serverTime, upTime, bootTime } = findStartTime(text);
-                serverBootTime = bootTime;
                 if (bootTime) {
                     let date = new Date();
                     date.setTime(bootTime);

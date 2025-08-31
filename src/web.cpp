@@ -195,7 +195,7 @@ static SemaphoreHandle_t jsonMutex = NULL;
                                                         : "Unknown"
 
 // Connection throttling
-#define MAX_CONCURRENT_REQUESTS 4
+#define MAX_CONCURRENT_REQUESTS 8
 #define REQUEST_TIMEOUT_MS 2000
 struct ActiveRequest
 {
@@ -793,8 +793,8 @@ void handle_status()
     JSON_END();
     ESP_LOGD(TAG, "JSON build time: %lums", (uint32_t)(_millis() - startTime));
     //  send JSON straight to serial port
-    //Serial.print(json);
-    //Serial.print("\n");
+    // Serial.print(json);
+    // Serial.print("\n");
 
     last_reported_garage_door = garage_door;
     server.sendHeader(F("Cache-Control"), F("no-cache, no-store"));
@@ -1129,7 +1129,7 @@ void SSEheartbeat(SSESubscription *s)
         if (subscriptionCount > 0)
             subscriptionCount--; // Prevent negative count
         s->heartbeatTimer.detach();
-        ESP_LOGI(TAG, "Client %s not listening, remove SSE subscription. Total subscribed: %d", s->clientIP.toString().c_str(), subscriptionCount);
+        ESP_LOGI(TAG, "Client %s with IP %s not listening, remove SSE subscription. Total subscribed: %d", s->clientUUID.c_str(), s->clientIP.toString().c_str(), subscriptionCount);
         s->client.stop();
         s->clientIP = INADDR_NONE;
         s->clientUUID.clear();
@@ -1297,14 +1297,6 @@ void handle_subscribe()
             heartbeatInterval = (uint32_t)hbi;
         }
     }
-    if (heartbeatInterval > 0)
-    {
-        ESP_LOGD(TAG, "SSE Subscription for client %s has specified a heartbeat Interval of %d seconds", server.arg(id).c_str(), heartbeatInterval);
-    }
-    else
-    {
-        ESP_LOGI(TAG, "SSE Subscription for client %s has specified a heartbeat disabled", server.arg(id).c_str());
-    }
 
     // Safe assignment with validation
     subscription[channel].clientIP = clientIP;
@@ -1317,7 +1309,7 @@ void handle_subscribe()
     subscription[channel].heartbeatInterval = heartbeatInterval;
 
     SSEurl += std::to_string(channel);
-    ESP_LOGI(TAG, "SSE Subscription for client %s with IP %s: event bus location: %s, Total subscribed: %d", server.arg(id).c_str(), clientIP.toString().c_str(), SSEurl.c_str(), subscriptionCount);
+    ESP_LOGI(TAG, "SSE Subscription for client %s with IP %s: event bus location: %s, Total subscribed: %d, Heartbeat interval: %d, Log viewer: %d", server.arg(id).c_str(), clientIP.toString().c_str(), SSEurl.c_str(), subscriptionCount, heartbeatInterval, (int)logViewer);
     server.sendHeader(F("Cache-Control"), F("no-cache, no-store"));
     server.send_P(200, type_txt, SSEurl.c_str());
 }
@@ -1417,7 +1409,6 @@ void SSEBroadcastState(const char *data, BroadcastType type)
             {
                 if (subscription[i].logViewer)
                 {
-                    // retry needed to before event:
                     if (snprintf(writeBuffer, sizeof(writeBuffer), "event: logger\ndata: %s\n\n", data) >= (int)sizeof(writeBuffer))
                     {
                         // Will not fit in our write buffer, let system printf handle
