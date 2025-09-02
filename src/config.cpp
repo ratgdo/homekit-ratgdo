@@ -367,10 +367,26 @@ void userSettings::toFile(Print &file)
         else if (std::holds_alternative<int>(it.second.value))
         {
             file.printf("%s,,%d\n", it.first.c_str(), std::get<int>(it.second.value));
+#ifdef ESP8266
+            // Also save selected values under their old (v1.9.x and older) keynames
+            // Just-in-case user uploads back-level firmware.
+            if (it.first == cfg_GDOSecurityType)
+                file.printf("gdoSecurityType,,%d\n", std::get<int>(it.second.value));
+            else if (it.first == cfg_TTCseconds)
+                file.printf("TTCdelay,,%d\n", std::get<int>(it.second.value));
+            else if (it.first == cfg_LEDidle)
+                file.printf("ledIdleState,,%d\n", std::get<int>(it.second.value));
+#endif
         }
         else
         {
             file.printf("%s,,%d\n", it.first.c_str(), std::get<bool>(it.second.value));
+#ifdef ESP8266
+            // Also save selected values under their old (v1.9.x and older) keynames
+            // Just-in-case user uploads back-level firmware.
+            if (it.first == cfg_passwordRequired)
+                file.printf("wwwPWrequired,,%d\n", std::get<bool>(it.second.value));
+#endif
         }
     }
 }
