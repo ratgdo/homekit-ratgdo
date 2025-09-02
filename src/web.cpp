@@ -659,30 +659,15 @@ void handle_everything()
 void handle_status()
 {
     static uint32_t max_response_time = 0;
-    // static uint32_t cache_hits = 0;
     _millis_t startTime = _millis();
     _millis_t upTime = startTime;
-    // static _millis_t json_cache_time = 0;
     uint32_t response_time;
+    uint32_t build_time;
     static char *json = status_json;
 
     TAKE_MUTEX();
     request_count++;
 
-    /* Improved JSON built functione make this redundant...
-    // Check if we can use the last JSON response rather than build a new string
-    if (upTime - json_cache_time < STATUS_JSON_CACHE_TIMEOUT_MS)
-    {
-        cache_hits++;
-        server.sendHeader(F("Cache-Control"), F("no-cache, no-store"));
-        server.send_P(200, type_json, json);
-        response_time = (uint32_t)(_millis() - startTime);
-        max_response_time = std::max(max_response_time, response_time);
-        ESP_LOGI(TAG, "JSON cached length: %d, time: %lums", strlen(json), response_time);
-        GIVE_MUTEX();
-        return;
-    }
-*/
     // Build the JSON string
     JSON_START(json);
 #ifdef ESP8266
@@ -787,28 +772,23 @@ void handle_status()
     JSON_ADD_INT(cfg_assistDuration, userConfig->getAssistDuration());
 #endif
     JSON_ADD_INT("webRequests", request_count);
-    // JSON_ADD_INT("webCacheHits", cache_hits);
     JSON_ADD_INT("webDroppedConns", dropped_connections);
     JSON_ADD_INT("webMaxResponseTime", max_response_time);
     JSON_END();
-    ESP_LOGD(TAG, "JSON build time: %lums", (uint32_t)(_millis() - startTime));
-    //  send JSON straight to serial port
-    // Serial.print(json);
-    // Serial.print("\n");
+    build_time = (uint32_t)(_millis() - startTime);
 
     last_reported_garage_door = garage_door;
     server.sendHeader(F("Cache-Control"), F("no-cache, no-store"));
     server.send_P(200, type_json, json);
     response_time = _millis() - startTime;
-    // json_cache_time = _millis();
     max_response_time = std::max(max_response_time, response_time);
     if (strlen(json) > STATUS_JSON_BUFFER_SIZE * 85 / 100)
     {
-        ESP_LOGW(TAG, "WARNING status JSON length: %d is over 85%% of available buffer, time: %lums", strlen(json), response_time);
+        ESP_LOGW(TAG, "WARNING status JSON length: %d is over 85%% of available buffer, build time %lums, response time: %lums", strlen(json), build_time, response_time);
     }
     else
     {
-        ESP_LOGI(TAG, "JSON length: %d, time: %lums", strlen(json), response_time);
+        ESP_LOGI(TAG, "JSON length: %d, build time %lums, response time: %lums", strlen(json), build_time, response_time);
     }
     GIVE_MUTEX();
     return;
@@ -1055,6 +1035,18 @@ void handle_setgdo()
     return;
 }
 
+void removeSSEsubscription(SSESubscription *s)
+{
+    if (subscriptionCount > 0)
+        subscriptionCount--; // Prevent negative count
+    s->heartbeatTimer.detach();
+    ESP_LOGI(TAG, "Client %s (%s) not listening, remove SSE subscription. Total subscribed: %d", s->clientIP.toString().c_str(), s->clientUUID.c_str(), subscriptionCount);
+    s->client.stop();
+    s->clientIP = INADDR_NONE;
+    s->clientUUID.clear();
+    s->SSEconnected = false;
+}
+
 void SSEheartbeat(SSESubscription *s)
 {
     if (!s)
@@ -1069,18 +1061,11 @@ void SSEheartbeat(SSESubscription *s)
         {
             // 5 heartbeats have failed... assume client will not connect
             // and free up the slot
-            if (subscriptionCount > 0)
-                subscriptionCount--; // Prevent negative count
-            s->heartbeatTimer.detach();
-            s->clientIP = INADDR_NONE;
-            s->clientUUID.clear();
-            s->SSEconnected = false;
-            ESP_LOGI(TAG, "Client %s timeout waiting to listen, remove SSE subscription.  Total subscribed: %d", s->clientIP.toString().c_str(), subscriptionCount);
-            // no need to stop client socket because it is not live yet.
+            removeSSEsubscription(s);
         }
         else
         {
-            ESP_LOGI(TAG, "Client %s not yet listening for SSE", s->clientIP.toString().c_str());
+            ESP_LOGI(TAG, "Client %s (%s) not yet listening for SSE", s->clientIP.toString().c_str(), s->clientUUID.c_str());
         }
         return;
     }
@@ -1126,14 +1111,7 @@ void SSEheartbeat(SSESubscription *s)
     }
     else
     {
-        if (subscriptionCount > 0)
-            subscriptionCount--; // Prevent negative count
-        s->heartbeatTimer.detach();
-        ESP_LOGI(TAG, "Client %s with IP %s not listening, remove SSE subscription. Total subscribed: %d", s->clientUUID.c_str(), s->clientIP.toString().c_str(), subscriptionCount);
-        s->client.stop();
-        s->clientIP = INADDR_NONE;
-        s->clientUUID.clear();
-        s->SSEconnected = false;
+        removeSSEsubscription(s);
         YIELD();
     }
 }
@@ -1146,16 +1124,16 @@ void SSEHandler(uint32_t channel)
         server.send_P(400, type_txt, response400missing);
         return;
     }
-    WiFiClient client = server.client();
+
     SSESubscription &s = subscription[channel];
+    s.client = server.client(); // capture SSE server client connection
     if (s.clientUUID != server.arg(0))
     {
-        ESP_LOGI(TAG, "Client %s with IP %s tries to listen for SSE but not subscribed", server.arg(0).c_str(), client.remoteIP().toString().c_str());
+        ESP_LOGI(TAG, "Client %s (%s) tries to listen for SSE but not subscribed", s.client.remoteIP().toString().c_str(), server.arg(0).c_str());
         return handle_notfound();
     }
-    client.setNoDelay(true);
-    client.setTimeout(CLIENT_WRITE_TIMEOUT);         // default is 5000ms which is way too long (Watchdog will fire)
-    s.client = client;                               // capture SSE server client connection
+    s.client.setNoDelay(true);
+    s.client.setTimeout(CLIENT_WRITE_TIMEOUT);       // default is 5000ms which is way too long (Watchdog will fire)
     server.setContentLength(CONTENT_LENGTH_UNKNOWN); // the payload can go on forever
     server.sendContent_P(PSTR("HTTP/1.1 200 OK\nContent-Type: text/event-stream;\nConnection: keep-alive\nCache-Control: no-cache\nAccess-Control-Allow-Origin: *\n\n"));
     s.SSEconnected = true;
@@ -1177,7 +1155,7 @@ void SSEHandler(uint32_t channel)
 #endif
                                    });
     }
-    ESP_LOGI(TAG, "Client %s listening for SSE events on channel %d", client.remoteIP().toString().c_str(), channel);
+    ESP_LOGI(TAG, "Client %s (%s) listening for SSE events on channel %d", s.client.remoteIP().toString().c_str(), s.clientUUID.c_str(), channel);
 }
 
 void handle_subscribe()
@@ -1235,15 +1213,13 @@ void handle_subscribe()
             if (subscription[channel].SSEconnected)
             {
                 // Already connected.  We need to close it down as client will be reconnecting
-                ESP_LOGI(TAG, "SSE Subscribe - client %s with IP %s already connected on channel %d, remove subscription", server.arg(id).c_str(), clientIP.toString().c_str(), channel);
-                subscription[channel].heartbeatTimer.detach();
-                subscription[channel].client.stop();
-                subscription[channel].SSEconnected = false;
+                ESP_LOGI(TAG, "Client %s (%s) already connected on channel %d, remove SSE subscription", clientIP.toString().c_str(), server.arg(id).c_str(), channel);
+                removeSSEsubscription(&subscription[channel]);
             }
             else
             {
                 // Subscribed but not connected yet, so nothing to close down.
-                ESP_LOGI(TAG, "SSE Subscribe - client %s with IP %s already subscribed but not connected on channel %d", server.arg(id).c_str(), clientIP.toString().c_str(), channel);
+                ESP_LOGI(TAG, "Client %s (%s) already subscribed for SSE but not connected on channel %d", clientIP.toString().c_str(), server.arg(id).c_str(), channel);
             }
             break;
         }
@@ -1309,7 +1285,7 @@ void handle_subscribe()
     subscription[channel].heartbeatInterval = heartbeatInterval;
 
     SSEurl += std::to_string(channel);
-    ESP_LOGI(TAG, "SSE Subscription for client %s with IP %s: event bus location: %s, Total subscribed: %d, Heartbeat interval: %d, Log viewer: %d", server.arg(id).c_str(), clientIP.toString().c_str(), SSEurl.c_str(), subscriptionCount, heartbeatInterval, (int)logViewer);
+    ESP_LOGI(TAG, "Client %s (%s) SSE subscription: %s, Total subscribed: %d, Heartbeat interval: %d, Log viewer: %d", clientIP.toString().c_str(), server.arg(id).c_str(), SSEurl.c_str(), subscriptionCount, heartbeatInterval, (int)logViewer);
     server.sendHeader(F("Cache-Control"), F("no-cache, no-store"));
     server.send_P(200, type_txt, SSEurl.c_str());
 }
@@ -1403,19 +1379,39 @@ void SSEBroadcastState(const char *data, BroadcastType type)
     for (uint32_t i = 0; i < SSE_MAX_CHANNELS; i++)
     {
         YIELD(); // yield between each SSE client
-        if (subscription[i].SSEconnected && subscription[i].client.connected())
+        if (subscription[i].SSEconnected)
         {
-            if (type == LOG_MESSAGE)
+            if (subscription[i].client.connected())
             {
-                if (subscription[i].logViewer)
+                if (type == LOG_MESSAGE)
                 {
-                    if (snprintf(writeBuffer, sizeof(writeBuffer), "event: logger\ndata: %s\n\n", data) >= (int)sizeof(writeBuffer))
+                    if (subscription[i].logViewer)
+                    {
+                        if (snprintf(writeBuffer, sizeof(writeBuffer), "event: logger\ndata: %s\n\n", data) >= (int)sizeof(writeBuffer))
+                        {
+                            // Will not fit in our write buffer, let system printf handle
+#ifdef ESP8266
+                            subscription[i].client.flush(); // make sure previous data all sent.
+#endif
+                            subscription[i].client.printf("event: logger\ndata: %s\n\n", data);
+                        }
+                        else
+                        {
+                            clientWrite(subscription[i].client, writeBuffer);
+                        }
+                    }
+                }
+                else if (type == RATGDO_STATUS)
+                {
+                    String IPaddrstr = IPAddress(subscription[i].clientIP).toString();
+                    ESP_LOGV(TAG, "Client %s (%s) send status SSE on channel %d, data: %s", IPaddrstr.c_str(), subscription[i].clientUUID.c_str() , i, data);
+                    if (snprintf(writeBuffer, sizeof(writeBuffer), "event: message\ndata: %s\n\n", data) >= (int)sizeof(writeBuffer))
                     {
                         // Will not fit in our write buffer, let system printf handle
 #ifdef ESP8266
                         subscription[i].client.flush(); // make sure previous data all sent.
 #endif
-                        subscription[i].client.printf("event: logger\ndata: %s\n\n", data);
+                        subscription[i].client.printf("event: message\ndata: %s\n\n", data);
                     }
                     else
                     {
@@ -1423,22 +1419,10 @@ void SSEBroadcastState(const char *data, BroadcastType type)
                     }
                 }
             }
-            else if (type == RATGDO_STATUS)
+            else
             {
-                String IPaddrstr = IPAddress(subscription[i].clientIP).toString();
-                ESP_LOGV(TAG, "SSE send to client %s on channel %d, data: %s", IPaddrstr.c_str(), i, data);
-                if (snprintf(writeBuffer, sizeof(writeBuffer), "event: message\ndata: %s\n\n", data) >= (int)sizeof(writeBuffer))
-                {
-                    // Will not fit in our write buffer, let system printf handle
-#ifdef ESP8266
-                    subscription[i].client.flush(); // make sure previous data all sent.
-#endif
-                    subscription[i].client.printf("event: message\ndata: %s\n\n", data);
-                }
-                else
-                {
-                    clientWrite(subscription[i].client, writeBuffer);
-                }
+                // Client connection has gone.  Remove from our subscribed client list
+                removeSSEsubscription(&subscription[i]);
             }
         }
     }
