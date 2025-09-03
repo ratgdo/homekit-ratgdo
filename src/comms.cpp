@@ -2062,16 +2062,13 @@ void TTCtimerFn(void (*callback)(), bool light)
 #ifdef ESP8266
                                       schedule_recurrent_function_us([callback]()
                                                                      {
-                                                                         if (callback == door_command_close)
-                                                                             ESP_LOGI(TAG, "Calling delayed function: door_command_close()");
-
+                                                                         ESP_LOGI(TAG, "Calling delayed function 0x%08lX", (uint32_t)callback);
                                                                          callback();
                                                                          return false; // run the fn only once
                                                                      },
                                                                      0); // zero micro seconds (run asap)
 #else
-                                      if (callback == door_command_close)
-                                          ESP_LOGI(TAG, "Calling delayed function: door_command_close()");
+                                      ESP_LOGI(TAG, "Calling delayed function 0x%08lX", (uint32_t)callback);
                                       callback();
 #endif
                                   });

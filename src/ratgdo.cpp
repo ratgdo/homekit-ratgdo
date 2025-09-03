@@ -52,8 +52,8 @@ static const char *TAG = "ratgdo-main";
 
 // Initialize GDO status
 GarageDoor garage_door = {
-    .active = false,
     .wallPanelEmulated = false,
+    .active = false,
     .current_state = (GarageDoorCurrentState)0xFF,
     .target_state = (GarageDoorTargetState)0xFF,
     .obstructed = false,
