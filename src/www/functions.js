@@ -6,12 +6,13 @@
  */
 
 // Global vars...
+var isESP8266 = false;          // set true if running on ESP8266 original ratgdo
 var serverStatus = {};          // object into which all server status is held.
 var checkHeartbeat = undefined; // setTimeout for heartbeat timeout
 var evtSource = undefined;      // for Server Sent Events (SSE)
 var delayStatusFn = [];         // to keep track of possible checkStatus timeouts
 const clientUUID = uuidv4();    // uniquely identify this session
-const rebootSeconds = 10;       // How long to wait before reloading page after reboot
+var rebootSeconds = 10;         // How long to wait before reloading page after reboot
 var setGDOcmds = {              // setGDO commands that are not sent from server nor exist in HTML
     credentials: "",
     updateUnderway: "",
@@ -340,6 +341,9 @@ function setElementsFromStatus(status) {
                 document.getElementById("wifiPhyMode1").checked = (value == 1) ? true : false;
                 document.getElementById("wifiPhyMode2").checked = (value == 2) ? true : false;
                 document.getElementById("wifiPhyMode3").checked = (value == 3) ? true : false;
+                // Using wifiPhyMode as proxy for ESP8266... will not be sent by ESP32
+                isESP8266 = true;
+                rebootSeconds = 15;
                 break;
             case "wifiPower":
                 document.getElementById("trWifiPower").style.display = "table-row";
@@ -510,7 +514,7 @@ async function checkStatus() {
         fetch("status.json")
             .then((response) => {
                 if (!response.ok || response.status !== 200) {
-                    throw new Error(`HTTP error: ${response.status}`)
+                    throw new Error(`HTTP error: ${response.status}`);
                 } else {
                     return response.text();
                 }
@@ -534,7 +538,7 @@ async function checkStatus() {
                 fetch("rest/events/subscribe?id=" + clientUUID)
                     .then((response) => {
                         if (!response.ok || response.status !== 200) {
-                            throw new Error(`HTTP error: ${response.status}`)
+                            throw new Error(`HTTP error: ${response.status}`);
                         } else {
                             return response.text();
                         }
@@ -813,8 +817,8 @@ async function firmwareUpdate(github = true) {
     finally {
         clearInterval(aniDots);
         if (showRebootMsg) {
-            // Additional 10 seconds for new firmware copy on first boot.
-            countdown(rebootSeconds, rebootMsg + "<br>RATGDO device rebooting...&nbsp;");
+            // Additional 10 seconds for ESP8266 new firmware copy on first boot.
+            countdown((isESP8266) ? rebootSeconds + 10 : rebootSeconds, rebootMsg + "<br>RATGDO device rebooting...&nbsp;");
         } else {
             document.getElementById("updateDotDot").style.display = "none";
             document.getElementById("updateDialog").style.display = "block";
