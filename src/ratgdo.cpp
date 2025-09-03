@@ -36,8 +36,9 @@
 #include "led.h"
 #include "provision.h"
 #include "softAP.h"
+#ifdef ESP8266
 #include "wifi_8266.h"
-#ifndef ESP8266
+#else
 // Feature not available on ESP8266
 #include "vehicle.h"
 #endif

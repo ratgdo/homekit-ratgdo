@@ -26,7 +26,9 @@
 #include "config.h"
 #include "provision.h"
 #include "softAP.h"
+#ifdef ESP8266
 #include "wifi_8266.h"
+#endif
 
 // Logger tag
 static const char *TAG = "ratgdo-improv";
