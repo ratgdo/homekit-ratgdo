@@ -22,7 +22,7 @@
   "useToggleToClose": false,
   "garageLightOn": false,
   "garageDoorState": "Closed",
-  "garageLockState": "Unsecured",
+  "garageLockState": "Disabled",
   "garageMotion": false,
   "garageObstructed": false,
   "passwordRequired": true,

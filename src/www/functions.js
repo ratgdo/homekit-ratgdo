@@ -438,7 +438,7 @@ function setElementsFromStatus(status) {
                 break;
             case "garageLockState":
                 document.getElementById(key).innerHTML = value;
-                document.getElementById("lockButton").value = (value == "Unsecured") ? "Lock Remotes" : "Unlock Remotes";
+                document.getElementById("lockButton").value = (value == "Enabled") ? "Disable Remotes" : "Enable Remotes";
                 break;
             case "assistLaser":
                 document.getElementById("laserButton").value = (value == false) ? "Laser On" : "Laser Off";
@@ -810,7 +810,7 @@ async function firmwareUpdate(github = true) {
             }
             return;
         }
-        // Upload and verify suceeded, so reboot...
+        // Upload and verify succeeded, so reboot...
         rebootRATGDO(false);
         rebootMsg = "Update complete...";
     }

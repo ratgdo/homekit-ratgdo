@@ -104,7 +104,7 @@
           </p>
         </div>
         <div class="fullwidth"
-          style="padding-top: 0px; padding-bottom: 5px; padding-left:5%; padding-right: 5%; display: flex; justify-content: space-between;">
+          style="padding-top: 0px; padding-bottom: 5px; padding-left: 0%; padding-right: 0%; display: flex; justify-content: space-between;">
           <input type="button" value="Reboot RATGDO" style="width: 28%;" onclick="rebootRATGDO(true)">
           <input type="button" value="Firmware Update" style="width: 28%;" onclick="showUpdateDialog()">
           <input type="button" id="unpair" value="Reset HomeKit" style="width: 28%;" onclick="unpairRATGDO()">
@@ -125,7 +125,7 @@
               <td id="garageObstructed"></td>
             </tr>
             <tr id="lockLightRow">
-              <td>Lock&nbsp;State:</td>
+              <td>Remotes:</td>
               <td id="garageLockState"></td>
               <td colspan="2">Light&nbsp;On:</td>
               <td id="garageLightOn"></td>
@@ -162,14 +162,14 @@
             </tr>
           </table>
         </div>
-        <div id="GDOcontrols" class="fullwidth"
-          style="padding-left: 5%; padding-right: 5%; display: flex; justify-content: space-between;">
+        <div id="GDOcontrols" class="fullwidth button-row"
+          style="padding-left: 0%; padding-right: 0%; display: flex; justify-content: space-between;">
           <input type="button" id="lightButton" value="Light On" style="width: 23%;"
             onclick="setGDO('garageLightOn', (event.target.value === 'Light On') ? '1' : '0');">
           <input type="button" id="doorButton" value="Open Door" style="width: 23%;"
             onclick="setGDO('garageDoorState', (event.target.value === 'Open Door') ? '1' : '0');">
           <input type="button" id="lockButton" value="Lock Remotes" style="width: 23%;"
-            onclick="setGDO('garageLockState', (event.target.value === 'Lock Remotes') ? '1' : '0');">
+            onclick="setGDO('garageLockState', (event.target.value === 'Disable Remotes') ? '1' : '0');">
           <input type="button" id="laserButton" value="Laser On" style="display:none; width: 23%;"
             onclick="setGDO('assistLaser', (event.target.value === 'Laser On') ? '1' : '0');">
         </div>
@@ -557,8 +557,8 @@
             </table>
           </div>
         </div>
-        <div class="fullwidth"
-          style="padding-left: 5%;padding-right: 5%; display: flex; justify-content: space-between;">
+        <div class="fullwidth button-row"
+          style="padding-left: 0%; padding-right: 0%; display: flex; justify-content: space-between;">
           <input type="button" value="Reset Door" style="width: 23%;" onclick="resetDoor()">
           <input type="button" value="Set WiFi SSID" style="width: 23%;" onclick="setSSID()">
           <input type="button" value="Boot Soft AP" style="width: 23%;" onclick="bootSoftAP()">
