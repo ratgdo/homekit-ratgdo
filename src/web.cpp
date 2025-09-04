@@ -190,7 +190,7 @@ static SemaphoreHandle_t jsonMutex = NULL;
                                       : (s == 3)   ? "Closing" \
                                       : (s == 4)   ? "Stopped" \
                                                    : "Unknown"
-#define LOCK_STATE(s) (s == 0) ? "Unsecured" : (s == 1) ? "Secured" \
+#define LOCK_STATE(s) (s == 0) ? "Enabled" : (s == 1) ? "Disabled" \
                                            : (s == 2)   ? "Jammed"  \
                                                         : "Unknown"
 

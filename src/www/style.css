@@ -43,6 +43,11 @@ input[type="checkbox"] {
     margin: 0px;
 }
 
+.button-row input[type="button"] {
+    padding-left: 0px;
+    padding-right: 0px;
+}
+
 input.slider {
     -webkit-appearance: none;
     appearance: none;
