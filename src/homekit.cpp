@@ -1021,6 +1021,9 @@ bool homekit_is_paired()
 void notify_homekit_target_door_state_change(GarageDoorTargetState state)
 {
     garage_door.target_state = state;
+    // Ignore invalid states
+    if (state == 0xFF)
+        return;
 #ifdef ESP32
     if (!isPaired)
         return;
@@ -1040,6 +1043,9 @@ void notify_homekit_target_door_state_change(GarageDoorTargetState state)
 void notify_homekit_current_door_state_change(GarageDoorCurrentState state)
 {
     garage_door.current_state = state;
+    // Ignore invalid states
+    if (state == 0xFF)
+        return;
 #ifdef ESP32
     if (!isPaired)
         return;
@@ -1053,38 +1059,15 @@ void notify_homekit_current_door_state_change(GarageDoorCurrentState state)
         return;
 
     homekit_characteristic_notify(&current_door_state, HOMEKIT_UINT8_CPP(garage_door.current_state));
-
-#define doorOpening() // Noop on ESP8266
-#define doorClosing() // Noop on ESP8266
 #endif
-    // Set target door state to match.
-    switch (state)
-    {
-    case CURR_OPENING:
-        // #ifdef ESP32
-        doorOpening(); // Fall through...
-                       // #endif
-    case CURR_OPEN:
-        notify_homekit_target_door_state_change(TGT_OPEN);
-        break;
-
-    case CURR_CLOSING:
-        // #ifdef ESP32
-        doorClosing(); // Fall through...
-                       // #endif
-    case CURR_CLOSED:
-        notify_homekit_target_door_state_change(TGT_CLOSED);
-        break;
-
-    default:
-        // Ignore other states.
-        break;
-    }
 }
 
 void notify_homekit_target_lock(LockTargetState state)
 {
     garage_door.target_lock = state;
+    // Ignore invalid states
+    if (state == 0xFF)
+        return;
 #ifdef ESP32
     if (!isPaired)
         return;
@@ -1104,6 +1087,9 @@ void notify_homekit_target_lock(LockTargetState state)
 void notify_homekit_current_lock(LockCurrentState state)
 {
     garage_door.current_lock = state;
+    // Ignore invalid states
+    if (state == 0xFF)
+        return;
 #ifdef ESP32
     if (!isPaired)
         return;
