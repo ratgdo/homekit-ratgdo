@@ -1002,7 +1002,7 @@ void handle_setgdo()
             break;
     }
 
-    ESP_LOGI(TAG, "SetGDO Complete");
+    ESP_LOGV(TAG, "SetGDO Complete");
 
     if (error)
     {
@@ -1021,8 +1021,6 @@ void handle_setgdo()
     {
         // Some settings require reboot to take effect
         server.send_P(200, type_html, PSTR("<p>Success. Reboot.</p>"));
-        ESP_LOGI(TAG, "System boot time:  %s", timeString(lastRebootAt));
-        ESP_LOGI(TAG, "SetGDO Restart at: %s", timeString());
         // Allow time to process send() before terminating web server...
         delay(500);
         server.stop();

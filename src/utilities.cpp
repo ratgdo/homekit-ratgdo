@@ -232,10 +232,17 @@ void load_all_config_settings()
 
 void sync_and_restart()
 {
+    if (clockSet)
+    {
+        // Log time we shut down.
+        ESP_LOGI(TAG, "Current System time: %s", timeString());
+        ESP_LOGI(TAG, "System boot time:    %s", timeString(lastRebootAt));
+    }
     if (softAPmode)
     {
         // reset so next reboot will be standard station mode
         userConfig->set(cfg_softAPmode, false);
+        ESP8266_SAVE_CONFIG();
     }
     else
     {
