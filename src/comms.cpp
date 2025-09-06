@@ -206,14 +206,13 @@ GarageDoorCurrentState doorState = GarageDoorCurrentState::UNKNOWN;
 uint8_t lightState;
 uint8_t lockState;
 
-
 // keep this here incase at somepoint its needed
 // it is used for emulation of wall panel
 // byte secplus1States[] = {0x35, 0x35, 0x35, 0x35, 0x33, 0x33, 0x53, 0x53, 0x38, 0x3A, 0x3A, 0x3A, 0x39, 0x38, 0x3A, 0x38, 0x3A, 0x39};
 // MJS: this is what MY 889LM exhibited when powered up (release of all buttons, and then polls)
 // MJS: the 0x53, GDO responds with 0x01 (since we dont use it, seems OK to not sent to GDO)
-byte secplus1States[] = { 0x35, 0x35, 0x33, 0x33, /*0x53, 0x53,*/ 0x38, 0x3A, 0x39, 0x3A };
-#define SECPLUS1_POLL_ITEMS 4   // items at end of secplus1States[]
+byte secplus1States[] = {0x35, 0x35, 0x33, 0x33, /*0x53, 0x53,*/ 0x38, 0x3A, 0x39, 0x3A};
+#define SECPLUS1_POLL_ITEMS 4 // items at end of secplus1States[]
 
 // values for SECURITY+1.0 communication
 enum secplus1Codes : uint8_t
@@ -232,9 +231,9 @@ enum secplus1Codes : uint8_t
     ObstructionStatus = 0x39,
     LightLockStatus = 0x3A,
 
-    Unknown_0x53    = 0x53,     // sent by WP when done its "power up"
-    
-    Unknown = 0xFF              // (when rx fails parity test)
+    Unknown_0x53 = 0x53, // sent by WP when done its "power up"
+
+    Unknown = 0xFF // (when rx fails parity test)
 };
 
 // protoypes
@@ -283,27 +282,22 @@ static void gdo_event_handler(const gdo_status_t *status, gdo_cb_event_t event, 
         break;
     case GDO_CB_EVENT_LIGHT:
         ESP_LOGI(TAG, "GDO event: light: %s", gdo_light_state_to_string(status->light));
-        garage_door.light = status->light == gdo_light_state_t::GDO_LIGHT_STATE_ON;
-        notify_homekit_light(garage_door.light);
+        notify_homekit_light(status->light == gdo_light_state_t::GDO_LIGHT_STATE_ON);
         break;
     case GDO_CB_EVENT_LOCK:
         ESP_LOGI(TAG, "GDO event: lock: %s", gdo_lock_state_to_string(status->lock));
-        garage_door.target_lock = gdo_to_homekit_lock_target_state[status->lock];
-        garage_door.current_lock = gdo_to_homekit_lock_current_state[status->lock];
-        notify_homekit_target_lock(garage_door.target_lock);
-        notify_homekit_current_lock(garage_door.current_lock);
+        notify_homekit_target_lock(gdo_to_homekit_lock_target_state[status->lock]);
+        notify_homekit_current_lock(gdo_to_homekit_lock_current_state[status->lock]);
         break;
     case GDO_CB_EVENT_DOOR_POSITION:
     {
-        GarageDoorCurrentState current_state = garage_door.current_state;
         ESP_LOGI(TAG, "GDO event: door: %s, %3d, target: %3d", gdo_door_state_to_string(status->door),
                  status->door_position / 100, (status->door_target >= 0) ? status->door_target / 100 : -1);
         garage_door.active = true;
-        garage_door.current_state = gdo_to_homekit_door_current_state[status->door];
-        if ((current_state != garage_door.current_state) && (status->door != GDO_DOOR_STATE_UNKNOWN))
+        if ((garage_door.current_state != gdo_to_homekit_door_current_state[status->door]) && (status->door != GDO_DOOR_STATE_UNKNOWN))
         {
-            // Notifying HomeKit of current state will also set target state as required.
-            notify_homekit_current_door_state_change(garage_door.current_state);
+            notify_homekit_current_door_state_change(gdo_to_homekit_door_current_state[status->door]);
+            notify_homekit_target_door_state_change(gdo_to_homekit_door_target_state[status->door]);
 
             // If we are using Sec+2.0 built-in time-to-close then reset the TTC to zero when door is closed
             if (status->door == GDO_DOOR_STATE_CLOSED && doorControlType == 2 && userConfig->getBuiltInTTC())
@@ -316,8 +310,7 @@ static void gdo_event_handler(const gdo_status_t *status, gdo_cb_event_t event, 
         break;
     case GDO_CB_EVENT_OBSTRUCTION:
         ESP_LOGI(TAG, "GDO event: obstruction: %s", gdo_obstruction_state_to_string(status->obstruction));
-        garage_door.obstructed = status->obstruction == gdo_obstruction_state_t::GDO_OBSTRUCTION_STATE_OBSTRUCTED;
-        notify_homekit_obstruction(garage_door.obstructed);
+        notify_homekit_obstruction(status->obstruction == gdo_obstruction_state_t::GDO_OBSTRUCTION_STATE_OBSTRUCTED);
         if (motionTriggers.bit.obstruction && garage_door.obstructed)
         {
             notify_homekit_motion(true);
