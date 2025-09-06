@@ -403,11 +403,8 @@ void LOG::printMessageLog(Print &outputDev)
     outputDev.println("Firmware version: " AUTO_VERSION);
     outputDev.printf_P(PSTR("Free heap: %d\n"), free_heap);
     YIELD();
-    _millis_t t1 = _millis();
     outputDev.printf_P(PSTR("Minimum heap: %d\n"), min_heap);
     outputDev.flush();
-    uint32_t latency = (uint32_t)(_millis() - t1);
-    Serial.printf("Latency: %d\n", latency);
 
     if (msgBuffer)
     {
@@ -415,11 +412,8 @@ void LOG::printMessageLog(Print &outputDev)
         // +3 want to round up to multiple of 4
         size_t start = ((msgBuffer->head + 1 + 3) & ~0x03) % sizeof(msgBuffer->buffer);
         size_t len = sizeof(msgBuffer->buffer) - start;
-        size_t CHUNK;
-        if (latency < 75)
-            CHUNK = sizeof(logBuffer);
-        else
-            CHUNK = 512; // Less than TCP_SND_BUF
+        // Chunk up to protect against buffer overflow
+        constexpr size_t CHUNK = TCP_SND_BUF / 2;
         size_t chunk = CHUNK;
         Serial.print("Send message log.");
         if (msgBuffer->wrapped != 0)
