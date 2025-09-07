@@ -649,8 +649,6 @@
 
     // Retrieve status from the server
     checkStatus();
-    // And latest version from GitHub
-    checkVersion("dotdot1");
     // Load time zone info, this runs asynchronously
     loadTimeZones();
 
@@ -658,7 +656,6 @@
     window.addEventListener("visibilitychange", (event) => {
       if (document.visibilityState === "visible") {
         checkStatus();
-        checkVersion("dotdot1");
       }
     });
 
