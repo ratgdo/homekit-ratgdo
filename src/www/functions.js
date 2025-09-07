@@ -112,7 +112,7 @@ async function setServerTimeZone(location) {
     }
 }
 
-// convert miliseconds to dd:hh:mm:ss used to calculate server uptime
+// convert milliseconds to dd:hh:mm:ss used to calculate server uptime
 function msToTime(duration) {
     var milliseconds = Math.floor((duration % 1000) / 100),
         seconds = Math.floor((duration / 1000) % 60),
@@ -527,6 +527,7 @@ async function checkStatus() {
                 // Hack because firmware uses v0.0.0 and 0.0.0 for different purposes.
                 serverStatus.firmwareVersion = "v" + serverStatus.firmwareVersion;
                 setElementsFromStatus(serverStatus);
+                checkVersion(); // call this only after we have retrieved status from server
             })
             .catch((error) => {
                 console.warn(`Promise rejection error fetching status from RATGDO, try again in 5 seconds: ${error}`);
@@ -611,7 +612,7 @@ function dotDotDot(elem) {
     }, 500);
 }
 
-async function checkVersion(progress) {
+async function checkVersion(progress = "dotdot1") {
     const versionElem = document.getElementById("newversion");
     const versionElem2 = document.getElementById("newversion2");
     var msg = "Checking";
@@ -649,11 +650,17 @@ async function checkVersion(progress) {
         const asset = latest.assets.find((obj) => {
             return (obj.content_type === "application/octet-stream") && (obj.name.startsWith(gitRepo));
         });
-        serverStatus.downloadURL = "https://ratgdo.github.io/" + gitRepo + "/firmware/" + asset.name;
-        msg = "You have newest release";
-        if (serverStatus.firmwareVersion < latest.tag_name) {
-            // Newest version at GitHub is greater from that installed
-            msg = "Update available  (" + latest.tag_name + ")";
+        if (asset?.name) {
+            serverStatus.downloadURL = "https://ratgdo.github.io/" + gitRepo + "/firmware/" + asset.name;
+            msg = "You have newest release";
+            if (serverStatus.firmwareVersion < latest.tag_name) {
+                // Newest version at GitHub is greater from that installed
+                msg = "Update available  (" + latest.tag_name + ")";
+            }
+        } else {
+            console.warn("No firmware matching CPU architecture found");
+            serverStatus.downloadURL = undefined;
+            msg = "No firmware found";
         }
     }
     else {
@@ -1154,7 +1161,7 @@ async function bootSoftAP() {
 
 async function factoryReset() {
     if (confirm('-- WARNING -- WARNING --\n\nThis will erase ALL settings and factory reset your device.  It will delete the HomeKit accessory. '
-        + 'You must delete the accessory from Apple Home and re-pair the device.\n\nYou will LOSE ALL AUTOMATIONS associated with this device\n\nAre you sure?')) {
+        + 'You must delete the accessory from Apple Home and re-pair the device.\n\nYou will LOSE ALL AUTOMATONS associated with this device\n\nAre you sure?')) {
         if (confirm('ARE YOU REALLY SURE?')) {
             await setGDO("factoryReset", true);
             countdown(rebootSeconds, "RATGDO device rebooting...&nbsp;");
