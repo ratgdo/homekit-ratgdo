@@ -743,18 +743,18 @@
     // This handles user control of sliders
     WiFiSlider = document.getElementById("wifiPower");
     WiFiText = document.getElementById("wifiPowerValue");
-    WiFiText.innerHTML = WiFiSlider.value;
+    WiFiText.innerText = WiFiSlider.value;
     WiFiSlider.oninput = function () {
-      WiFiText.innerHTML = this.value;
+      WiFiText.innerText = this.value;
     };
     TTCslider = document.getElementById("TTCseconds");
     TTCtext = document.getElementById("TTCsecondsValue");
     TTClight = document.getElementById("TTClight");
     TTCwarning = document.getElementById("TTCwarning");
     TTCwarning2 = document.getElementById("TTCwarning2");
-    TTCtext.innerHTML = (TTCslider.value <= 10) ? TTCslider.value : (TTCslider.value <= 20) ? ((TTCslider.value - 10) * 5) + 10 : 300;
+    TTCtext.innerText = ((TTCslider.value <= 10) ? TTCslider.value : (TTCslider.value <= 20) ? ((TTCslider.value - 10) * 5) + 10 : 300);
     TTCslider.oninput = function () {
-      TTCtext.innerHTML = (this.value <= 10) ? this.value : (this.value <= 20) ? ((this.value - 10) * 5) + 10 : 300;
+      TTCtext.innerText = ((this.value <= 10) ? this.value : (this.value <= 20) ? ((this.value - 10) * 5) + 10 : 300);
       TTCwarning.style.display = (this.value < 5) ? "inline" : "none";
     };
     TTClight.onclick = function () {
@@ -764,32 +764,32 @@
     vDistSlider = document.getElementById("vehicleThreshold");
     vDistText1 = document.getElementById("vehicleThresholdCM");
     vDistText2 = document.getElementById("vehicleThresholdInch");
-    vDistText1.innerHTML = vDistSlider.value;
-    vDistText2.innerHTML = Math.round(vDistSlider.value / .254) / 10;
+    vDistText1.innerText = vDistSlider.value;
+    vDistText2.innerText = (Math.round(vDistSlider.value / .254) / 10);
     vDistSlider.oninput = function () {
-      vDistText1.innerHTML = this.value;
-      vDistText2.innerHTML = Math.round(this.value / .254) / 10;
+      vDistText1.innerText = this.value;
+      vDistText2.innerText = (Math.round(this.value / .254) / 10);
     };
 
     PAslider = document.getElementById("assistDuration");
     PAtext = document.getElementById("assistValue");
-    PAtext.innerHTML = PAslider.value;
+    PAtext.innerText = PAslider.value;
     PAslider.oninput = function () {
-      PAtext.innerHTML = this.value;
+      PAtext.innerText = this.value;
     };
 
     DBslider = document.getElementById("dcDebounceDuration");
     DBtext = document.getElementById("dcDebounceValue");
-    DBtext.innerHTML = DBslider.value;
+    DBtext.innerText = DBslider.value;
     DBslider.oninput = function () {
-      DBtext.innerHTML = this.value;
+      DBtext.innerText = this.value;
     };
 
     occSlider = document.getElementById("occupancyDuration");
     occText = document.getElementById("occupancyValue");
-    occText.innerHTML = (occSlider.value <= 10) ? occSlider.value : (occSlider.value <= 32) ? ((occSlider.value - 10) * 5) + 10 : 0;
+    occText.innerText = ((occSlider.value <= 10) ? occSlider.value : (occSlider.value <= 32) ? ((occSlider.value - 10) * 5) + 10 : 0);
     occSlider.oninput = function () {
-      occText.innerHTML = (this.value <= 10) ? this.value : (this.value <= 32) ? ((this.value - 10) * 5) + 10 : 0;
+      occText.innerText = ((this.value <= 10) ? this.value : (this.value <= 32) ? ((this.value - 10) * 5) + 10 : 0);
     };
 
   </script>
