@@ -554,7 +554,7 @@ void load_page(const char *page)
     if ((CACHE_CONTROL > 0) &&
         (!strcmp_P(type, type_css) || !strcmp_P(type, type_js) || strstr_P(type, PSTR("image"))))
     {
-        snprintf(cacheHdr, sizeof(cacheHdr), "max-age=%i", CACHE_CONTROL);
+        snprintf(cacheHdr, sizeof(cacheHdr), "max-age=%d", CACHE_CONTROL);
         cache = true;
     }
     if (server.hasHeader(F("If-None-Match")))
@@ -574,7 +574,7 @@ void load_page(const char *page)
         }
         else
         {
-            ESP_LOGI(TAG, "Client %s requesting: %s (HTTP_GET, type: %s, length: %i)", server.client().remoteIP().toString().c_str(), page, type, length);
+            ESP_LOGI(TAG, "Client %s requesting: %s (HTTP_GET, type: %s, length: %d)", server.client().remoteIP().toString().c_str(), page, type, length);
             server.send_P(200, type, data, length);
         }
     }
@@ -846,7 +846,7 @@ bool helperCredentials(const std::string &key, const char *value, configSetting 
     *strchr(newCredentials, '"') = (char)0;
     *strchr(newPassword, '"') = (char)0;
     // save values...
-    ESP_LOGI(TAG, "Set user credentials: %s : %s (%s)", newUsername, newPassword, newCredentials);
+    ESP_LOGI(TAG, "Set credentials: %s (%s)", newUsername, newCredentials);
     userConfig->set(cfg_wwwUsername, newUsername);
     userConfig->set(cfg_wwwCredentials, newCredentials);
 #ifndef ESP8266
@@ -961,7 +961,10 @@ void handle_setgdo()
 
         if (setGDOhandlers.count(key))
         {
-            ESP_LOGI(TAG, "Call handler for Key: %s, Value: %s", key.c_str(), value.c_str());
+            if (key == "credentials")
+                ESP_LOGI(TAG, "Call handler for Key: %s", key.c_str());
+            else
+                ESP_LOGI(TAG, "Call handler for Key: %s, Value: %s", key.c_str(), value.c_str());
             actions = setGDOhandlers.at(key);
             if (actions.fn)
             {
@@ -1034,7 +1037,7 @@ void removeSSEsubscription(SSESubscription *s)
     if (subscriptionCount > 0)
         subscriptionCount--; // Prevent negative count
     s->heartbeatTimer.detach();
-    ESP_LOGI(TAG, "Client %s (%s) not listening, remove SSE subscription. Total subscribed: %d", s->clientIP.toString().c_str(), s->clientUUID.c_str(), subscriptionCount);
+    ESP_LOGI(TAG, "Client %s (%s) not listening, remove SSE subscription. Total: %d", s->clientIP.toString().c_str(), s->clientUUID.c_str(), subscriptionCount);
     s->client.stop();
     s->clientIP = INADDR_NONE;
     s->clientUUID.clear();
@@ -1279,7 +1282,7 @@ void handle_subscribe()
     subscription[channel].heartbeatInterval = heartbeatInterval;
 
     SSEurl += std::to_string(channel);
-    ESP_LOGI(TAG, "Client %s (%s) SSE subscription: %s, Total subscribed: %d, Heartbeat interval: %d, Log viewer: %d", clientIP.toString().c_str(), server.arg(id).c_str(), SSEurl.c_str(), subscriptionCount, heartbeatInterval, (int)logViewer);
+    ESP_LOGI(TAG, "Client %s (%s) SSE subscription: %s, Total: %d, Heartbeat: %d, Log: %d", clientIP.toString().c_str(), server.arg(id).c_str(), SSEurl.c_str(), subscriptionCount, heartbeatInterval, (int)logViewer);
     server.sendHeader(F("Cache-Control"), F("no-cache, no-store"));
     server.send_P(200, type_txt, SSEurl.c_str());
 }
@@ -1555,7 +1558,7 @@ void handle_firmware_upload()
             if (uploadPercent >= nextPrintPercent)
             {
                 Serial.print("\n"); // newline after the dot dot dots
-                ESP_LOGI(TAG, "%s progress: %i", verify ? "Verify" : "Update", uploadPercent);
+                ESP_LOGI(TAG, "%s progress: %d", verify ? "Verify" : "Update", uploadPercent);
                 SSEheartbeat(firmwareUpdateSub); // keep SSE connection alive.
                 nextPrintPercent += 10;
                 // Report percentage to browser client if it is listening

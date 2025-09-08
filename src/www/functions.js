@@ -75,7 +75,7 @@ async function loadTimeZones() {
     catch {
         // failed to retrieve timezones so use built-in defaults
         tzCSV = timeZoneDefaults;
-        console.warm("Failed to load timezones");
+        console.warn("Failed to load timezones");
     }
     // Now convert it into our global array
     timeZones.length = 0;
@@ -893,7 +893,11 @@ async function setGDO(...args) {
         const formData = new FormData();
         for (let i = 0; i < args.length; i = i + 2) {
             // Only transmit setting if value has changed
-            console.log(`Key: ${args[i]}, Current Value: ${serverStatus[args[i]]}`);
+            if (args[i] == "credentials") {
+                console.log(`Key: ${args[i]}, Current Value: REDACTED`);
+            } else {
+                console.log(`Key: ${args[i]}, Current Value: ${serverStatus[args[i]]}`);
+            }
             if ((serverStatus[args[i]] != undefined) && (serverStatus[args[i]] != args[i + 1])) {
                 console.log(`Set: ${args[i]} to: ${args[i + 1]}`);
                 formData.append(args[i], args[i + 1]);
@@ -1161,7 +1165,7 @@ async function bootSoftAP() {
 
 async function factoryReset() {
     if (confirm('-- WARNING -- WARNING --\n\nThis will erase ALL settings and factory reset your device.  It will delete the HomeKit accessory. '
-        + 'You must delete the accessory from Apple Home and re-pair the device.\n\nYou will LOSE ALL AUTOMATONS associated with this device\n\nAre you sure?')) {
+        + 'You must delete the accessory from Apple Home and re-pair the device.\n\nYou will LOSE ALL AUTOMATIONS associated with this device\n\nAre you sure?')) {
         if (confirm('ARE YOU REALLY SURE?')) {
             await setGDO("factoryReset", true);
             countdown(rebootSeconds, "RATGDO device rebooting...&nbsp;");
