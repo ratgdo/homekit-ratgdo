@@ -259,14 +259,13 @@ bool onCommandCallback(improv::ImprovCommand cmd)
 
 void improv_loop()
 {
-    static uint8_t x_buffer[16];
-    static uint8_t x_position = 0;
-
     if (!improv_setup_done)
         return;
 
     if (Serial.available() > 0)
     {
+        static uint8_t x_buffer[16];
+        static uint8_t x_position = 0;
         uint8_t b = Serial.read();
 
         if (improv::parse_improv_serial_byte(x_position, b, x_buffer, onCommandCallback, onErrorCallback))

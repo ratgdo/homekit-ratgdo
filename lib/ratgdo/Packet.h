@@ -117,7 +117,7 @@ struct DoorActionCommandData
     uint8_t id;
 
     DoorActionCommandData() = default;
-    DoorActionCommandData(uint32_t pkt_data)
+    explicit DoorActionCommandData(uint32_t pkt_data)
     {
         action = static_cast<DoorAction>((pkt_data >> DOOR_ACTION_SHIFT) & DOOR_ACTION_MASK);
         parity = ((pkt_data >> COMMAND_PARITY_SHIFT) & COMMAND_PARITY_MASK);
@@ -178,10 +178,11 @@ struct LockCommandData
     bool pressed;
 
     LockCommandData() = default;
-    LockCommandData(uint32_t pkt_data)
+    explicit LockCommandData(uint32_t pkt_data)
     {
         lock = static_cast<LockState>((pkt_data >> LOCK_DATA_SHIFT) & LOCK_DATA_MASK);
         parity = ((pkt_data >> COMMAND_PARITY_SHIFT) & COMMAND_PARITY_MASK);
+        pressed = false;
     };
 
     uint32_t to_data(void)
@@ -234,10 +235,11 @@ struct LightCommandData
     bool pressed;
 
     LightCommandData() = default;
-    LightCommandData(uint32_t pkt_data)
+    explicit LightCommandData(uint32_t pkt_data)
     {
         light = static_cast<LightState>((pkt_data >> LIGHT_DATA_SHIFT) & LIGHT_DATA_MASK);
         parity = ((pkt_data >> COMMAND_PARITY_SHIFT) & COMMAND_PARITY_MASK);
+        pressed = false;
     };
 
     uint32_t to_data(void)
@@ -305,8 +307,7 @@ struct StatusCommandData
     bool unknown2;
 
     StatusCommandData() = default;
-
-    StatusCommandData(uint32_t pkt_data)
+    explicit StatusCommandData(uint32_t pkt_data)
     {
         door = static_cast<DoorState>((pkt_data >> STATUS_DOOR_STATE_SHIFT) & STATUS_DOOR_STATE_MASK);
         parity = ((pkt_data >> COMMAND_PARITY_SHIFT) & COMMAND_PARITY_MASK);
@@ -372,7 +373,7 @@ struct OpeningsCommandData
     uint8_t parity;
 
     OpeningsCommandData() = default;
-    OpeningsCommandData(uint32_t pkt_data)
+    explicit OpeningsCommandData(uint32_t pkt_data)
     {
         uint8_t lo = ((pkt_data >> GET_OPENINGS_LO_BYTE_SHIFT) & GET_OPENINGS_LO_BYTE_MASK);
         uint8_t hi = ((pkt_data >> GET_OPENINGS_HI_BYTE_SHIFT) & GET_OPENINGS_HI_BYTE_MASK);
@@ -414,7 +415,7 @@ struct BatteryCommandData
     uint8_t parity;
 
     BatteryCommandData() = default;
-    BatteryCommandData(uint32_t pkt_data)
+    explicit BatteryCommandData(uint32_t pkt_data)
     {
         state = static_cast<BatteryState>((pkt_data >> BATTERY_DATA_SHIFT) & BATTERY_DATA_MASK);
         parity = ((pkt_data >> COMMAND_PARITY_SHIFT) & COMMAND_PARITY_MASK);
@@ -456,7 +457,7 @@ struct NoData
     uint8_t parity;
 
     NoData() = default;
-    NoData(uint32_t pkt_data)
+    explicit NoData(uint32_t pkt_data)
     {
         no_bits_set = pkt_data & ~(COMMAND_PARITY_MASK << COMMAND_PARITY_SHIFT);
         no_bits_set = no_bits_set & ~0xFF; // skip cmd byte

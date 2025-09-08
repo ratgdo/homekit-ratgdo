@@ -385,14 +385,14 @@ void setup_web()
     // available during operations.  We need to carefully monitor useage so as not
     // to exceed available IRAM.  We can adjust the LOG_BUFFER_SIZE (in log.h) if we
     // need to make more space available for initialization.
-    status_json = (char *)malloc(STATUS_JSON_BUFFER_SIZE);
+    status_json = static_cast<char *>(malloc(STATUS_JSON_BUFFER_SIZE));
     if (!status_json)
     {
         ESP_LOGE(TAG, "Failed to allocated buffer for status JSON, size: %d", STATUS_JSON_BUFFER_SIZE);
         return;
     }
     ESP_LOGI(TAG, "Allocated buffer for status JSON, size: %d", STATUS_JSON_BUFFER_SIZE);
-    loop_json = (char *)malloc(LOOP_JSON_BUFFER_SIZE);
+    loop_json = static_cast<char *>(malloc(LOOP_JSON_BUFFER_SIZE));
     if (!loop_json)
     {
         ESP_LOGE(TAG, "Failed to allocated buffer for loop JSON, size: %d", LOOP_JSON_BUFFER_SIZE);
@@ -540,7 +540,7 @@ void load_page(const char *page)
     if (webcontent.count(page) == 0)
         return handle_notfound();
 
-    const char *data = (char *)webcontent.at(page).data;
+    const unsigned char *data = webcontent.at(page).data;
     int length = webcontent.at(page).length;
     const char *typeP = webcontent.at(page).type;
     const char *crc32 = webcontent.at(page).crc32.c_str();
@@ -575,7 +575,7 @@ void load_page(const char *page)
         else
         {
             ESP_LOGI(TAG, "Client %s requesting: %s (HTTP_GET, type: %s, length: %d)", server.client().remoteIP().toString().c_str(), page, type, length);
-            server.send_P(200, type, data, length);
+            server.send_P(200, type, reinterpret_cast<const char *>(data), length);
         }
     }
     else
@@ -825,9 +825,9 @@ bool helperGarageLockState(const std::string &key, const char *value, configSett
 
 bool helperCredentials(const std::string &key, const char *value, configSetting *action)
 {
-    char *newUsername = strstr(value, "username");
-    char *newCredentials = strstr(value, "credentials");
-    char *newPassword = strstr(value, "password");
+    const char *newUsername = strstr(value, "username");
+    const char *newCredentials = strstr(value, "credentials");
+    const char *newPassword = strstr(value, "password");
     if (!(newUsername && newCredentials && newPassword))
         return false;
 
@@ -861,9 +861,9 @@ bool helperUpdateUnderway(const std::string &key, const char *value, configSetti
 {
     firmwareSize = 0;
     firmwareUpdateSub = NULL;
-    char *md5 = strstr(value, "md5");
-    char *size = strstr(value, "size");
-    char *uuid = strstr(value, "uuid");
+    const char *md5 = strstr(value, "md5");
+    const char *size = strstr(value, "size");
+    const char *uuid = strstr(value, "uuid");
 
     if (!(md5 && size && uuid))
         return false;
@@ -943,8 +943,6 @@ void handle_setgdo()
     bool error = false;
     bool wifiChanged = false;
     bool saveSettings = false;
-    std::string key;
-    std::string value;
     configSetting actions;
 
     if (!((server.args() == 1) && (server.argName(0) == cfg_timeZone)))
@@ -956,8 +954,8 @@ void handle_setgdo()
     // Loop over all the GDO settings passed in...
     for (int i = 0; i < server.args(); i++)
     {
-        key = server.argName(i).c_str();
-        value = server.arg(i).c_str();
+        std::string key(server.argName(i).c_str());
+        std::string value(server.arg(i).c_str());
 
         if (setGDOhandlers.count(key))
         {
@@ -1070,7 +1068,6 @@ void SSEheartbeat(SSESubscription *s)
     if (s->client.connected())
     {
         static int8_t lastRSSI = 0;
-        static int32_t lastVehicleDistance = 0;
         static char *json = loop_json;
         TAKE_MUTEX();
         JSON_START(json);
@@ -1079,6 +1076,7 @@ void SSEheartbeat(SSESubscription *s)
         JSON_ADD_INT("minHeap", min_heap);
         // TODO monitor stack... JSON_ADD_INT("minStack", ESP.getFreeContStack());
 #ifndef ESP8266
+        static int32_t lastVehicleDistance = 0;
         if (garage_door.has_distance_sensor && (lastVehicleDistance != vehicleDistance))
         {
             lastVehicleDistance = vehicleDistance;

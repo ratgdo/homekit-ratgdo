@@ -42,7 +42,7 @@ void handle_wifinets();
 #define TXT_BUFFER_SIZE 1024
 
 // support for scaning WiFi networks
-bool wifiNetsCmp(wifiNet_t a, wifiNet_t b)
+bool wifiNetsCmp(const wifiNet_t &a, const wifiNet_t &b)
 {
     // Sorts first by SSID and then by RSSI so strongest signal first.
     return (a.ssid < b.ssid) || ((a.ssid == b.ssid) && (a.rssi > b.rssi));
@@ -189,7 +189,7 @@ void handle_wifinets()
     server.sendContent(softAPhttpPreamble, strlen(softAPhttpPreamble));
     server.sendContent(softAPtableHead, strlen(softAPtableHead));
     int i = 0;
-    char *txtBuffer = (char *)malloc(TXT_BUFFER_SIZE);
+    char *txtBuffer = static_cast<char *>(malloc(TXT_BUFFER_SIZE));
     for (wifiNet_t net : wifiNets)
     {
         bool hide = true;
@@ -246,7 +246,7 @@ void handle_setssid()
         advanced = false;
     }
 
-    char *txtBuffer = (char *)malloc(TXT_BUFFER_SIZE);
+    char *txtBuffer = static_cast<char *>(malloc(TXT_BUFFER_SIZE));
     if (advanced)
     {
         ESP_LOGI(TAG, "Requested WiFi SSID: %s (%d) at AP: %02x:%02x:%02x:%02x:%02x:%02x",

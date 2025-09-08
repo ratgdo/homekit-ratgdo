@@ -33,7 +33,7 @@ typedef struct
     uint8_t encryptionType;
 #endif
 } wifiNet_t;
-extern std::multiset<wifiNet_t, bool (*)(wifiNet_t, wifiNet_t)> wifiNets;
+extern std::multiset<wifiNet_t, bool (*)(const wifiNet_t &, const wifiNet_t &)> wifiNets;
 
 extern void start_soft_ap();
 extern void soft_ap_loop();
