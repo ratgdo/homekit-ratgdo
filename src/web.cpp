@@ -191,8 +191,8 @@ static SemaphoreHandle_t jsonMutex = NULL;
                                       : (s == 4)   ? "Stopped" \
                                                    : "Unknown"
 #define LOCK_STATE(s) (s == 0) ? "Enabled" : (s == 1) ? "Disabled" \
-                                           : (s == 2)   ? "Jammed"  \
-                                                        : "Unknown"
+                                         : (s == 2)   ? "Jammed"   \
+                                                      : "Unknown"
 
 // Connection throttling
 #define MAX_CONCURRENT_REQUESTS 8
@@ -516,8 +516,6 @@ void handle_reset()
 #endif
     server.client().setNoDelay(true);
     server.send_P(200, type_txt, PSTR("Device has been un-paired from HomeKit. Rebooting...\n"));
-    ESP_LOGI(TAG, "System boot time:   %s", timeString(lastRebootAt));
-    ESP_LOGI(TAG, "Un-pair restart at: %s", timeString());
     // Allow time to process send() before terminating web server...
     delay(500);
     server.stop();
@@ -527,8 +525,6 @@ void handle_reset()
 
 void handle_reboot()
 {
-    ESP_LOGI(TAG, "System boot time:    %s", timeString(lastRebootAt));
-    ESP_LOGI(TAG, "Reboot requested at: %s", timeString());
     const char *resp = "Rebooting...\n";
     server.client().setNoDelay(true);
     server.send(200, type_txt, resp);
@@ -901,13 +897,13 @@ bool helperUpdateUnderway(const std::string &key, const char *value, configSetti
 
 bool helperFactoryReset(const std::string &key, const char *value, configSetting *action)
 {
-    ESP_LOGI(TAG, "System boot time: %s", timeString(lastRebootAt));
-    ESP_LOGI(TAG, "Factory reset at: %s", timeString());
 #ifdef ESP8266
     userConfig->erase();
     reset_door();
     sync_and_restart();
 #else
+    ESP_LOGI(TAG, "System boot time: %s", timeString(lastRebootAt));
+    ESP_LOGI(TAG, "Factory reset at: %s", timeString());
     nvRam->erase();
     reset_door();
     homeSpan.processSerialCommand("F");
@@ -1402,7 +1398,7 @@ void SSEBroadcastState(const char *data, BroadcastType type)
                 else if (type == RATGDO_STATUS)
                 {
                     String IPaddrstr = IPAddress(subscription[i].clientIP).toString();
-                    ESP_LOGV(TAG, "Client %s (%s) send status SSE on channel %d, data: %s", IPaddrstr.c_str(), subscription[i].clientUUID.c_str() , i, data);
+                    ESP_LOGV(TAG, "Client %s (%s) send status SSE on channel %d, data: %s", IPaddrstr.c_str(), subscription[i].clientUUID.c_str(), i, data);
                     if (snprintf(writeBuffer, sizeof(writeBuffer), "event: message\ndata: %s\n\n", data) >= (int)sizeof(writeBuffer))
                     {
                         // Will not fit in our write buffer, let system printf handle
@@ -1468,8 +1464,6 @@ void handle_update()
     {
         // Legacy... no query string args, so automatically reboot...
         server.send_P(200, type_txt, PSTR("Upload Success. Rebooting...\n"));
-        ESP_LOGI(TAG, "System boot time:   %s", timeString(lastRebootAt));
-        ESP_LOGI(TAG, "Firmware update at: %s", timeString());
         // Allow time to process send() before terminating web server...
         delay(500);
         server.stop();

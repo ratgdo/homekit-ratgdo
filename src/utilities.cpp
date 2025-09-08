@@ -235,8 +235,8 @@ void sync_and_restart()
     if (clockSet)
     {
         // Log time we shut down.
-        ESP_LOGI(TAG, "Current System time: %s", timeString());
         ESP_LOGI(TAG, "System boot time:    %s", timeString(lastRebootAt));
+        ESP_LOGI(TAG, "Reboot requested at: %s", timeString());
     }
     if (softAPmode)
     {
