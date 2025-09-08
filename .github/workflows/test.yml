@@ -99,7 +99,7 @@ jobs:
           --suppress=unusedFunction \
           --suppress=constParameterCallback \
           --suppress=useInitializationList \
-          --suppress=useStlAlgorithm
+          --suppress=useStlAlgorithm \
           --suppress=syntaxError:src/homekit_decl.c:61 \
           --suppress=unknownMacro \
           --quiet \
