@@ -72,7 +72,7 @@ def on_upload(source, target, env):
             exit(1)
     
     except FileNotFoundError:
-        print(f"Error: File not found at '{program_path}' during open attempt.")
+        print(f"Error: File not found at '{binPath}' during open attempt.")
         exit(1)
     except requests.exceptions.ConnectionError as e:
         print(f"Error: Could not connect to the server at '{IP}'. Please check the IP/port and network connection.")
