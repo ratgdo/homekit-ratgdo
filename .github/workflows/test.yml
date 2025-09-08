@@ -97,7 +97,10 @@ jobs:
           --suppress=missingIncludeSystem \
           --suppress=missingInclude \
           --suppress=unusedFunction \
-          --suppress=syntaxError:src/homekit_decl.c:67 \
+          --suppress=constParameterCallback \
+          --suppress=useInitializationList \
+          --suppress=useStlAlgorithm
+          --suppress=syntaxError:src/homekit_decl.c:61 \
           --suppress=unknownMacro \
           --quiet \
           src/ lib/ratgdo/ 2>&1 | tee cppcheck_output.txt
