@@ -229,23 +229,6 @@ void wifi_loop()
         }
     }
 #endif
-    static _millis_t soft_ap_start = 0;
-    static bool soft_ap_timer_started = false;
-
-    if (softAPmode)
-    {
-        if (!soft_ap_timer_started)
-        {
-            soft_ap_start = _millis();
-            soft_ap_timer_started = true;
-        }
-        if (_millis() - soft_ap_start > 10 * 60 * 1000)
-        {
-            ESP_LOGI(TAG, "In Soft Access Point mode for over 10 minutes, reboot");
-            sync_and_restart();
-            return;
-        }
-    }
 
     if (userConfig->getWifiChanged() && wifiConnectActive && (_millis() - wifiConnectStart >= 30000))
     {
