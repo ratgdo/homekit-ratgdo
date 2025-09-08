@@ -252,7 +252,6 @@ void wifi_loop()
         else
         {
             ESP_LOGI(TAG, "Connected, test Gatway IP reachable");
-            IPAddress ip;
             if (!Ping.ping(WiFi.gatewayIP(), 1))
             {
                 ESP_LOGI(TAG, "Unable to ping Gateway, reset to DHCP to acquire IP address and reconnect");
