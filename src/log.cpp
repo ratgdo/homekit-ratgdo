@@ -53,7 +53,7 @@ char *toHHMMSSmmm(_millis_t t)
     secs = secs % 60;
     uint32_t hrs = mins / 60;
     mins = mins % 60;
-    snprintf(timestr, sizeof(timestr), "%02d:%02d:%02d.%03d", hrs, mins, secs, ms);
+    snprintf(timestr, sizeof(timestr), "%02u:%02u:%02u.%03u", hrs, mins, secs, ms);
     return timestr;
 }
 
@@ -176,15 +176,15 @@ LOG::LOG()
     // available during operations.  We need to carefully monitor useage so as not
     // to exceed available IRAM.  We can adjust the LOG_BUFFER_SIZE (in log.h) if we
     // need to make more space available for initialization.
-    msgBuffer = (logBuffer *)malloc(sizeof(logBuffer));
-    lineBuffer = (char *)malloc(LINE_BUFFER_SIZE);
+    msgBuffer = static_cast<logBuffer *>(malloc(sizeof(logBuffer)));
+    lineBuffer = static_cast<char *>(malloc(LINE_BUFFER_SIZE));
     // Open logMessageFile so we don't have to later.
     logMessageFile = (LittleFS.exists(CRASH_LOG_MSG_FILE)) ? LittleFS.open(CRASH_LOG_MSG_FILE, "r+") : LittleFS.open(CRASH_LOG_MSG_FILE, "w+");
     IRAM_END(TAG);
 #else
     logMutex = xSemaphoreCreateRecursiveMutex();
-    msgBuffer = (logBuffer *)malloc(sizeof(logBuffer));
-    lineBuffer = (char *)malloc(LINE_BUFFER_SIZE);
+    msgBuffer = static_cast<logBuffer *>(malloc(sizeof(logBuffer)));
+    lineBuffer = static_cast<char *>(malloc(LINE_BUFFER_SIZE));
     set_arduino_panic_handler(panic_handler, NULL);
 #endif
     // Zero out the buffer... because if we crash and dump buffer before it fills
@@ -206,7 +206,7 @@ void LOG::logToBuffer(const char *fmt, va_list args)
         char *numptr = &lineBuffer[3];
         char *endptr;
         uint32_t num = strtoll(numptr, &endptr, 10);
-        char *ts = toHHMMSSmmm(num);
+        const char *ts = toHHMMSSmmm(num);
         uint32_t timestrlen = strlen(ts);
         int32_t diff = timestrlen - (int32_t)(endptr - numptr);
         int32_t max = LINE_BUFFER_SIZE - ((int32_t)(endptr - lineBuffer) + diff);
@@ -274,7 +274,7 @@ void LOG::printCrashLog(Print &outputDev)
 
     if (esp_core_dump_image_check() == ESP_OK)
     {
-        esp_core_dump_summary_t *summary = (esp_core_dump_summary_t *)malloc(sizeof(esp_core_dump_summary_t));
+        esp_core_dump_summary_t *summary = static_cast<esp_core_dump_summary_t *>(malloc(sizeof(esp_core_dump_summary_t)));
         if (summary)
         {
             if (esp_core_dump_get_summary(summary) == ESP_OK)
@@ -344,7 +344,7 @@ void LOG::printSavedLog(File file, Print &outputDev)
         file.seek(0, fs::SeekSet);
         while (num == LINE_BUFFER_SIZE)
         {
-            num = file.read((uint8_t *)lineBuffer, LINE_BUFFER_SIZE);
+            num = file.read(reinterpret_cast<uint8_t *>(lineBuffer), LINE_BUFFER_SIZE);
             // Progress dot dot dot
             Serial.print(".");
             YIELD();
@@ -371,7 +371,7 @@ void LOG::printSavedLog(Print &outputDev, bool fromNVram)
 #else
     if (fromNVram)
     {
-        char *buf = (char *)malloc(sizeof(msgBuffer->buffer));
+        char *buf = static_cast<char *>(malloc(sizeof(msgBuffer->buffer)));
         if (buf)
         {
             nvRam->readBlob(nvram_messageLog, buf, sizeof(msgBuffer->buffer));
@@ -414,7 +414,7 @@ void LOG::printMessageLog(Print &outputDev)
         size_t len = sizeof(msgBuffer->buffer) - start;
         // Chunk up to protect against buffer overflow
         constexpr size_t CHUNK = TCP_SND_BUF / 2;
-        size_t chunk = CHUNK;
+        size_t chunk;
         Serial.print("Send message log.");
         if (msgBuffer->wrapped != 0)
         {

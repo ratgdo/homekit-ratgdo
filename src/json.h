@@ -111,7 +111,7 @@ inline char *add_bool(char *s, const char *k, bool v)
 }
 
 #define JSON_START(buf) char *_json_p = start_json(buf)
-#define JSON_END() _json_p = end_json(_json_p)
+#define JSON_END() end_json(_json_p)
 #define JSON_ADD_INT(k, v) _json_p = add_int(_json_p, k, v)
 #define JSON_ADD_STR(k, v) _json_p = add_str(_json_p, k, v)
 #define JSON_ADD_BOOL(k, v) _json_p = add_bool(_json_p, k, v)

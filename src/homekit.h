@@ -95,7 +95,7 @@ struct DEV_GarageDoor : Service::GarageDoorOpener
 
 struct DEV_Info : Service::AccessoryInformation
 {
-    DEV_Info(const char *name);
+    explicit DEV_Info(const char *name);
     boolean update();
 };
 
@@ -106,7 +106,7 @@ struct DEV_Light : Service::LightBulb
     QueueHandle_t event_q;
     Light_t type;
 
-    DEV_Light(Light_t type = Light_t::GDO_LIGHT);
+    explicit DEV_Light(Light_t type = Light_t::GDO_LIGHT);
     boolean update();
     void loop();
 };
@@ -118,7 +118,7 @@ struct DEV_Motion : Service::MotionSensor
     QueueHandle_t event_q;
     char name[16];
 
-    DEV_Motion(const char *name);
+    explicit DEV_Motion(const char *name);
     void loop();
 };
 

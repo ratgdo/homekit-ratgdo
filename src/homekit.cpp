@@ -277,7 +277,7 @@ void wifiBegin(const char *ssid, const char *pw)
 {
     ESP_LOGI(TAG, "Wifi begin for SSID: %s", ssid);
     WiFi.setSleep(WIFI_PS_NONE); // Improves performance, at cost of power consumption
-    WiFi.hostname((const char *)device_name_rfc952);
+    WiFi.hostname(const_cast<char *>(device_name_rfc952));
     if (userConfig->getEnableIPv6())
     {
         // Enable IPv6 support
@@ -372,7 +372,7 @@ void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info)
     if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP6)
     {
         // Got IPv6 address
-        ESP_LOGI(TAG, "Received IPv6 Address: %s", IPAddress(IPv6, (const uint8_t *)info.got_ip6.ip6_info.ip.addr, info.got_ip6.ip6_info.ip.zone).toString(true).c_str());
+        ESP_LOGI(TAG, "Received IPv6 Address: %s", IPAddress(IPv6, reinterpret_cast<uint8_t *>(info.got_ip6.ip6_info.ip.addr), info.got_ip6.ip6_info.ip.zone).toString(true).c_str());
 
         // Now build string of IPv6 addresses
         ipv6_addresses[0] = '\0'; // Clear the buffer
@@ -384,7 +384,7 @@ void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info)
 
             for (int i = 0; i < nIPv6; i++)
             {
-                String addrStr = IPAddress(IPv6, (const uint8_t *)if_ip6[i].addr, if_ip6[i].zone).toString();
+                String addrStr = IPAddress(IPv6, reinterpret_cast<uint8_t *>(if_ip6[i].addr), if_ip6[i].zone).toString();
                 ESP_LOGI(TAG, "  %s", addrStr.c_str());
                 // Append to buffer, separated by comma if not first
                 if (i > 0)
@@ -451,7 +451,7 @@ void statusCallback(HS_STATUS status)
 void printTaskInfo(const char *buf)
 {
     int count = uxTaskGetNumberOfTasks();
-    TaskStatus_t *tasks = (TaskStatus_t *)pvPortMalloc(sizeof(TaskStatus_t) * count);
+    TaskStatus_t *tasks = static_cast<TaskStatus_t *>(pvPortMalloc(sizeof(TaskStatus_t) * count));
     if (tasks != NULL)
     {
         uxTaskGetSystemState(tasks, count, NULL);
@@ -459,8 +459,8 @@ void printTaskInfo(const char *buf)
         Serial.print("Name                    Core\tPri\tStack\tState\n");
         for (size_t i = 0; i < count; i++)
         {
-            Serial.printf("%s\t%s\t%4d\t%3d\t%5d\t%s\n", (char *)tasks[i].pcTaskName,
-                          strlen((char *)tasks[i].pcTaskName) > 7 ? "" : "\t",
+            Serial.printf("%s\t%s\t%4d\t%3d\t%5d\t%s\n", const_cast<char *>(tasks[i].pcTaskName),
+                          strlen(const_cast<char *>(tasks[i].pcTaskName)) > 7 ? "" : "\t",
                           (int)(tasks[i].xCoreID < 16) ? tasks[i].xCoreID : -1,
                           (int)tasks[i].uxBasePriority,
                           (int)tasks[i].usStackHighWaterMark,
@@ -480,7 +480,7 @@ void printLogInfo(const char *buf)
 void setLogLevel(const char *buf)
 {
     long value = 0;
-    char *p = (char *)buf;
+    char *p = const_cast<char *>(buf);
     while (*p)
     {
         if (isdigit(*p))
@@ -508,7 +508,7 @@ void setLogLevel(const char *buf)
 void testMoveDoor(const char *buf)
 {
     long value = 0;
-    char *p = (char *)buf;
+    char *p = const_cast<char *>(buf);
     while (*p)
     {
         if (isdigit(*p))
@@ -963,6 +963,7 @@ void notify_homekit_vehicle_occupancy(bool vehicleDetected)
         return;
 
     GDOEvent e;
+    e.c = nullptr;
     e.value.b = vehicleDetected;
     queueSendHelper(vehicle->event_q, e, "vehicle");
 }
@@ -973,6 +974,7 @@ void notify_homekit_room_occupancy(bool occupied)
         return;
 
     GDOEvent e;
+    e.c = nullptr;
     e.value.b = garage_door.room_occupied = occupied;
     garage_door.room_occupancy_timeout = (!occupied) ? 0 : _millis() + userConfig->getOccupancyDuration() * 1000; // convert seconds to milliseconds
     queueSendHelper(roomOccupancy->event_q, e, "room occupancy");
@@ -984,6 +986,7 @@ void notify_homekit_laser(bool on)
         return;
 
     GDOEvent e;
+    e.c = nullptr;
     e.value.b = on;
     queueSendHelper(assistLaser->event_q, e, "laser");
 }
@@ -994,6 +997,7 @@ void notify_homekit_vehicle_arriving(bool vehicleArriving)
         return;
 
     GDOEvent e;
+    e.c = nullptr;
     e.value.b = vehicleArriving;
     queueSendHelper(arriving->event_q, e, "arriving");
 }
@@ -1004,6 +1008,7 @@ void notify_homekit_vehicle_departing(bool vehicleDeparting)
         return;
 
     GDOEvent e;
+    e.c = nullptr;
     e.value.b = vehicleDeparting;
     queueSendHelper(departing->event_q, e, "departing");
 }
@@ -1133,6 +1138,7 @@ void notify_homekit_light(bool state)
         return;
 
     GDOEvent e;
+    e.c = nullptr;
     e.value.b = garage_door.light;
     queueSendHelper(light->event_q, e, "light");
 #else
@@ -1175,6 +1181,7 @@ void notify_homekit_motion(bool state)
         return;
 
     GDOEvent e;
+    e.c = nullptr;
     e.value.b = garage_door.motion;
     queueSendHelper(motion->event_q, e, "motion");
 #else

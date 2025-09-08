@@ -87,7 +87,7 @@ uint32_t sntp_update_delay_MS_rfc_not_less_than_15000()
     return SNTP_SYNC_INTERVAL; // update every 60 minutes
 }
 #else
-void time_is_set(timeval *tv)
+void time_is_set(struct timeval *tv)
 {
     // Keep this callback function short and simple. Do not use our logging functions, as it may hang.
     clockSet = tv->tv_sec;

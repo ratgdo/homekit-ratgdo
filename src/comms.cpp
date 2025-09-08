@@ -690,8 +690,6 @@ void wallPlate_Emulation()
     _millis_t currentMillis = _millis();
     static _millis_t lastRequestMillis = 0;
     static _millis_t startMillis = currentMillis;
-    static bool emulateWallPanel = false;
-    static uint8_t stateIndex = 0;
 
     // wait up to 15 seconds to look for an existing wallplate or it could be booting, so need to wait
     if (currentMillis - startMillis < SECPLUS1_DIGITAL_WALLPLATE_TIMEOUT || wallPanelBooting == true)
@@ -712,6 +710,7 @@ void wallPlate_Emulation()
     }
     else
     {
+        static bool emulateWallPanel = false;
         if (!emulateWallPanel && !wallPanelDetected)
         {
             emulateWallPanel = true;
@@ -723,6 +722,7 @@ void wallPlate_Emulation()
         // transmit every 250ms
         if (emulateWallPanel && (currentMillis - lastRequestMillis) > 250)
         {
+            static uint8_t stateIndex = 0;
             lastRequestMillis = currentMillis;
 
             byte secplus1ToSend = byte(secplus1States[stateIndex]);
@@ -1217,16 +1217,14 @@ void comms_loop_sec1()
     //
     PacketAction pkt_ac;
     static uint32_t retryCount = 0;
-    bool okToSend = false;
-    uint32_t msgs;
 
 #ifdef ESP32
-    if ((msgs = uxQueueMessagesWaiting(pkt_q)) > 0)
+    if (uxQueueMessagesWaiting(pkt_q) > 0)
 #else
-    if ((msgs = (uint32_t)q_getCount(&pkt_q)) > 0)
+    if ((uint32_t)q_getCount(&pkt_q) > 0)
 #endif
     {
-        okToSend = false;
+        bool okToSend = false;
         if ((_millis() - last_tx) >= SECPLUS1_TX_MINIMUM_DELAY)
         {
             okToSend = true;

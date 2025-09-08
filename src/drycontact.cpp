@@ -95,15 +95,8 @@ void drycontact_loop()
             }
         }
 
-        if (previousDryContactDoorOpen != dryContactDoorOpen)
-        {
-            previousDryContactDoorOpen = dryContactDoorOpen;
-        }
-
-        if (previousDryContactDoorClose != dryContactDoorClose)
-        {
-            previousDryContactDoorClose = dryContactDoorClose;
-        }
+        previousDryContactDoorOpen = dryContactDoorOpen;
+        previousDryContactDoorClose = dryContactDoorClose;
     }
     else if (userConfig->getDCOpenClose())
     {

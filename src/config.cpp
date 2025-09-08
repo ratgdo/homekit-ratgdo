@@ -267,21 +267,21 @@ userSettings::userSettings()
     strlcpy(device_name, default_device_name, sizeof(device_name));
     make_rfc952(device_name_rfc952, default_device_name, sizeof(device_name_rfc952));
     IRAM_START(TAG);
-    char *localIPBuf = (char *)malloc(IP4ADDR_STRLEN_MAX);
+    char *localIPBuf = static_cast<char *>(malloc(IP4ADDR_STRLEN_MAX));
     strlcpy(localIPBuf, "0.0.0.0", 16);
-    char *subnetMaskBuf = (char *)malloc(IP4ADDR_STRLEN_MAX);
+    char *subnetMaskBuf = static_cast<char *>(malloc(IP4ADDR_STRLEN_MAX));
     strlcpy(subnetMaskBuf, "0.0.0.0", 16);
-    char *gatewayIPBuf = (char *)malloc(IP4ADDR_STRLEN_MAX);
+    char *gatewayIPBuf = static_cast<char *>(malloc(IP4ADDR_STRLEN_MAX));
     strlcpy(gatewayIPBuf, "0.0.0.0", 16);
-    char *nameserverIPBuf = (char *)malloc(IP4ADDR_STRLEN_MAX);
+    char *nameserverIPBuf = static_cast<char *>(malloc(IP4ADDR_STRLEN_MAX));
     strlcpy(nameserverIPBuf, "0.0.0.0", 16);
-    char *syslogIPBuf = (char *)malloc(IP4ADDR_STRLEN_MAX);
+    char *syslogIPBuf = static_cast<char *>(malloc(IP4ADDR_STRLEN_MAX));
     strlcpy(syslogIPBuf, "0.0.0.0", 16);
-    char *timezoneBuf = (char *)malloc(64);
+    char *timezoneBuf = static_cast<char *>(malloc(64));
     *timezoneBuf = (char)0;
-    char *usernameBuf = (char *)malloc(32);
+    char *usernameBuf = static_cast<char *>(malloc(32));
     strlcpy(usernameBuf, "admin", 32);
-    char *credentialsBuf = (char *)malloc(36);
+    char *credentialsBuf = static_cast<char *>(malloc(36));
     strlcpy(credentialsBuf, "10d3c00fa1e09696601ef113b99f8a87", 36);
     //  key, {reboot, wifiChanged, value, fn to call}
     settings = {
@@ -720,7 +720,7 @@ std::string nvRamClass::read(const std::string &constKey, const char *dflt)
     esp_err_t err = nvs_get_str(nvHandle, key.c_str(), NULL, &len);
     if (err == ESP_OK)
     {
-        char *buf = (char *)malloc(len);
+        char *buf = static_cast<char *>(malloc(len));
         if (nvs_get_str(nvHandle, key.c_str(), buf, &len) == ESP_OK)
         {
             value = buf;

@@ -30,7 +30,7 @@ private:
     Ticker LEDtimer;
 
 public:
-    LED(uint8_t gpio_num, uint8_t state = 1);
+    explicit LED(uint8_t gpio_num, uint8_t state = 1);
     void on();
     void off();
     void idle();
