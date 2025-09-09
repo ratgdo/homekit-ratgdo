@@ -281,11 +281,11 @@ static void gdo_event_handler(const gdo_status_t *status, gdo_cb_event_t event, 
         }
         break;
     case GDO_CB_EVENT_LIGHT:
-        ESP_LOGI(TAG, "GDO event: light: %s", gdo_light_state_to_string(status->light));
+        ESP_LOGI(TAG, "GDO event: light: %s (%s)", gdo_light_state_to_string(status->light), timeString());
         notify_homekit_light(status->light == gdo_light_state_t::GDO_LIGHT_STATE_ON);
         break;
     case GDO_CB_EVENT_LOCK:
-        ESP_LOGI(TAG, "GDO event: lock: %s", gdo_lock_state_to_string(status->lock));
+        ESP_LOGI(TAG, "GDO event: lock remotes: %s (%s)", gdo_lock_state_to_string(status->lock), timeString());
         notify_homekit_target_lock(gdo_to_homekit_lock_target_state[status->lock]);
         notify_homekit_current_lock(gdo_to_homekit_lock_current_state[status->lock]);
         break;
@@ -309,7 +309,7 @@ static void gdo_event_handler(const gdo_status_t *status, gdo_cb_event_t event, 
         ESP_LOGI(TAG, "GDO event: learn: %s", gdo_learn_state_to_string(status->learn));
         break;
     case GDO_CB_EVENT_OBSTRUCTION:
-        ESP_LOGI(TAG, "GDO event: obstruction: %s", gdo_obstruction_state_to_string(status->obstruction));
+        ESP_LOGI(TAG, "GDO event: obstruction: %s (%s)", gdo_obstruction_state_to_string(status->obstruction), timeString());
         notify_homekit_obstruction(status->obstruction == gdo_obstruction_state_t::GDO_OBSTRUCTION_STATE_OBSTRUCTED);
         if (motionTriggers.bit.obstruction && garage_door.obstructed)
         {
@@ -367,11 +367,11 @@ static void gdo_event_handler(const gdo_status_t *status, gdo_cb_event_t event, 
         break;
     case GDO_CB_EVENT_OPEN_DURATION_MEASUREMENT:
         garage_door.openDuration = (status->open_ms + 500) / 1000; // round up/down to closest second
-        ESP_LOGI(TAG, "GDO event: open duration: %d seconds", garage_door.openDuration);
+        ESP_LOGI(TAG, "GDO event: open duration: %d seconds (%s)", garage_door.openDuration, timeString());
         break;
     case GDO_CB_EVENT_CLOSE_DURATION_MEASUREMENT:
         garage_door.closeDuration = (status->close_ms + 500) / 1000; // round up/down to closest second
-        ESP_LOGI(TAG, "GDO event: close duration: %d seconds", garage_door.closeDuration);
+        ESP_LOGI(TAG, "GDO event: close duration: %d seconds (%s)", garage_door.closeDuration, timeString());
         break;
     default:
         ESP_LOGI(TAG, "GDO event: unknown: %d", event);
@@ -785,7 +785,7 @@ void update_door_state(GarageDoorCurrentState current_state)
         open_counter++;
         open_average += ((int32_t)open_duration - (int32_t)open_average) / std::min(open_counter, FACTOR);
         garage_door.openDuration = (open_average + 500) / 1000; // round up/down to closest second
-        ESP_LOGI(TAG, "Door open duration: %lums, average: %lums", (uint32_t)open_duration, (uint32_t)open_average);
+        ESP_LOGI(TAG, "Door open duration: %lums, average: %lums (%s)", (uint32_t)open_duration, (uint32_t)open_average, timeString());
     }
     else if (current_state == CURR_CLOSING && garage_door.current_state == CURR_OPEN)
     {
@@ -798,7 +798,7 @@ void update_door_state(GarageDoorCurrentState current_state)
         close_counter++;
         close_average += ((int32_t)close_duration - (int32_t)close_average) / std::min(close_counter, FACTOR);
         garage_door.closeDuration = (close_average + 500) / 1000; // round up/down to closest second
-        ESP_LOGI(TAG, "Door close duration: %lums, average: %lums", (uint32_t)close_duration, (uint32_t)close_average);
+        ESP_LOGI(TAG, "Door close duration: %lums, average: %lums (%s)", (uint32_t)close_duration, (uint32_t)close_average, timeString());
     }
     else if (current_state == CURR_STOPPED)
     {
@@ -1017,7 +1017,7 @@ void sec1_process_message(uint8_t key, uint8_t value)
             if (garage_door.obstructed != status_obstructed)
             {
                 // Obstruction state changed
-                ESP_LOGI(TAG, "Obstruction %s (Status packet)", status_obstructed ? "Detected" : "Clear");
+                ESP_LOGI(TAG, "Obstruction: %s (Status packet) (%s)", status_obstructed ? "Detected" : "Clear", timeString());
                 notify_homekit_obstruction(status_obstructed);
                 digitalWrite(STATUS_OBST_PIN, !status_obstructed);
             }
@@ -1055,7 +1055,7 @@ void sec1_process_message(uint8_t key, uint8_t value)
         // light state change?
         if (lightState != lastLightState)
         {
-            ESP_LOGI(TAG, "status LIGHT: %s", lightState ? "On" : "Off");
+            ESP_LOGI(TAG, "Status light: %s (%s)", lightState ? "On" : "Off", timeString());
             lastLightState = lightState;
             notify_homekit_light((bool)lightState);
             if (motionTriggers.bit.lightKey)
@@ -1069,7 +1069,7 @@ void sec1_process_message(uint8_t key, uint8_t value)
         // lock state change?
         if (lockState != lastLockState)
         {
-            ESP_LOGI(TAG, "status LOCK: %s", lockState ? "Secured" : "Unsecured");
+            ESP_LOGI(TAG, "Status lock remotes: %s (%s)", lockState ? "Secured" : "Unsecured", timeString());
             lastLockState = lockState;
 
             if (lockState)
@@ -1387,7 +1387,7 @@ void comms_loop_sec2()
 
                 if (pkt.m_data.value.status.light != garage_door.light)
                 {
-                    ESP_LOGI(TAG, "Light Status %s", pkt.m_data.value.status.light ? "On" : "Off");
+                    ESP_LOGI(TAG, "Status light: %s (%s)", pkt.m_data.value.status.light ? "On" : "Off", timeString());
                     notify_homekit_light(pkt.m_data.value.status.light);
                 }
 
@@ -1405,6 +1405,7 @@ void comms_loop_sec2()
                 }
                 if (current_lock != garage_door.current_lock)
                 {
+                    ESP_LOGI(TAG, "Status lock remotes: %s (%s)", current_lock ? "Secured" : "Unsecured", timeString());
                     notify_homekit_target_lock(target_lock);
                     notify_homekit_current_lock(current_lock);
                 }
@@ -1416,7 +1417,7 @@ void comms_loop_sec2()
                     bool status_obstructed = !pkt.m_data.value.status.obstruction;
                     if (garage_door.obstructed != status_obstructed)
                     {
-                        ESP_LOGI(TAG, "Obstruction %s (Status packet)", status_obstructed ? "Detected" : "Clear");
+                        ESP_LOGI(TAG, "Obstruction: %s (Status packet) (%s)", status_obstructed ? "Detected" : "Clear", timeString());
                         notify_homekit_obstruction(status_obstructed);
                         digitalWrite(STATUS_OBST_PIN, !status_obstructed);
                         if (motionTriggers.bit.obstruction)
@@ -1576,7 +1577,7 @@ void comms_loop_sec2()
                     // Only update if obstruction state has changed
                     if (garage_door.obstructed != currently_obstructed)
                     {
-                        ESP_LOGI(TAG, "Obstruction %s (Pair3Resp parity %d)", currently_obstructed ? "Detected" : "Clear", parity);
+                        ESP_LOGI(TAG, "Obstruction: %s (Pair3Resp) (%s)", currently_obstructed ? "Detected" : "Clear", timeString());
                         // Notify HomeKit of the state change
                         notify_homekit_obstruction(currently_obstructed);
                         digitalWrite(STATUS_OBST_PIN, !currently_obstructed);
@@ -2575,7 +2576,7 @@ void obstruction_timer()
             // Only update if we are changing state
             if (garage_door.obstructed)
             {
-                ESP_LOGI(TAG, "Obstruction Clear");
+                ESP_LOGI(TAG, "Obstruction: Clear (ISR) (%s)", timeString());
                 notify_homekit_obstruction(false);
                 digitalWrite(STATUS_OBST_PIN, HIGH);
                 if (motionTriggers.bit.obstruction)
@@ -2608,7 +2609,7 @@ void obstruction_timer()
                     // Only update if we are changing state
                     if (!garage_door.obstructed)
                     {
-                        ESP_LOGI(TAG, "Obstruction Detected");
+                        ESP_LOGI(TAG, "Obstruction: Detected (ISR) (%s)", timeString());
                         notify_homekit_obstruction(true);
                         digitalWrite(STATUS_OBST_PIN, LOW);
                         if (motionTriggers.bit.obstruction)
