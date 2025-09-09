@@ -2139,13 +2139,19 @@ void TTCtimerFn(void (*callback)(), bool light)
         {
             if (light && (TTCiterations % 2 == 0))
             {
-#ifdef SEC1_889LM_LIGHTBLINK
-                // just do a press
-                sec1_light_press();
-#else
-                // If light is on, turn it off.  If off, turn it on.
-                set_light((TTCiterations % 4) != 0, false);
+#ifndef USE_GDOLIB
+                // only SEC+1,0
+                if (doorControlType == 1)
+                {
+                    // just do a press
+                    sec1_light_press();
+                }
+                else
 #endif
+                {
+                    // If light is on, turn it off.  If off, turn it on.
+                    set_light((TTCiterations % 4) != 0, false);
+                }
             }
         }
 #ifdef ESP32
@@ -2157,11 +2163,13 @@ void TTCtimerFn(void (*callback)(), bool light)
     {
         TTCtimer.detach();
         ESP_LOGI(TAG, "End of function delay timer");
-#ifdef SEC1_889LM_LIGHTBLINK
-        //
-        sec1_light_release(4);
+#ifndef USE_GDOLIB
+        // only SEC+1,0
+        if (doorControlType == 1)
+        {
+            sec1_light_release(4);
+        }
 #endif
-
         if (callback)
         {
             // delay so that set_light() can do its thing
