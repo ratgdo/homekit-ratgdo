@@ -701,7 +701,7 @@ struct Packet
         {
             ESP_LOGE(TAG, "Failed to decode packet");
         }
-        ESP_LOGI(TAG, "DECODED  %08lX %016" PRIX64 " %08lX", pkt_rolling, pkt_remote_id, pkt_data);
+        ESP_LOGD(TAG, "DECODED  %08lX %016" PRIX64 " %08lX", pkt_rolling, pkt_remote_id, pkt_data);
 
         uint16_t cmd = ((pkt_remote_id >> 24) & 0xF00) | (pkt_data & 0xFF);
 
@@ -880,7 +880,7 @@ struct Packet
 
         pkt_data |= (m_pkt_cmd & 0xFF);
 
-        ESP_LOGI(TAG, "ENCODING %08lX %016" PRIX64 " %08lX", m_rolling, fixed, pkt_data);
+        ESP_LOGD(TAG, "ENCODING %08lX %016" PRIX64 " %08lX", m_rolling, fixed, pkt_data);
         return encode_wireline(m_rolling, fixed, pkt_data, out_pktbuf);
     }
 
