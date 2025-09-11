@@ -197,7 +197,9 @@ bool clearToSend = false;
 bool wallPanelBooting = false;
 bool wallPanelDetected = false;
 #ifdef SEC1_DISCONNECT_WP
-bool wallPanelConnected = false;
+#define WP_CONNECTED    LOW
+#define WP_DISCONNECTED HIGH
+uint8_t wallPanelConnected;
 #endif
 // states
 GarageDoorCurrentState doorState = GarageDoorCurrentState::UNKNOWN;
@@ -418,8 +420,9 @@ void setup_comms()
 
 #ifdef SEC1_DISCONNECT_WP
         // GPIO16 - D0
+        // ⁡⁢⁣⁢NC RELAY (AQY412)⁡
         // enable wall panel
-        wallPanelConnected = true;
+        wallPanelConnected = WP_CONNECTED;
         digitalWrite(STATUS_DOOR_PIN, wallPanelConnected);
 #endif
 
@@ -1755,8 +1758,8 @@ bool transmitSec1(byte toSend)
         // sw_serial.enableRx(false);
 
 #ifdef SEC1_DISCONNECT_WP
-        // will reconnect in after tx complete + aprox 10ms - 13ms in comms_loop_sec1()
-        wallPanelConnected = false;
+        // will reconnect in after tx complete + 5ms
+        wallPanelConnected = WP_DISCONNECTED;
         digitalWrite(STATUS_DOOR_PIN, wallPanelConnected);
 #endif
     }
@@ -1788,15 +1791,13 @@ bool transmitSec1(byte toSend)
 
 #ifdef SEC1_DISCONNECT_WP
         // reconnect after tx complete
-        if (!wallPanelConnected)
-        {
-            delay(5);
-            // clear off any bits, as wp been disconnected (also resets rxPending)
-            if (isRxPending())
-                sw_serial.flush();
-            wallPanelConnected = true;
-            digitalWrite(STATUS_DOOR_PIN, wallPanelConnected);
-        }
+        delay(5);
+        // clear off any bits, as wp been disconnected (also resets rxPending)
+        if (isRxPending())
+            sw_serial.flush();
+
+        wallPanelConnected = WP_CONNECTED;
+        digitalWrite(STATUS_DOOR_PIN, wallPanelConnected);
 #endif
     }
 
