@@ -11,4 +11,5 @@
 #pragma once
 
 extern void setup_improv();
+extern void disable_improv();
 extern void improv_loop();

@@ -107,9 +107,6 @@ void start_soft_ap()
     server.begin();
     ESP_LOGI(TAG, "Soft AP web server started");
     softAPinitialized = true;
-    // wifi_scan();
-    // Allow improv WiFi provisioning when soft AP mode active.
-    setup_improv();
 }
 
 void soft_ap_loop()

@@ -310,6 +310,10 @@ function setElementsFromStatus(status) {
                 document.getElementById("laserHomeKit").disabled = !value;
                 document.getElementById("parkAssist").style.display = (value) ? "table-row" : "none";
                 break;
+            case "homespanCLI":
+                document.getElementById(key).checked = value;
+                document.getElementById("homespanSetting").style.display = "table-row";
+                break;
             case "laserHomeKit":
             case "vehicleHomeKit":
             case "dcOpenClose":
@@ -1081,6 +1085,7 @@ async function saveSettings() {
     const enableIPv6 = (document.getElementById("enableIPv6").checked) ? '1' : '0';
     const list = document.getElementById("timeZoneInput");
     const timeZone = list.options[list.selectedIndex].text + ';' + list.options[list.selectedIndex].value;
+    const homespanCLI = (document.getElementById("homespanCLI").checked) ? '1' : '0';
 
     // check IP addresses valid
     const regexIPv4 = /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/i;
@@ -1125,6 +1130,7 @@ async function saveSettings() {
         "obstFromStatus", obstFromStatus,
         "dcDebounceDuration", dcDebounceDuration,
         "useToggleToClose", useToggleToClose,
+        "homespanCLI", homespanCLI,
     );
     if (reboot) {
         countdown(rebootSeconds, "Settings saved, RATGDO device rebooting...&nbsp;");
