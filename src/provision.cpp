@@ -51,13 +51,26 @@ void blink_led(int d, int times)
 void setup_improv()
 {
 #ifndef ESP8266
-    ESP_LOGI(TAG, "Disable HomeSpan logging and serial port input");
+    ESP_LOGI(TAG, "Enable Improv for WiFi provisioning. Disable HomeSpan serial logging and CLI");
     // This is necessary so as not to interfere with Improv use of serial port
     homeSpan.setLogLevel(-1);
     homeSpan.setSerialInputDisable(true);
+#else
+    ESP_LOGI(TAG, "Enable Improv for WiFi provisioning");
 #endif
     blink_led(100, 5);
     improv_setup_done = true;
+    return;
+}
+
+void disable_improv()
+{
+    improv_setup_done = false;
+#ifndef ESP8266
+    ESP_LOGI(TAG, "Enable HomeSpan logging and serial port input");
+    homeSpan.setLogLevel(0);
+    homeSpan.setSerialInputDisable(false);
+#endif
     return;
 }
 

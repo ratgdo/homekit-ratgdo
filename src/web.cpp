@@ -766,6 +766,7 @@ void handle_status()
     JSON_ADD_BOOL(cfg_laserEnabled, userConfig->getLaserEnabled());
     JSON_ADD_BOOL(cfg_laserHomeKit, userConfig->getLaserHomeKit());
     JSON_ADD_INT(cfg_assistDuration, userConfig->getAssistDuration());
+    JSON_ADD_BOOL(cfg_homespanCLI, userConfig->getEnableHomeSpanCLI());
 #endif
     JSON_ADD_INT("webRequests", request_count);
     JSON_ADD_INT("webDroppedConns", dropped_connections);

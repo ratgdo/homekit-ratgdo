@@ -657,7 +657,7 @@ void setup_homekit()
 
     ESP_LOGI(TAG, "=== Setup HomeKit accessories and services ===");
 
-    homeSpan.setLogLevel(0);
+    //homeSpan.setLogLevel(0); Zero is default (top level messages only), comment out so can be controlled by Improv setup.
     homeSpan.setSketchVersion(AUTO_VERSION);
     homeSpan.setHostNameSuffix("");
     homeSpan.setPortNum(5556);

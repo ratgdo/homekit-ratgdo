@@ -28,6 +28,7 @@
 #include "comms.h"
 #include "led.h"
 #include "homekit.h"
+#include "provision.h"
 #ifndef ESP8266
 #include "vehicle.h"
 #ifdef USE_GDOLIB
@@ -248,6 +249,16 @@ bool helperOccupancyDuration(const std::string &key, const char *value, configSe
     enable_service_homekit_room_occupancy(userConfig->getOccupancyDuration() > 0);
     return true;
 }
+
+bool helperHomeSpanCLI(const std::string &key, const char *value, configSetting *action)
+{
+    userConfig->set(key, value);
+    if (userConfig->getEnableHomeSpanCLI())
+        disable_improv();
+    else
+        setup_improv();
+    return true;
+}
 #endif // ESP32
 
 /****************************************************************************
@@ -332,6 +343,7 @@ userSettings::userSettings()
 #endif
         {cfg_occupancyDuration, {false, false, 0, helperOccupancyDuration}}, // call fn to enable/disable HomeKit accessories
         {cfg_enableIPv6, {true, false, false, NULL}},
+        {cfg_homespanCLI, {false, false, false, helperHomeSpanCLI}}, // call fn to enable/disable HomeSpan CLI and Improv
 #endif
     };
     IRAM_END(TAG);

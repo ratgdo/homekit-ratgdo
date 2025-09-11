@@ -95,6 +95,7 @@ constexpr char cfg_laserHomeKit[] = "laserHomeKit";
 constexpr char cfg_assistDuration[] = "assistDuration";
 constexpr char cfg_occupancyDuration[] = "occupancyDuration";
 constexpr char cfg_enableIPv6[] = "enableIPv6";
+constexpr char cfg_homespanCLI[] = "homespanCLI";
 #endif
 
 constexpr char nvram_id_code[] = "id_code";
@@ -193,6 +194,7 @@ public:
     bool getUseSWserial() { return std::get<bool>(get(cfg_useSWserial)); };
     uint32_t getOccupancyDuration() { return std::get<int>(get(cfg_occupancyDuration)); };
     bool getEnableIPv6() { return std::get<bool>(get(cfg_enableIPv6)); };
+    bool getEnableHomeSpanCLI() { return std::get<bool>(get(cfg_homespanCLI)); };
 #endif
 };
 extern userSettings *userConfig;

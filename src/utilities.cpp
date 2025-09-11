@@ -199,6 +199,7 @@ void load_all_config_settings()
     ESP_LOGI(TAG, "   assistDuration:      %d", userConfig->getAssistDuration());
     ESP_LOGI(TAG, "   occupancyDuration:   %d", userConfig->getOccupancyDuration());
     ESP_LOGI(TAG, "   enableIPv6:          %s", userConfig->getEnableIPv6() ? "true" : "false");
+    ESP_LOGI(TAG, "   homespanCLI:         %s", userConfig->getEnableHomeSpanCLI() ? "true" : "false");
 #endif
     ESP_LOGI(TAG, "RFC952 device hostname: %s", device_name_rfc952);
 

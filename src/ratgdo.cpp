@@ -160,6 +160,7 @@ void setup()
     if (softAPmode)
     {
         start_soft_ap();
+        setup_improv();
         return;
     }
 
@@ -169,6 +170,7 @@ void setup()
     }
 #ifdef ESP8266
     // on ESP8266 we setup everything ourselves.
+    setup_improv();
     wifi_connect();
     setup_web();
     setup_comms();
@@ -177,7 +179,11 @@ void setup()
     // setup_homekit(); postpone HomeKit setup until we have an IP address
     led.idle();
 #else
-    // on ESP32 the HomeKit library we use does has callbacks which we use to setup everything else.
+    if (userConfig->getEnableHomeSpanCLI())
+        disable_improv();
+    else
+        setup_improv();
+    // on ESP32 the HomeKit library we use has callbacks which we use to setup everything else.
     setup_homekit();
 #endif
 }
