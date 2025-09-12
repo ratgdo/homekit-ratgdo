@@ -853,19 +853,17 @@ void update_door_state(GarageDoorCurrentState current_state)
 
 void sec1_process_message(uint8_t key, uint8_t value)
 {
-#ifdef DEBUG_SEC1_EXTENDED_COMMS
     if (value == 0xFF)
     {
-        ESP_LOGD(TAG, "SEC1 RX MSG: 0x%02X", key);
+        ESP_LOGV(TAG, "SEC1 RX MSG: 0x%02X", key);
     }
     else
     {
         static _millis_t lastTime = 0;
         _millis_t now = _millis();
-        ESP_LOGD(TAG, "SEC1 RX IDLE:%lums - MSG: 0x%02X:0x%02X", (uint32_t)(now - lastTime), key, value);
+        ESP_LOGV(TAG, "SEC1 RX IDLE:%lums - MSG: 0x%02X:0x%02X", (uint32_t)(now - lastTime), key, value);
         lastTime = now;
     }
-#endif
 
     switch (key)
     {
@@ -1004,11 +1002,8 @@ void sec1_process_message(uint8_t key, uint8_t value)
         // 0x04 -> 0x01 Stable obstruction
         // 0x01 -> 0x04 Obstruction removed, implies motion
         // 0x04 -> 0x00 No obstruction
-
-#ifdef DEBUG_SEC1_EXTENDED_COMMS
         if (value > 0)
-            ESP_LOGD(TAG, "SEC1 TX MSG 0x39: value: 0x%02X", value);
-#endif
+            ESP_LOGV(TAG, "SEC1 TX MSG 0x39: value: 0x%02X", value);
 
         // Handle obstruction from status packet if pin-based detection not used
         static uint8_t prevObstruction = 0xFF; // Initialize to invalid value
@@ -1778,11 +1773,9 @@ bool transmitSec1(byte toSend)
             ESP_LOGD(TAG, "SEC1 TX LOST ECHO OF: 0x%02X", toSend);
         else if (echoByte != toSend)
             ESP_LOGD(TAG, "SEC1 TX MISMATCH ECHO OF: tx:0x%02X rx:0x%02X", toSend, echoByte);
+        else
+            ESP_LOGV(TAG, "SEC1 TX: 0x%02X", echoByte);
     }
-
-#ifdef DEBUG_SEC1_EXTENDED_COMMS
-    ESP_LOGD(TAG, "SEC1 TX: 0x%02X", echoByte);
-#endif
 
     // timestamp tx
     last_tx = _millis();
