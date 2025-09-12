@@ -182,6 +182,7 @@ void load_all_config_settings()
     ESP_LOGI(TAG, "   rebootSeconds:       %d", userConfig->getRebootSeconds());
     ESP_LOGI(TAG, "   LEDidle:             %d", userConfig->getLEDidle());
     ESP_LOGI(TAG, "   motionTriggers:      %d", userConfig->getMotionTriggers());
+    ESP_LOGI(TAG, "   obstFromStatus:      %s", userConfig->getObstFromStatus() ? "true" : "false");
     ESP_LOGI(TAG, "   enableNTP:           %s", userConfig->getEnableNTP() ? "true" : "false");
     ESP_LOGI(TAG, "   doorUpdateAt:        %d", userConfig->getDoorUpdateAt());
     ESP_LOGI(TAG, "   timeZone:            %s", userConfig->getTimeZone());
