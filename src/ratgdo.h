@@ -84,12 +84,13 @@ enum LockTargetState : uint8_t
 #else
 #ifdef GRGDO1_V2
 const gpio_num_t UART_TX_PIN = GPIO_NUM_22;
+const gpio_num_t INPUT_OBST_PIN = GPIO_NUM_23;
 #else
 const gpio_num_t UART_TX_PIN = GPIO_NUM_17;
+const gpio_num_t INPUT_OBST_PIN = GPIO_NUM_4;
 #endif
 const gpio_num_t UART_RX_PIN = GPIO_NUM_21;
 const gpio_num_t LED_BUILTIN = GPIO_NUM_2;
-const gpio_num_t INPUT_OBST_PIN = GPIO_NUM_4;
 const gpio_num_t DRY_CONTACT_OPEN_PIN = GPIO_NUM_13;  // open door contact sensor
 const gpio_num_t DRY_CONTACT_CLOSE_PIN = GPIO_NUM_14; // closed door contact sensor
 const gpio_num_t LIGHT_PIN = GPIO_NUM_27;             // control a light
@@ -143,6 +144,7 @@ extern "C" uint32_t min_heap;
 
 struct __attribute__((aligned(4))) GarageDoor
 {
+    bool pinModeObstructionSensor;
     bool wallPanelEmulated;
     bool active;
     GarageDoorCurrentState current_state;

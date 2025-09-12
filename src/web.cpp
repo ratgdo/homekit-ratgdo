@@ -340,6 +340,7 @@ void web_loop()
     JSON_ADD_STR_C("garageLockState", LOCK_STATE(garage_door.current_lock), garage_door.current_lock, last_reported_garage_door.current_lock);
     JSON_ADD_BOOL_C("garageLightOn", garage_door.light, last_reported_garage_door.light);
     JSON_ADD_BOOL_C("garageMotion", garage_door.motion, last_reported_garage_door.motion);
+    JSON_ADD_BOOL_C("pinBasedObst", garage_door.pinModeObstructionSensor, last_reported_garage_door.pinModeObstructionSensor);
     JSON_ADD_BOOL_C("garageObstructed", garage_door.obstructed, last_reported_garage_door.obstructed);
     JSON_ADD_BOOL_C("garageSec1Emulated", garage_door.wallPanelEmulated, last_reported_garage_door.wallPanelEmulated);
     if (doorControlType == 2)
@@ -698,7 +699,7 @@ void handle_status()
     JSON_ADD_BOOL("garageLightOn", garage_door.light);
     JSON_ADD_BOOL("garageMotion", garage_door.motion);
     JSON_ADD_BOOL("garageObstructed", garage_door.obstructed);
-    JSON_ADD_BOOL("pinBasedObst", obstruction_sensor_detected);
+    JSON_ADD_BOOL("pinBasedObst", garage_door.pinModeObstructionSensor);
     JSON_ADD_BOOL(cfg_passwordRequired, userConfig->getPasswordRequired());
     JSON_ADD_INT(cfg_rebootSeconds, (uint32_t)userConfig->getRebootSeconds());
     JSON_ADD_INT("freeHeap", free_heap);
