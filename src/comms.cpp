@@ -127,7 +127,7 @@ std::map<gdo_lock_state_t, LockTargetState> gdo_to_homekit_lock_target_state = {
 /******************************* OBSTRUCTION SENSOR *********************************/
 
 // Track if we've detected a working obstruction sensor
-static bool obstruction_sensor_detected = false;
+bool obstruction_sensor_detected = false;
 static bool get_obstruction_from_status = false;
 
 struct obstruction_sensor_t
@@ -1564,15 +1564,27 @@ void comms_loop_sec2()
                 // Silently ignore, because we see lots of these and they have no data, and Packet.h logged them.
                 break;
             }
+
+            case PacketCommand::Obst1:
+            case PacketCommand::Obst2:
+            {
+                // The messages indicate some movement across the obstruction sensors.
+                if (motionTriggers.bit.obstruction)
+                {
+                    notify_homekit_motion(true);
+                }
+                break;
+            }
+
             case PacketCommand::Pair3Resp:
             {
                 // Only use Pair3Resp for obstruction detection if no sensor detected
                 if (!obstruction_sensor_detected)
                 {
                     // Use Pair3Resp packets for obstruction detection via parity
-                    // Parity 3 = clear, Parity 4 = obstructed
-                    uint8_t parity = pkt.m_data.value.no_data.parity;
-                    bool currently_obstructed = (parity == 4);
+                    // byte1 9 = clear, byte1 14 = obstructed
+                    bool currently_obstructed = ((pkt.m_data.value.no_data.no_bits_set >> 16) & 0xFF) == 14;
+                    ESP_LOGD(TAG, "Pair3Resp: 0x%08x", (pkt.m_data.value.no_data.no_bits_set >> 16) & 0xFF);
 
                     // Only update if obstruction state has changed
                     if (garage_door.obstructed != currently_obstructed)
@@ -2069,23 +2081,65 @@ void door_command(DoorAction action)
 
 void door_command_close()
 {
-    if (garage_door.current_state == GarageDoorCurrentState::CURR_OPEN && userConfig->getUseToggleToClose())
-    {
-        ESP_LOGD(TAG, "Close door using TOGGLE");
 #ifdef USE_GDOLIB
-        gdo_door_toggle();
+    gdo_door_close();
 #else
-        door_command(DoorAction::Toggle);
-#endif
-    }
-    else
+    if (obstruction_sensor_detected)
     {
-#ifdef USE_GDOLIB
-        gdo_door_close();
-#else
         door_command(DoorAction::Close);
-#endif
     }
+    else if (garage_door.current_state == GarageDoorCurrentState::CURR_OPEN)
+    {
+        ESP_LOGD(TAG, "No obstruction sensors detected. Close door using TOGGLE");
+        door_command(DoorAction::Toggle);
+    }
+
+    if (garage_door.closeDuration > 0)
+    {
+        // ESPhome firmware starts a timer that fires two seconds after expected close duration
+        // It checks that the door got to CLOSED or STOPPED state, and if not then proactively
+        // queries the door for status (which only works on Sec+2.0)
+        Ticker checkStatus = Ticker();
+        checkStatus.once_ms((garage_door.closeDuration + 2) * 1000, []()
+                            {
+            if (garage_door.current_state != GarageDoorCurrentState::CURR_CLOSED &&
+                garage_door.current_state != GarageDoorCurrentState::CURR_STOPPED)
+            {
+                garage_door.current_state = GarageDoorCurrentState::CURR_CLOSED; // probably missed a status mesage, assume it's closed
+                send_get_status();  // query in case we're wrong and it's stopped
+            } });
+    }
+#endif
+    return;
+}
+
+void door_command_open()
+{
+#ifdef USE_GDOLIB
+    if (doorControlType == 2 && userConfig->getBuiltInTTC())
+        gdo_set_time_to_close(0);
+
+    gdo_door_open();
+#else
+    door_command(DoorAction::Open);
+
+    if (garage_door.openDuration > 0)
+    {
+        // ESPhome firmware starts a timer that fires two seconds after expected open duration
+        // It checks that the door got to OPEN or STOPPED state, and if not then proactively
+        // queries the door for status (which only works on Sec+2.0)
+        Ticker checkStatus = Ticker();
+        checkStatus.once_ms((garage_door.openDuration + 2) * 1000, []()
+                            {
+            if (garage_door.current_state != GarageDoorCurrentState::CURR_OPEN &&
+                garage_door.current_state != GarageDoorCurrentState::CURR_STOPPED)
+            {
+                garage_door.current_state = GarageDoorCurrentState::CURR_OPEN; // probably missed a status mesage, assume it's open
+                send_get_status();  // query in case we're wrong and it's stopped
+            } });
+    }
+#endif
+    return;
 }
 
 GarageDoorCurrentState open_door()
@@ -2119,14 +2173,7 @@ GarageDoorCurrentState open_door()
         return GarageDoorCurrentState::CURR_STOPPED;
     }
     ESP_LOGI(TAG, "Opening door");
-#ifdef USE_GDOLIB
-    if (doorControlType == 2 && userConfig->getBuiltInTTC())
-        gdo_set_time_to_close(0);
-
-    gdo_door_open();
-#else
-    door_command(DoorAction::Open);
-#endif
+    door_command_open();
     return GarageDoorCurrentState::CURR_OPENING;
 }
 
@@ -2595,10 +2642,13 @@ void obstruction_timer()
         }
         else if (pulse_count == 0)
         {
-            // if there have been no pulses the line is steady high or low
+// if there have been no pulses the line is steady high or low
+#ifdef ESP8266
             if (!digitalRead(INPUT_OBST_PIN))
+#else
+            if (digitalRead(INPUT_OBST_PIN))
+#endif
             {
-                // asleep - pin went LOW, so it's not stuck HIGH
                 obstruction_sensor.last_asleep = current_millis;
                 obstruction_sensor.pin_ever_changed = true;
             }

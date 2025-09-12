@@ -82,7 +82,6 @@ constexpr char cfg_dcOpenClose[] = "dcOpenClose";
 constexpr char cfg_dcDebounceDuration[] = "dcDebounceDuration";
 constexpr char cfg_useSWserial[] = "useSWserial";
 constexpr char cfg_obstFromStatus[] = "obstFromStatus";
-constexpr char cfg_useToggleToClose[] = "useToggleToClose";
 #ifdef ESP8266
 // On ESP8266 we save user config to a file in LittleFS
 constexpr char cfg_configFile[] = "user_config";
@@ -183,7 +182,6 @@ public:
     bool getDCOpenClose() { return std::get<bool>(get(cfg_dcOpenClose)); };
     uint32_t getDCDebounceDuration() { return std::get<int>(get(cfg_dcDebounceDuration)); };
     bool getObstFromStatus() { return std::get<bool>(get(cfg_obstFromStatus)); };
-    bool getUseToggleToClose() { return std::get<bool>(get(cfg_useToggleToClose)); };
 #ifndef ESP8266
     bool getBuiltInTTC() { return std::get<bool>(get(cfg_builtInTTC)); };
     uint32_t getVehicleThreshold() { return std::get<int>(get(cfg_vehicleThreshold)); };
