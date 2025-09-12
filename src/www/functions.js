@@ -146,8 +146,6 @@ function toggleDCOpenClose(radio) {
     }
     document.getElementById("obstFromStatusRow").style.display = (value != 3) ? "table-row" : "none";
     document.getElementById("dcDebounceDurationRow").style.display = (value == 3) ? "table-row" : "none";
-    document.getElementById("useToggleToCloseRow").style.display = (value == 2) ? "table-row" : "none";
-
 }
 
 // enable laser
@@ -254,7 +252,9 @@ function setElementsFromStatus(status) {
                 }
                 document.getElementById("obstFromStatusRow").style.display = (value != 3) ? "table-row" : "none";
                 document.getElementById("dcDebounceDurationRow").style.display = (value == 3) ? "table-row" : "none";
-                document.getElementById("useToggleToCloseRow").style.display = (value == 2) ? "table-row" : "none";
+                break;
+            case "pinBasedObst":
+                document.getElementById(key).innerHTML = (value == true) ? "(Pin-based)" : "(Message)";
                 break;
             case "garageSec1Emulated":
                 document.getElementById("sec1emulation").style.display = (value == true) ? "" : "none";
@@ -319,7 +319,6 @@ function setElementsFromStatus(status) {
             case "dcOpenClose":
             case "useSWserial":
             case "obstFromStatus":
-            case "useToggleToClose":
             case "builtInTTC":
                 document.getElementById(key).checked = value;
                 break;
@@ -1053,7 +1052,6 @@ async function saveSettings() {
     const dcOpenClose = (document.getElementById("dcOpenClose").checked) ? '1' : '0';
     const useSWserial = (document.getElementById("useSWserial").checked) ? '1' : '0';
     const obstFromStatus = (document.getElementById("obstFromStatus").checked) ? '1' : '0';
-    const useToggleToClose = (document.getElementById("useToggleToClose").checked) ? '1' : '0';
 
     let assistDuration = Math.max(Math.min(parseInt(document.getElementById("assistDuration").value), 300), 0);
     if (isNaN(assistDuration)) assistDuration = 0;
@@ -1129,7 +1127,6 @@ async function saveSettings() {
         "useSWserial", useSWserial,
         "obstFromStatus", obstFromStatus,
         "dcDebounceDuration", dcDebounceDuration,
-        "useToggleToClose", useToggleToClose,
         "homespanCLI", homespanCLI,
     );
     if (reboot) {

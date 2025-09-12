@@ -122,7 +122,10 @@
               <td>Door State:</td>
               <td id="garageDoorState"></td>
               <td colspan="2">Obstruction:</td>
-              <td id="garageObstructed"></td>
+              <td>
+                <span id="garageObstructed"></span>
+                <span id="pinBasedObst" style="font-size: 0.6em">(pin)</span>
+              </td>
             </tr>
             <tr id="lockLightRow">
               <td>Remotes:</td>
@@ -439,13 +442,6 @@
                 <td>&nbsp;
                   <input type="checkbox" id="obstFromStatus" name="obstFromStatus" value="no">
                   <label for="obstFromStatus">Get obstruction from GDO status messages</label>
-                </td>
-              </tr>
-              <tr id="useToggleToCloseRow" style="display:none;">
-                <td></td>
-                <td>&nbsp;
-                  <input type="checkbox" id="useToggleToClose" name="useToggleToClose" value="no">
-                  <label for="useToggleToClose">Use TOGGLE command to close door</label>
                 </td>
               </tr>
               <tr id="trWifiPhyMode" style="display: none">

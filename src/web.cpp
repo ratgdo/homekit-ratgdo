@@ -150,6 +150,7 @@ struct SSESubscription
     int SSEfailCount;
     String clientUUID;
     bool logViewer;
+    _millis_t lastSent;
 };
 SSESubscription subscription[SSE_MAX_CHANNELS];
 // During firmware update note which subscribed client is updating
@@ -692,12 +693,12 @@ void handle_status()
     JSON_ADD_INT("wifiPower", userConfig->getWifiPower());
     JSON_ADD_INT(cfg_GDOSecurityType, (uint32_t)userConfig->getGDOSecurityType());
     JSON_ADD_BOOL("garageSec1Emulated", garage_door.wallPanelEmulated);
-    JSON_ADD_BOOL(cfg_useToggleToClose, userConfig->getUseToggleToClose());
     JSON_ADD_STR("garageDoorState", garage_door.active ? DOOR_STATE(garage_door.current_state) : DOOR_STATE(255));
     JSON_ADD_STR("garageLockState", LOCK_STATE(garage_door.current_lock));
     JSON_ADD_BOOL("garageLightOn", garage_door.light);
     JSON_ADD_BOOL("garageMotion", garage_door.motion);
     JSON_ADD_BOOL("garageObstructed", garage_door.obstructed);
+    JSON_ADD_BOOL("pinBasedObst", obstruction_sensor_detected);
     JSON_ADD_BOOL(cfg_passwordRequired, userConfig->getPasswordRequired());
     JSON_ADD_INT(cfg_rebootSeconds, (uint32_t)userConfig->getRebootSeconds());
     JSON_ADD_INT("freeHeap", free_heap);
@@ -1048,6 +1049,10 @@ void SSEheartbeat(SSESubscription *s)
     if (!s)
         return;
 
+    // Wait at least one second from last time we sent status from web_loop()
+    if (millis() - s->lastSent < 1000)
+        return;
+
     if (!(s->clientIP))
         return;
 
@@ -1099,11 +1104,11 @@ void SSEheartbeat(SSESubscription *s)
 #endif
         JSON_END();
         JSON_REMOVE_NL(json);
-        YIELD();
         // retry needed to before event:
-        snprintf(writeBuffer, sizeof(writeBuffer), "retry: 15000\nevent: message\ndata: %s\n\n", json);
+        snprintf(writeBuffer, sizeof(writeBuffer), "event: message\ndata: %s\n\n", json);
         clientWrite(s->client, writeBuffer);
         GIVE_MUTEX();
+        YIELD();
     }
     else
     {
@@ -1278,6 +1283,7 @@ void handle_subscribe()
     subscription[channel].SSEfailCount = 0;
     subscription[channel].clientUUID = server.arg(id);
     subscription[channel].logViewer = logViewer;
+    subscription[channel].lastSent = 0;
     subscription[channel].heartbeatInterval = heartbeatInterval;
 
     SSEurl += std::to_string(channel);
@@ -1413,6 +1419,7 @@ void SSEBroadcastState(const char *data, BroadcastType type)
                     {
                         clientWrite(subscription[i].client, writeBuffer);
                     }
+                    subscription[i].lastSent = millis();
                 }
             }
             else
