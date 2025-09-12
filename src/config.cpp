@@ -328,7 +328,7 @@ userSettings::userSettings()
         {cfg_logLevel, {false, false, ESP_LOG_INFO, helperLogLevel}}, // call fn to set log level
         {cfg_dcOpenClose, {true, false, false, NULL}},
         {cfg_dcDebounceDuration, {true, false, 50, NULL}},
-        {cfg_obstFromStatus, {true, false, true, NULL}},
+        {cfg_obstFromStatus, {true, false, false, NULL}},
 #ifndef ESP8266
         // These features not available on ESP8266
         {cfg_builtInTTC, {false, false, false, helperBuiltInTTC}},
