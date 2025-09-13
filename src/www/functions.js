@@ -657,6 +657,9 @@ async function checkVersion(progress = "dotdot1") {
                 return (obj.content_type === "application/octet-stream") && (obj.name.startsWith(gitRepo));
             }
         });
+        if (latest?.body) {
+            document.getElementById("firmwareDescription").innerHTML = marked.parse(latest.body);
+        }
         if (asset?.name) {
             serverStatus.downloadURL = "https://ratgdo.github.io/" + gitRepo + "/firmware/" + asset.name;
             msg = "You have newest release";
