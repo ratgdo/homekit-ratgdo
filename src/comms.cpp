@@ -1421,9 +1421,9 @@ void comms_loop_sec2()
                         ESP_LOGI(TAG, "Obstruction: %s (Status packet) (%s)", status_obstructed ? "Detected" : "Clear", timeString());
                         notify_homekit_obstruction(status_obstructed);
                         digitalWrite(STATUS_OBST_PIN, !status_obstructed);
-                        if (motionTriggers.bit.obstruction)
+                        if (status_obstructed && motionTriggers.bit.obstruction)
                         {
-                            notify_homekit_motion(status_obstructed);
+                            notify_homekit_motion(true);
                         }
                     }
                 }
@@ -1585,8 +1585,6 @@ void comms_loop_sec2()
                     // Use Pair3Resp packets for obstruction detection via parity
                     // byte1 9 = clear, byte1 14 = obstructed
                     bool currently_obstructed = ((pkt.m_data.value.no_data.no_bits_set >> 16) & 0xFF) == 14;
-                    ESP_LOGD(TAG, "Pair3Resp: 0x%08x", (pkt.m_data.value.no_data.no_bits_set >> 16) & 0xFF);
-
                     // Only update if obstruction state has changed
                     if (garage_door.obstructed != currently_obstructed)
                     {
@@ -1595,9 +1593,9 @@ void comms_loop_sec2()
                         notify_homekit_obstruction(currently_obstructed);
                         digitalWrite(STATUS_OBST_PIN, !currently_obstructed);
                         // Trigger motion detection if enabled
-                        if (motionTriggers.bit.obstruction)
+                        if (currently_obstructed && motionTriggers.bit.obstruction)
                         {
-                            notify_homekit_motion(currently_obstructed);
+                            notify_homekit_motion(true);
                         }
                     }
                 }
@@ -2631,10 +2629,6 @@ void obstruction_timer()
                 ESP_LOGI(TAG, "Obstruction: Clear (ISR) (%s)", timeString());
                 notify_homekit_obstruction(false);
                 digitalWrite(STATUS_OBST_PIN, HIGH);
-                if (motionTriggers.bit.obstruction)
-                {
-                    notify_homekit_motion(false);
-                }
             }
         }
         else if (pulse_count == 0)
