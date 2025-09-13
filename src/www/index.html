@@ -14,6 +14,7 @@
   <link rel="icon" href="favicon.png?v=CRC-32" type="image/png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=CRC-32" type="image/png">
   <script src="qrcode.js?v=CRC-32"></script>
+  <script src="marked.umd.js?v=CRC-32"></script>
   <script src="functions.js?v=CRC-32"></script>
 </head>
 
@@ -630,6 +631,7 @@
           <input type="checkbox" id="prerelease" name="prerelease" value="no">
           <span style="font-size: 0.8em;">Include pre-releases</span>
           <input type="button" value="Update" style="float: right;" onclick="firmwareUpdate(true)">
+          <span id="firmwareDescription" style="font-size: 0.6em;"></span>
         </fieldset>
         <br>
         <fieldset>
