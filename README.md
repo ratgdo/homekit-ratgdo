@@ -96,7 +96,18 @@ This section also displays the current firmware version, with a statement on whe
 
 Status of the garage door along with action buttons are shown in this section. The status values are updated in real time whether triggered by one of the action buttons or an external action (motion in the garage, someone using a door remote).
 
-For ratgdo32-disco boards, vehicle status is shown as Away, Parked, Arriving or Departing. A distance value in centimeters is also shown that represents the distance between the ratgdo board and either the garage floor (if no vehicle present) or the roof/hood of the vehicle. It is normal for this value to fluctuate. See section below on setting vehicle distance threshold.
+If you have a Security+ 1.0 door then you may see the word _(emulation)_ next to the door protocol. This indicates that you do not have a digital wall panel and the ratgdo is emulating this.
+
+Next to the obstruction status you will see the word _(Pin-based)_ or _(Message)_ that indicates how ratgdo is detecting whether there is an obstruction that may prevent the door from closing. By default, ratgdo will attempt to use the pin-based method and only fall back to using the garage door status messages if no signal is detected on the obstruction sensor wire.  You can force ratgdo to use status messages, see below.
+
+For Security+ 2.0 doors, the number of times the door has been opened and closed is shown as _Cycle Count_ and, if equipped, the status of the emergency backup battery.
+
+_Opening_ and _Closing_ values represent the time it takes for the door to open or close. This is averaged over the last five door operations amd resets when the ratgdo is rebooted.
+
+For ratgdo32-disco boards, vehicle status is shown as _Away_, _Parked_, _Arriving_ or _Departing_. A distance value in centimeters is also shown that represents the distance between the ratgdo board and either the garage floor (if no vehicle present) or the roof/hood of the vehicle. It is normal for this value to fluctuate. See section below on setting vehicle distance threshold.
+
+> [!NOTE]
+> It is important that the distance sensor does not point at the glass windshield of your vehicle as this will give unreliable results.
 
 ### Information section
 
@@ -145,6 +156,10 @@ This setting allows you to send the ratgdo logs to a syslog server. Enter the IP
 ### Log Level
 
 You can select the verbosity of log messages from none to verbose. Default is _Info_ level. If you are diagnosing a problem then you should change this to _Debug_ level.
+
+### HomeSpan
+
+On ratgdo32 boards we use an external library, [HomeSpan](https://github.com/HomeSpan/HomeSpan), for all HomeKit operations. When debugging using the serial port it may be helpful to enable HomeSpan's message logging and Command Line Interface (CLI). If you enable this setting then Improv-based WiFi provisioning is disabled unless the ratgdo32 boots into SoftAP mode.
 
 ### Door Close Delay
 
@@ -204,13 +219,12 @@ For Security+ 1.0 and Security +2.0 it is possible to repurpose the sensors used
 
 For Security+ 1.0 and Security+ 2.0, communications with the garage door uses a serial port. This can be either the ESP32's built-in hardware UART or a software emulation of a UART. Software emulation is required for Security+ 2.0 to allow for automatic sensing and changing of the baud rate... without this, the ratgdo cannot detect button presses at the garage door wall panel controller. For Security+ 1.0, software emulation is optional. If you experience communication errors you can try changing to use hardware UART.
 
+> [!NOTE]
+> This selection will only be available if the ratgdo firmware was built with the external GDOLIB library.
+
 ### Get obstruction from GDO status messages
 
-For Security+ 1.0 and Security +2.0, ratgdo obtains obstruction state from status messages sent by the door opener. These messages can sometimes be slow to report a change in obstruction status. Unselecting this option will tell the ratgdo to monitor the hardwired obstruction sensor pin directly.
-
-### Use TOGGLE command to close door
-
-If your Security+ 2.0 door is installed without obstruction sensors then it may not respond to the door action CLOSE command. Use this setting to change the command sent to close an open door to the TOGGLE command.
+By default ratgdo obtains obstruction state by monitoring signals on the sensor wire. The door also reports status in messages sent by the GDO and ratgdo will fall back to use status messages if no signal is detected on the wire. Selecting this option will force the ratgdo to always use status messages. Note that the messages method can be slow to report a change in obstruction state.
 
 ### WiFi Version _(not supported on ratgdo32 boards)_
 
@@ -508,7 +522,7 @@ having to remember PlatformIO-specific `pio` commands. The important ones are `r
 
 ## Acknowledgements & Credits.
 
-The original ESP8266 firmware was written by [Brandon Matthews](https://github.com/thenewwazoo). The ESP32 firmware was written by, and ongoing maintenance for both versions is provided by, [David Kerr](https://github.com/dkerr64). We are thankful for lots of help from contributors:
+The original ESP8266 HomeKit firmware was written by [Brandon Matthews](https://github.com/thenewwazoo). The ESP32 firmware was written by, and ongoing maintenance for both versions is provided by, [David Kerr](https://github.com/dkerr64). We are thankful for lots of help from contributors:
 
 - [Donavan Becker](https://github.com/donavanbecker)
 - [Adam Franke](https://github.com/frankea)
