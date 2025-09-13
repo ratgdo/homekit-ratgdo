@@ -150,7 +150,6 @@ struct SSESubscription
     int SSEfailCount;
     String clientUUID;
     bool logViewer;
-    _millis_t lastSent;
 };
 SSESubscription subscription[SSE_MAX_CHANNELS];
 // During firmware update note which subscribed client is updating
@@ -360,7 +359,8 @@ void web_loop()
             ESP_LOGW(TAG, "WARNING web_loop JSON length: %d is over 80%% of available buffer", strlen(json));
         }
         JSON_REMOVE_NL(json);
-        SSEBroadcastState(json);
+        if (!firmwareUpdateSub) // Only send if we are not in middle of firmware upgrade.
+            SSEBroadcastState(json);
     }
     GIVE_MUTEX();
 
@@ -1050,10 +1050,6 @@ void SSEheartbeat(SSESubscription *s)
     if (!s)
         return;
 
-    // Wait at least one second from last time we sent status from web_loop()
-    if (millis() - s->lastSent < 1000)
-        return;
-
     if (!(s->clientIP))
         return;
 
@@ -1108,7 +1104,6 @@ void SSEheartbeat(SSESubscription *s)
         // retry needed to before event:
         snprintf(writeBuffer, sizeof(writeBuffer), "event: message\ndata: %s\n\n", json);
         clientWrite(s->client, writeBuffer);
-        s->lastSent = _millis();
         GIVE_MUTEX();
         YIELD();
     }
@@ -1285,7 +1280,6 @@ void handle_subscribe()
     subscription[channel].SSEfailCount = 0;
     subscription[channel].clientUUID = server.arg(id);
     subscription[channel].logViewer = logViewer;
-    subscription[channel].lastSent = 0;
     subscription[channel].heartbeatInterval = heartbeatInterval;
 
     SSEurl += std::to_string(channel);
@@ -1421,7 +1415,6 @@ void SSEBroadcastState(const char *data, BroadcastType type)
                     {
                         clientWrite(subscription[i].client, writeBuffer);
                     }
-                    subscription[i].lastSent = millis();
                 }
             }
             else
@@ -1461,6 +1454,7 @@ void handle_update()
 #else
         // TODO how to handle firmware upload failure on ESP32?
 #endif
+        firmwareUpdateSub = NULL;
         ESP_LOGE(TAG, "Firmware upload error. Aborting update, not rebooting");
         server.send(400, type_txt, _updaterError.c_str());
         return;
@@ -1468,6 +1462,7 @@ void handle_update()
 
     if (server.args() > 0)
     {
+        firmwareUpdateSub = NULL;
         // Don't reboot, user/client must explicitly request reboot.
         server.send_P(200, type_txt, PSTR("Upload Success.\n"));
     }
@@ -1567,7 +1562,6 @@ void handle_firmware_upload()
             {
                 Serial.print("\n"); // newline after the dot dot dots
                 ESP_LOGI(TAG, "%s progress: %d", verify ? "Verify" : "Update", uploadPercent);
-                //SSEheartbeat(firmwareUpdateSub); // keep SSE connection alive.
                 nextPrintPercent += 5;
                 // Report percentage to browser client if it is listening
                 if (firmwareUpdateSub && firmwareUpdateSub->client.connected())
@@ -1604,6 +1598,7 @@ void handle_firmware_upload()
             {
                 _setUpdaterError();
             }
+            firmwareUpdateSub = NULL;
         }
     }
     else if (_authenticatedUpdate && upload.status == UPLOAD_FILE_ABORTED)
@@ -1611,5 +1606,6 @@ void handle_firmware_upload()
         if (!verify)
             Update.end();
         ESP_LOGI(TAG, "%s was aborted", verify ? "Verify" : "Update");
+        firmwareUpdateSub = NULL;
     }
 }
