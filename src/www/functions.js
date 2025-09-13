@@ -651,7 +651,11 @@ async function checkVersion(progress = "dotdot1") {
     if (latest) {
         console.log("Newest version: " + latest.tag_name);
         const asset = latest.assets.find((obj) => {
-            return (obj.content_type === "application/octet-stream") && (obj.name.startsWith(gitRepo));
+            if (gitRepo == "homekit-ratgdo32") {
+                return (obj.content_type === "application/octet-stream") && (obj.name.startsWith(gitRepo) && (obj.name.includes("firmware")));
+            } else {
+                return (obj.content_type === "application/octet-stream") && (obj.name.startsWith(gitRepo));
+            }
         });
         if (asset?.name) {
             serverStatus.downloadURL = "https://ratgdo.github.io/" + gitRepo + "/firmware/" + asset.name;

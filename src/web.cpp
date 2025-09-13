@@ -1108,6 +1108,7 @@ void SSEheartbeat(SSESubscription *s)
         // retry needed to before event:
         snprintf(writeBuffer, sizeof(writeBuffer), "event: message\ndata: %s\n\n", json);
         clientWrite(s->client, writeBuffer);
+        s->lastSent = _millis();
         GIVE_MUTEX();
         YIELD();
     }
@@ -1549,7 +1550,7 @@ void handle_firmware_upload()
             if (firmwareSize > 0)
             {
                 uploadProgress = 0;
-                nextPrintPercent = 10;
+                nextPrintPercent = 5;
                 ESP_LOGI(TAG, "%s progress: 00", verify ? "Verify" : "Update");
             }
         }
@@ -1566,8 +1567,8 @@ void handle_firmware_upload()
             {
                 Serial.print("\n"); // newline after the dot dot dots
                 ESP_LOGI(TAG, "%s progress: %d", verify ? "Verify" : "Update", uploadPercent);
-                SSEheartbeat(firmwareUpdateSub); // keep SSE connection alive.
-                nextPrintPercent += 10;
+                //SSEheartbeat(firmwareUpdateSub); // keep SSE connection alive.
+                nextPrintPercent += 5;
                 // Report percentage to browser client if it is listening
                 if (firmwareUpdateSub && firmwareUpdateSub->client.connected())
                 {
@@ -1611,5 +1612,4 @@ void handle_firmware_upload()
             Update.end();
         ESP_LOGI(TAG, "%s was aborted", verify ? "Verify" : "Update");
     }
-    YIELD(); // Not sure if this is necessary as we should be returning to main loop?
 }
