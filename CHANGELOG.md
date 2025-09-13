@@ -2,6 +2,12 @@
 
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v2.0.1 (2025-09-xx)
+
+### What's Changed
+
+* Bugfix... Updating the ratgdo32 version from GitHub was not finding the firmware download file.
+
 ## v2.0.0 (2025-09-13)
 
 **Version 2.0.0 is a major upgrade** for ESP8266-based ratgdo boards.  Almost all source files for the ESP8266 and ESP32 versions of ratgdo have been merged which results in significant changes to the underlying code base, features and function for ESP8266 versions.
