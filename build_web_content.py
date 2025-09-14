@@ -39,6 +39,10 @@ for file in filenames:
     if file == "status.json":
         continue
 
+    # skip js.map files
+    if file.endswith(".js.map"):
+        continue
+
     with open(sourcepath + "/" + file, "rb") as f:
         # read contents of the file
         data = f.read()
@@ -69,6 +73,10 @@ for file in filenames:
 
     # skip status.json
     if file == "status.json":
+        continue
+
+    # skip js.map files
+    if file.endswith(".js.map"):
         continue
 
     # create gzip file name
