@@ -116,6 +116,8 @@ GarageDoor last_reported_garage_door;
 bool last_reported_paired = false;
 bool last_reported_assist_laser = false;
 _millis_t lastDoorUpdateAt;
+_millis_t lastDoorOpenAt;
+_millis_t lastDoorCloseAt;
 GarageDoorCurrentState lastDoorState = (GarageDoorCurrentState)0xff;
 
 static bool web_setup_done = false;
@@ -136,9 +138,11 @@ constexpr char response200[] = "HTTP/1.1 200 OK\nContent-Type: text/plain\nConne
 
 const char *http_methods[] = {"HTTP_ANY", "HTTP_GET", "HTTP_HEAD", "HTTP_POST", "HTTP_PUT", "HTTP_PATCH", "HTTP_DELETE", "HTTP_OPTIONS"};
 
-// All this is to support a 303 redirect to js.map files when debugging, so we don't have to embedd in our firmware !!!!
+// All this is to support a 303 redirect to js.map files when debugging, so we don't have to embed in our firmware !!!!
+#ifndef STRINGIFY
 #define STRINGIFY_HELPER(x) #x
 #define STRINGIFY(x) STRINGIFY_HELPER(x)
+#endif
 // If not building in main github repo, then add -D GITUSER=your_userid to the compile line (no quotes, STRINGIFY adds that here)
 #ifndef GITUSER
 #define _GITUSER "ratgdo"
@@ -325,29 +329,48 @@ void web_loop()
         ESP_LOGI(TAG, "Current Door State changing from %s to %s", DOOR_STATE(lastDoorState), DOOR_STATE(garage_door.current_state));
         if (enableNTP && clockSet)
         {
+            time_t timeNow = time(NULL);
             if (lastDoorState == 0xff)
             {
                 // initialize with saved time.
                 // lastDoorUpdateAt is milliseconds relative to system reboot time.
-                lastDoorUpdateAt = (userConfig->getDoorUpdateAt() != 0) ? ((userConfig->getDoorUpdateAt() - time(NULL)) * 1000) + upTime : 0;
+                lastDoorUpdateAt = (userConfig->getDoorUpdateAt() != 0) ? ((userConfig->getDoorUpdateAt() - timeNow) * 1000) + upTime : 0;
+                lastDoorOpenAt = (userConfig->getDoorOpenAt() != 0) ? ((userConfig->getDoorOpenAt() - timeNow) * 1000) + upTime : 0;
+                lastDoorCloseAt = (userConfig->getDoorCloseAt() != 0) ? ((userConfig->getDoorCloseAt() - timeNow) * 1000) + upTime : 0;
             }
             else
             {
                 // first state change after a reboot, so really is a state change.
-                userConfig->set(cfg_doorUpdateAt, (int)time(NULL));
-                ESP8266_SAVE_CONFIG();
                 lastDoorUpdateAt = upTime;
+                userConfig->set(cfg_doorUpdateAt, (int)timeNow);
+                if (garage_door.current_state == GarageDoorCurrentState::CURR_OPEN)
+                {
+                    lastDoorOpenAt = upTime;
+                    userConfig->set(cfg_doorOpenAt, (int)timeNow);
+                }
+                if (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSED)
+                {
+                    lastDoorCloseAt = upTime;
+                    userConfig->set(cfg_doorCloseAt, (int)timeNow);
+                }
+                ESP8266_SAVE_CONFIG();
             }
         }
         else
         {
+            // No realtime set, use upTime.
             lastDoorUpdateAt = (lastDoorState == 0xff) ? 0 : upTime;
+            if (garage_door.current_state == GarageDoorCurrentState::CURR_OPEN)
+                lastDoorOpenAt = lastDoorUpdateAt;
+            if (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSED)
+                lastDoorCloseAt = lastDoorUpdateAt;
         }
-        // if no NTP....  lastDoorUpdateAt = (lastDoorState == 0xff) ? 0 : upTime;
         lastDoorState = garage_door.current_state;
         // We send milliseconds relative to current time... ie updated X milliseconds ago
         // First time through, zero offset from upTime, which is when we last rebooted)
-        JSON_ADD_INT("lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
+        JSON_ADD_INT(cfg_doorUpdateAt, (upTime - lastDoorUpdateAt));
+        JSON_ADD_INT(cfg_doorOpenAt, (upTime - lastDoorOpenAt));
+        JSON_ADD_INT(cfg_doorCloseAt, (upTime - lastDoorCloseAt));
     }
 #ifndef ESP8266
     // Feature not available on ESP8266
@@ -461,6 +484,8 @@ void setup_web()
              motionTriggers.bit.lockKey,
              motionTriggers.asInt);
     lastDoorUpdateAt = 0;
+    lastDoorOpenAt = 0;
+    lastDoorCloseAt = 0;
     lastDoorState = (GarageDoorCurrentState)0xff;
 
 #ifdef ESP8266 // ESP8266 only
@@ -763,7 +788,9 @@ void handle_status()
     JSON_ADD_INT(cfg_motionTriggers, (uint32_t)motionTriggers.asInt);
     JSON_ADD_INT(cfg_LEDidle, userConfig->getLEDidle());
     // We send milliseconds relative to current time... ie updated X milliseconds ago
-    JSON_ADD_INT("lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
+    JSON_ADD_INT(cfg_doorUpdateAt, (upTime - lastDoorUpdateAt));
+    JSON_ADD_INT(cfg_doorOpenAt, (upTime - lastDoorOpenAt));
+    JSON_ADD_INT(cfg_doorCloseAt, (upTime - lastDoorCloseAt));
     JSON_ADD_BOOL("enableNTP", enableNTP);
     if (enableNTP && (bool)clockSet)
     {

@@ -259,12 +259,15 @@ void service_timer_loop()
                 lastDoorUpdateAt = (_millis_t)(((time_t)userConfig->getDoorUpdateAt() - timeNow) * 1000LL) + current_millis;
                 ESP_LOGI(TAG, "Last door update at: %s", timeString((time_t)userConfig->getDoorUpdateAt()));
             }
-            if (strlen(userConfig->getTimeZone()) == 0)
+            if (userConfig->getDoorOpenAt() != 0)
             {
-                // no timeZone set, try and find it automatically
-                get_auto_timezone();
-                // if successful this will have set the region and city, but not
-                // the POSIX time zone code. That will be done by browser.
+                lastDoorOpenAt = (_millis_t)(((time_t)userConfig->getDoorOpenAt() - timeNow) * 1000LL) + current_millis;
+                ESP_LOGI(TAG, "Last door open at:   %s", timeString((time_t)userConfig->getDoorOpenAt()));
+            }
+            if (userConfig->getDoorCloseAt() != 0)
+            {
+                lastDoorCloseAt = (_millis_t)(((time_t)userConfig->getDoorCloseAt() - timeNow) * 1000LL) + current_millis;
+                ESP_LOGI(TAG, "Last door close at:  %s", timeString((time_t)userConfig->getDoorCloseAt()));
             }
         }
     }

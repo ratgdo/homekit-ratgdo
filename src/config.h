@@ -72,6 +72,8 @@ constexpr char cfg_LEDidle[] = "LEDidle";
 constexpr char cfg_motionTriggers[] = "motionTriggers";
 constexpr char cfg_enableNTP[] = "enableNTP";
 constexpr char cfg_doorUpdateAt[] = "doorUpdateAt";
+constexpr char cfg_doorOpenAt[] = "doorOpenAt";
+constexpr char cfg_doorCloseAt[] = "doorCloseAt";
 constexpr char cfg_timeZone[] = "timeZone";
 constexpr char cfg_softAPmode[] = "softAPmode";
 constexpr char cfg_syslogEn[] = "syslogEn";
@@ -173,6 +175,8 @@ public:
     uint32_t getMotionTriggers() { return std::get<int>(get(cfg_motionTriggers)); };
     bool getEnableNTP() { return std::get<bool>(get(cfg_enableNTP)); };
     uint32_t getDoorUpdateAt() { return std::get<int>(get(cfg_doorUpdateAt)); };
+    uint32_t getDoorOpenAt() { return std::get<int>(get(cfg_doorOpenAt)); };
+    uint32_t getDoorCloseAt() { return std::get<int>(get(cfg_doorCloseAt)); };
     char *getTimeZone() { return (std::get<configStr>(get(cfg_timeZone)).str); };
     bool getSoftAPmode() { return std::get<bool>(get(cfg_softAPmode)); };
     bool getSyslogEn() { return std::get<bool>(get(cfg_syslogEn)); };

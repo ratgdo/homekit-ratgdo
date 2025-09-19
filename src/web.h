@@ -42,6 +42,8 @@ extern const char response400invalid[];
 extern const char type_txt[];
 
 extern _millis_t lastDoorUpdateAt;
+extern _millis_t lastDoorOpenAt;
+extern _millis_t lastDoorCloseAt;
 
 enum BroadcastType : uint8_t
 {
