@@ -317,6 +317,8 @@ userSettings::userSettings()
         {cfg_motionTriggers, {false, false, 0, helperMotionTriggers}}, // call fn to enable HomeSpan service
         {cfg_enableNTP, {true, false, false, NULL}},
         {cfg_doorUpdateAt, {false, false, 0, NULL}},
+        {cfg_doorOpenAt, {false, false, 0, NULL}},
+        {cfg_doorCloseAt, {false, false, 0, NULL}},
         // Will contain string of region/city and POSIX code separated by semicolon...
         // For example... "America/New_York;EST5EDT,M3.2.0,M11.1.0"
         // Current maximum string length is known to be 60 chars (+ null terminator), see JavaScript console log.

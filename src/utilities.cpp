@@ -184,7 +184,9 @@ void load_all_config_settings()
     ESP_LOGI(TAG, "   motionTriggers:      %d", userConfig->getMotionTriggers());
     ESP_LOGI(TAG, "   obstFromStatus:      %s", userConfig->getObstFromStatus() ? "true" : "false");
     ESP_LOGI(TAG, "   enableNTP:           %s", userConfig->getEnableNTP() ? "true" : "false");
-    ESP_LOGI(TAG, "   doorUpdateAt:        %d", userConfig->getDoorUpdateAt());
+    ESP_LOGI(TAG, "   doorUpdateAt:        %d (%s)", userConfig->getDoorUpdateAt(), timeString(userConfig->getDoorUpdateAt()));
+    ESP_LOGI(TAG, "   doorOpenAt:          %d (%s)", userConfig->getDoorOpenAt(), timeString(userConfig->getDoorOpenAt()));
+    ESP_LOGI(TAG, "   doorCloseAt:         %d (%s)", userConfig->getDoorCloseAt(), timeString(userConfig->getDoorCloseAt()));
     ESP_LOGI(TAG, "   timeZone:            %s", userConfig->getTimeZone());
     ESP_LOGI(TAG, "   softAPmode:          %s", userConfig->getSoftAPmode() ? "true" : "false");
     ESP_LOGI(TAG, "   syslogEn:            %s", userConfig->getSyslogEn() ? "true" : "false");

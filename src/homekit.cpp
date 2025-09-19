@@ -335,21 +335,24 @@ void connectionCallback(int count)
              WiFi.gatewayIP().toString().c_str(),
              WiFi.dnsIP().toString().c_str());
 
-    // IPv4 Config
-    userConfig->set(cfg_localIP, WiFi.localIP().toString().c_str());
-    userConfig->set(cfg_gatewayIP, WiFi.gatewayIP().toString().c_str());
-    userConfig->set(cfg_subnetMask, WiFi.subnetMask().toString().c_str());
-
-    // Only update cfg_nameserverIP if it is an IPv4 address. .dnsIP() can return an IPv6 address if we have one from SLAAC
-    if (WiFi.dnsIP().type() == IPv4)
-        userConfig->set(cfg_nameserverIP, WiFi.dnsIP().toString().c_str());
-
-    // With WiFi connected, we can now initialize the rest of our app.
     if (!softAPmode)
     {
+        // IPv4 Config
+        userConfig->set(cfg_localIP, WiFi.localIP().toString().c_str());
+        userConfig->set(cfg_gatewayIP, WiFi.gatewayIP().toString().c_str());
+        userConfig->set(cfg_subnetMask, WiFi.subnetMask().toString().c_str());
+
+        // Only update cfg_nameserverIP if it is an IPv4 address. .dnsIP() can return an IPv6 address if we have one from SLAAC
+        if (WiFi.dnsIP().type() == IPv4)
+            userConfig->set(cfg_nameserverIP, WiFi.dnsIP().toString().c_str());
+
+        // With WiFi connected, we can now initialize the rest of our app.
         if (strlen(userConfig->getTimeZone()) == 0)
         {
+            // no timeZone set, try and find it automatically
             get_auto_timezone();
+            // if successful this will have set the region and city, but not
+            // the POSIX time zone code. That will be done by browser.
         }
         setup_vehicle();
         setup_comms();
@@ -657,7 +660,7 @@ void setup_homekit()
 
     ESP_LOGI(TAG, "=== Setup HomeKit accessories and services ===");
 
-    //homeSpan.setLogLevel(0); Zero is default (top level messages only), comment out so can be controlled by Improv setup.
+    // homeSpan.setLogLevel(0); Zero is default (top level messages only), comment out so can be controlled by Improv setup.
     homeSpan.setSketchVersion(AUTO_VERSION);
     homeSpan.setHostNameSuffix("");
     homeSpan.setPortNum(5556);
