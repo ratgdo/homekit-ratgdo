@@ -87,7 +87,9 @@ void esp_log_hook(const char *fmt, va_list args)
 extern "C" uint32_t __crc_len;
 extern "C" uint32_t __crc_val;
 // Keep track of number of times crashed
-int32_t crashCount;
+void crashCallback();
+int32_t crashCount = 0;
+EspSaveCrash saveCrash(1408, 1024, true, &crashCallback);
 // ESP8266 is single core / single threaded, no mutex's.
 #define TAKE_MUTEX()
 #define GIVE_MUTEX()
@@ -101,7 +103,7 @@ void crashCallback()
         ratgdoLogger->logMessageFile.print("\n");
         ratgdoLogger->logMessageFile.write(ESP.checkFlashCRC() ? "Flash CRC OK" : "Flash CRC BAD");
         ratgdoLogger->logMessageFile.print("\n");
-        ratgdoLogger->printMessageLog(ratgdoLogger->logMessageFile);
+        ratgdoLogger->printMessageLog(ratgdoLogger->logMessageFile, false);
         ratgdoLogger->logMessageFile.close();
     }
 }
@@ -252,8 +254,43 @@ void LOG::logToBuffer(const char *fmt, va_list args)
     return;
 }
 
-#ifndef ESP8266
-// on ESP8266 we don't need this... crash callback saves log to file.
+void LOG::clearCrashLog()
+{
+#ifdef ESP8266
+    saveCrash.clear();
+#else
+    esp_core_dump_image_erase();
+#endif
+    crashCount = 0;
+}
+
+#ifdef ESP8266
+void LOG::printCrashLog(Print &outputDev)
+{
+    // We save data from crash EEPROM into a temp file so when we send to the
+    // browser client we chunk it in smaller pieces.  This improves reliability
+    // on slow network links avoiding watchdog timeouts
+    if (crashCount > 0)
+    {
+        constexpr char CRASH_TEMP_FILE[] = "/crash_temp";
+        File file = LittleFS.open(CRASH_TEMP_FILE, "w");
+        file.truncate(0);
+        file.seek(0, fs::SeekSet);
+        saveCrash.print(file);
+        ratgdoLogger->printSavedLog(logMessageFile, file, false);
+        file.close();
+        // Open temp file for reading and send it to client
+        file = LittleFS.open(CRASH_TEMP_FILE, "r");
+        ratgdoLogger->printSavedLog(file, outputDev, true);
+        file.close();
+    }
+    else
+    {
+        outputDev.print("\n\nNo crash log available.\n");
+    }
+}
+
+#else
 void LOG::printCrashLog(Print &outputDev)
 {
     TAKE_MUTEX();
@@ -334,7 +371,7 @@ void LOG::saveMessageLog()
 #endif
 
 #ifdef ESP8266
-void LOG::printSavedLog(File file, Print &outputDev)
+void LOG::printSavedLog(File file, Print &outputDev, bool slow)
 {
     Serial.print("Send saved file.");
     if (file && file.size() > 0)
@@ -349,7 +386,7 @@ void LOG::printSavedLog(File file, Print &outputDev)
             Serial.print(".");
             YIELD();
             outputDev.write(lineBuffer, num);
-            if ((count += num) > TCP_SND_BUF / 2)
+            if (slow && (count += num) > TCP_SND_BUF / 2)
             {
                 // Don't risk filling the TCP Send Buffer
                 // wait for it to empty with a flush.
@@ -367,7 +404,7 @@ void LOG::printSavedLog(File file, Print &outputDev)
 void LOG::printSavedLog(Print &outputDev, bool fromNVram)
 {
 #ifdef ESP8266
-    return printSavedLog(logMessageFile, outputDev);
+    return printSavedLog(logMessageFile, outputDev, true);
 #else
     if (fromNVram)
     {
@@ -390,7 +427,7 @@ void LOG::printSavedLog(Print &outputDev, bool fromNVram)
 #endif
 }
 
-void LOG::printMessageLog(Print &outputDev)
+void LOG::printMessageLog(Print &outputDev, bool slow)
 {
     TAKE_MUTEX();
     if (enableNTP && clockSet)
@@ -412,8 +449,8 @@ void LOG::printMessageLog(Print &outputDev)
         // +3 want to round up to multiple of 4
         size_t start = ((msgBuffer->head + 1 + 3) & ~0x03) % sizeof(msgBuffer->buffer);
         size_t len = sizeof(msgBuffer->buffer) - start;
-        // Chunk up to protect against buffer overflow
-        constexpr size_t CHUNK = TCP_SND_BUF / 2;
+        // On slow output devices (e.g. network), chunk up to protect against buffer overflow
+        size_t CHUNK = (slow) ? TCP_SND_BUF / 2 : sizeof(msgBuffer->buffer);
         size_t chunk;
         Serial.print("Send message log.");
         if (msgBuffer->wrapped != 0)
@@ -425,7 +462,8 @@ void LOG::printMessageLog(Print &outputDev)
                 Serial.print(".");
                 YIELD();
                 outputDev.write(&msgBuffer->buffer[start], chunk);
-                outputDev.flush();
+                if (slow)
+                    outputDev.flush();
                 len -= chunk;
                 start += chunk;
             }

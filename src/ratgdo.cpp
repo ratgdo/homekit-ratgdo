@@ -127,6 +127,13 @@ void setup()
     load_all_config_settings();
     // Now set log level to whatever user has requested
     logLevel = (esp_log_level_t)userConfig->getLogLevel();
+    // Initialize crash count... which can persist over reboots
+    crashCount = saveCrash.count();
+    if (crashCount == 255)
+    {
+        saveCrash.clear();
+        crashCount = 0;
+    }
 #else
     esp_reset_reason_t r = esp_reset_reason();
     switch (r)

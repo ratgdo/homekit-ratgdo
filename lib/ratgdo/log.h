@@ -18,6 +18,7 @@
 #include <IPAddress.h>
 #ifdef ESP8266
 #include <LittleFS.h>
+#include "EspSaveCrash.h"
 #else
 #include "HomeSpan.h"
 #endif
@@ -51,7 +52,9 @@ extern bool suppressSerialLog;
 extern time_t rebootTime;
 extern time_t crashTime;
 extern int32_t crashCount;
-
+#ifdef ESP8266
+extern EspSaveCrash saveCrash;
+#endif
 typedef struct logBuffer
 {
     uint32_t wrapped;
@@ -81,7 +84,6 @@ typedef enum
 
 extern "C" esp_log_level_t logLevel;
 extern "C" void logToBuffer_P(const char *fmt, ...);
-extern void crashCallback();
 
 #define RATGDO_PRINTF(level, message, ...)               \
     do                                                   \
@@ -129,9 +131,10 @@ public:
     };
     void printSavedLog(Print &outDevice = Serial, bool fromNVram = false);
 #ifdef ESP8266
-    void printSavedLog(File file, Print &outputDev);
+    void printSavedLog(File file, Print &outputDev, bool slow = true);
 #endif
-    void printMessageLog(Print &outDevice = Serial);
+    void printMessageLog(Print &outDevice = Serial, bool slow = true);
+    void clearCrashLog();
     void printCrashLog(Print &outDevice = Serial);
     void saveMessageLog();
 };
