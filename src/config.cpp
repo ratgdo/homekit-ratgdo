@@ -189,7 +189,9 @@ bool helperSyslogEn(const std::string &key, const char *value, configSetting *ac
 bool helperLogLevel(const std::string &key, const char *value, configSetting *action)
 {
     userConfig->set(key, value);
-#ifndef ESP32
+#ifdef ESP32
+    esp_log_level_set("*", (esp_log_level_t)userConfig->getLogLevel());
+#else
     logLevel = (esp_log_level_t)userConfig->getLogLevel();
 #endif // !ESP32
     return true;
