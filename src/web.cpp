@@ -42,7 +42,6 @@
 #include "led.h"
 #ifdef ESP8266
 #include "wifi_8266.h"
-#include "EspSaveCrash.h"
 #else
 #include "vehicle.h"
 #endif
@@ -76,10 +75,6 @@ char *test_str = NULL;
 void handle_update();
 void handle_firmware_upload();
 void SSEHandler(uint32_t channel);
-
-#ifdef ESP8266
-EspSaveCrash saveCrash(1408, 1024, true, &crashCallback);
-#endif
 
 // Built in URI handlers
 const char restEvents[] = "/rest/events/";
@@ -487,15 +482,6 @@ void setup_web()
     lastDoorOpenAt = 0;
     lastDoorCloseAt = 0;
     lastDoorState = (GarageDoorCurrentState)0xff;
-
-#ifdef ESP8266 // ESP8266 only
-    crashCount = saveCrash.count();
-    if (crashCount == 255)
-    {
-        saveCrash.clear();
-        crashCount = 0;
-    }
-#endif
 
     ESP_LOGI(TAG, "Registering URI handlers");
     server.on("/update", HTTP_POST, handle_update, handle_firmware_upload);
@@ -1366,22 +1352,7 @@ void handle_subscribe()
 void handle_crashlog()
 {
     server.client().print(response200);
-#ifdef ESP8266
-    // We save data from crash EEPROM into a temp file so when we send to the
-    // browser client we chunk it in smaller pieces.  This improves reliability
-    // on slow network links avoiding watchdog timeouts
-    constexpr char CRASH_TEMP_FILE[] = "/crash_temp";
-    File crashTempFile = LittleFS.open(CRASH_TEMP_FILE, "w");
-    crashTempFile.truncate(0);
-    crashTempFile.seek(0, fs::SeekSet);
-    saveCrash.print(crashTempFile);
-    ratgdoLogger->printSavedLog(crashTempFile);
-    crashTempFile.close();
-    if (crashCount > 0)
-        ratgdoLogger->printSavedLog(server.client());
-#else
     ratgdoLogger->printCrashLog(server.client());
-#endif
 }
 
 void handle_showlog()
@@ -1406,12 +1377,7 @@ void handle_clearcrashlog()
 {
     AUTHENTICATE();
     ESP_LOGI(TAG, "Clear saved crash log");
-#ifdef ESP8266
-    saveCrash.clear();
-#else
-    esp_core_dump_image_erase();
-#endif
-    crashCount = 0;
+    ratgdoLogger->clearCrashLog();
     server.send_P(200, type_txt, PSTR("Crash log cleared\n"));
 }
 
