@@ -33,7 +33,8 @@
       <div class="name">
         <p id="deviceName" style="margin:0px;">Garage Door</p>
       </div>
-      <div style="float: right; vertical-align: middle; padding-left: 0; padding-right: 0; cursor: pointer; position: absolute; right: 0;">
+      <div
+        style="float: right; vertical-align: middle; padding-left: 0; padding-right: 0; cursor: pointer; position: absolute; right: 0;">
         <img id="main-icon" src="garage-car.svg?v=CRC-32" alt="Homepage" onclick="history.back()"
           style="width: 1.5em; height: 1.5em;">
       </div>
@@ -48,7 +49,7 @@
         style="display: none; margin-left: 1em; margin-top: 0.8em;"
         onclick="return confirm('Clear log, are you sure?') && clearLog(false);">
       <input id="reloadLogButton" type="button" value="Reload" style="display: none;"
-        onclick="return confirm('Clear log, are you sure?') && clearLog(true);">
+        onclick="return confirm('Clear and reload log, are you sure?') && clearLog(true);">
       <input id="clearBtn" type="button" value="Clear crash log"
         style="display: none; margin-left: 1em; margin-top: 0.8em;"
         onclick="return confirm('Clear crash log, are you sure?') && clearCrashLog();">
@@ -72,7 +73,6 @@ Loading...
     </div>
     <div id="crashTab" class="tabcontent">
       <p style="margin: 0px; color: darkgoldenrod">Messages logged immediately before last system crash...</p>
-      <span id="crashlog-timestamps"></span>
       <pre id="crashlog" style="font-size: 0.6em; margin-top: 0px"></pre>
     </div>
     <!-- Footer section of page ------------------------------------------------------------------>
