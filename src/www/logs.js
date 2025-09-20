@@ -192,8 +192,8 @@ async function loadLogPages() {
             })
             .then((text) => {
                 msgJson = JSON.parse(text);
-                document.getElementById("deviceName").innerHTML = msgJson.deviceName + " Logs";
-                document.title = msgJson.deviceName + " Logs";
+                document.getElementById("deviceName").innerHTML = msgJson.deviceName;
+                document.title = msgJson.deviceName;
                 document.getElementById("statusjson").innerText = text;
             })
             .catch(error => console.warn(error)),
