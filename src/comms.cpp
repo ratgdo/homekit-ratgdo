@@ -197,7 +197,7 @@ bool clearToSend = false;
 bool wallPanelBooting = false;
 bool wallPanelDetected = false;
 #ifdef SEC1_DISCONNECT_WP
-#define WP_CONNECTED    LOW
+#define WP_CONNECTED LOW
 #define WP_DISCONNECTED HIGH
 uint8_t wallPanelConnected;
 #endif
@@ -1262,6 +1262,8 @@ void comms_loop_sec1()
 #endif
                 if (process_PacketAction(pkt_ac))
                 {
+                    // success, reset retry count
+                    retryCount = 0;
 #ifdef ESP8266
                     q_drop(&pkt_q);
 #endif
@@ -1270,7 +1272,7 @@ void comms_loop_sec1()
                 {
                     if (retryCount++ < MAX_COMMS_RETRY)
                     {
-                        ESP_LOGD(TAG, "SEC1 TX send failed, will retry");
+                        ESP_LOGD(TAG, "SEC1 TX send failed, will retry. retryCount=%d", retryCount);
 #ifdef ESP32
                         xQueueSendToFront(pkt_q, &pkt_ac, 0); // ignore errors
 #endif
@@ -1340,12 +1342,14 @@ void comms_loop_sec2()
 #endif
                 }
             }
-#ifdef ESP8266
             else
             {
+                // success, reset retry count
+                retryCount = 0;
+#ifdef ESP8266
                 q_drop(&pkt_q);
-            }
 #endif
+            }
         }
     }
     else
