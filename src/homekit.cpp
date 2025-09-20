@@ -561,7 +561,6 @@ void enable_service_homekit_vehicle(bool enable)
             new SpanAccessory(HOMEKIT_AID_ARRIVING);
             new DEV_Info("Arriving");
             arriving = new DEV_Motion("Arriving");
-
             // Define Motion Sensor accessory for vehicle departing
             new SpanAccessory(HOMEKIT_AID_DEPARTING);
             new DEV_Info("Departing");
@@ -1062,6 +1061,12 @@ void notify_homekit_current_door_state_change(GarageDoorCurrentState state)
     e.c = door->current;
     e.value.u = (uint8_t)garage_door.current_state;
     queueSendHelper(door->event_q, e, "current door");
+
+    // Notify the vehicle presence code that door state is changing
+    if (garage_door.current_state == GarageDoorCurrentState::CURR_OPENING)
+        doorOpening();
+    if (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSING)
+        doorClosing();
 #else
     if (!arduino_homekit_get_running_server())
         return;
