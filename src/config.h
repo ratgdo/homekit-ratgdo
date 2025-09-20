@@ -186,13 +186,15 @@ public:
     bool getDCOpenClose() { return std::get<bool>(get(cfg_dcOpenClose)); };
     uint32_t getDCDebounceDuration() { return std::get<int>(get(cfg_dcDebounceDuration)); };
     bool getObstFromStatus() { return std::get<bool>(get(cfg_obstFromStatus)); };
-#ifndef ESP8266
-    bool getBuiltInTTC() { return std::get<bool>(get(cfg_builtInTTC)); };
+#ifdef RATGDO32_DISCO
     uint32_t getVehicleThreshold() { return std::get<int>(get(cfg_vehicleThreshold)); };
     bool getLaserEnabled() { return std::get<bool>(get(cfg_laserEnabled)); };
     bool getLaserHomeKit() { return std::get<bool>(get(cfg_laserHomeKit)); };
     bool getVehicleHomeKit() { return std::get<bool>(get(cfg_vehicleHomeKit)); };
     uint32_t getAssistDuration() { return std::get<int>(get(cfg_assistDuration)); };
+#endif
+#ifndef ESP8266
+    bool getBuiltInTTC() { return std::get<bool>(get(cfg_builtInTTC)); };
     bool getUseSWserial() { return std::get<bool>(get(cfg_useSWserial)); };
     uint32_t getOccupancyDuration() { return std::get<int>(get(cfg_occupancyDuration)); };
     bool getEnableIPv6() { return std::get<bool>(get(cfg_enableIPv6)); };
