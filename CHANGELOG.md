@@ -2,6 +2,20 @@
 
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v2.0.2 (2025-09-20)
+
+### What's Changed
+
+* Bugfix... Date and time on web page now displayed in the time zone of the server (NTP server feature must be enabled).
+* Bugfix... Crash log display was not showing stack dump, now fixed.
+* New Feature... last door open and close date and time is displayed under opening/closing status (NTP server feature must be enabled).
+* Other... Add a "home" button to system logs page because iOS and iPad OS 26 have removed the "done" button.
+
+### Known Issues
+
+* Sec+ 1.0 doors with digital wall panel (e.g. 889LM) sometimes do not close after a time-to-close delay. Please watch your door to make sure it closes after TTC delay.
+* Possible crash when a storm of HomeKit messages arrives... which may be triggered on a upgrade to Apple iOS 26 / tvOS 26 / etc.  System recovers.
+
 ## v2.0.1 (2025-09-14)
 
 ### What's Changed
