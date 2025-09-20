@@ -30,16 +30,14 @@
 #include "softAP.h"
 #include "led.h"
 
-#ifdef ESP8266
-#include "drycontact.h"
-#else // not ESP8266
+#ifdef RATGDO32_DISCO
 #include "vehicle.h"
+#endif
 #ifdef USE_GDOLIB
 #include "gdo.h"
 #else
 #include "drycontact.h"
 #endif
-#endif // ESP8266
 
 // Logger tag
 static const char *TAG = "ratgdo-homekit";
@@ -335,23 +333,28 @@ void connectionCallback(int count)
              WiFi.gatewayIP().toString().c_str(),
              WiFi.dnsIP().toString().c_str());
 
-    // IPv4 Config
-    userConfig->set(cfg_localIP, WiFi.localIP().toString().c_str());
-    userConfig->set(cfg_gatewayIP, WiFi.gatewayIP().toString().c_str());
-    userConfig->set(cfg_subnetMask, WiFi.subnetMask().toString().c_str());
-
-    // Only update cfg_nameserverIP if it is an IPv4 address. .dnsIP() can return an IPv6 address if we have one from SLAAC
-    if (WiFi.dnsIP().type() == IPv4)
-        userConfig->set(cfg_nameserverIP, WiFi.dnsIP().toString().c_str());
-
-    // With WiFi connected, we can now initialize the rest of our app.
     if (!softAPmode)
     {
+        // IPv4 Config
+        userConfig->set(cfg_localIP, WiFi.localIP().toString().c_str());
+        userConfig->set(cfg_gatewayIP, WiFi.gatewayIP().toString().c_str());
+        userConfig->set(cfg_subnetMask, WiFi.subnetMask().toString().c_str());
+
+        // Only update cfg_nameserverIP if it is an IPv4 address. .dnsIP() can return an IPv6 address if we have one from SLAAC
+        if (WiFi.dnsIP().type() == IPv4)
+            userConfig->set(cfg_nameserverIP, WiFi.dnsIP().toString().c_str());
+
+        // With WiFi connected, we can now initialize the rest of our app.
         if (strlen(userConfig->getTimeZone()) == 0)
         {
+            // no timeZone set, try and find it automatically
             get_auto_timezone();
+            // if successful this will have set the region and city, but not
+            // the POSIX time zone code. That will be done by browser.
         }
+#ifdef RATGDO32_DISCO
         setup_vehicle();
+#endif
         setup_comms();
 #ifndef USE_GDOLIB
         setup_drycontact();
@@ -362,7 +365,9 @@ void connectionCallback(int count)
     static bool startupBeeped = false;
     if (!startupBeeped)
     {
+#ifdef RATGDO32_DISCO
         tone(BEEPER_PIN, 2000, 500);
+#endif
         startupBeeped = true;
     }
 }
@@ -548,6 +553,7 @@ void createMotionAccessories()
     motion = new DEV_Motion("Motion");
 }
 
+#ifdef RATGDO32_DISCO
 void enable_service_homekit_vehicle(bool enable)
 {
     if (enable)
@@ -558,7 +564,6 @@ void enable_service_homekit_vehicle(bool enable)
             new SpanAccessory(HOMEKIT_AID_ARRIVING);
             new DEV_Info("Arriving");
             arriving = new DEV_Motion("Arriving");
-
             // Define Motion Sensor accessory for vehicle departing
             new SpanAccessory(HOMEKIT_AID_DEPARTING);
             new DEV_Info("Departing");
@@ -617,6 +622,7 @@ bool enable_service_homekit_laser(bool enable)
     }
     return false;
 }
+#endif
 
 bool enable_service_homekit_room_occupancy(bool enable)
 {
@@ -657,7 +663,7 @@ void setup_homekit()
 
     ESP_LOGI(TAG, "=== Setup HomeKit accessories and services ===");
 
-    //homeSpan.setLogLevel(0); Zero is default (top level messages only), comment out so can be controlled by Improv setup.
+    // homeSpan.setLogLevel(0); Zero is default (top level messages only), comment out so can be controlled by Improv setup.
     homeSpan.setSketchVersion(AUTO_VERSION);
     homeSpan.setHostNameSuffix("");
     homeSpan.setPortNum(5556);
@@ -736,6 +742,7 @@ void setup_homekit()
         ESP_LOGI(TAG, "No motion sensor. Skipping motion service");
     }
 
+#ifdef RATGDO32_DISCO
     // only create sensors if we know we have time-of-flight distance sensor
     garage_door.has_distance_sensor = (bool)nvRam->read(nvram_has_distance);
     if (garage_door.has_distance_sensor)
@@ -746,7 +753,7 @@ void setup_homekit()
     {
         ESP_LOGI(TAG, "No vehicle presence sensor. Skipping motion and occupancy services");
     }
-
+#endif
     // Create a room occupancy sensor if timer for it is greater than 0
     enable_service_homekit_room_occupancy(userConfig->getOccupancyDuration() > 0);
 
@@ -787,6 +794,7 @@ boolean DEV_Info::update()
     // LED, Laser and Tone calls are all asynchronous.  We will illuminate LED and Laser
     // for 2 seconds, during which we will play tone.  Function will return after 1.5 seconds.
     led.flash(2000);
+#ifdef RATGDO32_DISCO
     laser.flash(2000);
     tone(BEEPER_PIN, 1300);
     delay(500);
@@ -795,6 +803,7 @@ boolean DEV_Info::update()
     tone(BEEPER_PIN, 1300);
     delay(500);
     tone(BEEPER_PIN, 2000, 500);
+#endif
     return true;
 }
 
@@ -881,6 +890,7 @@ boolean DEV_Light::update()
     {
         set_light(DEV_Light::on->getNewVal<bool>());
     }
+#ifdef RATGDO32_DISCO
     else if (this->type == Light_t::ASSIST_LASER)
     {
         if (on->getNewVal<bool>())
@@ -894,6 +904,7 @@ boolean DEV_Light::update()
             laser.off();
         }
     }
+#endif
     return true;
 }
 
@@ -1059,6 +1070,14 @@ void notify_homekit_current_door_state_change(GarageDoorCurrentState state)
     e.c = door->current;
     e.value.u = (uint8_t)garage_door.current_state;
     queueSendHelper(door->event_q, e, "current door");
+
+#ifdef RATGDO32_DISCO
+    // Notify the vehicle presence code that door state is changing
+    if (garage_door.current_state == GarageDoorCurrentState::CURR_OPENING)
+        doorOpening();
+    if (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSING)
+        doorClosing();
+#endif
 #else
     if (!arduino_homekit_get_running_server())
         return;

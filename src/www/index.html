@@ -113,52 +113,60 @@
         <div class="fullwidth">
           <table style="table-layout: fixed; width: 95%;">
             <colgroup>
-              <col width="30%">
+              <col width="15%">
+              <col width="15%">
               <col width="20%">
               <col width="5%">
-              <col width="20%">
+              <col width="5%">
+              <col width="15%">
               <col width="25%">
             </colgroup>
             <tr>
-              <td>Door State:</td>
+              <td colspan="2">Door State:</td>
               <td id="garageDoorState"></td>
-              <td colspan="2">Obstruction:</td>
+              <td colspan="3">Obstruction:</td>
               <td>
                 <span id="garageObstructed"></span>
                 <span id="pinBasedObst" style="font-size: 0.6em">(pin)</span>
               </td>
             </tr>
             <tr id="lockLightRow">
-              <td>Remotes:</td>
+              <td colspan="2">Remotes:</td>
               <td id="garageLockState"></td>
-              <td colspan="2">Light&nbsp;On:</td>
+              <td colspan="3">Light&nbsp;On:</td>
               <td id="garageLightOn"></td>
             </tr>
             <tr>
-              <td>Door&nbsp;Protocol:</td>
+              <td colspan="2">Door&nbsp;Protocol:</td>
               <td colspan="2" style="width: 35%;">
                 <span id="GDOSecurityType"></span>
                 <span id="sec1emulation" style="font-size: 0.6em; display: none">(Emulation)</span>
               </td>
-              <td id="motionLabel">Motion:</td>
+              <td colspan="2" id="motionLabel">Motion:</td>
               <td id="garageMotion"></td>
             </tr>
             <tr id="secPlus2Row" style="display:none;">
-              <td>Cycle&nbsp;Count:</td>
+              <td colspan="2">Cycle&nbsp;Count:</td>
               <td id="openingsCount"></td>
-              <td colspan="2">Battery:</td>
+              <td colspan="3">Battery:</td>
               <td id="batteryState"></td>
             </tr>
             <tr id="durationRow">
-              <td>Opening:</td>
+              <td colspan="2">Opening:</td>
               <td id="openDuration">unknown</td>
-              <td colspan="2">Closing:</td>
+              <td colspan="3">Closing:</td>
               <td id="closeDuration">unknown</td>
             </tr>
+            <tr id="lastChangeRow">
+              <td></td>
+              <td id="doorOpenAt" colspan="3" style="font-size: 0.65em; text-align: left;"></td>
+              <td colspan="1"></td>
+              <td id="doorCloseAt" colspan="2" style="font-size: 0.65em; text-align: left;"></td>
+            </tr>
             <tr id="vehicleRow" style="display:none;">
-              <td>Vehicle:</td>
+              <td colspan="2">Vehicle:</td>
               <td id="vehicleStatus"></td>
-              <td colspan="2">Distance:</td>
+              <td colspan="3">Distance:</td>
               <td>
                 <span id="vehicleDist"></span>&nbsp;cm<span style="font-size: 0.8em;">&nbsp;(<span
                     id="vehicleDistInch"></span>&nbsp;inch)</span>
@@ -573,7 +581,7 @@
     <!-- Footer section of page ------------------------------------------------------------------>
     <footer>
       <div class="footer">
-        <p style="margin:0px;">For documentation and support see the <a id="docsLink"
+        <p style="margin:0px; padding-bottom: 4px;">For documentation and support see the <a id="docsLink"
             href="https://github.com/ratgdo/homekit-ratgdo">GitHub</a>
           page.<br>Copyright (c) 2023-25 <a id="contribLink"
             href="https://github.com/ratgdo/homekit-ratgdo/graphs/contributors">homekit-ratgdo
@@ -581,31 +589,36 @@
             href="https://www.gnu.org/licenses/gpl-3.0.en.html">GPL-3.0
             License.</a>
         </p>
-        <br>
-        <table>
+        <table style="font-size: 0.8em;">
+          <colgroup>
+            <col width="17%">
+            <col width="17%">
+            <col width="17%">
+            <col width="17%">
+            <col width="17%">
+            <col width="15%">
+          </colgroup>
           <tr id="freeMemRow">
-            <td colspan="2" style="width: 45%; padding: 0px">
+            <td colspan="2" style="padding: 0px; padding-right: 10px">
               freeHeap:&nbsp;<span id="freeHeap">0</span>&nbsp;
             </td>
-            <td colspan="2" style="width: 45%; padding: 0px; text-align: center;">
+            <td colspan="2" style="padding: 0px; padding-right: 10px;">
               minHeap:&nbsp;<span id="minHeap">0</span>&nbsp;
             </td>
-            <td id="tdStack" colspan="2" style="width: 30%; padding: 0px; text-align: right; display: none;">
+            <td id="tdStack" colspan="2" style="padding: 0px; display: none;">
               minStack:&nbsp;<span id="minStack">0</span>&nbsp;
             </td>
           </tr>
-        </table>
-        <table>
           <tr>
-            <td style="width: 40%; padding: 0px">lastDoorChange:&nbsp;</td>
-            <td style="width: 60%; padding: 0px" id="lastDoorUpdateAt"></td>
+            <td colspan="2" style="padding: 0px;">lastDoorChange:&nbsp;</td>
+            <td colspan="4" style="padding: 0px;" id="doorUpdateAt"></td>
           </tr>
           <tr>
-            <td style="width: 40%; padding: 0px">lastReboot:&nbsp;</td>
-            <td style="width: 60%; padding: 0px" id="lastRebootAt"></td>
+            <td colspan="2" style="padding: 0px;">lastReboot:&nbsp;</td>
+            <td colspan="4" style="padding: 0px;" id="lastRebootAt"></td>
           </tr>
         </table>
-        <p style="margin:0px;">
+        <p style="margin:0px; padding-top:4px">
           <a href="logs.html" target="_blank">Show system logs</a>&nbsp;(crashCount:&nbsp;<span id="crashCount"></span>)
         </p>
       </div>

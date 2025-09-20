@@ -12,36 +12,6 @@ const clientUUID = uuidv4();    // uniquely identify this session
 var sysLogLoaded = false;
 var tmpLogMsgs = [];
 
-function findStartTime(text) {
-    const regex = /[\s\r\n]/;
-    let serverTime = undefined;
-    let upTime = undefined;
-    let bootTime = undefined;
-
-    function search(string, regexp, from = 0) {
-        const index = string.slice(from).search(regexp);
-        return index === -1 ? -1 : index + from;
-    }
-
-    let i = text.indexOf(':', text.indexOf('Server uptime')) + 2;
-    let j = search(text, regex, i);
-    upTime = Number(text.substring(i, j)); // Value is in milliseconds
-
-    i = text.indexOf('Server time');
-    if (i >= 0) {
-        i = text.indexOf(':', i) + 2;
-        let j = search(text, regex, i);
-        serverTime = Number(text.substring(i, j)) * 1000; // Convert to milliseconds
-        bootTime = serverTime - upTime;
-    }
-
-    return {
-        serverTime: serverTime,
-        upTime: upTime,
-        bootTime: bootTime
-    };
-}
-
 function msToTime(duration) {
     let seconds = Math.floor((duration / 1000) % 60),
         minutes = Math.floor((duration / (1000 * 60)) % 60),
@@ -106,7 +76,7 @@ async function loadLogs() {
     tmpLogMsgs.length = 0;
     // Load all the logs in parallel, showing progress indicator while we do...
     loaderElem.style.visibility = "visible";
-    console.log("Subscribe to Server Sent Events")
+    console.log("Subscribe to Server Sent Events");
     fetch("rest/events/subscribe?id=" + clientUUID + "&log=1&heartbeat=0")
         .then((response) => {
             if (!response.ok || response.status !== 200) {
@@ -149,33 +119,20 @@ async function loadLogPages() {
         fetch("showlog")
             .then((response) => {
                 if (!response.ok || response.status !== 200) {
-                    reject(`Error requsting logs, RC: ${response.status}`);
+                    reject(`Error requesting logs, RC: ${response.status}`);
                 } else {
                     return response.text();
                 }
             })
             .then((text) => {
                 sysLogLoaded = true;
-                const elem = document.getElementById("showlog");
-                const header = document.getElementById("showLogHeader");
-                const { serverTime, upTime, bootTime } = findStartTime(text);
-                if (bootTime) {
-                    let date = new Date();
-                    date.setTime(bootTime);
-                    header.insertAdjacentHTML('beforeend', `<pre style="margin: 0px">Server started at:   ${date.toUTCString()}</pre>`);
-                    date.setTime(serverTime);
-                    header.insertAdjacentHTML('beforeend', `<pre style="margin: 0px">Server current time: ${date.toUTCString()}</pre>`);
-                }
-                if (upTime) {
-                    header.insertAdjacentHTML('beforeend', `<pre style="margin: 0px">Server upTime:       ${msToTime(upTime)}</pre>`);
-                }
                 // reduce newlines down to single \n
                 text = text.replaceAll('\r\n', '\n');
                 while (line = tmpLogMsgs.pop()) {
                     console.log(`Remove dup: ${line}`);
                     text = text.replace(line + '\n', '');
                 }
-                elem.insertAdjacentText('afterbegin', text);
+                document.getElementById("showlog").insertAdjacentText('afterbegin', text);
                 let divElem = document.getElementById("logTab");
                 // Scroll to the bottom
                 divElem.scrollTop = divElem.scrollHeight;
@@ -185,15 +142,15 @@ async function loadLogPages() {
         fetch("status.json")
             .then((response) => {
                 if (!response.ok || response.status !== 200) {
-                    reject(`Error requsting status.json, RC: ${response.status}`);
+                    reject(`Error requesting status.json, RC: ${response.status}`);
                 } else {
                     return response.text();
                 }
             })
             .then((text) => {
                 msgJson = JSON.parse(text);
-                document.getElementById("deviceName").innerHTML = msgJson.deviceName + " Logs";
-                document.title = msgJson.deviceName + " Logs";
+                document.getElementById("deviceName").innerHTML = msgJson.deviceName;
+                document.title = msgJson.deviceName;
                 document.getElementById("statusjson").innerText = text;
             })
             .catch(error => console.warn(error)),
@@ -201,49 +158,25 @@ async function loadLogPages() {
         fetch("showrebootlog")
             .then((response) => {
                 if (!response.ok || response.status !== 200) {
-                    reject(`Error requsting reboot logs, RC: ${response.status}`);
+                    reject(`Error requesting reboot logs, RC: ${response.status}`);
                 } else {
                     return response.text();
                 }
             })
             .then((text) => {
-                const { serverTime, upTime, bootTime } = findStartTime(text);
-                const elem = document.getElementById("rebootlog");
-                if (bootTime) {
-                    let date = new Date();
-                    date.setTime(bootTime);
-                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.6em;">Server started at:  ${date.toUTCString()}</pre>`);
-                    date.setTime(serverTime);
-                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.6em;">Server shutdown at: ${date.toUTCString()}</pre>`);
-                }
-                if (upTime) {
-                    elem.insertAdjacentHTML('beforebegin', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.6em;">Server upTime:      ${msToTime(upTime)}</pre>`);
-                }
-                elem.innerText = text;
+                document.getElementById("rebootlog").innerText = text;
             })
             .catch(error => console.warn(error)),
 
         fetch("crashlog")
             .then((response) => {
                 if (!response.ok || response.status !== 200) {
-                    reject(`Error requsting crash logs, RC: ${response.status}`);
+                    reject(`Error requesting crash logs, RC: ${response.status}`);
                 } else {
                     return response.text();
                 }
             })
             .then((text) => {
-                const { serverTime, upTime, bootTime } = findStartTime(text);
-                const elem = document.getElementById("crashlog-timestamps");
-                if (bootTime) {
-                    let date = new Date();
-                    date.setTime(bootTime);
-                    elem.insertAdjacentHTML('beforeend', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.6em;">Server started at: ${date.toUTCString()}</pre>`);
-                    date.setTime(serverTime);
-                    elem.insertAdjacentHTML('beforeend', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.6em;">Server crashed at: ${date.toUTCString()}</pre>`);
-                }
-                if (upTime) {
-                    elem.insertAdjacentHTML('beforeend', `<pre style="margin: 0px; color:darkgoldenrod; font-size: 0.6em;">Server upTime:     ${msToTime(upTime)}</pre>`);
-                }
                 document.getElementById("crashlog").innerText = text;
             })
             .catch(error => console.warn(error)),
@@ -270,7 +203,6 @@ async function clearCrashLog() {
     document.getElementById("clearBtn").style.display = "none";
     if (msgJson) msgJson.crashCount = 0;
     document.getElementById("crashlog").innerText = "No crashes saved";
-    document.getElementById("crashlog-timestamps").innerText = "";
     loaderElem.style.visibility = "hidden";
 }
 // Generate a UUID.  Cannot use crypto.randomUUID() because that will only run

@@ -29,12 +29,12 @@
 #include "led.h"
 #include "homekit.h"
 #include "provision.h"
-#ifndef ESP8266
+#ifdef RATGDO32_DISCO
 #include "vehicle.h"
+#endif // RATGDO32_DISCO
 #ifdef USE_GDOLIB
 #include "gdo.h"
 #endif // USE_GDOLIB
-#endif
 
 // Logger tag
 static const char *TAG = "ratgdo-config";
@@ -189,7 +189,9 @@ bool helperSyslogEn(const std::string &key, const char *value, configSetting *ac
 bool helperLogLevel(const std::string &key, const char *value, configSetting *action)
 {
     userConfig->set(key, value);
-#ifndef ESP32
+#ifdef ESP32
+    esp_log_level_set("*", (esp_log_level_t)userConfig->getLogLevel());
+#else
     logLevel = (esp_log_level_t)userConfig->getLogLevel();
 #endif // !ESP32
     return true;
@@ -211,6 +213,7 @@ bool helperBuiltInTTC(const std::string &key, const char *value, configSetting *
     return true;
 }
 
+#ifdef RATGDO32_DISCO
 bool helperVehicleThreshold(const std::string &key, const char *value, configSetting *action)
 {
     userConfig->set(key, value);
@@ -232,6 +235,7 @@ bool helperLaser(const std::string &key, const char *value, configSetting *actio
     enable_service_homekit_laser(userConfig->getLaserEnabled() && userConfig->getLaserHomeKit());
     return true;
 }
+#endif
 
 #ifdef USE_GDOLIB
 bool helperUseSWserial(const std::string &key, const char *value, configSetting *action)
@@ -317,6 +321,8 @@ userSettings::userSettings()
         {cfg_motionTriggers, {false, false, 0, helperMotionTriggers}}, // call fn to enable HomeSpan service
         {cfg_enableNTP, {true, false, false, NULL}},
         {cfg_doorUpdateAt, {false, false, 0, NULL}},
+        {cfg_doorOpenAt, {false, false, 0, NULL}},
+        {cfg_doorCloseAt, {false, false, 0, NULL}},
         // Will contain string of region/city and POSIX code separated by semicolon...
         // For example... "America/New_York;EST5EDT,M3.2.0,M11.1.0"
         // Current maximum string length is known to be 60 chars (+ null terminator), see JavaScript console log.
@@ -329,17 +335,19 @@ userSettings::userSettings()
         {cfg_dcOpenClose, {true, false, false, NULL}},
         {cfg_dcDebounceDuration, {true, false, 50, NULL}},
         {cfg_obstFromStatus, {true, false, false, NULL}},
-#ifndef ESP8266
-        // These features not available on ESP8266
-        {cfg_builtInTTC, {false, false, false, helperBuiltInTTC}},
+#ifdef RATGDO32_DISCO
         {cfg_vehicleThreshold, {false, false, 100, helperVehicleThreshold}}, // call fn to set globals
         {cfg_vehicleHomeKit, {false, false, false, helperVehicleHomeKit}},   // call fn to enable/disable HomeKit accessories
         {cfg_laserEnabled, {false, false, false, helperLaser}},
         {cfg_laserHomeKit, {false, false, true, helperLaser}}, // call fn to enable/disable HomeKit accessories
         {cfg_assistDuration, {false, false, 60, NULL}},
+#endif
 #ifdef USE_GDOLIB
         {cfg_useSWserial, {true, false, true, helperUseSWserial}}, // call fn to shut down GDO before switch
 #endif
+#ifndef ESP8266
+        // These features not available on ESP8266
+        {cfg_builtInTTC, {false, false, false, helperBuiltInTTC}},
         {cfg_occupancyDuration, {false, false, 0, helperOccupancyDuration}}, // call fn to enable/disable HomeKit accessories
         {cfg_enableIPv6, {true, false, false, NULL}},
         {cfg_homespanCLI, {false, false, false, helperHomeSpanCLI}}, // call fn to enable/disable HomeSpan CLI and Improv

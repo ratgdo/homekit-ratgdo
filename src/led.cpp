@@ -18,8 +18,7 @@
 
 // Construct the singleton object for LED access
 LED led(LED_BUILTIN);
-#ifndef ESP8266
-// Feature not available on ESP8266
+#ifdef RATGDO32_DISCO
 LED laser(LASER_PIN);
 #endif
 

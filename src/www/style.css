@@ -161,6 +161,7 @@ div.header {
     padding-bottom: 5px;
 }
 
+div.logspage,
 div.fullpage {
     margin: auto;
     max-width: 800px;
@@ -389,6 +390,12 @@ div.logheader {
 @keyframes spin {
     100% {
         transform: rotate(360deg);
+    }
+}
+
+@media only screen and (max-width: 659px) {
+    div.logspage {
+        border-radius: 0 0 40px 40px;
     }
 }
 

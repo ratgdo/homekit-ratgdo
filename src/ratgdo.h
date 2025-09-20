@@ -151,8 +151,7 @@ struct __attribute__((aligned(4))) GarageDoor
     GarageDoorTargetState target_state;
     bool obstructed;
     bool has_motion_sensor;
-#ifndef ESP8266
-    // Feature not available on ESP8266
+#ifdef RATGDO32_DISCO
     bool has_distance_sensor;
 #endif
     _millis_t motion_timer;
@@ -166,7 +165,6 @@ struct __attribute__((aligned(4))) GarageDoor
     uint32_t closeDuration;
 #ifndef ESP8266
     // Feature not available on ESP8266
-    // TODO implement this
     _millis_t room_occupancy_timeout;
     bool room_occupied;
 #endif

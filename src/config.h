@@ -72,6 +72,8 @@ constexpr char cfg_LEDidle[] = "LEDidle";
 constexpr char cfg_motionTriggers[] = "motionTriggers";
 constexpr char cfg_enableNTP[] = "enableNTP";
 constexpr char cfg_doorUpdateAt[] = "doorUpdateAt";
+constexpr char cfg_doorOpenAt[] = "doorOpenAt";
+constexpr char cfg_doorCloseAt[] = "doorCloseAt";
 constexpr char cfg_timeZone[] = "timeZone";
 constexpr char cfg_softAPmode[] = "softAPmode";
 constexpr char cfg_syslogEn[] = "syslogEn";
@@ -102,7 +104,6 @@ constexpr char nvram_rolling[] = "rolling";
 constexpr char nvram_has_motion[] = "has_motion";
 #ifndef ESP8266
 constexpr char nvram_ratgdo_pw[] = "ratgdo_pw";
-constexpr char nvram_messageLog[] = "messageLog";
 constexpr char nvram_has_distance[] = "has_distance";
 #endif
 
@@ -173,6 +174,8 @@ public:
     uint32_t getMotionTriggers() { return std::get<int>(get(cfg_motionTriggers)); };
     bool getEnableNTP() { return std::get<bool>(get(cfg_enableNTP)); };
     uint32_t getDoorUpdateAt() { return std::get<int>(get(cfg_doorUpdateAt)); };
+    uint32_t getDoorOpenAt() { return std::get<int>(get(cfg_doorOpenAt)); };
+    uint32_t getDoorCloseAt() { return std::get<int>(get(cfg_doorCloseAt)); };
     char *getTimeZone() { return (std::get<configStr>(get(cfg_timeZone)).str); };
     bool getSoftAPmode() { return std::get<bool>(get(cfg_softAPmode)); };
     bool getSyslogEn() { return std::get<bool>(get(cfg_syslogEn)); };
@@ -182,13 +185,15 @@ public:
     bool getDCOpenClose() { return std::get<bool>(get(cfg_dcOpenClose)); };
     uint32_t getDCDebounceDuration() { return std::get<int>(get(cfg_dcDebounceDuration)); };
     bool getObstFromStatus() { return std::get<bool>(get(cfg_obstFromStatus)); };
-#ifndef ESP8266
-    bool getBuiltInTTC() { return std::get<bool>(get(cfg_builtInTTC)); };
+#ifdef RATGDO32_DISCO
     uint32_t getVehicleThreshold() { return std::get<int>(get(cfg_vehicleThreshold)); };
     bool getLaserEnabled() { return std::get<bool>(get(cfg_laserEnabled)); };
     bool getLaserHomeKit() { return std::get<bool>(get(cfg_laserHomeKit)); };
     bool getVehicleHomeKit() { return std::get<bool>(get(cfg_vehicleHomeKit)); };
     uint32_t getAssistDuration() { return std::get<int>(get(cfg_assistDuration)); };
+#endif
+#ifndef ESP8266
+    bool getBuiltInTTC() { return std::get<bool>(get(cfg_builtInTTC)); };
     bool getUseSWserial() { return std::get<bool>(get(cfg_useSWserial)); };
     uint32_t getOccupancyDuration() { return std::get<int>(get(cfg_occupancyDuration)); };
     bool getEnableIPv6() { return std::get<bool>(get(cfg_enableIPv6)); };

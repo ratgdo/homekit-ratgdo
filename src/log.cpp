@@ -87,7 +87,9 @@ void esp_log_hook(const char *fmt, va_list args)
 extern "C" uint32_t __crc_len;
 extern "C" uint32_t __crc_val;
 // Keep track of number of times crashed
-int32_t crashCount;
+void crashCallback();
+int32_t crashCount = 0;
+EspSaveCrash saveCrash(1408, 1024, true, &crashCallback);
 // ESP8266 is single core / single threaded, no mutex's.
 #define TAKE_MUTEX()
 #define GIVE_MUTEX()
@@ -101,7 +103,7 @@ void crashCallback()
         ratgdoLogger->logMessageFile.print("\n");
         ratgdoLogger->logMessageFile.write(ESP.checkFlashCRC() ? "Flash CRC OK" : "Flash CRC BAD");
         ratgdoLogger->logMessageFile.print("\n");
-        ratgdoLogger->printMessageLog(ratgdoLogger->logMessageFile);
+        ratgdoLogger->printMessageLog(ratgdoLogger->logMessageFile, false);
         ratgdoLogger->logMessageFile.close();
     }
 }
@@ -127,13 +129,16 @@ typedef struct logSaveBuffer
 RTC_NOINIT_ATTR logSaveBuffer rtcRebootLog;
 RTC_NOINIT_ATTR logSaveBuffer rtcCrashLog;
 RTC_NOINIT_ATTR time_t rebootTime;
+RTC_NOINIT_ATTR _millis_t rebootUpTime;
 RTC_NOINIT_ATTR time_t crashTime;
 RTC_NOINIT_ATTR _millis_t crashUpTime;
 RTC_NOINIT_ATTR int32_t crashCount;
 RTC_NOINIT_ATTR char reasonString[64];
 RTC_NOINIT_ATTR char crashVersion[16];
-const int rtcSize = sizeof(rtcRebootLog) + sizeof(rtcCrashLog) + sizeof(rebootTime) + sizeof(crashTime) + sizeof(crashUpTime) +
-                    sizeof(crashCount) + sizeof(reasonString) + sizeof(crashVersion);
+RTC_NOINIT_ATTR volatile uint32_t resetMagic;
+#define RESET_MAGIC 0xDEADBEEF // Thankyou google AI for the suggestion.
+const int rtcSize = sizeof(rtcRebootLog) + sizeof(rtcCrashLog) + sizeof(rebootTime) + sizeof(rebootUpTime) + sizeof(crashTime) + sizeof(crashUpTime) +
+                    sizeof(crashCount) + sizeof(reasonString) + sizeof(crashVersion) + sizeof(resetMagic);
 
 #define TAKE_MUTEX() xSemaphoreTakeRecursive(logMutex, portMAX_DELAY)
 #define GIVE_MUTEX() xSemaphoreGiveRecursive(logMutex)
@@ -182,6 +187,14 @@ LOG::LOG()
     logMessageFile = (LittleFS.exists(CRASH_LOG_MSG_FILE)) ? LittleFS.open(CRASH_LOG_MSG_FILE, "r+") : LittleFS.open(CRASH_LOG_MSG_FILE, "w+");
     IRAM_END(TAG);
 #else
+    if (resetMagic != RESET_MAGIC)
+    {
+        // Reboot after a hard restart (e.g. power cycle). Contents of RTC memory are undefined.
+        resetMagic = RESET_MAGIC;
+        crashCount = 0;
+        crashUpTime = 0;
+        rebootUpTime = 0;
+    }
     logMutex = xSemaphoreCreateRecursiveMutex();
     msgBuffer = static_cast<logBuffer *>(malloc(sizeof(logBuffer)));
     lineBuffer = static_cast<char *>(malloc(LINE_BUFFER_SIZE));
@@ -252,17 +265,55 @@ void LOG::logToBuffer(const char *fmt, va_list args)
     return;
 }
 
-#ifndef ESP8266
-// on ESP8266 we don't need this... crash callback saves log to file.
+void LOG::clearCrashLog()
+{
+#ifdef ESP8266
+    saveCrash.clear();
+#else
+    esp_core_dump_image_erase();
+#endif
+    crashCount = 0;
+}
+
+#ifdef ESP8266
+void LOG::printCrashLog(Print &outputDev)
+{
+    // We save data from crash EEPROM into a temp file so when we send to the
+    // browser client we chunk it in smaller pieces.  This improves reliability
+    // on slow network links avoiding watchdog timeouts
+    if (crashCount > 0)
+    {
+        constexpr char CRASH_TEMP_FILE[] = "/crash_temp";
+        File file = LittleFS.open(CRASH_TEMP_FILE, "w");
+        file.truncate(0);
+        file.seek(0, fs::SeekSet);
+        saveCrash.print(file);
+        ratgdoLogger->printSavedLog(logMessageFile, file, false);
+        file.close();
+        // Open temp file for reading and send it to client
+        file = LittleFS.open(CRASH_TEMP_FILE, "r");
+        ratgdoLogger->printSavedLog(file, outputDev, true);
+        file.close();
+    }
+    else
+    {
+        outputDev.print("\n\nNo crash log available.\n");
+    }
+}
+
+#else
 void LOG::printCrashLog(Print &outputDev)
 {
     TAKE_MUTEX();
     if (crashCount > 0)
     {
-        outputDev.printf("Time of crash: %s\n", timeString(crashTime));
-        outputDev.printf("UpTime at crash: %s\n", toHHMMSSmmm(crashUpTime));
+
+        outputDev.printf("Server boot time: %llu (%s)\n", crashTime - (crashUpTime / 1000), timeString(crashTime - (crashUpTime / 1000)));
+        outputDev.printf("Server crash time: %llu (%s)\n", crashTime, timeString(crashTime));
+        outputDev.printf("Server uptime: %llu ms (%s)\n", crashUpTime, toHHMMSSmmm((_millis_t)crashUpTime));
         outputDev.printf("Crash reason: %s\n", reasonString);
         outputDev.printf("Firmware version: %s\n\n", crashVersion);
+        outputDev.flush();
         // head points to a zero (null terminator of previous log line) which we need to skip.
         size_t start = (rtcCrashLog.head + 1) % sizeof(rtcCrashLog.buffer);
         if (rtcCrashLog.wrapped != 0)
@@ -329,12 +380,13 @@ void LOG::saveMessageLog()
         memcpy(&rtcRebootLog.buffer[0], &msgBuffer->buffer[start], len);
     }
     rebootTime = (clockSet) ? time(NULL) : 0;
+    rebootUpTime = _millis();
     GIVE_MUTEX();
 }
 #endif
 
 #ifdef ESP8266
-void LOG::printSavedLog(File file, Print &outputDev)
+void LOG::printSavedLog(File file, Print &outputDev, bool slow)
 {
     Serial.print("Send saved file.");
     if (file && file.size() > 0)
@@ -349,7 +401,7 @@ void LOG::printSavedLog(File file, Print &outputDev)
             Serial.print(".");
             YIELD();
             outputDev.write(lineBuffer, num);
-            if ((count += num) > TCP_SND_BUF / 2)
+            if (slow && (count += num) > TCP_SND_BUF / 2)
             {
                 // Don't risk filling the TCP Send Buffer
                 // wait for it to empty with a flush.
@@ -364,23 +416,18 @@ void LOG::printSavedLog(File file, Print &outputDev)
 }
 #endif
 
-void LOG::printSavedLog(Print &outputDev, bool fromNVram)
+void LOG::printSavedLog(Print &outputDev)
 {
 #ifdef ESP8266
-    return printSavedLog(logMessageFile, outputDev);
+    return printSavedLog(logMessageFile, outputDev, true);
 #else
-    if (fromNVram)
+    if (rebootUpTime != 0)
     {
-        char *buf = static_cast<char *>(malloc(sizeof(msgBuffer->buffer)));
-        if (buf)
-        {
-            nvRam->readBlob(nvram_messageLog, buf, sizeof(msgBuffer->buffer));
-            outputDev.print(buf);
-            free(buf);
-        }
-    }
-    else if (rebootTime != 0)
-    {
+        outputDev.printf("Server boot time: %llu (%s)\n", rebootTime - (rebootUpTime / 1000), timeString(rebootTime - (rebootUpTime / 1000)));
+        outputDev.printf("Server log time: %llu (%s)\n", rebootTime, timeString(rebootTime));
+        outputDev.printf("Server uptime: %llu ms (%s)\n", rebootUpTime, toHHMMSSmmm((_millis_t)rebootUpTime));
+        outputDev.println("Firmware version: " AUTO_VERSION);
+        outputDev.flush();
         outputDev.print(rtcRebootLog.buffer);
     }
     else
@@ -390,19 +437,19 @@ void LOG::printSavedLog(Print &outputDev, bool fromNVram)
 #endif
 }
 
-void LOG::printMessageLog(Print &outputDev)
+void LOG::printMessageLog(Print &outputDev, bool slow)
 {
     TAKE_MUTEX();
-    if (enableNTP && clockSet)
+    if (clockSet)
     {
         time_t now = time(NULL);
-        outputDev.printf_P(PSTR("Server time: %llu (%s)\n"), now, timeString(now));
+        outputDev.printf_P(PSTR("Server boot time: %llu (%s)\n"), lastRebootAt, timeString(lastRebootAt));
+        outputDev.printf_P(PSTR("Server log time: %llu (%s)\n"), now, timeString(now));
     }
     int64_t upTime = (int64_t)_millis();
     outputDev.printf_P(PSTR("Server uptime: %llu ms (%s)\n"), upTime, toHHMMSSmmm((_millis_t)upTime));
     outputDev.println("Firmware version: " AUTO_VERSION);
     outputDev.printf_P(PSTR("Free heap: %d\n"), free_heap);
-    YIELD();
     outputDev.printf_P(PSTR("Minimum heap: %d\n"), min_heap);
     outputDev.flush();
 
@@ -412,8 +459,8 @@ void LOG::printMessageLog(Print &outputDev)
         // +3 want to round up to multiple of 4
         size_t start = ((msgBuffer->head + 1 + 3) & ~0x03) % sizeof(msgBuffer->buffer);
         size_t len = sizeof(msgBuffer->buffer) - start;
-        // Chunk up to protect against buffer overflow
-        constexpr size_t CHUNK = TCP_SND_BUF / 2;
+        // On slow output devices (e.g. network), chunk up to protect against buffer overflow
+        size_t CHUNK = (slow) ? TCP_SND_BUF / 2 : sizeof(msgBuffer->buffer);
         size_t chunk;
         Serial.print("Send message log.");
         if (msgBuffer->wrapped != 0)
@@ -425,7 +472,8 @@ void LOG::printMessageLog(Print &outputDev)
                 Serial.print(".");
                 YIELD();
                 outputDev.write(&msgBuffer->buffer[start], chunk);
-                outputDev.flush();
+                if (slow)
+                    outputDev.flush();
                 len -= chunk;
                 start += chunk;
             }

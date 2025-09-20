@@ -42,8 +42,8 @@
 #include "led.h"
 #ifdef ESP8266
 #include "wifi_8266.h"
-#include "EspSaveCrash.h"
-#else
+#endif
+#ifdef RATGDO32_DISCO
 #include "vehicle.h"
 #endif
 #include "www/build/webcontent.h"
@@ -76,10 +76,6 @@ char *test_str = NULL;
 void handle_update();
 void handle_firmware_upload();
 void SSEHandler(uint32_t channel);
-
-#ifdef ESP8266
-EspSaveCrash saveCrash(1408, 1024, true, &crashCallback);
-#endif
 
 // Built in URI handlers
 const char restEvents[] = "/rest/events/";
@@ -116,6 +112,8 @@ GarageDoor last_reported_garage_door;
 bool last_reported_paired = false;
 bool last_reported_assist_laser = false;
 _millis_t lastDoorUpdateAt;
+_millis_t lastDoorOpenAt;
+_millis_t lastDoorCloseAt;
 GarageDoorCurrentState lastDoorState = (GarageDoorCurrentState)0xff;
 
 static bool web_setup_done = false;
@@ -128,13 +126,43 @@ char firmwareMD5[36] = "";
 size_t firmwareSize = 0;
 
 // Common HTTP responses
-const char response400missing[] = "400: Bad Request, missing argument\n";
-const char response400invalid[] = "400: Bad Request, invalid argument\n";
-const char response404[] = "404: Not Found\n";
-const char response503[] = "503: Service Unavailable.\n";
-const char response200[] = "HTTP/1.1 200 OK\nContent-Type: text/plain\nConnection: close\n\n";
+constexpr char response400missing[] = "400: Bad Request, missing argument\n";
+constexpr char response400invalid[] = "400: Bad Request, invalid argument\n";
+constexpr char response404[] = "404: Not Found\n";
+constexpr char response503[] = "503: Service Unavailable.\n";
+constexpr char response200[] = "HTTP/1.1 200 OK\nContent-Type: text/plain\nConnection: close\n\n";
 
 const char *http_methods[] = {"HTTP_ANY", "HTTP_GET", "HTTP_HEAD", "HTTP_POST", "HTTP_PUT", "HTTP_PATCH", "HTTP_DELETE", "HTTP_OPTIONS"};
+
+// All this is to support a 303 redirect to js.map files when debugging, so we don't have to embed in our firmware !!!!
+#ifndef STRINGIFY
+#define STRINGIFY_HELPER(x) #x
+#define STRINGIFY(x) STRINGIFY_HELPER(x)
+#endif
+// If not building in main github repo, then add -D GITUSER=your_userid to the compile line (no quotes, STRINGIFY adds that here)
+#ifndef GITUSER
+#define _GITUSER "ratgdo"
+#else
+#define _GITUSER STRINGIFY(GITUSER)
+#endif
+#ifndef GITREPO
+#ifdef ESP8266
+#define _GITREPO "homekit-ratgdo"
+#else
+#define _GITREPO "homekit-ratgdo32"
+#endif
+#else
+#define _GITREPO STRINGIFY(GITREPO)
+#endif
+#ifndef GITBRANCH
+#define _GITBRANCH "main"
+#else
+#define _GITBRANCH STRINGIFY(GITBRANCH)
+#endif
+constexpr char gitUser[] = _GITUSER;
+constexpr char gitRepo[] = _GITREPO;
+constexpr char gitRawURL[] = "https://raw.githubusercontent.com/" _GITUSER "/" _GITREPO "/refs/heads/" _GITBRANCH;
+constexpr char gitTaggedURL[] = "https://raw.githubusercontent.com/" _GITUSER "/" _GITREPO "/refs/tags/v" AUTO_VERSION;
 
 // For Server Sent Events (SSE) support
 // Just reloading page causes register on new channel.  So we need a reasonable number
@@ -297,31 +325,50 @@ void web_loop()
         ESP_LOGI(TAG, "Current Door State changing from %s to %s", DOOR_STATE(lastDoorState), DOOR_STATE(garage_door.current_state));
         if (enableNTP && clockSet)
         {
+            time_t timeNow = time(NULL);
             if (lastDoorState == 0xff)
             {
                 // initialize with saved time.
                 // lastDoorUpdateAt is milliseconds relative to system reboot time.
-                lastDoorUpdateAt = (userConfig->getDoorUpdateAt() != 0) ? ((userConfig->getDoorUpdateAt() - time(NULL)) * 1000) + upTime : 0;
+                lastDoorUpdateAt = (userConfig->getDoorUpdateAt() != 0) ? ((userConfig->getDoorUpdateAt() - timeNow) * 1000) + upTime : 0;
+                lastDoorOpenAt = (userConfig->getDoorOpenAt() != 0) ? ((userConfig->getDoorOpenAt() - timeNow) * 1000) + upTime : 0;
+                lastDoorCloseAt = (userConfig->getDoorCloseAt() != 0) ? ((userConfig->getDoorCloseAt() - timeNow) * 1000) + upTime : 0;
             }
             else
             {
                 // first state change after a reboot, so really is a state change.
-                userConfig->set(cfg_doorUpdateAt, (int)time(NULL));
-                ESP8266_SAVE_CONFIG();
                 lastDoorUpdateAt = upTime;
+                userConfig->set(cfg_doorUpdateAt, (int)timeNow);
+                if (garage_door.current_state == GarageDoorCurrentState::CURR_OPEN)
+                {
+                    lastDoorOpenAt = upTime;
+                    userConfig->set(cfg_doorOpenAt, (int)timeNow);
+                }
+                if (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSED)
+                {
+                    lastDoorCloseAt = upTime;
+                    userConfig->set(cfg_doorCloseAt, (int)timeNow);
+                }
+                ESP8266_SAVE_CONFIG();
             }
         }
         else
         {
+            // No realtime set, use upTime.
             lastDoorUpdateAt = (lastDoorState == 0xff) ? 0 : upTime;
+            if (garage_door.current_state == GarageDoorCurrentState::CURR_OPEN)
+                lastDoorOpenAt = lastDoorUpdateAt;
+            if (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSED)
+                lastDoorCloseAt = lastDoorUpdateAt;
         }
-        // if no NTP....  lastDoorUpdateAt = (lastDoorState == 0xff) ? 0 : upTime;
         lastDoorState = garage_door.current_state;
         // We send milliseconds relative to current time... ie updated X milliseconds ago
         // First time through, zero offset from upTime, which is when we last rebooted)
-        JSON_ADD_INT("lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
+        JSON_ADD_INT(cfg_doorUpdateAt, (upTime - lastDoorUpdateAt));
+        JSON_ADD_INT(cfg_doorOpenAt, (upTime - lastDoorOpenAt));
+        JSON_ADD_INT(cfg_doorCloseAt, (upTime - lastDoorCloseAt));
     }
-#ifndef ESP8266
+#ifdef RATGDO32_DISCO
     // Feature not available on ESP8266
     if (garage_door.has_distance_sensor)
     {
@@ -433,16 +480,9 @@ void setup_web()
              motionTriggers.bit.lockKey,
              motionTriggers.asInt);
     lastDoorUpdateAt = 0;
+    lastDoorOpenAt = 0;
+    lastDoorCloseAt = 0;
     lastDoorState = (GarageDoorCurrentState)0xff;
-
-#ifdef ESP8266 // ESP8266 only
-    crashCount = saveCrash.count();
-    if (crashCount == 255)
-    {
-        saveCrash.clear();
-        crashCount = 0;
-    }
-#endif
 
     ESP_LOGI(TAG, "Registering URI handlers");
     server.on("/update", HTTP_POST, handle_update, handle_firmware_upload);
@@ -539,7 +579,31 @@ void handle_reboot()
 
 void load_page(const char *page)
 {
-    if (webcontent.count(page) == 0)
+    IPAddress clientIP = server.client().remoteIP();
+
+    if ((strlen(page) > 6) && !strcmp(&page[strlen(page) - 6], "js.map"))
+    {
+        // js.map files, also known as JavaScript source maps, are files that provide a mapping between a minified, transpiled,
+        // or bundled JavaScript file and its original, uncompressed source code. The browser only requests this if console/debugger
+        // is opened. We do not store these locally (as large) and will redirect the browser to load from our GitHub repo.
+        if (!strcmp(gitUser, "ratgdo"))
+        {
+            // If we are building on ratgdo (for published release) then use tagged URL to make sure map file matches the one embedded in the firmware
+            strlcpy(writeBuffer, gitTaggedURL, sizeof(writeBuffer));
+        }
+        else
+        {
+            // else we are building for our test purposes, point to the raw URL
+            strlcpy(writeBuffer, gitRawURL, sizeof(writeBuffer));
+        }
+        strlcat(writeBuffer, "/src/www", sizeof(writeBuffer));
+        strlcat(writeBuffer, page, sizeof(writeBuffer));
+        ESP_LOGI(TAG, "Sending 303 redirect to client %s for: %s", clientIP.toString().c_str(), writeBuffer);
+        server.sendHeader(F("Location"), writeBuffer);
+        server.send_P(303, type_txt, "", 0);
+        return;
+    }
+    else if (webcontent.count(page) == 0)
         return handle_notfound();
 
     const unsigned char *data = webcontent.at(page).data;
@@ -571,18 +635,18 @@ void load_page(const char *page)
             server.sendHeader(F("ETag"), crc32);
         if (method == HTTP_HEAD)
         {
-            ESP_LOGI(TAG, "Client %s requesting: %s (HTTP_HEAD, type: %s)", server.client().remoteIP().toString().c_str(), page, type);
+            ESP_LOGI(TAG, "Client %s requesting: %s (HTTP_HEAD, type: %s)", clientIP.toString().c_str(), page, type);
             server.send_P(200, type, "", 0);
         }
         else
         {
-            ESP_LOGI(TAG, "Client %s requesting: %s (HTTP_GET, type: %s, length: %d)", server.client().remoteIP().toString().c_str(), page, type, length);
+            ESP_LOGI(TAG, "Client %s requesting: %s (HTTP_GET, type: %s, length: %d)", clientIP.toString().c_str(), page, type, length);
             server.send_P(200, type, reinterpret_cast<const char *>(data), length);
         }
     }
     else
     {
-        ESP_LOGI(TAG, "Sending 304 not modified to client %s requesting: %s (method: %s, type: %s)", server.client().remoteIP().toString().c_str(), page, http_methods[method], type);
+        ESP_LOGI(TAG, "Sending 304 not modified to client %s requesting: %s (method: %s, type: %s)", clientIP.toString().c_str(), page, http_methods[method], type);
         server.send_P(304, type, "", 0);
     }
     return;
@@ -668,11 +732,7 @@ void handle_status()
 
     // Build the JSON string
     JSON_START(json);
-#ifdef ESP8266
-    JSON_ADD_STR("gitRepo", "homekit-ratgdo");
-#else
-    JSON_ADD_STR("gitRepo", "homekit-ratgdo32");
-#endif
+    JSON_ADD_STR("gitRepo", gitRepo);
     JSON_ADD_INT("upTime", upTime);
     JSON_ADD_STR(cfg_deviceName, userConfig->getDeviceName());
     JSON_ADD_STR("userName", userConfig->getwwwUsername());
@@ -715,7 +775,9 @@ void handle_status()
     JSON_ADD_INT(cfg_motionTriggers, (uint32_t)motionTriggers.asInt);
     JSON_ADD_INT(cfg_LEDidle, userConfig->getLEDidle());
     // We send milliseconds relative to current time... ie updated X milliseconds ago
-    JSON_ADD_INT("lastDoorUpdateAt", (upTime - lastDoorUpdateAt));
+    JSON_ADD_INT(cfg_doorUpdateAt, (upTime - lastDoorUpdateAt));
+    JSON_ADD_INT(cfg_doorOpenAt, (upTime - lastDoorOpenAt));
+    JSON_ADD_INT(cfg_doorCloseAt, (upTime - lastDoorCloseAt));
     JSON_ADD_BOOL("enableNTP", enableNTP);
     if (enableNTP && (bool)clockSet)
     {
@@ -755,6 +817,7 @@ void handle_status()
 #ifdef USE_GDOLIB
     JSON_ADD_BOOL(cfg_useSWserial, userConfig->getUseSWserial());
 #endif
+#ifdef RATGDO32_DISCO
     JSON_ADD_BOOL("distanceSensor", garage_door.has_distance_sensor);
     if (garage_door.has_distance_sensor)
     {
@@ -768,6 +831,7 @@ void handle_status()
     JSON_ADD_BOOL(cfg_laserEnabled, userConfig->getLaserEnabled());
     JSON_ADD_BOOL(cfg_laserHomeKit, userConfig->getLaserHomeKit());
     JSON_ADD_INT(cfg_assistDuration, userConfig->getAssistDuration());
+#endif
     JSON_ADD_BOOL(cfg_homespanCLI, userConfig->getEnableHomeSpanCLI());
 #endif
     JSON_ADD_INT("webRequests", request_count);
@@ -914,7 +978,7 @@ bool helperFactoryReset(const std::string &key, const char *value, configSetting
     return true;
 }
 
-#ifndef ESP8266
+#ifdef RATGDO32_DISCO
 bool helperAssistLaser(const std::string &key, const char *value, configSetting *action)
 {
     if (atoi(value) == 1)
@@ -938,7 +1002,7 @@ void handle_setgdo()
         {"credentials", {false, false, 0, helperCredentials}}, // parse out wwwUsername and credentials
         {"updateUnderway", {false, false, 0, helperUpdateUnderway}},
         {"factoryReset", {true, false, 0, helperFactoryReset}},
-#ifndef ESP8266
+#ifdef RATGDO32_DISCO
         {"assistLaser", {false, false, 0, helperAssistLaser}},
 #endif
     };
@@ -1078,7 +1142,7 @@ void SSEheartbeat(SSESubscription *s)
         JSON_ADD_INT("freeHeap", free_heap);
         JSON_ADD_INT("minHeap", min_heap);
         // TODO monitor stack... JSON_ADD_INT("minStack", ESP.getFreeContStack());
-#ifndef ESP8266
+#ifdef RATGDO32_DISCO
         static int32_t lastVehicleDistance = 0;
         if (garage_door.has_distance_sensor && (lastVehicleDistance != vehicleDistance))
         {
@@ -1291,22 +1355,7 @@ void handle_subscribe()
 void handle_crashlog()
 {
     server.client().print(response200);
-#ifdef ESP8266
-    // We save data from crash EEPROM into a temp file so when we send to the
-    // browser client we chunk it in smaller pieces.  This improves reliability
-    // on slow network links avoiding watchdog timeouts
-    constexpr char CRASH_TEMP_FILE[] = "/crash_temp";
-    File crashTempFile = LittleFS.open(CRASH_TEMP_FILE, "w");
-    crashTempFile.truncate(0);
-    crashTempFile.seek(0, fs::SeekSet);
-    saveCrash.print(crashTempFile);
-    ratgdoLogger->printSavedLog(crashTempFile);
-    crashTempFile.close();
-    if (crashCount > 0)
-        ratgdoLogger->printSavedLog(server.client());
-#else
     ratgdoLogger->printCrashLog(server.client());
-#endif
 }
 
 void handle_showlog()
@@ -1331,12 +1380,7 @@ void handle_clearcrashlog()
 {
     AUTHENTICATE();
     ESP_LOGI(TAG, "Clear saved crash log");
-#ifdef ESP8266
-    saveCrash.clear();
-#else
-    esp_core_dump_image_erase();
-#endif
-    crashCount = 0;
+    ratgdoLogger->clearCrashLog();
     server.send_P(200, type_txt, PSTR("Crash log cleared\n"));
 }
 

@@ -38,12 +38,11 @@
 #include "softAP.h"
 #ifdef ESP8266
 #include "wifi_8266.h"
-#else
-// Feature not available on ESP8266
+#endif
+#ifdef RATGDO32_DISCO
 #include "vehicle.h"
 #endif
-
-#if defined(ESP8266) || !defined(USE_GDOLIB)
+#ifndef USE_GDOLIB
 #include "drycontact.h"
 #endif
 
@@ -59,11 +58,10 @@ GarageDoor garage_door = {
     .target_state = (GarageDoorTargetState)0xFF,
     .obstructed = false,
     .has_motion_sensor = false,
-#ifndef ESP8266
-    // Feature not available on ESP8266
+#ifdef RATGDO32_DISCO
     .has_distance_sensor = false,
 #endif
-#if defined(ESP8266) || !defined(USE_GDOLIB)
+#ifndef USE_GDOLIB
     .motion_timer = 0,
 #endif
     .motion = false,
@@ -112,8 +110,9 @@ void setup()
     disable_extra4k_at_link_time();
 #else
     esp_core_dump_init();
-    // No buzzer on ESP8266
+#ifdef RATGDO32_DISCO
     tone(BEEPER_PIN, 1300, 500);
+#endif
 #endif // ESP32
     led.on();
     ESP_LOGI(TAG, "=== Starting RATGDO Homekit version %s", AUTO_VERSION);
@@ -127,6 +126,13 @@ void setup()
     load_all_config_settings();
     // Now set log level to whatever user has requested
     logLevel = (esp_log_level_t)userConfig->getLogLevel();
+    // Initialize crash count... which can persist over reboots
+    crashCount = saveCrash.count();
+    if (crashCount == 255)
+    {
+        saveCrash.clear();
+        crashCount = 0;
+    }
 #else
     esp_reset_reason_t r = esp_reset_reason();
     switch (r)
@@ -213,8 +219,10 @@ void loop()
 #else
     // On ESP32 Wifi is handled within HomeSpan library which has its own freeRTOS task
     // Features not available on ESP8266
+#ifdef RATGDO32_DISCO
     YIELD();
     vehicle_loop();
+#endif
 #endif
     YIELD();
     web_loop();
@@ -259,12 +267,15 @@ void service_timer_loop()
                 lastDoorUpdateAt = (_millis_t)(((time_t)userConfig->getDoorUpdateAt() - timeNow) * 1000LL) + current_millis;
                 ESP_LOGI(TAG, "Last door update at: %s", timeString((time_t)userConfig->getDoorUpdateAt()));
             }
-            if (strlen(userConfig->getTimeZone()) == 0)
+            if (userConfig->getDoorOpenAt() != 0)
             {
-                // no timeZone set, try and find it automatically
-                get_auto_timezone();
-                // if successful this will have set the region and city, but not
-                // the POSIX time zone code. That will be done by browser.
+                lastDoorOpenAt = (_millis_t)(((time_t)userConfig->getDoorOpenAt() - timeNow) * 1000LL) + current_millis;
+                ESP_LOGI(TAG, "Last door open at:   %s", timeString((time_t)userConfig->getDoorOpenAt()));
+            }
+            if (userConfig->getDoorCloseAt() != 0)
+            {
+                lastDoorCloseAt = (_millis_t)(((time_t)userConfig->getDoorCloseAt() - timeNow) * 1000LL) + current_millis;
+                ESP_LOGI(TAG, "Last door close at:  %s", timeString((time_t)userConfig->getDoorCloseAt()));
             }
         }
     }

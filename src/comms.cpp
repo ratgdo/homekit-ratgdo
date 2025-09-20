@@ -25,23 +25,19 @@
 #include "comms.h"
 #include "led.h"
 
-#ifdef ESP32
 #ifdef USE_GDOLIB
 #include "gdo.h"
 #else // USE_GDOLIB
 #include "SoftwareSerial.h"
-#include "../lib/ratgdo/Packet.h"
-#include "../lib/ratgdo/Reader.h"
-#include "../lib/ratgdo/secplus2.h"
-#include "drycontact.h"
-#endif // USE_GDOLIB
-#else  // ESP32
-#include "SoftwareSerial.h"
 #include "Reader.h"
 #include "secplus2.h"
 #include "Packet.h"
+#include "drycontact.h"
+#endif // USE_GDOLIB
+
+#ifdef ESP8266
 #include "cQueue.h"
-#endif // ESP32
+#endif // ESP8266
 
 static const char *TAG = "ratgdo-comms";
 
@@ -197,7 +193,7 @@ bool clearToSend = false;
 bool wallPanelBooting = false;
 bool wallPanelDetected = false;
 #ifdef SEC1_DISCONNECT_WP
-#define WP_CONNECTED    LOW
+#define WP_CONNECTED LOW
 #define WP_DISCONNECTED HIGH
 uint8_t wallPanelConnected;
 #endif
@@ -1262,6 +1258,8 @@ void comms_loop_sec1()
 #endif
                 if (process_PacketAction(pkt_ac))
                 {
+                    // success, reset retry count
+                    retryCount = 0;
 #ifdef ESP8266
                     q_drop(&pkt_q);
 #endif
@@ -1270,7 +1268,7 @@ void comms_loop_sec1()
                 {
                     if (retryCount++ < MAX_COMMS_RETRY)
                     {
-                        ESP_LOGD(TAG, "SEC1 TX send failed, will retry");
+                        ESP_LOGD(TAG, "SEC1 TX send failed, will retry. retryCount=%d", retryCount);
 #ifdef ESP32
                         xQueueSendToFront(pkt_q, &pkt_ac, 0); // ignore errors
 #endif
@@ -1340,12 +1338,14 @@ void comms_loop_sec2()
 #endif
                 }
             }
-#ifdef ESP8266
             else
             {
+                // success, reset retry count
+                retryCount = 0;
+#ifdef ESP8266
                 q_drop(&pkt_q);
-            }
 #endif
+            }
         }
     }
     else
@@ -2196,7 +2196,7 @@ void TTCtimerFn(void (*callback)(), bool light)
                 }
             }
         }
-#ifdef ESP32
+#ifdef RATGDO32_DISCO
         tone(BEEPER_PIN, 1300, 125);
 #endif
         TTCiterations--;

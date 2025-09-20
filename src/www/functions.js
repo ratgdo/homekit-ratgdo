@@ -41,6 +41,8 @@ const timeZoneDefaults = '"Etc/UTC","UTC0"\n' +
     '"Pacific/Honolulu","HST10"';
 var timeZones = new Array();
 var timeZonesLoaded = false;
+var tzOptions = { timeZone: "Etc/UTC", timeZoneName: "short" };
+var tzFormat = undefined; // Use default format in the browser locale
 
 // very simple, work for above
 function tzToArray(str) {
@@ -209,6 +211,19 @@ function showQrCode(payload) {
 // Update all elements on HTML page to reflect status
 function setElementsFromStatus(status) {
     let date = new Date();
+    if (status.timeZone) {
+        // Do timezone first, as some other values depend on this
+        // for correct time calculation / display.
+        let i = status.timeZone.indexOf(';');
+        if (i < 0) {
+            // No semicolon so POSIX time zone info is missing, tell server the time zone (async);
+            setServerTimeZone(status.timeZone);
+            tzOptions.timeZone = status.timeZone;
+        }
+        else {
+            tzOptions.timeZone = status.timeZone.substring(0, i);
+        }
+    }
     for (const [key, value] of Object.entries(status)) {
         switch (key) {
             case "gitRepo":
@@ -233,7 +248,7 @@ function setElementsFromStatus(status) {
             case "upTime":
                 document.getElementById(key).innerHTML = msToTime(value);
                 date.setTime(Date.now() - value);
-                document.getElementById("lastRebootAt").innerHTML = date.toLocaleString();
+                document.getElementById("lastRebootAt").innerHTML = date.toLocaleString(tzFormat, tzOptions);
                 break;
             case "GDOSecurityType":
                 document.getElementById(key).innerHTML = (value == 1) ? "Sec+" : (value == 2) ? "Sec+&nbsp;2.0" : "Dry&nbsp;Contact";
@@ -415,18 +430,22 @@ function setElementsFromStatus(status) {
                 document.getElementById("ipv6Row").style.display = (value) ? "table-row" : "none";
                 break;
             case "timeZone":
-                if (value.indexOf(';') < 0) {
-                    // No semicolon so POSIX time zone info is missing, tell server the time zone (async);
-                    setServerTimeZone(value);
-                }
+                // Ignore (handled before switch statement)
                 break;
-            case "lastDoorUpdateAt":
+            case "doorUpdateAt":
                 date.setTime(Date.now() - value);
-                document.getElementById(key).innerHTML = (document.getElementById("lastRebootAt").innerHTML == date.toLocaleString()) ? "Unknown" : date.toLocaleString();
+                // if value equals upTime then server does not know last door update time
+                document.getElementById(key).innerHTML = (status.upTime == value) ? "Unknown" : date.toLocaleString(tzFormat, tzOptions);
+                break;
+            case "doorOpenAt":
+            case "doorCloseAt":
+                date.setTime(Date.now() - value);
+                // if value equals upTime then server does not know last door open/close time
+                document.getElementById(key).innerHTML = (status.upTime == value) ? "" : date.toLocaleString(tzFormat, tzOptions);
                 break;
             case "serverTime":
                 date.setTime(value * 1000);
-                console.log(`Server time: ${date.toUTCString()}`);
+                console.log(`Server time: ${date.toLocaleString(tzFormat, tzOptions)}`);
                 break;
             case "motionTriggers":
                 setMotionTriggers(value);

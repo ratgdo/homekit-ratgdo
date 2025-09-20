@@ -104,6 +104,8 @@ For Security+ 2.0 doors, the number of times the door has been opened and closed
 
 _Opening_ and _Closing_ values represent the time it takes for the door to open or close. This is averaged over the last five door operations amd resets when the ratgdo is rebooted.
 
+If the _Obtain time from NTP server_ option is selected then the last date and time of door opening/closing is displayed under the _opening_ and _closing_ durations in the time-zone selected on the settings page. These time stamps persist across device reboot, but may not display immediately after reboot as the current time must first be received from NTP server by the ratgdo.
+
 For ratgdo32-disco boards, vehicle status is shown as _Away_, _Parked_, _Arriving_ or _Departing_. A distance value in centimeters is also shown that represents the distance between the ratgdo board and either the garage floor (if no vehicle present) or the roof/hood of the vehicle. It is normal for this value to fluctuate. See section below on setting vehicle distance threshold.
 
 > [!NOTE]

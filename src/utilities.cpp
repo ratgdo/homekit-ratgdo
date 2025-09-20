@@ -184,19 +184,23 @@ void load_all_config_settings()
     ESP_LOGI(TAG, "   motionTriggers:      %d", userConfig->getMotionTriggers());
     ESP_LOGI(TAG, "   obstFromStatus:      %s", userConfig->getObstFromStatus() ? "true" : "false");
     ESP_LOGI(TAG, "   enableNTP:           %s", userConfig->getEnableNTP() ? "true" : "false");
-    ESP_LOGI(TAG, "   doorUpdateAt:        %d", userConfig->getDoorUpdateAt());
+    ESP_LOGI(TAG, "   doorUpdateAt:        %d (%s)", userConfig->getDoorUpdateAt(), timeString(userConfig->getDoorUpdateAt()));
+    ESP_LOGI(TAG, "   doorOpenAt:          %d (%s)", userConfig->getDoorOpenAt(), timeString(userConfig->getDoorOpenAt()));
+    ESP_LOGI(TAG, "   doorCloseAt:         %d (%s)", userConfig->getDoorCloseAt(), timeString(userConfig->getDoorCloseAt()));
     ESP_LOGI(TAG, "   timeZone:            %s", userConfig->getTimeZone());
     ESP_LOGI(TAG, "   softAPmode:          %s", userConfig->getSoftAPmode() ? "true" : "false");
     ESP_LOGI(TAG, "   syslogEn:            %s", userConfig->getSyslogEn() ? "true" : "false");
     ESP_LOGI(TAG, "   syslogIP:            %s", userConfig->getSyslogIP());
     ESP_LOGI(TAG, "   syslogPort:          %d", userConfig->getSyslogPort());
-#ifndef ESP8266
+#ifdef RATGDO32_DISCO
     // Features not available on ESP8266
     ESP_LOGI(TAG, "   vehicleThreshold:    %d", userConfig->getVehicleThreshold());
     ESP_LOGI(TAG, "   vehicleHomeKit:      %s", userConfig->getVehicleHomeKit() ? "true" : "false");
     ESP_LOGI(TAG, "   laserEnabled:        %s", userConfig->getLaserEnabled() ? "true" : "false");
     ESP_LOGI(TAG, "   laserHomeKit:        %s", userConfig->getLaserHomeKit() ? "true" : "false");
     ESP_LOGI(TAG, "   assistDuration:      %d", userConfig->getAssistDuration());
+#endif
+#ifndef ESP8266
     ESP_LOGI(TAG, "   occupancyDuration:   %d", userConfig->getOccupancyDuration());
     ESP_LOGI(TAG, "   enableIPv6:          %s", userConfig->getEnableIPv6() ? "true" : "false");
     ESP_LOGI(TAG, "   homespanCLI:         %s", userConfig->getEnableHomeSpanCLI() ? "true" : "false");
