@@ -129,13 +129,16 @@ typedef struct logSaveBuffer
 RTC_NOINIT_ATTR logSaveBuffer rtcRebootLog;
 RTC_NOINIT_ATTR logSaveBuffer rtcCrashLog;
 RTC_NOINIT_ATTR time_t rebootTime;
+RTC_NOINIT_ATTR _millis_t rebootUpTime;
 RTC_NOINIT_ATTR time_t crashTime;
 RTC_NOINIT_ATTR _millis_t crashUpTime;
 RTC_NOINIT_ATTR int32_t crashCount;
 RTC_NOINIT_ATTR char reasonString[64];
 RTC_NOINIT_ATTR char crashVersion[16];
-const int rtcSize = sizeof(rtcRebootLog) + sizeof(rtcCrashLog) + sizeof(rebootTime) + sizeof(crashTime) + sizeof(crashUpTime) +
-                    sizeof(crashCount) + sizeof(reasonString) + sizeof(crashVersion);
+RTC_NOINIT_ATTR volatile uint32_t resetMagic;
+#define RESET_MAGIC 0xDEADBEEF // Thankyou google AI for the suggestion.
+const int rtcSize = sizeof(rtcRebootLog) + sizeof(rtcCrashLog) + sizeof(rebootTime) + sizeof(rebootUpTime) + sizeof(crashTime) + sizeof(crashUpTime) +
+                    sizeof(crashCount) + sizeof(reasonString) + sizeof(crashVersion) + sizeof(resetMagic);
 
 #define TAKE_MUTEX() xSemaphoreTakeRecursive(logMutex, portMAX_DELAY)
 #define GIVE_MUTEX() xSemaphoreGiveRecursive(logMutex)
@@ -184,6 +187,14 @@ LOG::LOG()
     logMessageFile = (LittleFS.exists(CRASH_LOG_MSG_FILE)) ? LittleFS.open(CRASH_LOG_MSG_FILE, "r+") : LittleFS.open(CRASH_LOG_MSG_FILE, "w+");
     IRAM_END(TAG);
 #else
+    if (resetMagic != RESET_MAGIC)
+    {
+        // Reboot after a hard restart (e.g. power cycle). Contents of RTC memory are undefined.
+        resetMagic = RESET_MAGIC;
+        crashCount = 0;
+        crashUpTime = 0;
+        rebootUpTime = 0;
+    }
     logMutex = xSemaphoreCreateRecursiveMutex();
     msgBuffer = static_cast<logBuffer *>(malloc(sizeof(logBuffer)));
     lineBuffer = static_cast<char *>(malloc(LINE_BUFFER_SIZE));
@@ -296,10 +307,13 @@ void LOG::printCrashLog(Print &outputDev)
     TAKE_MUTEX();
     if (crashCount > 0)
     {
-        outputDev.printf("Time of crash: %s\n", timeString(crashTime));
-        outputDev.printf("UpTime at crash: %s\n", toHHMMSSmmm(crashUpTime));
+
+        outputDev.printf("Server boot time: %llu (%s)\n", crashTime - (crashUpTime / 1000), timeString(crashTime - (crashUpTime / 1000)));
+        outputDev.printf("Server crash time: %llu (%s)\n", crashTime, timeString(crashTime));
+        outputDev.printf("Server uptime: %llu ms (%s)\n", crashUpTime, toHHMMSSmmm((_millis_t)crashUpTime));
         outputDev.printf("Crash reason: %s\n", reasonString);
         outputDev.printf("Firmware version: %s\n\n", crashVersion);
+        outputDev.flush();
         // head points to a zero (null terminator of previous log line) which we need to skip.
         size_t start = (rtcCrashLog.head + 1) % sizeof(rtcCrashLog.buffer);
         if (rtcCrashLog.wrapped != 0)
@@ -366,6 +380,7 @@ void LOG::saveMessageLog()
         memcpy(&rtcRebootLog.buffer[0], &msgBuffer->buffer[start], len);
     }
     rebootTime = (clockSet) ? time(NULL) : 0;
+    rebootUpTime = _millis();
     GIVE_MUTEX();
 }
 #endif
@@ -401,23 +416,18 @@ void LOG::printSavedLog(File file, Print &outputDev, bool slow)
 }
 #endif
 
-void LOG::printSavedLog(Print &outputDev, bool fromNVram)
+void LOG::printSavedLog(Print &outputDev)
 {
 #ifdef ESP8266
     return printSavedLog(logMessageFile, outputDev, true);
 #else
-    if (fromNVram)
+    if (rebootUpTime != 0)
     {
-        char *buf = static_cast<char *>(malloc(sizeof(msgBuffer->buffer)));
-        if (buf)
-        {
-            nvRam->readBlob(nvram_messageLog, buf, sizeof(msgBuffer->buffer));
-            outputDev.print(buf);
-            free(buf);
-        }
-    }
-    else if (rebootTime != 0)
-    {
+        outputDev.printf("Server boot time: %llu (%s)\n", rebootTime - (rebootUpTime / 1000), timeString(rebootTime - (rebootUpTime / 1000)));
+        outputDev.printf("Server log time: %llu (%s)\n", rebootTime, timeString(rebootTime));
+        outputDev.printf("Server uptime: %llu ms (%s)\n", rebootUpTime, toHHMMSSmmm((_millis_t)rebootUpTime));
+        outputDev.println("Firmware version: " AUTO_VERSION);
+        outputDev.flush();
         outputDev.print(rtcRebootLog.buffer);
     }
     else
@@ -430,16 +440,16 @@ void LOG::printSavedLog(Print &outputDev, bool fromNVram)
 void LOG::printMessageLog(Print &outputDev, bool slow)
 {
     TAKE_MUTEX();
-    if (enableNTP && clockSet)
+    if (clockSet)
     {
         time_t now = time(NULL);
-        outputDev.printf_P(PSTR("Server time: %llu (%s)\n"), now, timeString(now));
+        outputDev.printf_P(PSTR("Server boot time: %llu (%s)\n"), lastRebootAt, timeString(lastRebootAt));
+        outputDev.printf_P(PSTR("Server log time: %llu (%s)\n"), now, timeString(now));
     }
     int64_t upTime = (int64_t)_millis();
     outputDev.printf_P(PSTR("Server uptime: %llu ms (%s)\n"), upTime, toHHMMSSmmm((_millis_t)upTime));
     outputDev.println("Firmware version: " AUTO_VERSION);
     outputDev.printf_P(PSTR("Free heap: %d\n"), free_heap);
-    YIELD();
     outputDev.printf_P(PSTR("Minimum heap: %d\n"), min_heap);
     outputDev.flush();
 

@@ -129,7 +129,7 @@ public:
         logToBuffer(fmt, args);
         va_end(args);
     };
-    void printSavedLog(Print &outDevice = Serial, bool fromNVram = false);
+    void printSavedLog(Print &outDevice = Serial);
 #ifdef ESP8266
     void printSavedLog(File file, Print &outputDev, bool slow = true);
 #endif

@@ -104,7 +104,6 @@ constexpr char nvram_rolling[] = "rolling";
 constexpr char nvram_has_motion[] = "has_motion";
 #ifndef ESP8266
 constexpr char nvram_ratgdo_pw[] = "ratgdo_pw";
-constexpr char nvram_messageLog[] = "messageLog";
 constexpr char nvram_has_distance[] = "has_distance";
 #endif
 
