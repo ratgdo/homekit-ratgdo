@@ -30,16 +30,14 @@
 #include "softAP.h"
 #include "led.h"
 
-#ifdef ESP8266
-#include "drycontact.h"
-#else // not ESP8266
+#ifdef RATGDO32_DISCO
 #include "vehicle.h"
+#endif
 #ifdef USE_GDOLIB
 #include "gdo.h"
 #else
 #include "drycontact.h"
 #endif
-#endif // ESP8266
 
 // Logger tag
 static const char *TAG = "ratgdo-homekit";
@@ -354,7 +352,9 @@ void connectionCallback(int count)
             // if successful this will have set the region and city, but not
             // the POSIX time zone code. That will be done by browser.
         }
+#ifdef RATGDO32_DISCO
         setup_vehicle();
+#endif
         setup_comms();
 #ifndef USE_GDOLIB
         setup_drycontact();
@@ -365,7 +365,9 @@ void connectionCallback(int count)
     static bool startupBeeped = false;
     if (!startupBeeped)
     {
+#ifdef RATGDO32_DISCO
         tone(BEEPER_PIN, 2000, 500);
+#endif
         startupBeeped = true;
     }
 }
@@ -551,6 +553,7 @@ void createMotionAccessories()
     motion = new DEV_Motion("Motion");
 }
 
+#ifdef RATGDO32_DISCO
 void enable_service_homekit_vehicle(bool enable)
 {
     if (enable)
@@ -619,6 +622,7 @@ bool enable_service_homekit_laser(bool enable)
     }
     return false;
 }
+#endif
 
 bool enable_service_homekit_room_occupancy(bool enable)
 {
@@ -738,6 +742,7 @@ void setup_homekit()
         ESP_LOGI(TAG, "No motion sensor. Skipping motion service");
     }
 
+#ifdef RATGDO32_DISCO
     // only create sensors if we know we have time-of-flight distance sensor
     garage_door.has_distance_sensor = (bool)nvRam->read(nvram_has_distance);
     if (garage_door.has_distance_sensor)
@@ -748,7 +753,7 @@ void setup_homekit()
     {
         ESP_LOGI(TAG, "No vehicle presence sensor. Skipping motion and occupancy services");
     }
-
+#endif
     // Create a room occupancy sensor if timer for it is greater than 0
     enable_service_homekit_room_occupancy(userConfig->getOccupancyDuration() > 0);
 
@@ -789,6 +794,7 @@ boolean DEV_Info::update()
     // LED, Laser and Tone calls are all asynchronous.  We will illuminate LED and Laser
     // for 2 seconds, during which we will play tone.  Function will return after 1.5 seconds.
     led.flash(2000);
+#ifdef RATGDO32_DISCO
     laser.flash(2000);
     tone(BEEPER_PIN, 1300);
     delay(500);
@@ -797,6 +803,7 @@ boolean DEV_Info::update()
     tone(BEEPER_PIN, 1300);
     delay(500);
     tone(BEEPER_PIN, 2000, 500);
+#endif
     return true;
 }
 
@@ -883,6 +890,7 @@ boolean DEV_Light::update()
     {
         set_light(DEV_Light::on->getNewVal<bool>());
     }
+#ifdef RATGDO32_DISCO
     else if (this->type == Light_t::ASSIST_LASER)
     {
         if (on->getNewVal<bool>())
@@ -896,6 +904,7 @@ boolean DEV_Light::update()
             laser.off();
         }
     }
+#endif
     return true;
 }
 
@@ -1062,11 +1071,13 @@ void notify_homekit_current_door_state_change(GarageDoorCurrentState state)
     e.value.u = (uint8_t)garage_door.current_state;
     queueSendHelper(door->event_q, e, "current door");
 
+#ifdef RATGDO32_DISCO
     // Notify the vehicle presence code that door state is changing
     if (garage_door.current_state == GarageDoorCurrentState::CURR_OPENING)
         doorOpening();
     if (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSING)
         doorClosing();
+#endif
 #else
     if (!arduino_homekit_get_running_server())
         return;

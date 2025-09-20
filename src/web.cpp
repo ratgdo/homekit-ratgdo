@@ -42,7 +42,8 @@
 #include "led.h"
 #ifdef ESP8266
 #include "wifi_8266.h"
-#else
+#endif
+#ifdef RATGDO32_DISCO
 #include "vehicle.h"
 #endif
 #include "www/build/webcontent.h"
@@ -367,7 +368,7 @@ void web_loop()
         JSON_ADD_INT(cfg_doorOpenAt, (upTime - lastDoorOpenAt));
         JSON_ADD_INT(cfg_doorCloseAt, (upTime - lastDoorCloseAt));
     }
-#ifndef ESP8266
+#ifdef RATGDO32_DISCO
     // Feature not available on ESP8266
     if (garage_door.has_distance_sensor)
     {
@@ -816,6 +817,7 @@ void handle_status()
 #ifdef USE_GDOLIB
     JSON_ADD_BOOL(cfg_useSWserial, userConfig->getUseSWserial());
 #endif
+#ifdef RATGDO32_DISCO
     JSON_ADD_BOOL("distanceSensor", garage_door.has_distance_sensor);
     if (garage_door.has_distance_sensor)
     {
@@ -829,6 +831,7 @@ void handle_status()
     JSON_ADD_BOOL(cfg_laserEnabled, userConfig->getLaserEnabled());
     JSON_ADD_BOOL(cfg_laserHomeKit, userConfig->getLaserHomeKit());
     JSON_ADD_INT(cfg_assistDuration, userConfig->getAssistDuration());
+#endif
     JSON_ADD_BOOL(cfg_homespanCLI, userConfig->getEnableHomeSpanCLI());
 #endif
     JSON_ADD_INT("webRequests", request_count);
@@ -975,7 +978,7 @@ bool helperFactoryReset(const std::string &key, const char *value, configSetting
     return true;
 }
 
-#ifndef ESP8266
+#ifdef RATGDO32_DISCO
 bool helperAssistLaser(const std::string &key, const char *value, configSetting *action)
 {
     if (atoi(value) == 1)
@@ -999,7 +1002,7 @@ void handle_setgdo()
         {"credentials", {false, false, 0, helperCredentials}}, // parse out wwwUsername and credentials
         {"updateUnderway", {false, false, 0, helperUpdateUnderway}},
         {"factoryReset", {true, false, 0, helperFactoryReset}},
-#ifndef ESP8266
+#ifdef RATGDO32_DISCO
         {"assistLaser", {false, false, 0, helperAssistLaser}},
 #endif
     };
@@ -1139,7 +1142,7 @@ void SSEheartbeat(SSESubscription *s)
         JSON_ADD_INT("freeHeap", free_heap);
         JSON_ADD_INT("minHeap", min_heap);
         // TODO monitor stack... JSON_ADD_INT("minStack", ESP.getFreeContStack());
-#ifndef ESP8266
+#ifdef RATGDO32_DISCO
         static int32_t lastVehicleDistance = 0;
         if (garage_door.has_distance_sensor && (lastVehicleDistance != vehicleDistance))
         {

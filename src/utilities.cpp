@@ -192,13 +192,15 @@ void load_all_config_settings()
     ESP_LOGI(TAG, "   syslogEn:            %s", userConfig->getSyslogEn() ? "true" : "false");
     ESP_LOGI(TAG, "   syslogIP:            %s", userConfig->getSyslogIP());
     ESP_LOGI(TAG, "   syslogPort:          %d", userConfig->getSyslogPort());
-#ifndef ESP8266
+#ifdef RATGDO32_DISCO
     // Features not available on ESP8266
     ESP_LOGI(TAG, "   vehicleThreshold:    %d", userConfig->getVehicleThreshold());
     ESP_LOGI(TAG, "   vehicleHomeKit:      %s", userConfig->getVehicleHomeKit() ? "true" : "false");
     ESP_LOGI(TAG, "   laserEnabled:        %s", userConfig->getLaserEnabled() ? "true" : "false");
     ESP_LOGI(TAG, "   laserHomeKit:        %s", userConfig->getLaserHomeKit() ? "true" : "false");
     ESP_LOGI(TAG, "   assistDuration:      %d", userConfig->getAssistDuration());
+#endif
+#ifndef ESP8266
     ESP_LOGI(TAG, "   occupancyDuration:   %d", userConfig->getOccupancyDuration());
     ESP_LOGI(TAG, "   enableIPv6:          %s", userConfig->getEnableIPv6() ? "true" : "false");
     ESP_LOGI(TAG, "   homespanCLI:         %s", userConfig->getEnableHomeSpanCLI() ? "true" : "false");
