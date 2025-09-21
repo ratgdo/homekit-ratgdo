@@ -1417,9 +1417,6 @@ void SSEBroadcastState(const char *data, BroadcastType type)
     // Flash LED to signal activity
     led.flash(FLASH_MS);
 
-    if (type == RATGDO_STATUS)
-        Serial.printf("Count: %d, Send: %s\n", subscriptionCount, data);
-
     // if nothing subscribed, then return
     if (subscriptionCount == 0)
         return;
