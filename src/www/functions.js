@@ -579,10 +579,14 @@ async function checkStatus() {
                                 evtSource.close();
                                 delayStatusFn.push(setTimeout(checkStatus, 1000));
                             }, 30000);
-                            var msgJson = JSON.parse(event.data);
-                            serverStatus = { ...serverStatus, ...msgJson };
-                            // Update the HTML for those values that were present in the message...
-                            setElementsFromStatus(msgJson);
+                            try {
+                                var msgJson = JSON.parse(event.data);
+                                serverStatus = { ...serverStatus, ...msgJson };
+                                // Update the HTML for those values that were present in the message...
+                                setElementsFromStatus(msgJson);
+                            } catch {
+                                console.warn(`Error parsing JSON: ${event.data}`);
+                            }
                         });
                         evtSource.addEventListener("logger", (event) => {
                             console.log(event.data);
@@ -613,7 +617,7 @@ async function checkStatus() {
         .then((results) => {
             // Once all loaded reset the progress indicator
             loaderElem.style.visibility = "hidden";
-            console.log(results);
+            // console.log(results);
         });
 
     return;
