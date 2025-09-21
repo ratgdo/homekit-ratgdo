@@ -416,7 +416,7 @@ void setup_comms()
 
 #ifdef SEC1_DISCONNECT_WP
         // ESP32:GPIO_NUM_26 - ESP8266:GPIO_NUM16(D0)
-        // NC REALY (AQY412)
+        // NC RELAY (AQY412)
         // enable wall panel
         wallPanelConnected = WP_CONNECTED;
         digitalWrite(STATUS_DOOR_PIN, wallPanelConnected);
