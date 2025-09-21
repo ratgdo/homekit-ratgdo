@@ -1102,7 +1102,7 @@ void removeSSEsubscription(SSESubscription *s)
     if (subscriptionCount > 0)
         subscriptionCount--; // Prevent negative count
     s->heartbeatTimer.detach();
-    ESP_LOGI(TAG, "Client %s (%s) not listening, remove SSE subscription. Total: %d", s->clientIP.toString().c_str(), s->clientUUID.c_str(), subscriptionCount);
+    ESP_LOGI(TAG, "Remove SSE subscription. Total subscribed: %d", subscriptionCount);
     s->client.stop();
     s->clientIP = INADDR_NONE;
     s->clientUUID.clear();
@@ -1123,6 +1123,7 @@ void SSEheartbeat(SSESubscription *s)
         {
             // 5 heartbeats have failed... assume client will not connect
             // and free up the slot
+            ESP_LOGI(TAG, "Client %s (%s) >5 heartbeat fails, remove SSE subscription", s->clientIP.toString().c_str(), s->clientUUID.c_str());
             removeSSEsubscription(s);
         }
         else
@@ -1173,6 +1174,7 @@ void SSEheartbeat(SSESubscription *s)
     }
     else
     {
+        ESP_LOGI(TAG, "Client %s (%s) not listening (heartbeat), remove SSE subscription", s->clientIP.toString().c_str(), s->clientUUID.c_str());
         removeSSEsubscription(s);
         YIELD();
     }
@@ -1271,18 +1273,19 @@ void handle_subscribe()
     {
         if (subscription[channel].clientUUID == server.arg(id))
         {
-            foundExisting = true;
             if (subscription[channel].SSEconnected)
             {
                 // Already connected.  We need to close it down as client will be reconnecting
                 ESP_LOGI(TAG, "Client %s (%s) already connected on channel %d, remove SSE subscription", clientIP.toString().c_str(), server.arg(id).c_str(), channel);
                 removeSSEsubscription(&subscription[channel]);
+                break; // without setting foundExisting... so we create new instance.
             }
             else
             {
                 // Subscribed but not connected yet, so nothing to close down.
                 ESP_LOGI(TAG, "Client %s (%s) already subscribed for SSE but not connected on channel %d", clientIP.toString().c_str(), server.arg(id).c_str(), channel);
             }
+            foundExisting = true;
             break;
         }
     }
@@ -1414,6 +1417,9 @@ void SSEBroadcastState(const char *data, BroadcastType type)
     // Flash LED to signal activity
     led.flash(FLASH_MS);
 
+    if (type == RATGDO_STATUS)
+        Serial.printf("Count: %d, Send: %s\n", subscriptionCount, data);
+
     // if nothing subscribed, then return
     if (subscriptionCount == 0)
         return;
@@ -1464,6 +1470,7 @@ void SSEBroadcastState(const char *data, BroadcastType type)
             else
             {
                 // Client connection has gone.  Remove from our subscribed client list
+                ESP_LOGI(TAG, "Client %s (%s) not listening (broadcast), remove SSE subscription", subscription[i].clientIP.toString().c_str(), subscription[i].clientUUID.c_str());
                 removeSSEsubscription(&subscription[i]);
             }
         }
