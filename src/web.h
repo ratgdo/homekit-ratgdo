@@ -45,6 +45,8 @@ extern _millis_t lastDoorUpdateAt;
 extern _millis_t lastDoorOpenAt;
 extern _millis_t lastDoorCloseAt;
 
+extern bool web_setup_done;
+
 enum BroadcastType : uint8_t
 {
     RATGDO_STATUS = 1,

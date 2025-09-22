@@ -179,7 +179,7 @@ void setup()
     // on ESP8266 we setup everything ourselves.
     setup_improv();
     wifi_connect();
-    setup_web();
+    // setup_web(); postpone http web server setup until we have an IP address
     setup_comms();
     setup_drycontact();
     ESP_LOGI(TAG, "Free heap after setup: %d", ESP.getFreeHeap());
@@ -208,11 +208,15 @@ void loop()
 #ifdef ESP8266
     // On ESP8266 we handle WiFi and HomeKit ourselves
     wifi_loop();
-    if (!homekit_setup_done && wifi_got_ip && !softAPmode)
+    if (wifi_got_ip && !softAPmode)
     {
         // We have postponed homekit setup until after we have got a IP address, in hope
         // that this improves stability.
-        setup_homekit();
+        if (!homekit_setup_done)
+            setup_homekit();
+        // HTTP web server should be started after HomeKit because HomeKit initializes MDNS which we use in web setup
+        if (!web_setup_done)
+            setup_web();
     }
     YIELD();
     homekit_loop();
