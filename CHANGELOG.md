@@ -2,6 +2,12 @@
 
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v2.0.3 (2025-09-21)
+
+### What's Changed
+
+* Bugfix: Issue #291 Watchdog timeout trying to retrieve timezone info
+
 ## v2.0.2 (2025-09-20)
 
 ### What's Changed
