@@ -27,8 +27,10 @@
 #ifdef ESP8266
 #include <arduino_homekit_server.h>
 #include <eboot_command.h>
+#include <ESP8266mDNS.h>
 #else
 #include "esp_core_dump.h"
+#include <ESPmDNS.h>
 #endif
 
 // RATGDO project includes
@@ -116,7 +118,7 @@ _millis_t lastDoorOpenAt;
 _millis_t lastDoorCloseAt;
 GarageDoorCurrentState lastDoorState = (GarageDoorCurrentState)0xff;
 
-static bool web_setup_done = false;
+bool web_setup_done = false;
 
 // Implement our own firmware update so can enforce MD5 check.
 // Based on ESP8266HTTPUpdateServer
@@ -509,6 +511,16 @@ void setup_web()
     activeRequestCount = 0;
 
     IRAM_END(TAG);
+
+    if (MDNS.addService("http", "tcp", 80))
+    {
+        ESP_LOGI(TAG, "Added MDNS service for _http._tcp on port 80");
+    }
+    else
+    {
+        ESP_LOGE(TAG, "Failed to add MDNS service for _http._tcp on port 80");
+    }
+
     web_setup_done = true;
     return;
 }
