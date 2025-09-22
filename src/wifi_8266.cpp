@@ -75,19 +75,11 @@ void onGotIP(const WiFiEventStationModeGotIP &evt)
              evt.gw.toString().c_str(), (WiFi.dnsIP().isSet()) ? WiFi.dnsIP().toString().c_str() : evt.gw.toString().c_str());
     if (softAPmode)
         return;
-
+    // Update saved IP address info (only if not in soft AP mode)
     userConfig->set(cfg_localIP, evt.ip.toString().c_str());
     userConfig->set(cfg_gatewayIP, evt.gw.toString().c_str());
     userConfig->set(cfg_subnetMask, evt.mask.toString().c_str());
     userConfig->set(cfg_nameserverIP, (WiFi.dnsIP().isSet()) ? WiFi.dnsIP().toString().c_str() : evt.gw.toString().c_str());
-
-    if (strlen(userConfig->getTimeZone()) == 0)
-    {
-        // no timeZone set, try and find it automatically
-        get_auto_timezone();
-        // if successful this will have set the region and city, but not
-        // the POSIX time zone code. That will be done by browser.
-    }
     ESP8266_SAVE_CONFIG();
 }
 
@@ -285,6 +277,21 @@ void wifi_loop()
         // reset flag
         userConfig->set(cfg_wifiChanged, false);
         ESP8266_SAVE_CONFIG();
+    }
+    else
+    {
+        static bool gotTimezone = false;
+        if (!gotTimezone && wifi_got_ip)
+        {
+            if (userConfig->getEnableNTP() && strlen(userConfig->getTimeZone()) == 0)
+            {
+                // no timeZone set, try and find it automatically
+                get_auto_timezone();
+                // if successful this will have set the region and city, but not
+                // the POSIX time zone code. That will be done by browser.
+            }
+            gotTimezone = true;
+        }
     }
 }
 #endif
