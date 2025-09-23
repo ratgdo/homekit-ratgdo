@@ -17,7 +17,7 @@
 // static const char *TAG = "ratgdo-led";
 
 // Construct the singleton object for LED access
-LED led(LED_BUILTIN);
+LED led(LED_BUILTIN, LED_BUILTIN_ON_STATE);
 #ifdef RATGDO32_DISCO
 LED laser(LASER_PIN);
 #endif
@@ -49,6 +49,7 @@ void LED::off()
 void LED::idle()
 {
     digitalWrite(pin, idleState);
+    currentState = idleState;
 }
 
 void LED::setIdleState(uint8_t state)
@@ -68,12 +69,14 @@ void LED::setIdleState(uint8_t state)
     }
 }
 
+
 void LED::flash(uint64_t ms)
 {
+    // Don't flash if we are already in a flash.
     if (!LEDtimer.active())
     {
-        // Don't flash if we are already in a flash.
         digitalWrite(pin, activeState);
+        currentState = activeState;
         LEDtimer.once_ms(ms, [this]()
                          { this->idle(); });
     }

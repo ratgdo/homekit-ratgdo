@@ -48,7 +48,8 @@
 #ifdef RATGDO32_DISCO
 #include "vehicle.h"
 #endif
-#include "www/build/webcontent.h"
+// built by "build_web_content.py"
+#include "webcontent.h"
 
 // Logger tag
 static const char *TAG = "ratgdo-http";
@@ -1427,7 +1428,7 @@ void SSEBroadcastState(const char *data, BroadcastType type)
         return;
 
     // Flash LED to signal activity
-    led.flash(FLASH_MS);
+    // led.flash(FLASH_MS);
 
     // if nothing subscribed, then return
     if (subscriptionCount == 0)

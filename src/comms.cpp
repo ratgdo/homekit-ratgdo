@@ -1750,7 +1750,7 @@ bool transmitSec1(byte toSend)
     if (!poll_cmd)
     {
         // Use LED to signal activity
-        led.flash(FLASH_MS);
+        led.flash(FLASH_ACTIVITY_MS);
 
         // testing without disable
         // disable rx
@@ -1765,12 +1765,6 @@ bool transmitSec1(byte toSend)
 
     // aprox 10ms to write byte
     sw_serial.write(toSend);
-    if (!sw_serial.available())
-    {
-        sw_serial.flush();
-        ESP_LOGD(TAG, "+");
-    }
-    
 
     success = true;
 
@@ -1784,7 +1778,7 @@ bool transmitSec1(byte toSend)
             // LOST THE BYTE COMPLETELY
             ESP_LOGD(TAG, "SEC1 TX LOST ECHO OF: 0x%02X", toSend);
 
-            //success = false;
+            // success = false;
         }
         else
         {
@@ -1855,7 +1849,7 @@ bool transmitSec2(PacketAction &pkt_ac)
         else
         {
             // Use LED to signal activity
-            led.flash(FLASH_MS);
+            led.flash(FLASH_ACTIVITY_MS);
             sw_serial.write(buf, SECPLUS2_CODE_LEN);
             delayMicroseconds(100);
             // timestamp tx
