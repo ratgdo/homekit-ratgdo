@@ -173,6 +173,7 @@ enum LockTargetState : uint8_t
 };
 #endif
 
+extern bool wifi_got_ip;
 extern "C" uint32_t free_heap;
 extern "C" uint32_t min_heap;
 

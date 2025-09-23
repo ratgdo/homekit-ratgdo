@@ -333,6 +333,8 @@ void connectionCallback(int count)
              WiFi.gatewayIP().toString().c_str(),
              WiFi.dnsIP().toString().c_str());
 
+    wifi_got_ip = true;
+
     if (!softAPmode)
     {
         // IPv4 Config
@@ -345,13 +347,6 @@ void connectionCallback(int count)
             userConfig->set(cfg_nameserverIP, WiFi.dnsIP().toString().c_str());
 
         // With WiFi connected, we can now initialize the rest of our app.
-        if (strlen(userConfig->getTimeZone()) == 0)
-        {
-            // no timeZone set, try and find it automatically
-            get_auto_timezone();
-            // if successful this will have set the region and city, but not
-            // the POSIX time zone code. That will be done by browser.
-        }
 #ifdef RATGDO32_DISCO
         setup_vehicle();
 #endif
@@ -361,15 +356,16 @@ void connectionCallback(int count)
 #endif
         setup_web();
     }
+
+#ifdef RATGDO32_DISCO
     // beep on completing startup.
     static bool startupBeeped = false;
     if (!startupBeeped)
     {
-#ifdef RATGDO32_DISCO
         tone(BEEPER_PIN, 2000, 500);
-#endif
         startupBeeped = true;
     }
+#endif
 }
 
 void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info)

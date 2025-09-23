@@ -42,7 +42,6 @@
 static const char *TAG = "ratgdo-wifi";
 
 static bool wifi_setup_done = false;
-bool wifi_got_ip = false;
 
 // support for changeing WiFi settings
 _millis_t wifiConnectStart = 0;
@@ -277,21 +276,6 @@ void wifi_loop()
         // reset flag
         userConfig->set(cfg_wifiChanged, false);
         ESP8266_SAVE_CONFIG();
-    }
-    else
-    {
-        static bool gotTimezone = false;
-        if (!gotTimezone && wifi_got_ip)
-        {
-            if (userConfig->getEnableNTP() && strlen(userConfig->getTimeZone()) == 0)
-            {
-                // no timeZone set, try and find it automatically
-                get_auto_timezone();
-                // if successful this will have set the region and city, but not
-                // the POSIX time zone code. That will be done by browser.
-            }
-            gotTimezone = true;
-        }
     }
 }
 #endif

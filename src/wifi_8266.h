@@ -22,5 +22,4 @@
 void wifi_loop();
 void wifi_connect();
 extern station_config wifiConf;
-extern bool wifi_got_ip;
 #endif

@@ -74,6 +74,9 @@ GarageDoor garage_door = {
     .closeDuration = 0,
 };
 
+// Some initialization is postponed until after we have an IP address
+bool wifi_got_ip = false;
+
 // Track our memory usage
 uint32_t free_heap = (1024 * 1024);
 uint32_t min_heap = (1024 * 1024);
@@ -172,6 +175,7 @@ void setup()
         return;
     }
 
+    // We only reach here if not in softAPmode
     if (userConfig->getWifiChanged())
     {
         wifiConnectTimeout = _millis() + WIFI_CONNECT_TIMEOUT;
@@ -180,17 +184,15 @@ void setup()
     // on ESP8266 we setup everything ourselves.
     setup_improv();
     wifi_connect();
-    // setup_web(); postpone http web server setup until we have an IP address
     setup_comms();
     setup_drycontact();
     ESP_LOGI(TAG, "Free heap after setup: %d", ESP.getFreeHeap());
-    // setup_homekit(); postpone HomeKit setup until we have an IP addres
 #else
     if (userConfig->getEnableHomeSpanCLI())
         disable_improv();
     else
         setup_improv();
-    // on ESP32 the HomeKit library we use has callbacks which we use to setup everything else.
+    // on ESP32 the HomeSpan library has callbacks which we use to setup everything else.
     setup_homekit();
 #endif
     // led to idle mode
@@ -202,35 +204,40 @@ void setup()
  */
 void loop()
 {
+    static bool setup_after_IP_done = false;
+
+    // Some initialization is postponed until after we have an IP address
+    if (!setup_after_IP_done && wifi_got_ip && !softAPmode)
+    {
+        if (strlen(userConfig->getTimeZone()) == 0)
+        {
+            // no timeZone set, try and find it automatically
+            get_auto_timezone();
+            // if successful this will have set the region and city, but not
+            // the POSIX time zone code. That will be done by browser.
+        }
+#ifdef ESP8266
+        // On ESP8266 we handle WiFi and HomeKit ourselves.  On ESP32 it is done by HomeSpan
+        setup_homekit();
+        // HTTP web server should be started after HomeKit because HomeKit initializes MDNS which we use in web setup
+        setup_web();
+#endif
+        setup_after_IP_done = true;
+    }
+
     comms_loop();
-#if defined(ESP8266) || !defined(USE_GDOLIB)
+#ifndef USE_GDOLIB
     drycontact_loop();
 #endif
-
 #ifdef ESP8266
     // On ESP8266 we handle WiFi and HomeKit ourselves
     wifi_loop();
-    if (wifi_got_ip && !softAPmode)
-    {
-        // We have postponed homekit setup until after we have got a IP address, in hope
-        // that this improves stability.
-        if (!homekit_setup_done)
-            setup_homekit();
-        // HTTP web server should be started after HomeKit because HomeKit initializes MDNS which we use in web setup
-        if (!web_setup_done)
-            setup_web();
-    }
-    YIELD();
     homekit_loop();
-#else
-    // On ESP32 Wifi is handled within HomeSpan library which has its own freeRTOS task
-    // Features not available on ESP8266
+#endif
 #ifdef RATGDO32_DISCO
-    YIELD();
     vehicle_loop();
 #endif
-#endif
-    YIELD();
+    YIELD(); // Wrap web loop in yield's as handling web requests could be slow.
     web_loop();
     YIELD();
     improv_loop();
