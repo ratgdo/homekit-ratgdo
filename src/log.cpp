@@ -40,6 +40,7 @@ void logToSyslog(char *message);
 bool syslogEn = false;
 uint32_t syslogPort = 514;
 char syslogIP[IP4ADDR_STRLEN_MAX] = "";
+uint32_t syslogFacility = SYSLOG_LOCAL0;
 char timestr[16];
 WiFiUDP syslog;
 bool suppressSerialLog = false;
@@ -499,7 +500,6 @@ void LOG::printMessageLog(Print &outputDev, bool slow)
 /****************************************************************************
  * Syslog
  */
-#define SYSLOG_LOCAL0 16
 #define SYSLOG_EMERGENCY 0
 #define SYSLOG_ALERT 1
 #define SYSLOG_CRIT 2
@@ -516,7 +516,7 @@ void logToSyslog(char *message)
     if (!syslogEn || !WiFi.isConnected())
         return;
 
-    uint8_t PRI = SYSLOG_LOCAL0 * 8;
+    uint8_t PRI = syslogFacility * 8;
     if (*message == '>')
         PRI += SYSLOG_INFO;
     else if (*message == '!')

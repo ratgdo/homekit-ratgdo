@@ -79,6 +79,7 @@ constexpr char cfg_softAPmode[] = "softAPmode";
 constexpr char cfg_syslogEn[] = "syslogEn";
 constexpr char cfg_syslogIP[] = "syslogIP";
 constexpr char cfg_syslogPort[] = "syslogPort";
+constexpr char cfg_syslogFacility[] = "syslogFacility";
 constexpr char cfg_logLevel[] = "logLevel";
 constexpr char cfg_dcOpenClose[] = "dcOpenClose";
 constexpr char cfg_dcDebounceDuration[] = "dcDebounceDuration";
@@ -181,6 +182,7 @@ public:
     bool getSyslogEn() { return std::get<bool>(get(cfg_syslogEn)); };
     char *getSyslogIP() { return (std::get<configStr>(get(cfg_syslogIP)).str); };
     uint32_t getSyslogPort() { return std::get<int>(get(cfg_syslogPort)); };
+    uint32_t getSyslogFacility() { return std::get<int>(get(cfg_syslogFacility)); };
     uint32_t getLogLevel() { return std::get<int>(get(cfg_logLevel)); };
     bool getDCOpenClose() { return std::get<bool>(get(cfg_dcOpenClose)); };
     uint32_t getDCDebounceDuration() { return std::get<int>(get(cfg_dcDebounceDuration)); };

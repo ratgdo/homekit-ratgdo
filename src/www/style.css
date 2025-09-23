@@ -250,7 +250,8 @@ table.password td.label {
     font-size: 0.8em;
 }
 
-table.settings input.TZinput,
+table.settings select.TZinput,
+table.settings select.FCinput,
 table.settings input.IPinput {
     font-size: 0.9em;
 }

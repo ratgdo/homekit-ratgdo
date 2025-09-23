@@ -272,6 +272,21 @@
                           maxlength="5" size="5">
                       </td>
                     </tr>
+                    <tr>
+                      <td class="SyslogPri">Facility:</td>
+                      <td>&nbsp;
+                        <select class="FCinput" id="syslogFacility">
+                          <option value="16" selected>Local 0</option>
+                          <option value="17">Local 1</option>
+                          <option value="18">Local 2</option>
+                          <option value="19">Local 3</option>
+                          <option value="20">Local 4</option>
+                          <option value="21">Local 5</option>
+                          <option value="22">Local 6</option>
+                          <option value="23">Local 7</option>
+                        </select>
+                      </td>
+                    </tr>
                   </table>
                 </td>
               </tr>
@@ -536,7 +551,7 @@
                     <tr>
                       <td class="IPlabel">Time Zone:</td>
                       <td>&nbsp;
-                        <select class="timeZoneInput TZinput" id="timeZoneInput">
+                        <select class="TZinput" id="timeZoneInput">
                         </select>
                       </td>
                     </tr>

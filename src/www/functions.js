@@ -137,6 +137,8 @@ function toggleSyslog() {
         Array.from(document.getElementsByClassName("syslogIPinput")).forEach(function (inputField) {
             inputField.value = "";
         });
+        // And reset the facility number to current value;
+        document.getElementById("syslogFacility").value = serverStatus.syslogFacility;
     }
 }
 
@@ -189,7 +191,7 @@ async function loadTZinfo(list) {
         });
     }
     // select current value
-    let index = timeZones.indexOf(serverStatus.timeZone);
+    const index = timeZones.indexOf(serverStatus.timeZone);
     if (index >= 0) {
         list.selectedIndex = index;
     }
@@ -408,6 +410,9 @@ function setElementsFromStatus(status) {
             case "syslogPort":
                 document.getElementById(key).innerHTML = value;
                 document.getElementById("syslogPort").placeholder = value;
+                break;
+            case "syslogFacility":
+                document.getElementById(key).value = value;
                 break;
             case "syslogEn":
                 document.getElementById(key).checked = value;
@@ -1094,6 +1099,8 @@ async function saveSettings() {
     if (syslogIP.length == 0) syslogIP = serverStatus.syslogIP;
     let syslogPort = document.getElementById("syslogPort").value.substring(0, 5);
     if (syslogPort.length == 0 || Number(syslogPort) == 0) syslogPort = serverStatus.syslogPort;
+    const syslogList = document.getElementById("syslogFacility");
+    const syslogFacility = Number(syslogList.options[syslogList.selectedIndex].value);
     const logLevel = (document.getElementById("logLevel5").checked) ? 5
         : (document.getElementById("logLevel4").checked) ? 4
             : (document.getElementById("logLevel3").checked) ? 3
@@ -1153,6 +1160,7 @@ async function saveSettings() {
         "syslogEn", syslogEn,
         "syslogIP", syslogIP,
         "syslogPort", syslogPort,
+        "syslogFacility", syslogFacility,
         "logLevel", logLevel,
         "useSWserial", useSWserial,
         "obstFromStatus", obstFromStatus,
