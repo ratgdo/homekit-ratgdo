@@ -114,6 +114,7 @@ void setup()
     tone(BEEPER_PIN, 1300, 500);
 #endif
 #endif // ESP32
+    // led on during setup
     led.on();
     ESP_LOGI(TAG, "=== Starting RATGDO Homekit version %s", AUTO_VERSION);
 #ifdef ESP8266
@@ -183,8 +184,7 @@ void setup()
     setup_comms();
     setup_drycontact();
     ESP_LOGI(TAG, "Free heap after setup: %d", ESP.getFreeHeap());
-    // setup_homekit(); postpone HomeKit setup until we have an IP address
-    led.idle();
+    // setup_homekit(); postpone HomeKit setup until we have an IP addres
 #else
     if (userConfig->getEnableHomeSpanCLI())
         disable_improv();
@@ -193,6 +193,8 @@ void setup()
     // on ESP32 the HomeKit library we use has callbacks which we use to setup everything else.
     setup_homekit();
 #endif
+    // led to idle mode
+    led.idle();
 }
 
 /****************************************************************************
@@ -283,9 +285,6 @@ void service_timer_loop()
             }
         }
     }
-
-    // LED flash timer
-    led.flash();
 
     // Motion Clear Timer
     if (garage_door.motion && garage_door.motion_timer > 0 && (int32_t)(current_millis - garage_door.motion_timer) >= 0)

@@ -99,6 +99,9 @@ const gpio_num_t INPUT_OBST_PIN = (gpio_num_t)INPUT_OBST_GPIO;
 #ifndef LED_BUILTIN_GPIO
 #define LED_BUILTIN_GPIO GPIO_NUM_2
 #endif
+#ifndef LED_BUILTIN_ON_STATE
+#define LED_BUILTIN_ON_STATE HIGH
+#endif
 const gpio_num_t LED_BUILTIN = (gpio_num_t)LED_BUILTIN_GPIO;
 #ifndef DRY_CONTACT_OPEN_GPIO
 #define DRY_CONTACT_OPEN_GPIO GPIO_NUM_13

@@ -17,6 +17,7 @@
 #include <Ticker.h>
 
 #define FLASH_MS 500 // default flash period, 500ms
+#define FLASH_ACTIVITY_MS 250
 
 class LED
 {
@@ -41,7 +42,6 @@ public:
 };
 
 extern LED led;
-#ifndef ESP8266
-// Feature not available on ESP8266
+#ifdef RATGDO32_DISCO
 extern LED laser;
 #endif
