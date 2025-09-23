@@ -782,6 +782,7 @@ void handle_status()
     JSON_ADD_BOOL(cfg_syslogEn, userConfig->getSyslogEn());
     JSON_ADD_STR(cfg_syslogIP, userConfig->getSyslogIP());
     JSON_ADD_INT(cfg_syslogPort, userConfig->getSyslogPort());
+    JSON_ADD_INT(cfg_syslogFacility, userConfig->getSyslogFacility());
     JSON_ADD_INT(cfg_logLevel, userConfig->getLogLevel());
     JSON_ADD_INT(cfg_TTCseconds, userConfig->getTTCseconds());
     JSON_ADD_BOOL(cfg_TTClight, userConfig->getTTClight());

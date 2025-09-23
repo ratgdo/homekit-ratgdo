@@ -44,9 +44,12 @@
 
 #define LINE_BUFFER_SIZE 256
 
+#define SYSLOG_LOCAL0 16
+
 extern bool syslogEn;
 extern uint32_t syslogPort;
 extern char syslogIP[IP4ADDR_STRLEN_MAX];
+extern uint32_t syslogFacility;
 extern bool suppressSerialLog;
 
 extern time_t rebootTime;

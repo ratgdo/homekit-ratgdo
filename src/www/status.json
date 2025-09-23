@@ -14,6 +14,7 @@
   "syslogEn": true,
   "syslogIP": "192.168.99.2",
   "syslogPort": 514,
+  "syslogFacility": 20,
   "wifiSSID": "Test",
   "wifiRSSI": "-55 dBm, Channel 6",
   "wifiBSSID": "AA:BB:CC:DD:EE:FF",

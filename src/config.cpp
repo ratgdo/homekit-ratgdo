@@ -183,6 +183,14 @@ bool helperSyslogEn(const std::string &key, const char *value, configSetting *ac
     strlcpy(syslogIP, userConfig->getSyslogIP(), sizeof(syslogIP));
     syslogPort = userConfig->getSyslogPort();
     syslogEn = userConfig->getSyslogEn();
+    syslogFacility = userConfig->getSyslogFacility();
+    return true;
+}
+
+bool helperSyslogFacility(const std::string &key, const char *value, configSetting *action)
+{
+    userConfig->set(key, value);
+    syslogFacility = userConfig->getSyslogFacility();
     return true;
 }
 
@@ -331,7 +339,8 @@ userSettings::userSettings()
         {cfg_syslogEn, {false, false, false, helperSyslogEn}}, // call fn to set globals
         {cfg_syslogIP, {false, false, (configStr){IP4ADDR_STRLEN_MAX, syslogIPBuf}, NULL}},
         {cfg_syslogPort, {false, false, 514, NULL}},
-        {cfg_logLevel, {false, false, ESP_LOG_INFO, helperLogLevel}}, // call fn to set log level
+        {cfg_syslogFacility, {false, false, SYSLOG_LOCAL0, helperSyslogFacility}}, // call fn to set global
+        {cfg_logLevel, {false, false, ESP_LOG_INFO, helperLogLevel}},              // call fn to set log level
         {cfg_dcOpenClose, {true, false, false, NULL}},
         {cfg_dcDebounceDuration, {true, false, 50, NULL}},
         {cfg_obstFromStatus, {true, false, false, NULL}},
