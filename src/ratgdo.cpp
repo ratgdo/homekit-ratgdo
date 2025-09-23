@@ -252,6 +252,14 @@ void service_timer_loop()
 {
     _millis_t current_millis = _millis();
     static time_t lastSNTP = 0;
+    static _millis_t lastLEDblink = 0;
+
+    if (current_millis - lastLEDblink >= LED_BLINK_INTERVAL)
+    {
+        lastLEDblink = current_millis;
+        // This gives a reassuring blink to show we're still alive and well.
+        led.flash(250);
+    }
 
     if ((rebootSeconds != 0) && (rebootSeconds < (uint32_t)(current_millis / 1000)))
     {
