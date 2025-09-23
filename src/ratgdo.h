@@ -110,7 +110,7 @@ const gpio_num_t LED_BUILTIN = (gpio_num_t)LED_BUILTIN_GPIO;
 #ifndef DRY_CONTACT_OPEN_GPIO
 #define DRY_CONTACT_OPEN_GPIO GPIO_NUM_13
 #endif
-const gpio_num_t DRY_CONTACT_OPEN_PIN = (gpio_num_t)DRY_CONTACT_OPEN_GPIO;  // open door
+const gpio_num_t DRY_CONTACT_OPEN_PIN = (gpio_num_t)DRY_CONTACT_OPEN_GPIO; // open door
 #ifndef DRY_CONTACT_CLOSE_GPIO
 #define DRY_CONTACT_CLOSE_GPIO GPIO_NUM_14
 #endif
@@ -130,8 +130,8 @@ const gpio_num_t STATUS_OBST_PIN = (gpio_num_t)STATUS_OBST_GPIO;
 
 // !!! this is conflicting with above status pins
 #ifdef USE_GDOLIB
-const gpio_num_t DISCRETE_OPEN_PIN = GPIO_NUM_26;     // alternative (or in addition) to toggle, can use discrete open control
-const gpio_num_t DISCRETE_CLOSE_PIN = GPIO_NUM_25;    // alternative (or in addition) to toggle, can use discrete close control
+const gpio_num_t DISCRETE_OPEN_PIN = GPIO_NUM_26;  // alternative (or in addition) to toggle, can use discrete open control
+const gpio_num_t DISCRETE_CLOSE_PIN = GPIO_NUM_25; // alternative (or in addition) to toggle, can use discrete close control
 #endif
 
 #ifdef RATGDO32_DISCO
@@ -177,7 +177,8 @@ extern bool wifi_got_ip;
 extern "C" uint32_t free_heap;
 extern "C" uint32_t min_heap;
 
-#define MOTION_TIMER_DURATION 5000 // how long to keep HomeKit motion sensor active for
+#define MOTION_TIMER_DURATION 5000  // how long to keep HomeKit motion sensor active for
+#define LED_BLINK_INTERVAL 5 * 1000 // time between each "alive and working" LED blink
 
 struct __attribute__((aligned(4))) GarageDoor
 {
