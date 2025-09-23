@@ -52,6 +52,10 @@
 #define DRY_CONTACT_OPEN_PIN D5  // dry contact for open door limit switch
 #define DRY_CONTACT_CLOSE_PIN D6 // dry contact for close door limit switch
 
+#ifndef LED_BUILTIN_ON_STATE
+#define LED_BUILTIN_ON_STATE LOW
+#endif
+
 enum GarageDoorCurrentState : uint8_t
 {
     CURR_OPEN = 0,
