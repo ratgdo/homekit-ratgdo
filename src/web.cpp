@@ -862,9 +862,9 @@ void handle_status()
     server.send_P(200, type_json, json);
     response_time = _millis() - startTime;
     max_response_time = std::max(max_response_time, response_time);
-    if (strlen(json) > STATUS_JSON_BUFFER_SIZE * 85 / 100)
+    if (strlen(json) > STATUS_JSON_BUFFER_SIZE * 95 / 100)
     {
-        ESP_LOGW(TAG, "WARNING status JSON length: %d is over 85%% of available buffer, build time %lums, response time: %lums", strlen(json), build_time, response_time);
+        ESP_LOGW(TAG, "WARNING status JSON length: %d is over 95%% of available buffer (%d), build time %lums, response time: %lums", strlen(json), STATUS_JSON_BUFFER_SIZE, build_time, response_time);
     }
     else
     {
