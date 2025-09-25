@@ -34,6 +34,9 @@
 #endif
 
 // RATGDO project includes
+#ifdef USE_GDOLIB
+#include "gdo.h"
+#endif
 #include "ratgdo.h"
 #include "config.h"
 #include "comms.h"
@@ -1583,15 +1586,31 @@ void handle_firmware_upload()
         // ESP_LOGI(TAG, "eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X (%d)]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[2]);
         if (!verify)
         {
-            // Close HomeKit server so we don't have to handle HomeKit network traffic during update
+            // Close services so we don't have to handle network traffic during update
             // Only if not verifying as either will have been shutdown on immediately prior upload, or we
             // just want to verify without disrupting operation of the HomeKit service.
-#ifdef ESP8266
-            arduino_homekit_close();
-            IRAM_START(TAG);
-            IRAM_END(TAG);
+            ESP_LOGI(TAG, "Shutdown HomeKit and GDO communications");
+
+            // Service loop has things like reboot after X days, homekit notifications, etc. that we don't want during OTA
+            suspend_service_loop = true;
+#ifdef RATGDO32_DISCO
+            // Ignore vehicle distance sensor
+            vehicle_setup_done = false;
+#endif
+#ifdef USE_GDOLIB
+            // Shutdown GDO comms
+            gdo_deinit();
 #else
-            // TODO close HomeKit server during OTA update...
+            // This prevents loop code from running
+            comms_setup_done = false;
+#endif
+#ifdef ESP8266
+            // Shutdown HomeKit
+            homekit_setup_done = false;
+            arduino_homekit_close();
+#else
+            // Shutdown HomeSpan server
+            vTaskDelete(homeSpan.getAutoPollTask());
 #endif
         }
         if (!verify && !Update.begin((firmwareSize > 0) ? firmwareSize : maxSketchSpace, U_FLASH))

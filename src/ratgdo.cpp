@@ -89,6 +89,7 @@ _millis_t next_heap_check = 0;
 #define FREE_HEAP_CHECK_MS 1000
 
 // Forward declare functions
+bool suspend_service_loop = false;
 void service_timer_loop();
 
 // support for changeing WiFi settings
@@ -260,6 +261,9 @@ void service_timer_loop()
         // This gives a reassuring blink to show we're still alive and well.
         led.flash(250);
     }
+
+    if (suspend_service_loop)
+        return;
 
     if ((rebootSeconds != 0) && (rebootSeconds < (uint32_t)(current_millis / 1000)))
     {
