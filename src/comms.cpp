@@ -310,7 +310,6 @@ static void gdo_event_handler(const gdo_status_t *status, gdo_cb_event_t event, 
         if (motionTriggers.bit.obstruction && garage_door.obstructed)
         {
             notify_homekit_motion(true);
-            notify_homekit_room_occupancy(true);
         }
         break;
     case GDO_CB_EVENT_MOTION:
@@ -325,8 +324,6 @@ static void gdo_event_handler(const gdo_status_t *status, gdo_cb_event_t event, 
             enable_service_homekit_motion(false); // ESP32 with HomeSpan can do this without reboot
         }
         notify_homekit_motion(status->motion == gdo_motion_state_t::GDO_MOTION_STATE_DETECTED);
-        if (garage_door.motion)
-            notify_homekit_room_occupancy(true);
         break;
     case GDO_CB_EVENT_BATTERY:
         ESP_LOGI(TAG, "GDO event: battery: %s", gdo_battery_state_to_string(status->battery));
@@ -1663,32 +1660,34 @@ void comms_loop()
     if (!comms_setup_done)
         return;
 
+    _millis_t current_millis = _millis();
     // wait for a status command to be processes to properly set the initial state of
     // all homekit characteristics.  Also timeout if we don't receive a status in
     // a reasonable amount of time.  This prevents unintentional state changes if
     // a home hub reads the state before we initialize everything
     // Note, secplus1 doesnt have a status command so it will just timeout
-    if (!comms_status_done && (_millis() - comms_status_start > COMMS_STATUS_TIMEOUT))
+    if (!comms_status_done && (current_millis - comms_status_start > COMMS_STATUS_TIMEOUT))
     {
         ESP_LOGI(TAG, "Comms initial status timeout");
         comms_status_done = true;
     }
 
-#ifdef USE_GDOLIB
+#ifdef ESP32
     // Room Occupancy Clear Timer
-    if (garage_door.room_occupied && (_millis() > garage_door.room_occupancy_timeout))
+    if (garage_door.room_occupied && (current_millis > garage_door.room_occupancy_timeout))
     {
         notify_homekit_room_occupancy(false);
         ESP_LOGI(TAG, "Room occupancy cleared after %d minutes", userConfig->getOccupancyDuration() / 60);
     }
-
+#endif
     // Motion Clear Timer
-    if (garage_door.motion && (_millis() > garage_door.motion_timer))
+    if (garage_door.motion && garage_door.motion_timer > 0 && (int32_t)(current_millis - garage_door.motion_timer) >= 0)
     {
         notify_homekit_motion(false);
         ESP_LOGI(TAG, "Motion Cleared after %d seconds", MOTION_TIMER_DURATION / 1000);
     }
-#else  // not USE_GDOLIB
+
+#ifndef USE_GDOLIB
     if (doorControlType == 1)
         comms_loop_sec1();
     else if (doorControlType == 2)
@@ -1696,13 +1695,6 @@ void comms_loop()
     else
         comms_loop_drycontact();
 
-    // Motion Clear Timer
-    if (garage_door.motion && garage_door.motion_timer > 0 && (int32_t)(_millis() - garage_door.motion_timer) >= 0)
-    {
-        ESP_LOGI(TAG, "Motion Cleared");
-        notify_homekit_motion(false);
-    }
-    // Service the Obstruction Timer
     obstruction_timer();
 #endif // USE_GDOLIB
 }

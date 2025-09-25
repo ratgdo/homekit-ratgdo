@@ -305,13 +305,6 @@ void service_timer_loop()
         }
     }
 
-    // Motion Clear Timer
-    if (garage_door.motion && garage_door.motion_timer > 0 && (int32_t)(current_millis - garage_door.motion_timer) >= 0)
-    {
-        ESP_LOGI(TAG, "Motion Cleared");
-        notify_homekit_motion(false);
-    }
-
     // Check heap
     static _millis_t last_heap_check = 0;
     if (current_millis - last_heap_check >= FREE_HEAP_CHECK_MS)

@@ -1206,4 +1206,8 @@ void notify_homekit_motion(bool state)
 
     homekit_characteristic_notify(&motion_detected, HOMEKIT_BOOL_CPP(garage_door.motion));
 #endif
+#ifndef ESP8266
+    if (state)
+        notify_homekit_room_occupancy(true);
+#endif
 }
