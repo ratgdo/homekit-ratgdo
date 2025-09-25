@@ -41,7 +41,7 @@
 
 static const char *TAG = "ratgdo-comms";
 
-static bool comms_setup_done = false;
+bool comms_setup_done = false;
 
 /********************************** LOCAL STORAGE *****************************************/
 #ifndef USE_GDOLIB
