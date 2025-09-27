@@ -46,6 +46,13 @@ WiFiUDP syslog;
 bool suppressSerialLog = false;
 esp_log_level_t logLevel = ESP_LOG_VERBOSE;
 
+#define SERIAL_PRINT(x)         \
+    do                          \
+    {                           \
+        if (!suppressSerialLog) \
+            Serial.print(x);    \
+    } while (0)
+
 char *toHHMMSSmmm(_millis_t t)
 {
     uint32_t secs = t / 1000;
@@ -229,8 +236,7 @@ void LOG::logToBuffer(const char *fmt, va_list args)
     }
 
     //  print line to the serial port
-    if (!suppressSerialLog)
-        Serial.print(lineBuffer);
+    SERIAL_PRINT(lineBuffer);
 
     // copy the line into the message save buffer
     size_t len = strlen(lineBuffer);
@@ -389,7 +395,7 @@ void LOG::saveMessageLog()
 #ifdef ESP8266
 void LOG::printSavedLog(File file, Print &outputDev, bool slow)
 {
-    Serial.print("Send saved file.");
+    SERIAL_PRINT("Send saved file.");
     if (file && file.size() > 0)
     {
         size_t num = LINE_BUFFER_SIZE;
@@ -399,7 +405,7 @@ void LOG::printSavedLog(File file, Print &outputDev, bool slow)
         {
             num = file.read(reinterpret_cast<uint8_t *>(lineBuffer), LINE_BUFFER_SIZE);
             // Progress dot dot dot
-            Serial.print(".");
+            SERIAL_PRINT(".");
             YIELD();
             outputDev.write(lineBuffer, num);
             if (slow && (count += num) > TCP_SND_BUF / 2)
@@ -413,7 +419,7 @@ void LOG::printSavedLog(File file, Print &outputDev, bool slow)
         outputDev.print("\n");
         outputDev.flush();
     }
-    Serial.print("\n");
+    SERIAL_PRINT("\n");
 }
 #endif
 
@@ -463,14 +469,14 @@ void LOG::printMessageLog(Print &outputDev, bool slow)
         // On slow output devices (e.g. network), chunk up to protect against buffer overflow
         size_t CHUNK = (slow) ? TCP_SND_BUF / 2 : sizeof(msgBuffer->buffer);
         size_t chunk;
-        Serial.print("Send message log.");
+        SERIAL_PRINT("Send message log.");
         if (msgBuffer->wrapped != 0)
         {
             while (len)
             {
                 chunk = std::min(len, CHUNK);
                 // Progress dot dot dot
-                Serial.print(".");
+                SERIAL_PRINT(".");
                 YIELD();
                 outputDev.write(&msgBuffer->buffer[start], chunk);
                 if (slow)
@@ -485,14 +491,14 @@ void LOG::printMessageLog(Print &outputDev, bool slow)
         {
             chunk = std::min(len, CHUNK);
             // Progress dot dot dot
-            Serial.print(".");
+            SERIAL_PRINT(".");
             YIELD();
             outputDev.write(&msgBuffer->buffer[start], chunk);
             outputDev.flush();
             len -= chunk;
             start += chunk;
         }
-        Serial.print("\n");
+        SERIAL_PRINT("\n");
     }
     GIVE_MUTEX();
 }
