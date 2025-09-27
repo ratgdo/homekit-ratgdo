@@ -69,17 +69,18 @@ void onDisconnected(const WiFiEventStationModeDisconnected &evt)
 
 void onGotIP(const WiFiEventStationModeGotIP &evt)
 {
-    wifi_got_ip = true;
     ESP_LOGI(TAG, "WiFi Got IP: %s, Mask: %s, Gateway: %s, DNS: %s", evt.ip.toString().c_str(), evt.mask.toString().c_str(),
              evt.gw.toString().c_str(), (WiFi.dnsIP().isSet()) ? WiFi.dnsIP().toString().c_str() : evt.gw.toString().c_str());
     if (softAPmode)
         return;
+
     // Update saved IP address info (only if not in soft AP mode)
     userConfig->set(cfg_localIP, evt.ip.toString().c_str());
     userConfig->set(cfg_gatewayIP, evt.gw.toString().c_str());
     userConfig->set(cfg_subnetMask, evt.mask.toString().c_str());
     userConfig->set(cfg_nameserverIP, (WiFi.dnsIP().isSet()) ? WiFi.dnsIP().toString().c_str() : evt.gw.toString().c_str());
     ESP8266_SAVE_CONFIG();
+    wifi_got_ip = true;
 }
 
 void onDHCPTimeout()
