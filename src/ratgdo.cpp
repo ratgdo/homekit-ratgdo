@@ -185,9 +185,6 @@ void setup()
     // on ESP8266 we setup everything ourselves.
     setup_improv();
     wifi_connect();
-    setup_comms();
-    setup_drycontact();
-    ESP_LOGI(TAG, "Free heap after setup: %d", ESP.getFreeHeap());
 #else
     if (userConfig->getEnableHomeSpanCLI())
         disable_improv();
@@ -196,6 +193,7 @@ void setup()
     // on ESP32 the HomeSpan library has callbacks which we use to setup everything else.
     setup_homekit();
 #endif
+    ESP_LOGI(TAG, "=== WAITING for IP address before continuing initialization");
     // led to idle mode
     led.idle();
 }
@@ -220,10 +218,29 @@ void loop()
 #ifdef ESP8266
         // On ESP8266 we handle WiFi and HomeKit ourselves.  On ESP32 it is done by HomeSpan
         setup_homekit();
+#endif
+#ifdef RATGDO32_DISCO
+        // Initialize vehicle distance sensor
+        setup_vehicle();
+#endif
+        // start communications with garage door opener
+        setup_comms();
+#ifndef USE_GDOLIB
+        setup_drycontact();
+#endif
         // HTTP web server should be started after HomeKit because HomeKit initializes MDNS which we use in web setup
         setup_web();
-#endif
         setup_after_IP_done = true;
+        ESP_LOGI(TAG, "=== Initialization after IP address acquired complete");
+#ifdef RATGDO32_DISCO
+        // beep on completing startup.
+        static bool startupBeeped = false;
+        if (!startupBeeped)
+        {
+            tone(BEEPER_PIN, 2000, 500);
+            startupBeeped = true;
+        }
+#endif
     }
 
     comms_loop();

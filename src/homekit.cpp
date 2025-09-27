@@ -333,39 +333,20 @@ void connectionCallback(int count)
              WiFi.gatewayIP().toString().c_str(),
              WiFi.dnsIP().toString().c_str());
 
+    if (softAPmode)
+        return;
+
+    // IPv4 Config
+    userConfig->set(cfg_localIP, WiFi.localIP().toString().c_str());
+    userConfig->set(cfg_gatewayIP, WiFi.gatewayIP().toString().c_str());
+    userConfig->set(cfg_subnetMask, WiFi.subnetMask().toString().c_str());
+
+    // Only update cfg_nameserverIP if it is an IPv4 address. .dnsIP() can return an IPv6 address if we have one from SLAAC
+    if (WiFi.dnsIP().type() == IPv4)
+        userConfig->set(cfg_nameserverIP, WiFi.dnsIP().toString().c_str());
+
+    // With WiFi connected, we can now initialize the rest of our app.
     wifi_got_ip = true;
-
-    if (!softAPmode)
-    {
-        // IPv4 Config
-        userConfig->set(cfg_localIP, WiFi.localIP().toString().c_str());
-        userConfig->set(cfg_gatewayIP, WiFi.gatewayIP().toString().c_str());
-        userConfig->set(cfg_subnetMask, WiFi.subnetMask().toString().c_str());
-
-        // Only update cfg_nameserverIP if it is an IPv4 address. .dnsIP() can return an IPv6 address if we have one from SLAAC
-        if (WiFi.dnsIP().type() == IPv4)
-            userConfig->set(cfg_nameserverIP, WiFi.dnsIP().toString().c_str());
-
-        // With WiFi connected, we can now initialize the rest of our app.
-#ifdef RATGDO32_DISCO
-        setup_vehicle();
-#endif
-        setup_comms();
-#ifndef USE_GDOLIB
-        setup_drycontact();
-#endif
-        setup_web();
-    }
-
-#ifdef RATGDO32_DISCO
-    // beep on completing startup.
-    static bool startupBeeped = false;
-    if (!startupBeeped)
-    {
-        tone(BEEPER_PIN, 2000, 500);
-        startupBeeped = true;
-    }
-#endif
 }
 
 void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info)
