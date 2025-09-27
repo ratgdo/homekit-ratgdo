@@ -146,11 +146,11 @@ If selected then all the action buttons _except reboot_, and access to the setti
 
 ### LED activity
 
-If selected _On when idle_, then the blue LED light on the ratgdo device will remain illuminated when the device is idle and flash off when there is activity. If you prefer the LED to remain off while idle then select _Off when idle_ and the LED to flash on with activity. You can also _Disable_ the blue LED. Note that the ratgdo32-disco boards also have a red power LED light. This cannot be controlled and is always on when power is connected.
+If selected _On when idle_, then the blue LED light on the ratgdo device will remain illuminated when the device is idle and flash off when there is activity. If you prefer the LED to remain off while idle then select _Off when idle_ and the LED to flash on with activity. During normal operation the LED will flash once every 5 seconds. You can also _Disable_ the blue LED. Note that the ratgdo32-disco boards also have a red power LED light. This cannot be controlled and is always on when power is connected.
 
 ### Syslog
 
-This setting allows you to send the ratgdo logs to a syslog server. Enter the IP address of your syslog server. Uses UDP port 514 by default and logs to the LOCAL0 Facility.
+This setting allows you to send ratgdo logs to a syslog server. When selected, enter the IP address and port of your syslog server (default UDP port 514) and select the Syslog facility number (default Level0).
 
 > [!NOTE]
 > If your ratgdo is on an IoT VLAN or otherwise isolated VLAN, then you need to make sure it has access to your syslog server. If the syslog server is on a separate VLAN, you need to allow UDP port 514 through the firewall.
@@ -507,6 +507,10 @@ Clicking on the system logs link will open a new browser tab with details of cur
 > [!NOTE]
 > For ratgdo32 devices, logs from the last reboot and crash are saved in volatile memory and do not survive a power interruption or a firmware flash.
 > If you need to retain these logs to report an issue please make a copy before disconnecting the power or updating firmware.
+
+### Serial port log
+
+If you are unable to connect to the ratgdo web page then it is still possible to capture logs from the USB serial port.  If you installed homekit-ratgdo using the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo/flash.html), you can use this same tool to display serial logs which you can then copy and use in a bug report.
 
 ## How can I contribute?
 
