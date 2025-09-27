@@ -740,13 +740,14 @@ void wallPlate_Emulation()
 
 void update_door_state(GarageDoorCurrentState current_state)
 {
+    constexpr uint32_t MAX_HISTORY = 5;            // Number of door operations to average across
+    constexpr uint32_t MAX_DURATION = (45 * 1000); // Maximum time it should take to open/close a door
     static _millis_t start_opening = 0;
     static _millis_t start_closing = 0;
-    static _millis_t open_average = 0;
-    static int32_t open_counter = 0;
-    static _millis_t close_average = 0;
-    static int32_t close_counter = 0;
-    constexpr int32_t FACTOR = 5; // Number of door operations to average across.
+    static _millis_t open_history[MAX_HISTORY] = {0};
+    static uint32_t open_counter = 0;
+    static _millis_t close_history[MAX_HISTORY] = {0};
+    static uint32_t close_counter = 0;
     GarageDoorTargetState target_state = garage_door.target_state;
 
     // Determine target state
@@ -781,10 +782,19 @@ void update_door_state(GarageDoorCurrentState current_state)
     else if (current_state == CURR_OPEN && garage_door.current_state == CURR_OPENING && start_opening > 0)
     {
         _millis_t open_duration = _millis() - start_opening;
-        open_counter++;
-        open_average += ((int32_t)open_duration - (int32_t)open_average) / std::min(open_counter, FACTOR);
-        garage_door.openDuration = (open_average + 500) / 1000; // round up/down to closest second
-        ESP_LOGI(TAG, "Door open duration: %lums, average: %lums (%s)", (uint32_t)open_duration, (uint32_t)open_average, timeString());
+        if (open_duration <= MAX_DURATION)
+        {
+            _millis_t open_average = 0;
+            open_history[open_counter++ % MAX_HISTORY] = open_duration;
+            for (uint32_t i = 0, j = 1; i < std::min(open_counter, MAX_HISTORY);)
+                open_average += (open_history[i++] - open_average) / j++;
+            garage_door.openDuration = (open_average + 500) / 1000; // round up/down to closest second
+            ESP_LOGI(TAG, "Door open duration: %lums, average: %lums (%s)", (uint32_t)open_duration, (uint32_t)open_average, timeString());
+        }
+        else
+        {
+            ESP_LOGW(TAG, "Ignoring implausably long open duration: %lums (%s)", (uint32_t)open_duration, timeString());
+        }
     }
     else if (current_state == CURR_CLOSING && garage_door.current_state == CURR_OPEN)
     {
@@ -794,10 +804,19 @@ void update_door_state(GarageDoorCurrentState current_state)
     else if (current_state == CURR_CLOSED && garage_door.current_state == CURR_CLOSING && start_closing > 0)
     {
         _millis_t close_duration = _millis() - start_closing;
-        close_counter++;
-        close_average += ((int32_t)close_duration - (int32_t)close_average) / std::min(close_counter, FACTOR);
-        garage_door.closeDuration = (close_average + 500) / 1000; // round up/down to closest second
-        ESP_LOGI(TAG, "Door close duration: %lums, average: %lums (%s)", (uint32_t)close_duration, (uint32_t)close_average, timeString());
+        if (close_duration <= MAX_DURATION)
+        {
+            _millis_t close_average = 0;
+            close_history[close_counter++ % MAX_HISTORY] = close_duration;
+            for (uint32_t i = 0, j = 1; i < std::min(close_counter, MAX_HISTORY);)
+                close_average += (close_history[i++] - close_average) / j++;
+            garage_door.closeDuration = (close_average + 500) / 1000; // round up/down to closest second
+            ESP_LOGI(TAG, "Door close duration: %lums, average: %lums (%s)", (uint32_t)close_duration, (uint32_t)close_average, timeString());
+        }
+        else
+        {
+            ESP_LOGW(TAG, "Ignoring implausably long close duration: %lums (%s)", (uint32_t)close_duration, timeString());
+        }
     }
     else if (current_state == CURR_STOPPED)
     {
