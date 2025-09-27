@@ -94,6 +94,23 @@ void time_is_set(struct timeval *tv)
 }
 #endif
 
+bool strEmptyOrSpaces(const char *str)
+{
+    if (str == NULL)
+    {
+        return true; // Consider NULL as empty
+    }
+    // Iterate through the string
+    for (int i = 0; str[i] != '\0'; i++)
+    {
+        if (!isspace((unsigned char)str[i]))
+        {
+            return false; // Found a non-whitespace character
+        }
+    }
+    return true; // All characters were whitespace or the string was empty
+}
+
 char *timeString(time_t reqTime, bool syslog)
 {
     static char tBuffer[32];

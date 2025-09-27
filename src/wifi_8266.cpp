@@ -175,6 +175,13 @@ void wifi_connect()
     dhcpTimeoutHandler = WiFi.onStationModeDHCPTimeout(&onDHCPTimeout);
 
     wifi_station_get_config_default(&wifiConf);
+    if (strEmptyOrSpaces((const char *)wifiConf.ssid))
+    {
+        ESP_LOGE(TAG, "ERROR: Invalid SSID value (%s) boot into soft access point mode", (const char *)wifiConf.ssid);
+        userConfig->set(cfg_softAPmode, true);
+        ESP8266_SAVE_CONFIG();
+        sync_and_restart();
+    }
     if (wifiConf.bssid_set)
     {
         ESP_LOGI(TAG, "Connecting to SSID: %s locked to Access Point: %02x:%02x:%02x:%02x:%02x:%02x, ", wifiConf.ssid,
