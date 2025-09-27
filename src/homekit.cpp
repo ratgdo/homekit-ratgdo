@@ -273,6 +273,15 @@ char ipv6_addresses[LWIP_IPV6_NUM_ADDRESSES * IP6ADDR_STRLEN_MAX] = {0};
  */
 void wifiBegin(const char *ssid, const char *pw)
 {
+    if (strEmptyOrSpaces(ssid))
+    {
+        ESP_LOGE(TAG, "ERROR: Invalid SSID value (%s) boot into soft access point mode", ssid);
+        userConfig->set(cfg_softAPmode, true);
+        ESP8266_SAVE_CONFIG();
+        sync_and_restart();
+        return;
+    }
+
     ESP_LOGI(TAG, "Wifi begin for SSID: %s", ssid);
     WiFi.setSleep(WIFI_PS_NONE); // Improves performance, at cost of power consumption
     WiFi.hostname(const_cast<char *>(device_name_rfc952));

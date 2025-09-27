@@ -181,16 +181,32 @@ void setup()
     {
         wifiConnectTimeout = _millis() + WIFI_CONNECT_TIMEOUT;
     }
+
+    // Start by initializing Improv for WiFi provisioning by serial port
 #ifdef ESP8266
-    // on ESP8266 we setup everything ourselves.
     setup_improv();
-    wifi_connect();
 #else
     if (userConfig->getEnableHomeSpanCLI())
         disable_improv();
     else
         setup_improv();
-    // on ESP32 the HomeSpan library has callbacks which we use to setup everything else.
+#endif
+
+    // Then initialize communication with the garage door and sensors
+    setup_comms();
+#ifdef RATGDO32_DISCO
+    setup_vehicle();
+#endif
+#ifndef USE_GDOLIB
+    setup_drycontact();
+#endif
+
+    // Finally initialize WiFi and HomeKit
+#ifdef ESP8266
+    // on ESP8266 we setup everything ourselves.
+    wifi_connect();
+#else
+    // on ESP32 the HomeSpan library handles WiFi and has callbacks which we use to setup everything else.
     setup_homekit();
 #endif
     ESP_LOGI(TAG, "=== WAITING for IP address before continuing initialization");
@@ -218,15 +234,6 @@ void loop()
 #ifdef ESP8266
         // On ESP8266 we handle WiFi and HomeKit ourselves.  On ESP32 it is done by HomeSpan
         setup_homekit();
-#endif
-#ifdef RATGDO32_DISCO
-        // Initialize vehicle distance sensor
-        setup_vehicle();
-#endif
-        // start communications with garage door opener
-        setup_comms();
-#ifndef USE_GDOLIB
-        setup_drycontact();
 #endif
         // HTTP web server should be started after HomeKit because HomeKit initializes MDNS which we use in web setup
         setup_web();

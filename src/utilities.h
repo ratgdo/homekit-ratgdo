@@ -94,3 +94,4 @@ extern motionTriggersUnion motionTriggers;
 extern void load_all_config_settings();
 extern void sync_and_restart();
 extern char *make_rfc952(char *dest, const char *src, int size);
+extern bool strEmptyOrSpaces(const char *str);
