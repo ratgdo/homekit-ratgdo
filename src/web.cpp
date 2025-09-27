@@ -984,6 +984,8 @@ bool helperFactoryReset(const std::string &key, const char *value, configSetting
 #ifdef ESP8266
     userConfig->erase();
     reset_door();
+    WiFi.disconnect();
+    ESP.eraseConfig();
     sync_and_restart();
 #else
     ESP_LOGI(TAG, "System boot time: %s", timeString(lastRebootAt));
