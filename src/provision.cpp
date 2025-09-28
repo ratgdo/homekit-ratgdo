@@ -328,12 +328,40 @@ void improv_loop()
         }
         else
         {
-            x_position = 0;
-
-            switch (b)
+            // Not Improv so handle a few single character commands (followed by a carrage return)
+            // by echoing information to the user on serial console.
+            static uint8_t cmd = 0;
+            if (x_position == 0 && cmd == 0 && b > 0x20)
             {
+                // Remember the character
+                cmd = b;
+                continue;
+            }
+            else if (b != '\r')
+            {
+                // Not a carrage return, so ignore and continue
+                x_position = 0;
+                cmd = 0;
+                continue;
+            }
+
+            // Received one character and a carrage return, handle as a command.
+            x_position = 0;
+            switch (cmd)
+            {
+            case '?':
+            {
+                Serial.print("Valid commands:\n");
+                Serial.print(" l - print RATGDO buffered message log\n");
+                Serial.print(" L - print RATGDO saved reboot log\n");
+                Serial.print(" r - restore logging to serial port\n");
+                Serial.print(" R - reboot RATGDO\n");
+                Serial.print(" 0..5 - set ESP log level 0(none), 1(error), 2(warn), 3(info), 4(debug), 5(verbose)\n");
+                break;
+            }
             case 'l':
             {
+                // Print current log
                 bool saved = suppressSerialLog;
                 suppressSerialLog = true;
                 ratgdoLogger->printMessageLog(Serial);
@@ -342,6 +370,7 @@ void improv_loop()
             }
             case 'L':
             {
+                // Print log at last reboot
                 bool saved = suppressSerialLog;
                 suppressSerialLog = true;
 #ifdef ESP8266
@@ -356,25 +385,43 @@ void improv_loop()
             }
             case 'r':
             {
+                // Restore logging to serial console (in case Improv suppressed it)
                 suppressSerialLog = false;
                 ESP_LOGI(TAG, "Restore logging to serial port");
                 break;
             }
             case 'R':
             {
+                // Reboot device
                 sync_and_restart();
                 break;
             }
-            case '?':
+            case 0:
             {
-                Serial.print("Valid commands:\n");
-                Serial.print(" l - print RATGDO buffered message log\n");
-                Serial.print(" L - print RATGDO saved reboot log\n");
-                Serial.print(" r - restore logging to serial port\n");
-                Serial.print(" R - reboot RATGDO\n");
+                // echo CR/LF to terminal... reassurance to user.
+                Serial.print("\r\n");
                 break;
             }
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            {
+                // Set log level... take effect immediately
+                Serial.printf("Set log level to %c\n", cmd);
+                userConfig->set(cfg_logLevel, (int)(cmd - '0'));
+#ifdef ESP32
+                esp_log_level_set("*", (esp_log_level_t)userConfig->getLogLevel());
+#else
+                logLevel = (esp_log_level_t)userConfig->getLogLevel();
+                
+#endif
+                break;
             }
+            } // End of switch
+            cmd = 0;
         }
     }
 }
