@@ -262,9 +262,7 @@ void loop()
 #ifdef RATGDO32_DISCO
     vehicle_loop();
 #endif
-    YIELD(); // Wrap web loop in yield's as handling web requests could be slow.
     web_loop();
-    YIELD();
     improv_loop();
     soft_ap_loop();
     service_timer_loop();

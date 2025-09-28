@@ -66,6 +66,7 @@ void setup_improv()
 void disable_improv()
 {
     improv_setup_done = false;
+    suppressSerialLog = false;
 #ifndef ESP8266
     ESP_LOGI(TAG, "Enable HomeSpan logging and serial port input");
     homeSpan.setLogLevel(0);
@@ -168,6 +169,17 @@ void getAvailableWifiNetworks()
 
 void onErrorCallback(improv::Error err)
 {
+    ESP_LOGE(TAG, "ERROR: %d ", (int)err);
+#ifdef ESP8266
+    // Save current logs in case needed for future analysis
+    File file = LittleFS.open(REBOOT_LOG_MSG_FILE, "w");
+    ratgdoLogger->printMessageLog(file);
+    file.close();
+    LittleFS.end();
+#else
+    // Save current logs in case needed for future analysis
+    ratgdoLogger->saveMessageLog();
+#endif
     blink_led(2000, 3);
 }
 
@@ -176,21 +188,27 @@ bool onCommandCallback(improv::ImprovCommand cmd)
     // As soon as we recognize an Improv command we must suppress any logging
     // to serial port so as not to interfere with Improv comms.
     // Reset only on reboot.
-    suppressSerialLog = true;
-
+    if (!suppressSerialLog)
+    {
+        ESP_LOGI(TAG, "Suppress logs to serial port");
+        suppressSerialLog = true;
+    }
     switch (cmd.command)
     {
     case improv::Command::GET_CURRENT_STATE:
     {
+        ESP_LOGI(TAG, "Command GET_CURRENT_STATE");
         if ((WiFi.status() == WL_CONNECTED))
         {
             set_state(improv::State::STATE_PROVISIONED);
             std::vector<uint8_t> data = improv::build_rpc_response(improv::GET_CURRENT_STATE, getLocalUrl(), false);
             send_response(data);
+            ESP_LOGI(TAG, "STATE_PROVISIONED");
         }
         else
         {
             set_state(improv::State::STATE_AUTHORIZED);
+            ESP_LOGI(TAG, "STATE_AUTHORIZED");
         }
 
         break;
@@ -198,6 +216,7 @@ bool onCommandCallback(improv::ImprovCommand cmd)
 
     case improv::Command::WIFI_SETTINGS:
     {
+        ESP_LOGI(TAG, "Command WIFI_SETTINGS for SSID: %s", cmd.ssid.c_str());
         if (cmd.ssid.length() == 0)
         {
             set_error(improv::Error::ERROR_INVALID_RPC);
@@ -240,6 +259,7 @@ bool onCommandCallback(improv::ImprovCommand cmd)
 
     case improv::Command::GET_DEVICE_INFO:
     {
+        ESP_LOGI(TAG, "Command GET_DEVICE_INFO");
 #ifdef ESP8266
         std::vector<std::string> infos = {
             // Firmware name
@@ -287,19 +307,74 @@ void improv_loop()
     if (!improv_setup_done)
         return;
 
-    if (Serial.available() > 0)
+    while (Serial.available() > 0)
     {
-        static uint8_t x_buffer[16];
+        static uint8_t x_buffer[128];
         static uint8_t x_position = 0;
         uint8_t b = Serial.read();
 
         if (improv::parse_improv_serial_byte(x_position, b, x_buffer, onCommandCallback, onErrorCallback))
         {
-            x_buffer[x_position++] = b;
+            if (x_position >= sizeof(x_buffer))
+            {
+                ESP_LOGE(TAG, "Buffer overrun error");
+                x_position = 0;
+                set_error(improv::ERROR_UNKNOWN);
+            }
+            else
+            {
+                x_buffer[x_position++] = b;
+            }
         }
         else
         {
             x_position = 0;
+
+            switch (b)
+            {
+            case 'l':
+            {
+                bool saved = suppressSerialLog;
+                suppressSerialLog = true;
+                ratgdoLogger->printMessageLog(Serial);
+                suppressSerialLog = saved;
+                break;
+            }
+            case 'L':
+            {
+                bool saved = suppressSerialLog;
+                suppressSerialLog = true;
+#ifdef ESP8266
+                File file = LittleFS.open(REBOOT_LOG_MSG_FILE, "r");
+                ratgdoLogger->printSavedLog(file, Serial);
+                file.close();
+#else
+                ratgdoLogger->printSavedLog(Serial);
+#endif
+                suppressSerialLog = saved;
+                break;
+            }
+            case 'r':
+            {
+                suppressSerialLog = false;
+                ESP_LOGI(TAG, "Restore logging to serial port");
+                break;
+            }
+            case 'R':
+            {
+                sync_and_restart();
+                break;
+            }
+            case '?':
+            {
+                Serial.print("Valid commands:\n");
+                Serial.print(" l - print RATGDO buffered message log\n");
+                Serial.print(" L - print RATGDO saved reboot log\n");
+                Serial.print(" r - restore logging to serial port\n");
+                Serial.print(" R - reboot RATGDO\n");
+                break;
+            }
+            }
         }
     }
 }
