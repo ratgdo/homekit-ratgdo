@@ -233,6 +233,9 @@ void LOG::logToBuffer(const char *fmt, va_list args)
         int32_t max = LINE_BUFFER_SIZE - ((int32_t)(endptr - lineBuffer) + diff);
         memmove(endptr + diff, endptr, max);
         memcpy(numptr, ts, timestrlen);
+        // Make sure we always end in a newline/null... which can get missed if we truncated the log message
+        lineBuffer[LINE_BUFFER_SIZE - 2] = '\n';
+        lineBuffer[LINE_BUFFER_SIZE - 1] = 0;
     }
 
     //  print line to the serial port
