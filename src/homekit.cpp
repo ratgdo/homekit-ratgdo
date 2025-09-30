@@ -184,7 +184,7 @@ homekit_value_t current_door_state_get()
 {
     // We cannot sent an illegal value to HomeKit, subsititute with value in valid range
     GarageDoorCurrentState state = (garage_door.current_state == 0xFF) ? CURR_CLOSED : garage_door.current_state;
-    ESP_LOGD(TAG, "get current door state: %d", state);
+    ESP_LOGD(TAG, "Get current door state: %s", DOOR_STATE(state));
     return HOMEKIT_UINT8_CPP(state);
 }
 
@@ -192,13 +192,13 @@ homekit_value_t target_door_state_get()
 {
     // We cannot sent an illegal value to HomeKit, subsititute with value in valid range
     GarageDoorTargetState state = (garage_door.target_state == 0xFF) ? TGT_CLOSED : garage_door.target_state;
-    ESP_LOGD(TAG, "get target door state: %d", state);
+    ESP_LOGD(TAG, "Get target door state: %s", DOOR_STATE(state));
     return HOMEKIT_UINT8_CPP(state);
 }
 
 void target_door_state_set(const homekit_value_t value)
 {
-    ESP_LOGD(TAG, "set door state: %d", value.uint8_value);
+    ESP_LOGD(TAG, "Set door state: %s", DOOR_STATE(value.uint8_value));
     switch (value.uint8_value)
     {
     case TGT_OPEN:
@@ -215,7 +215,7 @@ void target_door_state_set(const homekit_value_t value)
 
 homekit_value_t obstruction_detected_get()
 {
-    ESP_LOGD(TAG, "get obstruction: %d", garage_door.obstructed);
+    ESP_LOGD(TAG, "Get obstruction: %s", (garage_door.obstructed) ? "Obstructed" : "Clear");
     return HOMEKIT_BOOL_CPP(garage_door.obstructed);
 }
 
@@ -223,7 +223,7 @@ homekit_value_t current_lock_state_get()
 {
     // We cannot sent an illegal value to HomeKit, subsititute with value in valid range
     LockCurrentState state = (garage_door.current_lock == 0xFF) ? LockCurrentState::CURR_UNKNOWN : garage_door.current_lock;
-    ESP_LOGD(TAG, "get current lock state: %d", state);
+    ESP_LOGD(TAG, "Get current lock state: %s", LOCK_STATE(state));
     return HOMEKIT_UINT8_CPP(state);
 }
 
@@ -231,25 +231,25 @@ homekit_value_t target_lock_state_get()
 {
     // We cannot sent an illegal value to HomeKit, subsititute with value in valid range
     LockTargetState state = (garage_door.target_lock == 0xFF) ? LockTargetState::TGT_UNLOCKED : garage_door.target_lock;
-    ESP_LOGD(TAG, "get target lock state: %d", state);
+    ESP_LOGD(TAG, "Get target lock state: %s", LOCK_STATE(state));
     return HOMEKIT_UINT8_CPP(state);
 }
 
 void target_lock_state_set(const homekit_value_t value)
 {
-    ESP_LOGD(TAG, "set lock state: %d", value.uint8_value);
+    ESP_LOGD(TAG, "Set lock state: %d", LOCK_STATE(value.uint8_value));
     set_lock(value.uint8_value);
 }
 
 homekit_value_t light_state_get()
 {
-    ESP_LOGD(TAG, "get light state: %s", garage_door.light ? "On" : "Off");
+    ESP_LOGD(TAG, "Get light state: %s", garage_door.light ? "On" : "Off");
     return HOMEKIT_BOOL_CPP(garage_door.light);
 }
 
 void light_state_set(const homekit_value_t value)
 {
-    ESP_LOGD(TAG, "set light: %s", value.bool_value ? "On" : "Off");
+    ESP_LOGD(TAG, "Set light: %s", value.bool_value ? "On" : "Off");
     set_light(value.bool_value);
 }
 
@@ -849,17 +849,17 @@ void DEV_GarageDoor::loop()
         GDOEvent e;
         xQueueReceive(event_q, &e, 0);
         if (e.c == current)
-            ESP_LOGI(TAG, "Garage door set CurrentDoorState: %d", e.value.u);
+            ESP_LOGI(TAG, "Set current door state: %s", DOOR_STATE(e.value.u));
         else if (e.c == target)
-            ESP_LOGI(TAG, "Garage door set TargetDoorState: %d", e.value.u);
+            ESP_LOGI(TAG, "Set target door state: %s", DOOR_STATE(e.value.u));
         else if (e.c == obstruction)
-            ESP_LOGI(TAG, "Garage door set ObstructionDetected: %d", e.value.u);
+            ESP_LOGI(TAG, "Set obstruction: %s", e.value.u ? "Obstructed" : "Clear");
         else if (e.c == lockCurrent)
-            ESP_LOGI(TAG, "Garage door set LockCurrentState: %d", e.value.u);
+            ESP_LOGI(TAG, "Set current lock state: %s", LOCK_STATE(e.value.u));
         else if (e.c == lockTarget)
-            ESP_LOGI(TAG, "Garage door set LockTargetState: %d", e.value.u);
+            ESP_LOGI(TAG, "Set target lock state: %s", LOCK_STATE(e.value.u));
         else
-            ESP_LOGI(TAG, "Garage door set Unknown: %d", e.value.u);
+            ESP_LOGI(TAG, "Set Unknown: %d", e.value.u);
         e.c->setVal(e.value.u);
     }
 }
