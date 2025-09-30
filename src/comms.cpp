@@ -2184,6 +2184,8 @@ GarageDoorCurrentState open_door()
     if (garage_door.current_state == GarageDoorCurrentState::CURR_OPEN)
     {
         ESP_LOGI(TAG, "Door already open; ignored request");
+        // Reset last reported to we will update browser with actual state.
+        last_reported_garage_door.current_state = (GarageDoorCurrentState)0xFF;
         return GarageDoorCurrentState::CURR_OPEN;
     }
 
@@ -2305,6 +2307,8 @@ GarageDoorCurrentState close_door()
     if (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSED)
     {
         ESP_LOGI(TAG, "Door already closed; ignored request");
+        // Reset last reported to we will update browser with actual state.
+        last_reported_garage_door.current_state = (GarageDoorCurrentState)0xFF;
         return GarageDoorCurrentState::CURR_CLOSED;
     }
 
@@ -2406,6 +2410,8 @@ bool set_lock(bool value, bool verify)
     if (verify && (garage_door.current_lock == ((value) ? LockCurrentState::CURR_LOCKED : LockCurrentState::CURR_UNLOCKED)))
     {
         ESP_LOGI(TAG, "Remote locks already %s; ignored request", (value) ? "locked" : "unlocked");
+        // Reset last reported to we will update browser with actual state.
+        last_reported_garage_door.current_lock = (LockCurrentState)0xFF;
         return false;
     }
 
@@ -2424,6 +2430,8 @@ bool set_lock(bool value, bool verify)
     if (verify && (garage_door.current_lock == ((value) ? LockCurrentState::CURR_LOCKED : LockCurrentState::CURR_UNLOCKED)))
     {
         ESP_LOGI(TAG, "Remote locks already %s; ignored request", (value) ? "locked" : "unlocked");
+        // Reset last reported to we will update browser with actual state.
+        last_reported_garage_door.current_lock = (LockCurrentState)0xFF;
         return false;
     }
 
@@ -2494,6 +2502,8 @@ bool set_light(bool value, bool verify)
         gdo_light_on_check(verify);
     else
         gdo_light_off_check(verify);
+    // Reset last reported to we will update browser with actual state.
+    last_reported_garage_door.light = !value;
     return true;
 }
 #else
@@ -2550,6 +2560,8 @@ bool set_light(bool value, bool verify)
     if (verify && (garage_door.light == value))
     {
         ESP_LOGI(TAG, "Light already %s; ignored request", (value) ? "on" : "off");
+        // Reset last reported to we will update browser with actual state.
+        last_reported_garage_door.light = !value;
         return false;
     }
 
