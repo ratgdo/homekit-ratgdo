@@ -219,15 +219,6 @@ static SemaphoreHandle_t jsonMutex = NULL;
 #define GIVE_MUTEX() xSemaphoreGive(jsonMutex)
 #endif
 
-#define DOOR_STATE(s) (s == 0) ? "Open" : (s == 1) ? "Closed"  \
-                                      : (s == 2)   ? "Opening" \
-                                      : (s == 3)   ? "Closing" \
-                                      : (s == 4)   ? "Stopped" \
-                                                   : "Unknown"
-#define LOCK_STATE(s) (s == 0) ? "Enabled" : (s == 1) ? "Disabled" \
-                                         : (s == 2)   ? "Jammed"   \
-                                                      : "Unknown"
-
 // Connection throttling
 #define MAX_CONCURRENT_REQUESTS 8
 #define REQUEST_TIMEOUT_MS 2000
@@ -389,7 +380,7 @@ void web_loop()
     // Conditional macros, only add if value has changed
     JSON_ADD_BOOL_C("paired", homekit_is_paired(), last_reported_paired);
     JSON_ADD_STR_C("garageDoorState", DOOR_STATE(garage_door.current_state), garage_door.current_state, last_reported_garage_door.current_state);
-    JSON_ADD_STR_C("garageLockState", LOCK_STATE(garage_door.current_lock), garage_door.current_lock, last_reported_garage_door.current_lock);
+    JSON_ADD_STR_C("garageLockState", REMOTES_STATE(garage_door.current_lock), garage_door.current_lock, last_reported_garage_door.current_lock);
     JSON_ADD_BOOL_C("garageLightOn", garage_door.light, last_reported_garage_door.light);
     JSON_ADD_BOOL_C("garageMotion", garage_door.motion, last_reported_garage_door.motion);
     JSON_ADD_BOOL_C("pinBasedObst", garage_door.pinModeObstructionSensor, last_reported_garage_door.pinModeObstructionSensor);
@@ -771,7 +762,7 @@ void handle_status()
     JSON_ADD_INT(cfg_GDOSecurityType, (uint32_t)userConfig->getGDOSecurityType());
     JSON_ADD_BOOL("garageSec1Emulated", garage_door.wallPanelEmulated);
     JSON_ADD_STR("garageDoorState", garage_door.active ? DOOR_STATE(garage_door.current_state) : DOOR_STATE(255));
-    JSON_ADD_STR("garageLockState", LOCK_STATE(garage_door.current_lock));
+    JSON_ADD_STR("garageLockState", REMOTES_STATE(garage_door.current_lock));
     JSON_ADD_BOOL("garageLightOn", garage_door.light);
     JSON_ADD_BOOL("garageMotion", garage_door.motion);
     JSON_ADD_BOOL("garageObstructed", garage_door.obstructed);

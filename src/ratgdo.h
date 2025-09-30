@@ -173,6 +173,19 @@ enum LockTargetState : uint8_t
 };
 #endif
 
+#define DOOR_STATE(s) (s == 0) ? "Open" : (s == 1) ? "Closed"  \
+                                      : (s == 2)   ? "Opening" \
+                                      : (s == 3)   ? "Closing" \
+                                      : (s == 4)   ? "Stopped" \
+                                                   : "Unknown"
+#define LOCK_STATE(s) (s == 0) ? "Unsecured" : (s == 1) ? "Secured" \
+                                           : (s == 2)   ? "Jammed"  \
+                                                        : "Unknown"
+// Caution, do not change Enabled / Disabled text without changing functions.js to match
+#define REMOTES_STATE(s) (s == 0) ? "Enabled" : (s == 1) ? "Disabled" \
+                                            : (s == 2)   ? "Jammed"   \
+                                                         : "Unknown"
+
 extern bool suspend_service_loop;
 extern bool wifi_got_ip;
 extern "C" uint32_t free_heap;
