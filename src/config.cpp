@@ -16,9 +16,12 @@
 // ESP system files
 #ifdef ESP8266
 #include <LittleFS.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
 #else
 #include <nvs_flash.h>
 #include <nvs.h>
+#include <ESPmDNS.h>
 #endif
 
 // RATGDO project includes
@@ -81,6 +84,12 @@ bool setDeviceName(const std::string &key, const char *name, configSetting *acti
         strlcpy(device_name, name, sizeof(device_name));
         userConfig->set(key, device_name);
     }
+    WiFi.hostname(device_name_rfc952);
+#ifdef ESP8266
+    MDNS.setHostname(device_name_rfc952);
+#else
+    MDNS.begin(device_name_rfc952);
+#endif
     return true;
 }
 
