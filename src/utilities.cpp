@@ -146,6 +146,44 @@ char *timeString(time_t reqTime, bool syslog)
     return tBuffer;
 }
 
+char *toHHMMSSmmm(_millis_t t)
+{
+    static char timestr[16];
+    uint32_t secs = t / 1000;
+    uint32_t ms = t % 1000;
+    uint32_t mins = secs / 60;
+    secs = secs % 60;
+    uint32_t hrs = mins / 60;
+    mins = mins % 60;
+    snprintf(timestr, sizeof(timestr), "%02u:%02u:%02u.%03u", hrs, mins, secs, ms);
+    return timestr;
+}
+
+#ifdef CONFIG_FREERTOS_USE_TRACE_FACILITY
+void printTaskInfo(const char *buf)
+{
+    int count = uxTaskGetNumberOfTasks();
+    TaskStatus_t *tasks = static_cast<TaskStatus_t *>(pvPortMalloc(sizeof(TaskStatus_t) * count));
+    if (tasks != NULL)
+    {
+        uxTaskGetSystemState(tasks, count, NULL);
+        Serial.print("\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
+        Serial.print("Name                    Core\tPri\tStack\tState\n");
+        for (size_t i = 0; i < count; i++)
+        {
+            Serial.printf("%s\t%s\t%4d\t%3d\t%5d\t%s\n", const_cast<char *>(tasks[i].pcTaskName),
+                          strlen(const_cast<char *>(tasks[i].pcTaskName)) > 7 ? "" : "\t",
+                          (int)(tasks[i].xCoreID < 16) ? tasks[i].xCoreID : -1,
+                          (int)tasks[i].uxBasePriority,
+                          (int)tasks[i].usStackHighWaterMark,
+                          (magic_enum::enum_name(tasks[i].eCurrentState)).data());
+        }
+        Serial.print("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n\n");
+    }
+    vPortFree(tasks);
+};
+#endif // CONFIG_FREERTOS_USE_TRACE_FACILITY
+
 char *make_rfc952(char *dest, const char *src, int size)
 {
     // Make device name RFC952 compliant (simple, just checking for the basics)

@@ -17,8 +17,6 @@
 #ifdef ESP8266
 #include <arduino_homekit_server.h>
 #include <ESP8266WiFi.h>
-#else // not ESP8266
-#include <magic_enum.hpp>
 #endif // ESP8266
 
 // RATGDO project includes
@@ -446,30 +444,6 @@ void statusCallback(HS_STATUS status)
  * Functions called from HomeSpan CLI that provide ratgdo specific
  * diagnostic info.  Used in setup_homekit()
  */
-#ifdef CONFIG_FREERTOS_USE_TRACE_FACILITY
-void printTaskInfo(const char *buf)
-{
-    int count = uxTaskGetNumberOfTasks();
-    TaskStatus_t *tasks = static_cast<TaskStatus_t *>(pvPortMalloc(sizeof(TaskStatus_t) * count));
-    if (tasks != NULL)
-    {
-        uxTaskGetSystemState(tasks, count, NULL);
-        Serial.print("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
-        Serial.print("Name                    Core\tPri\tStack\tState\n");
-        for (size_t i = 0; i < count; i++)
-        {
-            Serial.printf("%s\t%s\t%4d\t%3d\t%5d\t%s\n", const_cast<char *>(tasks[i].pcTaskName),
-                          strlen(const_cast<char *>(tasks[i].pcTaskName)) > 7 ? "" : "\t",
-                          (int)(tasks[i].xCoreID < 16) ? tasks[i].xCoreID : -1,
-                          (int)tasks[i].uxBasePriority,
-                          (int)tasks[i].usStackHighWaterMark,
-                          (magic_enum::enum_name(tasks[i].eCurrentState)).data());
-        }
-        Serial.print("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n\n");
-    }
-    vPortFree(tasks);
-};
-#endif // CONFIG_FREERTOS_USE_TRACE_FACILITY
 
 void printLogInfo(const char *buf)
 {
