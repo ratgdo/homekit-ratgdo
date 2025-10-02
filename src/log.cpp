@@ -41,7 +41,6 @@ bool syslogEn = false;
 uint32_t syslogPort = 514;
 char syslogIP[IP4ADDR_STRLEN_MAX] = "";
 uint32_t syslogFacility = SYSLOG_LOCAL0;
-char timestr[16];
 WiFiUDP syslog;
 bool suppressSerialLog = false;
 esp_log_level_t logLevel = ESP_LOG_VERBOSE;
@@ -52,18 +51,6 @@ esp_log_level_t logLevel = ESP_LOG_VERBOSE;
         if (!suppressSerialLog) \
             Serial.print(x);    \
     } while (0)
-
-char *toHHMMSSmmm(_millis_t t)
-{
-    uint32_t secs = t / 1000;
-    uint32_t ms = t % 1000;
-    uint32_t mins = secs / 60;
-    secs = secs % 60;
-    uint32_t hrs = mins / 60;
-    mins = mins % 60;
-    snprintf(timestr, sizeof(timestr), "%02u:%02u:%02u.%03u", hrs, mins, secs, ms);
-    return timestr;
-}
 
 // Allows us to intercept all ESP_LOGx() even outside our code.
 void esp_log_hook(const char *fmt, va_list args)

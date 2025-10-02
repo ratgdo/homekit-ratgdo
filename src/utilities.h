@@ -19,6 +19,7 @@
 #ifndef ESP8266
 #include <time.h>
 #include <esp_timer.h>
+#include <magic_enum.hpp>
 #endif
 
 #ifdef ESP8266
@@ -39,9 +40,14 @@ typedef int64_t _millis_t;
 extern time_t clockSet;
 extern uint64_t lastRebootAt;
 extern char *timeString(time_t reqTime = 0, bool syslog = false);
+extern char *toHHMMSSmmm(_millis_t t = _millis());
 extern bool enableNTP;
 extern bool get_auto_timezone();
 #define NTP_SERVER "pool.ntp.org"
+
+#ifdef CONFIG_FREERTOS_USE_TRACE_FACILITY
+extern void printTaskInfo(const char *buf = nullptr);
+#endif
 
 #if defined(MMU_IRAM_HEAP)
 // IRAM heap is used only for allocating globals, to leave as much regular heap
