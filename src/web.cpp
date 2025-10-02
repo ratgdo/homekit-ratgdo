@@ -988,6 +988,11 @@ bool helperFactoryReset(const std::string &key, const char *value, configSetting
     return true;
 }
 
+void factoryReset()
+{
+    helperFactoryReset("", "", nullptr);
+}
+
 #ifdef RATGDO32_DISCO
 bool helperAssistLaser(const std::string &key, const char *value, configSetting *action)
 {

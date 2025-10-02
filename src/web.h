@@ -35,6 +35,7 @@ extern void web_loop();
 
 extern void handle_notfound();
 extern void handle_reboot();
+extern void factoryReset();
 
 extern void load_page(const char *page);
 
