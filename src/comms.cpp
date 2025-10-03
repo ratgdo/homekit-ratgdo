@@ -124,7 +124,9 @@ _millis_t tx_minimum_delay = SECPLUS2_TX_MINIMUM_DELAY;
 uint32_t doorControlType = 0;
 
 static bool is_0x37_panel = false;
+/* Removing this section as testing with 398LM (a 0x37 wall panel) was never successful.
 static bool door_moving = false;
+*/
 
 // For Time-to-close control
 static const uint32_t TTCinterval = 250;
@@ -244,11 +246,9 @@ bool clearToSend = false;
 // wall panel management
 bool wallPanelBooting = false;
 bool wallPanelDetected = false;
-#ifdef SEC1_DISCONNECT_WP
 #define WP_CONNECTED LOW
 #define WP_DISCONNECTED HIGH
 uint8_t wallPanelConnected;
-#endif
 // states
 GarageDoorCurrentState doorState = GarageDoorCurrentState::UNKNOWN;
 uint8_t lightState;
@@ -459,13 +459,11 @@ void setup_comms()
     {
         ESP_LOGI(TAG, "=== Setting up comms for SECURITY+1.0 protocol");
 
-#ifdef SEC1_DISCONNECT_WP
         // ESP32:GPIO_NUM_26 - ESP8266:GPIO_NUM16(D0)
         // ⁡⁢⁣⁢NC RELAY (AQY412)⁡
         // enable wall panel
         wallPanelConnected = WP_CONNECTED;
         digitalWrite(STATUS_DOOR_PIN, wallPanelConnected);
-#endif
         tx_minimum_delay = SECPLUS1_TX_MINIMUM_DELAY;
 
         sw_serial.begin(1200, SWSERIAL_8E1, UART_RX_PIN, UART_TX_PIN, true, 32);
@@ -986,13 +984,12 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
     case secplus1Codes::DoorMovingStatus:
     {
         static uint8_t previous = 0xFF;
-        static Ticker delayReset = Ticker();
         if (value != previous)
         {
-            // DK, i think this should be removed/commented out (for now)...
-
             ESP_LOGD(TAG, "SEC1 RX 0x40 (door moving) value changed from 0x%02X to 0x%02X", previous, value);
             previous = value;
+            /* Removing this section as testing with 398LM (a 0x37 wall panel) was never successful.
+            static Ticker delayReset = Ticker();
             if (bitRead(value, 7))
             {
                 delayReset.detach();
@@ -1006,11 +1003,12 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
                 delayReset.once_ms(2 * 1000, []()
                                    { door_moving = false; });
             }
+            */
         }
         break;
     }
 
-    // Unknown status packet from 0x37 panels
+    // Unknown status packet
     case secplus1Codes::UnknownStatus_0x53:
     {
         static uint8_t previous = 0xFF;
@@ -1025,19 +1023,17 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
     // Sent by 0x37 panels, values returned are unknown
     case secplus1Codes::QueryDoorStatus_0x37:
     {
-        PacketAction pkt_ac;
         static uint8_t previous = 0xFF;
         if (value != previous)
         {
             ESP_LOGD(TAG, "SEC1 RX 0x37 (Unknown) value changed from 0x%02X to 0x%02X", previous, value);
             previous = value;
         }
-
-        // DK, i think this should be removed/commented out (for now)... to me it was alaways suspect
-
+        /* Removing this section as testing with 398LM (a 0x37 wall panel) was never successful.
         // ESPhome firmware will peek queue looking for TOGGLE_LOCK_PRESS
         // If yes then process it instead of sending door status request.
         // WHY??? I do not know
+        PacketAction pkt_ac;
         if (txQueuePeek(&pkt_ac) && pkt_ac.pkt.m_data.type == PacketDataType::Lock && pkt_ac.pkt.m_data.value.lock.pressed)
         {
             if (transmitSec1(secplus1Codes::LockButtonPress))
@@ -1063,6 +1059,7 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
                 last_tx = last_status_query = _millis();
             }
         }
+        */
         break;
     }
 
@@ -1102,7 +1099,7 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
                 break;
             }
             current_state = GarageDoorCurrentState::CURR_STOPPED;
-            door_moving = false;
+            // door_moving = false;
             break;
         case 0x01:
             if (garage_door.current_state == CURR_OPEN)
@@ -1114,7 +1111,7 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
             break;
         case 0x02:
             current_state = GarageDoorCurrentState::CURR_OPEN;
-            door_moving = false;
+            // door_moving = false;
             break;
         // no 0x03 known
         case 0x04:
@@ -1127,7 +1124,7 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
             break;
         case 0x05:
             current_state = GarageDoorCurrentState::CURR_CLOSED;
-            door_moving = false;
+            // door_moving = false;
             break;
         case 0x06:
             if (garage_door.current_state == CURR_CLOSED || garage_door.current_state == CURR_OPEN)
@@ -1136,7 +1133,7 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
                 break;
             }
             current_state = GarageDoorCurrentState::CURR_STOPPED;
-            door_moving = false;
+            // door_moving = false;
             break;
         default:
             ESP_LOGE(TAG, "SEC1 RX Got unknown \"value\" for door state");
@@ -1193,8 +1190,8 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
         // upper nibble should be 0x5 or 0x1
         // make sure 2 same in a row
         // MJS 8/14/2025 during logging observed this situation
-        static uint8_t prevLightLock = 0xFF;          // Initialize to invalid value
-        if (value != prevLightLock && !is_0x37_panel) // don't require two back-to-back if 0x37 panel
+        static uint8_t prevLightLock = 0xFF; // Initialize to invalid value
+        if (value != prevLightLock)
         {
             prevLightLock = value;
             break;
@@ -1393,7 +1390,8 @@ void comms_loop_sec1()
             {
                 // An older digital wall panel that send different sequence of codes
                 is_0x37_panel = true;
-                ESP_LOGI(TAG, "Detected a 0x37 digital wall panel");
+                ESP_LOGW(TAG, "Detected a 0x37 digital wall panel, NOT SUPPORTED");
+                ESP_LOGW(TAG, "Consider replacing your wall panel with a LiftMaster 889LM panel");
             }
         }
 
@@ -1889,7 +1887,6 @@ bool transmitSec1(byte toSend)
         // disable RX
         // sw_serial.enableRx(false);
 
-#ifdef SEC1_DISCONNECT_WP
         if (!garage_door.wallPanelEmulated)
         {
             // will reconnect in after tx complete + 5ms
@@ -1898,7 +1895,6 @@ bool transmitSec1(byte toSend)
             // ESP_LOGD(TAG, "WP-");
             delay(2);
         }
-#endif
     }
 
     // aprox 10ms to write byte
@@ -1947,7 +1943,6 @@ bool transmitSec1(byte toSend)
         // TODO enable RX if disabled above
         // sw_serial.enableRx(true);
 
-#ifdef SEC1_DISCONNECT_WP
         if (!garage_door.wallPanelEmulated)
         {
             // reconnect after tx complete
@@ -1961,7 +1956,6 @@ bool transmitSec1(byte toSend)
             if (isRxPending())
                 sw_serial.flush();
         }
-#endif
     }
 
     return success;
@@ -2112,12 +2106,14 @@ bool process_PacketAction(PacketAction &pkt_ac)
             if (pkt_ac.pkt.m_data.value.lock.pressed == true)
             {
                 // ESP_LOGI(TAG, "SEC1 TX sending LOCK button press");
+                /* Removing this section as testing with 398LM (a 0x37 wall panel) was never successful.
                 if (is_0x37_panel)
                 {
                     // ESPhome firmware does not send lock button press here... it is deferred until
                     // immediately after receiving the 0x37.  WHY??? No Idea.
                     break; // success is false
                 }
+                */
                 success = transmitSec1(secplus1Codes::LockButtonPress);
                 if (success)
                 {
@@ -2203,6 +2199,7 @@ void door_command(DoorAction action)
             return;
         }
 
+        /* Removing this section as testing with 398LM (a 0x37 wall panel) was never successful.
         if (is_0x37_panel && (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSED ||
                               garage_door.current_state == GarageDoorCurrentState::CURR_OPEN ||
                               garage_door.current_state == GarageDoorCurrentState::CURR_STOPPED))
@@ -2210,6 +2207,7 @@ void door_command(DoorAction action)
             // Anticipate that the door is about to start moving
             door_moving = true;
         }
+        */
 
         // do button release
         pkt_ac.pkt.m_data.value.door_action.pressed = false;
