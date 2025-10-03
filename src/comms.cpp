@@ -254,13 +254,11 @@ GarageDoorCurrentState doorState = GarageDoorCurrentState::UNKNOWN;
 uint8_t lightState;
 uint8_t lockState;
 
-// keep this here incase at somepoint its needed
-// it is used for emulation of wall panel
-// byte secplus1States[] = {0x35, 0x35, 0x35, 0x35, 0x33, 0x33, 0x53, 0x53, 0x38, 0x3A, 0x3A, 0x3A, 0x39, 0x38, 0x3A, 0x38, 0x3A, 0x39};
+// power up sequence + poll items for digitial wall panel 889LM
 // MJS: this is what MY 889LM exhibited when powered up (release of all buttons, and then polls)
 // MJS: the 0x53, GDO responds with 0x01 (since we dont use it, seems OK to not sent to GDO)
-byte secplus1States[] = {0x35, 0x35, 0x33, 0x33, /*0x53, 0x53,*/ 0x38, 0x3A, 0x39, 0x3A};
-#define SECPLUS1_POLL_ITEMS 4 // items at end of secplus1States[]
+byte secplus1States[] = {0x31, 0x31, 0x35, 0x35, 0x33, 0x33, 0x53, 0x53, /* POLL ITEMS --> */ 0x38, 0x3A, 0x39, 0x3A};
+#define SECPLUS1_POLL_ITEMS 4 // poll last x items at end of secplus1States[]
 
 // values for SECURITY+1.0 communication
 enum secplus1Codes : uint8_t
@@ -278,7 +276,9 @@ enum secplus1Codes : uint8_t
     DoorStatus = 0x38,
     ObstructionStatus = 0x39,
     LightLockStatus = 0x3A,
-    DoorMovingStatus = 0x40,   // sent by a "0x37" wall panel
+
+    DoorMovingStatus = 0x40, // sent by a "0x37" wall panel
+
     UnknownStatus_0x53 = 0x53, // sent by a "0x37" wall panel and WP when done its "power up"
 
     Unknown = 0xFF // (when rx fails parity test)
@@ -642,7 +642,7 @@ void setup_comms()
     {
         // pin-based obstruction detection attempted only if user not requested to get from status
         ESP_LOGI(TAG, "Initialize for pin-based obstruction detection");
-#if defined(ESP8266) || defined(GRGDO1_V2)
+#if defined(ESP8266) || defined(OBST_PIN_NORMAL)
         pinMode(INPUT_OBST_PIN, INPUT);
 #else
         // enable pull up for pin inversion on RATDGO32/RATDGO32 DISCO (ESP32)
@@ -989,7 +989,9 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
         static Ticker delayReset = Ticker();
         if (value != previous)
         {
-            ESP_LOGD(TAG, "0x40 (door moving) value changed from 0x%02X to 0x%02X", previous, value);
+            // DK, i think this should be removed/commented out (for now)...
+
+            ESP_LOGD(TAG, "SEC1 RX 0x40 (door moving) value changed from 0x%02X to 0x%02X", previous, value);
             previous = value;
             if (bitRead(value, 7))
             {
@@ -1014,7 +1016,7 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
         static uint8_t previous = 0xFF;
         if (value != previous)
         {
-            ESP_LOGD(TAG, "0x53 (Unknown) value changed from 0x%02X to 0x%02X", previous, value);
+            ESP_LOGD(TAG, "SEC1 RX 0x53 (Unknown) value changed from 0x%02X to 0x%02X", previous, value);
             previous = value;
         }
         break;
@@ -1027,9 +1029,11 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
         static uint8_t previous = 0xFF;
         if (value != previous)
         {
-            ESP_LOGD(TAG, "0x37 (Unknown) value changed from 0x%02X to 0x%02X", previous, value);
+            ESP_LOGD(TAG, "SEC1 RX 0x37 (Unknown) value changed from 0x%02X to 0x%02X", previous, value);
             previous = value;
         }
+
+        // DK, i think this should be removed/commented out (for now)... to me it was alaways suspect
 
         // ESPhome firmware will peek queue looking for TOGGLE_LOCK_PRESS
         // If yes then process it instead of sending door status request.
@@ -1345,6 +1349,9 @@ void comms_loop_sec1()
     {
         uint8_t ser_byte = sw_serial.read();
 
+        // reading byte so clear flag
+        isRxPending();
+
         clearToSend = false;
 
         // this byte is received with invalid parity
@@ -1447,13 +1454,13 @@ void comms_loop_sec1()
             break;
         }
         } // end of switch()
-    }
+    } // end of while()
 
-    // if still reading the message in, no need to process further
-    // as its not a good time to TX, and next byte is expected within 10ms
-    // check if a rx byte became available
-    // or if a rx bit has been has been received, exit and process (on next comm_loop())
-    if (reading_msg == true || sw_serial.available() || isRxPending())
+    // if still reading the message, no need to process further
+    // or if a RX BIT has been has been received
+    // or any ready bytes available (a byte came in somehow during above while loop, during testing it was only ever 1 byte)
+    // process on next pass
+    if (reading_msg == true || isRxPending() || sw_serial.available())
     {
         return;
     }
@@ -1867,9 +1874,12 @@ bool transmitSec1(byte toSend)
         return false;
     }
 
-    // sending a poll?
+    // sending a poll (889LM emulation)
     bool poll_cmd = (toSend == secplus1Codes::DoorStatus) || (toSend == secplus1Codes::ObstructionStatus) || (toSend == secplus1Codes::LightLockStatus);
-    // if not a poll command disable rx (allows for cleaner tx, and no echo)
+    // one time poll from (889LM emulation) at end of "power up sequence"
+    poll_cmd = poll_cmd || (toSend == secplus1Codes::UnknownStatus_0x53);
+    // if not a poll command (and polls are only with wall panel emulation enabled),
+    // disable disable rx (allows for cleaner tx, and no echo)
     if (!poll_cmd)
     {
         // Use LED to signal activity
@@ -1885,22 +1895,30 @@ bool transmitSec1(byte toSend)
             // will reconnect in after tx complete + 5ms
             wallPanelConnected = WP_DISCONNECTED;
             digitalWrite(STATUS_DOOR_PIN, wallPanelConnected);
+            // ESP_LOGD(TAG, "WP-");
+            delay(2);
         }
 #endif
     }
 
     // aprox 10ms to write byte
+    // every byte we send echos, but want the echo on polls to id the GDO response
     sw_serial.write(toSend);
     // timestamp tx
     last_tx = _millis();
-
+    // byte sent
     success = true;
-    // use this to "confirm" tx byte
-    // only applies if we did not disable RX above
+
+    // this to "confirm" tx byte
+    // there is never any issues when sending without a wall panel
+    // but all push/release commands need to be read in here(since enableRx is now enabled)
     if (!poll_cmd)
     {
         // read off echo, it is ready right after the write()
         int echoByte = sw_serial.read();
+        // clear RxPending flag
+        isRxPending();
+        // check echo
         if (echoByte == -1)
         {
             // LOST THE BYTE COMPLETELY
@@ -1933,12 +1951,15 @@ bool transmitSec1(byte toSend)
         if (!garage_door.wallPanelEmulated)
         {
             // reconnect after tx complete
-            delay(5);
-            // clear off any bits, as wp been disconnected (also resets rxPending)
-            if (isRxPending())
-                sw_serial.flush();
+            delay(2);
             wallPanelConnected = WP_CONNECTED;
             digitalWrite(STATUS_DOOR_PIN, wallPanelConnected);
+            // ESP_LOGD(TAG, "WP+");
+            // settle
+            delay(2);
+            // we just connected the panel, if some bits coming in (due to connection), clear RxPending flag & flush
+            if (isRxPending())
+                sw_serial.flush();
         }
 #endif
     }
