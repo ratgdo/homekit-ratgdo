@@ -239,9 +239,9 @@ static bool rolling_code_operation_in_progress = false;
 static const uint8_t RX_LENGTH = 2;
 typedef uint8_t RxPacket[RX_LENGTH * 4];
 // time stamping
-_millis_t last_tx;
-_millis_t msg_start;
-_millis_t msg_complete;
+_millis_t last_tx = 0;
+_millis_t msg_start = 0;
+_millis_t msg_complete = 0;
 bool clearToSend = false;
 // wall panel management
 bool wallPanelBooting = false;
@@ -830,14 +830,17 @@ void update_door_state(GarageDoorCurrentState current_state)
         {
             _millis_t open_average = 0;
             open_history[open_counter++ % MAX_HISTORY] = open_duration;
-            for (uint32_t i = 0, j = 1; i < std::min(open_counter, MAX_HISTORY);)
-                open_average += (open_history[i++] - open_average) / j++;
+            uint32_t count = std::min(open_counter, MAX_HISTORY);
+            for (uint32_t i = 0; i < count; i++)
+                open_average += open_history[i];
+            open_average /= count;
             garage_door.openDuration = (open_average + 500) / 1000; // round up/down to closest second
             ESP_LOGI(TAG, "Door open duration: %lums, average: %lums (%s)", (uint32_t)open_duration, (uint32_t)open_average, timeString());
         }
         else
         {
-            ESP_LOGW(TAG, "Ignoring implausably long open duration: %lums (%s)", (uint32_t)open_duration, timeString());
+            start_opening = 0;
+            ESP_LOGW(TAG, "Ignoring implausibly long open duration: %lums (%s)", (uint32_t)open_duration, timeString());
         }
     }
     else if (current_state == CURR_CLOSING && garage_door.current_state == CURR_OPEN)
@@ -852,21 +855,27 @@ void update_door_state(GarageDoorCurrentState current_state)
         {
             _millis_t close_average = 0;
             close_history[close_counter++ % MAX_HISTORY] = close_duration;
-            for (uint32_t i = 0, j = 1; i < std::min(close_counter, MAX_HISTORY);)
-                close_average += (close_history[i++] - close_average) / j++;
+            uint32_t count = std::min(close_counter, MAX_HISTORY);
+            for (uint32_t i = 0; i < count; i++)
+                close_average += close_history[i++];
+            close_average /= count;
             garage_door.closeDuration = (close_average + 500) / 1000; // round up/down to closest second
             ESP_LOGI(TAG, "Door close duration: %lums, average: %lums (%s)", (uint32_t)close_duration, (uint32_t)close_average, timeString());
         }
         else
         {
-            ESP_LOGW(TAG, "Ignoring implausably long close duration: %lums (%s)", (uint32_t)close_duration, timeString());
+            start_closing = 0;
+            ESP_LOGW(TAG, "Ignoring implausibly long close duration: %lums (%s)", (uint32_t)close_duration, timeString());
         }
     }
-    else if (current_state == CURR_STOPPED)
+    else if ((current_state == CURR_STOPPED) ||
+             (current_state == CURR_OPENING && garage_door.current_state == CURR_CLOSING) ||
+             (current_state == CURR_CLOSING && garage_door.current_state == CURR_OPENING))
     {
         // If door is stopped (neither fully open or fully closed) then abort measuring duration
         start_opening = 0;
         start_closing = 0;
+        ESP_LOGD(TAG, "Aborting door open/close duration calculation");
     }
 
     // If we are in a time-to-close delay timeout, cancel the timeout
@@ -901,7 +910,7 @@ void update_door_state(GarageDoorCurrentState current_state)
     if ((target_state != garage_door.target_state) ||
         (current_state != garage_door.current_state))
     {
-        ESP_LOGI(TAG, "Door target: %d, current: %d", target_state, current_state);
+        ESP_LOGI(TAG, "Door state changing from %s to %s (target %s)", DOOR_STATE(garage_door.current_state), DOOR_STATE(current_state), DOOR_STATE(target_state));
         notify_homekit_current_door_state_change(current_state);
         notify_homekit_target_door_state_change(target_state);
     }
@@ -1326,7 +1335,7 @@ void comms_loop_sec1()
 {
     static bool reading_msg = false;
     static RxPacket rx_packet;
-    static uint8_t syncByteCount;
+    static uint8_t syncByteCount = 0;
 
     // CTS timer
     // when wall panel present, need 5ms elapsed after last complete message arrives.
