@@ -22,6 +22,7 @@ extern void comms_loop();
 
 extern GarageDoorCurrentState open_door();
 extern GarageDoorCurrentState close_door();
+extern void delayFnCall(uint32_t ms, void (*callback)());
 
 extern bool set_lock(bool value, bool verify = true);
 extern bool set_light(bool value, bool verify = true);
@@ -33,3 +34,11 @@ extern uint32_t doorControlType;
 extern GarageDoorCurrentState doorState;
 extern bool comms_setup_done;
 extern bool comms_status_done;
+
+struct __attribute__((aligned(4))) ForceRecover
+{
+    uint32_t push_count;
+    _millis_t timeout;
+    bool enable;
+};
+extern ForceRecover force_recover;

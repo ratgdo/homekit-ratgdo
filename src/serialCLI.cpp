@@ -20,6 +20,7 @@
 #include "config.h"
 #include "softAP.h"
 #include "web.h"
+#include "comms.h"
 
 // Logger tag
 static const char *TAG = "ratgdo-serialCLI";
@@ -53,7 +54,9 @@ void serialCLI(char cmd)
 #ifdef CONFIG_FREERTOS_USE_TRACE_FACILITY
         Serial.printf_P(PSTR(" t - print FreeRTOS task info\n"));
 #endif
-        //Serial.printf_P(PSTR(" w - scan and select WiFi network\n"));
+        Serial.printf_P(PSTR(" T - time-to-close test (flash without closing)\n"));
+        Serial.printf_P(PSTR(" u - %s force recovery with multiple button press\n"), !force_recover.enable ? "enable" : "disable");
+        // Serial.printf_P(PSTR(" w - scan and select WiFi network\n"));
         Serial.printf_P(PSTR(" 0..5 - set ESP log level 0(none), 1(error), 2(warn), 3(info), 4(debug), 5(verbose)\n\n"));
         break;
     }
@@ -135,6 +138,25 @@ void serialCLI(char cmd)
         break;
     }
 #endif
+
+    case 'T':
+    {
+        ESP_LOGI(TAG, "Test time-to-close delay with light flash for 5 seconds");
+        delayFnCall(5 * 1000, []() {
+            ESP_LOGD(TAG, "TTC test call back");
+            // This will send a light press / release / release without checking whether necessary or not.
+            set_light(false, false);
+        });
+        break;
+    }
+
+    case 'u':
+    {
+        force_recover.enable = !force_recover.enable;
+        ESP_LOGI(TAG, "Forced recovery (enter Soft AP mode) by pressing wall panel buttons %s", !force_recover.enable ? "disabled" : "enabled");
+        break;
+    }
+
     case 'w':
     {
         String currentSSID = "";
@@ -154,11 +176,12 @@ void serialCLI(char cmd)
                 currentSSID = net.ssid;
                 count++;
                 Serial.printf_P(PSTR(" %2d: %-12s (Ch:%2d, %ddBm) AP: %02x:%02x:%02x:%02x:%02x:%02x\n"),
-                              count, net.ssid.c_str(), net.channel, net.rssi,
-                              net.bssid[0], net.bssid[1], net.bssid[2], net.bssid[3], net.bssid[4], net.bssid[5]);
+                                count, net.ssid.c_str(), net.channel, net.rssi,
+                                net.bssid[0], net.bssid[1], net.bssid[2], net.bssid[3], net.bssid[4], net.bssid[5]);
             }
         }
         Serial.printf_P(PSTR("Found %d unique SSID\n"), count);
+        suppressSerialLog = saved;
         /* Work in progress
         Serial.setTimeout(5000);
         Serial.printf_P(PSTR("Select Network: "));

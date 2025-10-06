@@ -517,13 +517,14 @@ void setup_comms()
         {
             send_get_status();
         }
-        force_recover.push_count = 0;
     }
     else
     {
         ESP_LOGI(TAG, "=== Setting up comms for dry contact protocol");
         pinMode(UART_TX_PIN, OUTPUT);
     }
+    force_recover.push_count = 0;
+    force_recover.enable = true;
     IRAM_END(TAG);
 #else // !USE_GDOLIB
     esp_err_t err = ESP_OK;
@@ -595,7 +596,6 @@ void setup_comms()
             return;
         }
         gdo_get_status(&gdo_status);
-        force_recover.push_count = 0;
     }
     else
     {
@@ -631,8 +631,9 @@ void setup_comms()
             return;
         }
         gdo_get_status(&gdo_status);
-        force_recover.push_count = 0;
     }
+    force_recover.push_count = 0;
+    force_recover.enable = true;
 #endif
 
 #ifndef USE_GDOLIB
@@ -717,7 +718,7 @@ void sec1_poll_status(uint8_t sec1PollCmd)
     data.type = PacketDataType::Status;
     data.value.cmd = sec1PollCmd;
     Packet pkt = Packet(PacketCommand::Status, data, id_code);
-    PacketAction pkt_ac = {pkt, true};
+    PacketAction pkt_ac = {pkt, true, 0};
 
     if (!txQueuePush(&pkt_ac))
     {
@@ -1199,7 +1200,17 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
         // upper nibble should be 0x5 or 0x1
         // make sure 2 same in a row
         // MJS 8/14/2025 during logging observed this situation
-        static uint8_t prevLightLock = 0xFF; // Initialize to invalid value
+
+        static uint8_t prevLightLock = 0xFF;  // for two-in-a-row detection
+        static uint8_t lastLightState = 0xff; // for change detection
+        if (TTCtimer.active())
+        {
+            // As we flash lights during TTC delay, avoid lots of updates to clients
+            ESP_LOGV(TAG, "Ignoring light/lock status change during time-to-close delay");
+            prevLightLock = lastLightState = 0xFF;
+            break;
+        }
+
         if (value != prevLightLock)
         {
             prevLightLock = value;
@@ -1209,8 +1220,6 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
         lightState = bitRead(value, 2);
         lockState = !bitRead(value, 3);
 
-        // light status
-        static uint8_t lastLightState = 0xff;
         // light state change?
         if (lightState != lastLightState)
         {
@@ -1270,13 +1279,15 @@ bool process_send_queue()
     if ((msgs = txQueueCount()) == 0)
         return true;
 
-    // Three packets is normal (e.g. door action press/release followed by get status)
+    // Four packets is normal (e.g. sequence of light release after a TTC delay flash period)
     // But more than that may indicate a problem
-    if (msgs > 3)
-        ESP_LOGW(TAG, "WARNING: message packets in TX queue is > 3 (%lu)", msgs);
+    if (msgs > 8)
+        ESP_LOGW(TAG, "WARNING: message packets in TX queue is > 8 (%lu)", msgs);
+
+    txQueuePeek(&pkt_ac); // No need to check return value, we know queue is not empty
 
     bool okToSend = false;
-    if ((_millis() - last_tx) >= tx_minimum_delay)
+    if ((_millis() - last_tx) >= std::max(tx_minimum_delay, pkt_ac.delay))
     {
         okToSend = true;
     }
@@ -1303,7 +1314,6 @@ bool process_send_queue()
     // meets our timing requirements
     if (okToSend)
     {
-        txQueuePeek(&pkt_ac); // No need to check return value, we know queue is not empty
         if (process_PacketAction(pkt_ac))
         {
             // success, reset retry count
@@ -2022,145 +2032,144 @@ bool process_PacketAction(PacketAction &pkt_ac)
 {
     bool success = false;
 
-    if (doorControlType == 1)
+    if (doorControlType == 2)
     {
-        // check which action
-        switch (pkt_ac.pkt.m_data.type)
+        return transmitSec2(pkt_ac);
+    }
+
+    // Must be Sec+1.0 protocol...
+    // check which action
+    switch (pkt_ac.pkt.m_data.type)
+    {
+    // using this type for emulation of wall panel
+    case PacketDataType::Status:
+    {
+        // 0x38 || 0x39 || 0x3A
+        if (pkt_ac.pkt.m_data.value.cmd)
         {
-        // using this type for emulation of wall panel
-        case PacketDataType::Status:
-        {
-            // 0x38 || 0x39 || 0x3A
-            if (pkt_ac.pkt.m_data.value.cmd)
+            success = transmitSec1(pkt_ac.pkt.m_data.value.cmd);
+            if (success)
             {
-                success = transmitSec1(pkt_ac.pkt.m_data.value.cmd);
-                if (success)
-                {
-                    // use for SEC1 debug only as its too chatty
+                // use for SEC1 debug only as its too chatty
 #ifdef DEBUG_SECPLUS1_COMMS
-                    ESP_LOGI(TAG, "SEC1 TX sent POLL: %02X", pkt_ac.pkt.m_data.value.cmd);
+                ESP_LOGI(TAG, "SEC1 TX sent POLL: %02X", pkt_ac.pkt.m_data.value.cmd);
 #endif
-                }
             }
-            break;
         }
-        case PacketDataType::DoorAction:
-        {
-            if (pkt_ac.pkt.m_data.value.door_action.pressed == true)
-            {
-                // ESP_LOGI(TAG, "SEC1 TX sending DOOR button press");
-
-                success = transmitSec1(secplus1Codes::DoorButtonPress);
-                if (success)
-                {
-                    // ESP_LOGI(TAG, "SEC1 TX sent DOOR button press");
-                }
-                else
-                {
-                    ESP_LOGI(TAG, "SEC1 TX failed to send DOOR button press");
-                }
-            }
-            else
-            {
-                // ESP_LOGI(TAG, "SEC1 TX sending DOOR button release");
-
-                success = transmitSec1(secplus1Codes::DoorButtonRelease);
-                if (success)
-                {
-                    // ESP_LOGI(TAG, "SEC1 TX sent DOOR button release");
-                }
-                else
-                {
-                    ESP_LOGI(TAG, "SEC1 TX failed to send DOOR button release");
-                }
-            }
-            break;
-        }
-
-        case PacketDataType::Light:
-        {
-            if (pkt_ac.pkt.m_data.value.light.pressed == true)
-            {
-                // ESP_LOGI(TAG, "SEC1 TX sending LIGHT button press");
-
-                success = transmitSec1(secplus1Codes::LightButtonPress);
-                if (success)
-                {
-                    // ESP_LOGI(TAG, "SEC1 TX sent LIGHT button press");
-                }
-                else
-                {
-                    ESP_LOGI(TAG, "SEC1 TX failed to send LIGHT button press");
-                }
-            }
-            else
-            {
-                // ESP_LOGI(TAG, "SEC1 TX sending LIGHT button release");
-
-                success = transmitSec1(secplus1Codes::LightButtonRelease);
-                if (success)
-                {
-                    // ESP_LOGI(TAG, "SEC1 TX sent LIGHT button release");
-                }
-                else
-                {
-                    ESP_LOGI(TAG, "SEC1 TX failed to send LIGHT button release");
-                }
-            }
-            break;
-        }
-
-        case PacketDataType::Lock:
-        {
-            if (pkt_ac.pkt.m_data.value.lock.pressed == true)
-            {
-                // ESP_LOGI(TAG, "SEC1 TX sending LOCK button press");
-                /* Removing this section as testing with 398LM (a 0x37 wall panel) was never successful.
-                if (is_0x37_panel)
-                {
-                    // ESPhome firmware does not send lock button press here... it is deferred until
-                    // immediately after receiving the 0x37.  WHY??? No Idea.
-                    break; // success is false
-                }
-                */
-                success = transmitSec1(secplus1Codes::LockButtonPress);
-                if (success)
-                {
-                    // ESP_LOGI(TAG, "SEC1 TX sent LOCK button press");
-                }
-                else
-                {
-                    ESP_LOGI(TAG, "SEC1 TX failed to send LOCK button press");
-                }
-            }
-            else
-            {
-                // ESP_LOGI(TAG, "SEC1 TX sending LOCK button release");
-
-                success = transmitSec1(secplus1Codes::LockButtonRelease);
-                if (success)
-                {
-                    // ESP_LOGI(TAG, "SEC1 TX sent LOCK button release");
-                }
-                else
-                {
-                    ESP_LOGI(TAG, "SEC1 TX failed to send LOCK button release");
-                }
-            }
-            break;
-        }
-
-        default:
-        {
-            ESP_LOGE(TAG, "SEC1 TX UNHANDLED pkt_ac.pkt.m_data.type=%d", pkt_ac.pkt.m_data.type);
-            break;
-        }
-        }
+        break;
     }
-    else
+    case PacketDataType::DoorAction:
     {
-        success = transmitSec2(pkt_ac);
+        if (pkt_ac.pkt.m_data.value.door_action.pressed == true)
+        {
+            // ESP_LOGI(TAG, "SEC1 TX sending DOOR button press");
+
+            success = transmitSec1(secplus1Codes::DoorButtonPress);
+            if (success)
+            {
+                // ESP_LOGI(TAG, "SEC1 TX sent DOOR button press");
+            }
+            else
+            {
+                ESP_LOGI(TAG, "SEC1 TX failed to send DOOR button press");
+            }
+        }
+        else
+        {
+            // ESP_LOGI(TAG, "SEC1 TX sending DOOR button release");
+
+            success = transmitSec1(secplus1Codes::DoorButtonRelease);
+            if (success)
+            {
+                // ESP_LOGI(TAG, "SEC1 TX sent DOOR button release");
+            }
+            else
+            {
+                ESP_LOGI(TAG, "SEC1 TX failed to send DOOR button release");
+            }
+        }
+        break;
     }
+
+    case PacketDataType::Light:
+    {
+        if (pkt_ac.pkt.m_data.value.light.pressed == true)
+        {
+            // ESP_LOGI(TAG, "SEC1 TX sending LIGHT button press");
+
+            success = transmitSec1(secplus1Codes::LightButtonPress);
+            if (success)
+            {
+                // ESP_LOGI(TAG, "SEC1 TX sent LIGHT button press");
+            }
+            else
+            {
+                ESP_LOGI(TAG, "SEC1 TX failed to send LIGHT button press");
+            }
+        }
+        else
+        {
+            // ESP_LOGI(TAG, "SEC1 TX sending LIGHT button release");
+
+            success = transmitSec1(secplus1Codes::LightButtonRelease);
+            if (success)
+            {
+                // ESP_LOGI(TAG, "SEC1 TX sent LIGHT button release");
+            }
+            else
+            {
+                ESP_LOGI(TAG, "SEC1 TX failed to send LIGHT button release");
+            }
+        }
+        break;
+    }
+
+    case PacketDataType::Lock:
+    {
+        if (pkt_ac.pkt.m_data.value.lock.pressed == true)
+        {
+            // ESP_LOGI(TAG, "SEC1 TX sending LOCK button press");
+            /* Removing this section as testing with 398LM (a 0x37 wall panel) was never successful.
+            if (is_0x37_panel)
+            {
+                // ESPhome firmware does not send lock button press here... it is deferred until
+                // immediately after receiving the 0x37.  WHY??? No Idea.
+                break; // success is false
+            }
+            */
+            success = transmitSec1(secplus1Codes::LockButtonPress);
+            if (success)
+            {
+                // ESP_LOGI(TAG, "SEC1 TX sent LOCK button press");
+            }
+            else
+            {
+                ESP_LOGI(TAG, "SEC1 TX failed to send LOCK button press");
+            }
+        }
+        else
+        {
+            // ESP_LOGI(TAG, "SEC1 TX sending LOCK button release");
+
+            success = transmitSec1(secplus1Codes::LockButtonRelease);
+            if (success)
+            {
+                // ESP_LOGI(TAG, "SEC1 TX sent LOCK button release");
+            }
+            else
+            {
+                ESP_LOGI(TAG, "SEC1 TX failed to send LOCK button release");
+            }
+        }
+        break;
+    }
+
+    default:
+    {
+        ESP_LOGE(TAG, "SEC1 TX UNHANDLED pkt_ac.pkt.m_data.type=%d", pkt_ac.pkt.m_data.type);
+        break;
+    }
+    } // end of switch()
 
     return success;
 }
@@ -2177,7 +2186,7 @@ void sync()
     d.type = PacketDataType::NoData;
     d.value.no_data = NoData();
     Packet pkt = Packet(PacketCommand::GetOpenings, d, id_code);
-    PacketAction pkt_ac = {pkt, true};
+    PacketAction pkt_ac = {pkt, true, 0};
     process_PacketAction(pkt_ac);
     delay(100);
     pkt = Packet(PacketCommand::GetStatus, d, id_code);
@@ -2201,7 +2210,7 @@ void door_command(DoorAction action)
         data.value.door_action.id = 1;
 
         Packet pkt = Packet(PacketCommand::DoorAction, data, id_code);
-        PacketAction pkt_ac = {pkt, false};
+        PacketAction pkt_ac = {pkt, false, 0};
         if (!txQueuePush(&pkt_ac))
         {
             ESP_LOGE(TAG, "packet queue full, dropping door command pressed pkt");
@@ -2390,37 +2399,36 @@ void TTCtimerFn(void (*callback)(), bool light)
             sec1_light_release(4);
         }
 #endif
-        if (callback)
-        {
-            // delay so that set_light() can do its thing
-            callbackDelay.once_ms(TTCinterval * 2, [callback]()
-                                  {
+        // delay so that set_light() can do its thing
+        callbackDelay.once_ms(TTCinterval * 2, [callback]()
+                              {
 #ifdef ESP8266
-                                      schedule_recurrent_function_us([callback]()
-                                                                     {
-                                                                         if (callback == sync_and_restart)
-                                                                             ESP_LOGI(TAG, "Calling delayed function: sync_and_restart()");
-                                                                         else if (callback == door_command_close)
-                                                                             ESP_LOGI(TAG, "Calling delayed function: door_command_close()");
-                                                                         else
-                                                                             ESP_LOGI(TAG, "Calling delayed function at: 0x%08lX", (uint32_t)callback);
+                                  schedule_recurrent_function_us([callback]()
+                                                                 {
+                                                                     if (callback == sync_and_restart)
+                                                                         ESP_LOGI(TAG, "Calling delayed function: sync_and_restart()");
+                                                                     else if (callback == door_command_close)
+                                                                         ESP_LOGI(TAG, "Calling delayed function: door_command_close()");
+                                                                     else
+                                                                         ESP_LOGI(TAG, "Calling delayed function at: 0x%08lX", (uint32_t)callback);
 
+                                                                     if (callback)
                                                                          callback();
-                                                                         return false; // run the fn only once
-                                                                     },
-                                                                     0); // zero micro seconds (run asap)
+                                                                     return false; // run the fn only once
+                                                                 },
+                                                                 0); // zero micro seconds (run asap)
 #else
-                                      if (callback == sync_and_restart)
-                                          ESP_LOGI(TAG, "Calling delayed function: sync_and_restart()");
-                                      else if (callback == door_command_close)
-                                          ESP_LOGI(TAG, "Calling delayed function: door_command_close()");
-                                      else
-                                          ESP_LOGI(TAG, "Calling delayed function at: 0x%08lX", (uint32_t)callback);
+                                  if (callback == sync_and_restart)
+                                      ESP_LOGI(TAG, "Calling delayed function: sync_and_restart()");
+                                  else if (callback == door_command_close)
+                                      ESP_LOGI(TAG, "Calling delayed function: door_command_close()");
+                                  else
+                                      ESP_LOGI(TAG, "Calling delayed function at: 0x%08lX", (uint32_t)callback);
 
+                                  if (callback)
                                       callback();
 #endif
-                                  });
-        }
+                              });
     }
 }
 
@@ -2516,7 +2524,7 @@ void send_get_status()
     d.type = PacketDataType::NoData;
     d.value.no_data = NoData();
     Packet pkt = Packet(PacketCommand::GetStatus, d, id_code);
-    PacketAction pkt_ac = {pkt, true};
+    PacketAction pkt_ac = {pkt, true, 0};
     if (!txQueuePush(&pkt_ac))
     {
         ESP_LOGE(TAG, "packet queue full, dropping get status pkt");
@@ -2533,7 +2541,7 @@ void send_get_openings()
     d.type = PacketDataType::NoData;
     d.value.no_data = NoData();
     Packet pkt = Packet(PacketCommand::GetOpenings, d, id_code);
-    PacketAction pkt_ac = {pkt, true};
+    PacketAction pkt_ac = {pkt, true, 0};
     if (!txQueuePush(&pkt_ac))
     {
         ESP_LOGE(TAG, "packet queue full, dropping get status pkt");
@@ -2584,7 +2592,7 @@ bool set_lock(bool value, bool verify)
     {
         data.value.lock.pressed = true;
         Packet pkt = Packet(PacketCommand::Lock, data, id_code);
-        PacketAction pkt_ac = {pkt, true};
+        PacketAction pkt_ac = {pkt, true, 0};
 
         if (!txQueuePush(&pkt_ac))
         {
@@ -2609,7 +2617,7 @@ bool set_lock(bool value, bool verify)
     else
     {
         Packet pkt = Packet(PacketCommand::Lock, data, id_code);
-        PacketAction pkt_ac = {pkt, true};
+        PacketAction pkt_ac = {pkt, true, 0};
         if (!txQueuePush(&pkt_ac))
         {
             ESP_LOGE(TAG, "packet queue full, dropping lock pkt");
@@ -2641,7 +2649,10 @@ void sec1_light_press()
     data.value.light.light = LightState::On;
     data.value.light.pressed = true;
     Packet pkt = Packet(PacketCommand::Light, data, id_code);
-    PacketAction pkt_ac = {pkt, true};
+    PacketAction pkt_ac = {pkt, true, 0};
+
+    if (doorControlType == 1)
+        pkt_ac.delay = 150;
     if (!txQueuePush(&pkt_ac))
     {
         ESP_LOGE(TAG, "packet queue full, dropping light press pkt");
@@ -2661,8 +2672,10 @@ void sec1_light_release(uint8_t howManyReleases)
     data.value.light.light = LightState::On;
     data.value.light.pressed = false;
     Packet pkt = Packet(PacketCommand::Light, data, id_code);
-    PacketAction pkt_ac = {pkt, true};
+    PacketAction pkt_ac = {pkt, true, 0};
 
+    if (doorControlType == 1)
+        pkt_ac.delay = 250;
     for (int numReleases = 0; numReleases < std::max(2, (int)howManyReleases); numReleases++)
     {
         if (!txQueuePush(&pkt_ac))
@@ -2699,7 +2712,7 @@ bool set_light(bool value, bool verify)
         data.type = PacketDataType::Light;
         data.value.light.light = (value) ? LightState::On : LightState::Off;
         Packet pkt = Packet(PacketCommand::Light, data, id_code);
-        PacketAction pkt_ac = {pkt, true};
+        PacketAction pkt_ac = {pkt, true, 0};
         if (!txQueuePush(&pkt_ac))
         {
             ESP_LOGE(TAG, "packet queue full, dropping light pkt");
@@ -2714,6 +2727,9 @@ bool set_light(bool value, bool verify)
 
 void manual_recovery()
 {
+    if (!force_recover.enable)
+        return;
+
     // Don't check for manual recovery if in midst of a time-to-close delay
     if (TTCtimer.active())
         return;
