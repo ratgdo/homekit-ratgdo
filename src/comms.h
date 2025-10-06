@@ -18,6 +18,7 @@
 #include <stdint.h>
 
 extern void setup_comms();
+extern void shutdown_comms();
 extern void comms_loop();
 
 extern GarageDoorCurrentState open_door();
@@ -26,6 +27,8 @@ extern void delayFnCall(uint32_t ms, void (*callback)());
 
 extern bool set_lock(bool value, bool verify = true);
 extern bool set_light(bool value, bool verify = true);
+extern void sec1_light_press(uint32_t delay = 0);
+extern void sec1_light_release(uint8_t howManyReleases = 2, uint32_t delay = 0);
 
 extern void save_rolling_code();
 extern void reset_door();

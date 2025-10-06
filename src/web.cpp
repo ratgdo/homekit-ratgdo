@@ -1595,13 +1595,7 @@ void handle_firmware_upload()
             // Ignore vehicle distance sensor
             vehicle_setup_done = false;
 #endif
-#ifdef USE_GDOLIB
-            // Shutdown GDO comms
-            gdo_deinit();
-#else
-            // This prevents loop code from running
-            comms_setup_done = false;
-#endif
+            shutdown_comms();
 #ifdef ESP8266
             // Shutdown HomeKit
             homekit_setup_done = false;

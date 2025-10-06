@@ -158,14 +158,6 @@ void setup_homekit()
         config.accessories[0]->services[2] = NULL;
     }
 
-    // We can set current lock state to unknown as HomeKit has value for that.
-    // But we can't do the same for door state as HomeKit has no value for that.
-
-    if (garage_door.current_lock == 0xFF)
-    {
-        garage_door.current_lock = CURR_UNKNOWN;
-    }
-
     arduino_homekit_setup(&config);
     homekit_setup_done = true;
 }
@@ -426,6 +418,7 @@ void statusCallback(HS_STATUS status)
         break;
     case HS_REBOOTING:
         rebooting = true;
+        shutdown_comms();
         ESP_LOGI(TAG, "Status: Rebooting");
         break;
     case HS_FACTORY_RESET:
@@ -796,9 +789,6 @@ DEV_GarageDoor::DEV_GarageDoor() : Service::GarageDoorOpener()
         lockCurrent = nullptr;
         lockTarget = nullptr;
     }
-    // We can set current lock state to unknown as HomeKit has value for that.
-    // But we can't do the same for door state as HomeKit has no value for that.
-    garage_door.current_lock = CURR_UNKNOWN;
 }
 
 boolean DEV_GarageDoor::update()

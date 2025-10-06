@@ -140,6 +140,10 @@ const int rtcSize = sizeof(rtcRebootLog) + sizeof(rtcCrashLog) + sizeof(rebootTi
 
 void panic_handler(arduino_panic_info_t *info, void *arg)
 {
+    // As precaution... reset UART pins as failing to do this could cause the door to open/close
+    gpio_reset_pin(UART_TX_PIN);
+    gpio_reset_pin(UART_RX_PIN);
+
     // crashCount could be negative... indicating that there is a core dump image, but no saved crash log.
     // But now we are saving a crash log, so need to make sure it is positive.
     crashUpTime = _millis();

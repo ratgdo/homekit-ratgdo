@@ -292,6 +292,8 @@ void load_all_config_settings()
 
 void sync_and_restart()
 {
+    shutdown_comms();
+
     if (clockSet)
     {
         // Log time we shut down.
