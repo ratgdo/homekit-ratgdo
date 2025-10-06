@@ -223,9 +223,3 @@ struct __attribute__((aligned(4))) GarageDoor
 };
 extern GarageDoor garage_door;
 extern GarageDoor last_reported_garage_door;
-
-struct __attribute__((aligned(4))) ForceRecover
-{
-    uint32_t push_count;
-    _millis_t timeout;
-};
