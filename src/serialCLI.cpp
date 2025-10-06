@@ -145,7 +145,11 @@ void serialCLI(char cmd)
         delayFnCall(5 * 1000, []() {
             ESP_LOGD(TAG, "TTC test call back");
             // This will send a light press / release / release without checking whether necessary or not.
-            set_light(false, false);
+            if (doorControlType == 1)
+            {
+                sec1_light_press(250);
+                sec1_light_release(2,250);
+            }
         });
         break;
     }

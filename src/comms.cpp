@@ -107,7 +107,16 @@ inline bool txQueuePop(PacketAction *pkt)
 #endif
 }
 
+// used by SEC+1.0
+#ifdef ESP32
+#define Sec1Serial Serial2
+#else
+#define Sec1Serial sw_serial
+#endif
+
+// used by SEC+2.0
 SoftwareSerial sw_serial;
+
 #endif // not USE_GDOLIB
 
 #define SECPLUS1_DIGITAL_WALLPLATE_TIMEOUT 15000
@@ -250,9 +259,7 @@ bool wallPanelDetected = false;
 #define WP_DISCONNECTED HIGH
 uint8_t wallPanelConnected;
 // states
-GarageDoorCurrentState doorState = GarageDoorCurrentState::UNKNOWN;
-uint8_t lightState;
-uint8_t lockState;
+GarageDoorCurrentState doorState = (GarageDoorCurrentState)0xFF;
 
 // power up sequence + poll items for digitial wall panel 889LM
 // MJS: this is what MY 889LM exhibited when powered up (release of all buttons, and then polls)
@@ -284,6 +291,14 @@ enum secplus1Codes : uint8_t
     Unknown = 0xFF // (when rx fails parity test)
 };
 
+#define SEC1_CMD(s) (s == secplus1Codes::DoorButtonPress)      ? "door press"    \
+                    : (s == secplus1Codes::DoorButtonRelease)  ? "door release"  \
+                    : (s == secplus1Codes::LightButtonPress)   ? "light press"   \
+                    : (s == secplus1Codes::LightButtonRelease) ? "light release" \
+                    : (s == secplus1Codes::LockButtonPress)    ? "lock press"    \
+                    : (s == secplus1Codes::LockButtonRelease)  ? "lock release"  \
+                                                               : "unknown"
+
 // prototypes
 void sync();
 bool process_PacketAction(PacketAction &pkt_ac);
@@ -293,9 +308,10 @@ void send_get_openings();
 bool transmitSec1(byte toSend);
 bool transmitSec2(PacketAction &pkt_ac);
 void obstruction_timer();
-void sec1_light_press();
-void sec1_light_release(uint8_t howManyReleases = 2);
 void sec1_poll_status(uint8_t sec1PollCmd);
+#ifdef ESP32
+void receiveErrorHandler(hardwareSerial_error_t error);
+#endif
 #endif // not USE_GDOLIB
 
 void manual_recovery();
@@ -464,15 +480,24 @@ void setup_comms()
         // enable wall panel
         wallPanelConnected = WP_CONNECTED;
         digitalWrite(STATUS_DOOR_PIN, wallPanelConnected);
+
+        // set minimum delay between tx bytes
         tx_minimum_delay = SECPLUS1_TX_MINIMUM_DELAY;
 
-        sw_serial.begin(1200, SWSERIAL_8E1, UART_RX_PIN, UART_TX_PIN, true, 32);
-        sw_serial.onReceive(receiveHandler);
+#ifdef ESP32
+        gpio_reset_pin(UART_TX_PIN);
+        gpio_reset_pin(UART_RX_PIN);
+        Sec1Serial.begin(1200, SERIAL_8E1, UART_RX_PIN, UART_TX_PIN, true);
+        Sec1Serial.onReceiveError(receiveErrorHandler);
+        Sec1Serial.setTimeout(10); // 10 ms used for Sec1Serial.readBytes() in transmitSec1()
+#else
+        Sec1Serial.begin(1200, SWSERIAL_8E1, UART_RX_PIN, UART_TX_PIN, true, 32);
+        Sec1Serial.onReceive(receiveHandler);
+#endif
+
         wallPanelDetected = false;
         wallPanelBooting = false;
-        doorState = GarageDoorCurrentState::UNKNOWN;
-        lightState = 2;
-        lockState = 2;
+        doorState = (GarageDoorCurrentState)0xFF;
     }
     else if (doorControlType == 2)
     {
@@ -662,6 +687,34 @@ void setup_comms()
 }
 
 /****************************************************************************
+ * shutdown communications
+ */
+void shutdown_comms()
+{
+    if (!comms_setup_done)
+        return;
+
+    comms_setup_done = false;
+#ifdef USE_GDOLIB
+    // Shutdown GDO comms
+    gdo_deinit();
+#else
+    if (doorControlType == 1)
+    {
+        Sec1Serial.end();
+    }
+    else
+    {
+        sw_serial.end();
+    }
+#ifdef ESP32
+    gpio_reset_pin(UART_TX_PIN);
+    gpio_reset_pin(UART_RX_PIN);
+#endif
+#endif
+}
+
+/****************************************************************************
  * Helper functions for GDO communications.
  */
 void save_rolling_code()
@@ -734,7 +787,28 @@ void wallPlate_Emulation()
     _millis_t currentMillis = _millis();
     static _millis_t lastRequestMillis = 0;
     static _millis_t startMillis = currentMillis;
+    static bool emulateWallPanel = false;
 
+    // transmit every 250ms
+    if (emulateWallPanel && (currentMillis - lastRequestMillis) > 250)
+    {
+        static uint8_t stateIndex = 0;
+        lastRequestMillis = currentMillis;
+
+        byte secplus1ToSend = byte(secplus1States[stateIndex]);
+
+        sec1_poll_status(secplus1ToSend);
+
+        // set next poll
+        stateIndex++;
+        if (stateIndex == sizeof(secplus1States))
+        {
+            stateIndex = sizeof(secplus1States) - SECPLUS1_POLL_ITEMS;
+        }
+        return;
+    }
+
+    // Only get this far if we have not detected a digital wall panel or started emulation 
     // wait up to 15 seconds to look for an existing wallplate or it could be booting, so need to wait
     if (currentMillis - startMillis < SECPLUS1_DIGITAL_WALLPLATE_TIMEOUT || wallPanelBooting == true)
     {
@@ -744,7 +818,7 @@ void wallPlate_Emulation()
             lastRequestMillis = currentMillis;
         }
 
-        if (!wallPanelDetected && (doorState != GarageDoorCurrentState::UNKNOWN || lightState != 2))
+        if (!wallPanelDetected && (garage_door.current_state != (GarageDoorCurrentState)0xFF || garage_door.current_lock != (LockCurrentState)0xFF))
         {
             wallPanelDetected = true;
             wallPanelBooting = false;
@@ -754,31 +828,11 @@ void wallPlate_Emulation()
     }
     else
     {
-        static bool emulateWallPanel = false;
         if (!emulateWallPanel && !wallPanelDetected)
         {
             emulateWallPanel = true;
-            ESP_LOGI(TAG, "No DIGITAL wall panel detected. Switching to emulation mode.");
-
             garage_door.wallPanelEmulated = true;
-        }
-
-        // transmit every 250ms
-        if (emulateWallPanel && (currentMillis - lastRequestMillis) > 250)
-        {
-            static uint8_t stateIndex = 0;
-            lastRequestMillis = currentMillis;
-
-            byte secplus1ToSend = byte(secplus1States[stateIndex]);
-
-            sec1_poll_status(secplus1ToSend);
-
-            // set next poll
-            stateIndex++;
-            if (stateIndex == sizeof(secplus1States))
-            {
-                stateIndex = sizeof(secplus1States) - SECPLUS1_POLL_ITEMS;
-            }
+            ESP_LOGI(TAG, "No DIGITAL wall panel detected. Switching to emulation mode.");
         }
     }
 }
@@ -813,7 +867,7 @@ void update_door_state(GarageDoorCurrentState current_state)
     case GarageDoorCurrentState::CURR_CLOSING:
         target_state = TGT_CLOSED;
         break;
-    case GarageDoorCurrentState::UNKNOWN:
+    default:
         ESP_LOGE(TAG, "Got door state unknown");
         break;
     }
@@ -954,7 +1008,7 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
         // but also on release of door button
         ESP_LOGD(TAG, "SEC1 RX 0x31 (door release)");
         // Possible power up of 889LM
-        if (doorState == GarageDoorCurrentState::UNKNOWN)
+        if (doorState == (GarageDoorCurrentState)0xFF)
         {
             wallPanelBooting = true;
         }
@@ -1147,7 +1201,7 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
             break;
         default:
             ESP_LOGE(TAG, "SEC1 RX Got unknown \"value\" for door state");
-            current_state = GarageDoorCurrentState::UNKNOWN;
+            current_state = (GarageDoorCurrentState)0xFF;
             break;
         }
         update_door_state(current_state);
@@ -1210,6 +1264,11 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
             prevLightLock = lastLightState = 0xFF;
             break;
         }
+        else if (lastLightState == 0xFF)
+        {
+            // Force update of light state in any listening client
+            last_reported_garage_door.light = !garage_door.light;
+        }
 
         if (value != prevLightLock)
         {
@@ -1217,8 +1276,8 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
             break;
         }
 
-        lightState = bitRead(value, 2);
-        lockState = !bitRead(value, 3);
+        uint8_t lightState = bitRead(value, 2);
+        uint8_t lockState = !bitRead(value, 3);
 
         // light state change?
         if (lightState != lastLightState)
@@ -1287,7 +1346,7 @@ bool process_send_queue()
     txQueuePeek(&pkt_ac); // No need to check return value, we know queue is not empty
 
     bool okToSend = false;
-    if ((_millis() - last_tx) >= std::max(tx_minimum_delay, pkt_ac.delay))
+    if ((_millis() - last_tx) >= std::max((uint32_t)tx_minimum_delay, (uint32_t)pkt_ac.delay))
     {
         okToSend = true;
     }
@@ -1300,7 +1359,7 @@ bool process_send_queue()
         if (isRxPending())
         {
             clearToSend = false;
-            ESP_LOGD(TAG, "SEC1 TX: late detection isRxPending");
+            ESP_LOGD(TAG, "SEC1 TX late detection isRxPending");
         }
 
         // close the tx window after Xms from start msg received
@@ -1325,13 +1384,17 @@ bool process_send_queue()
         {
             if (retryCount++ < MAX_COMMS_RETRY)
             {
-                ESP_LOGD(TAG, "SEC1 TX send failed, will retry. retryCount=%d", retryCount);
+                if (doorControlType == 1)
+                    ESP_LOGD(TAG, "SEC1 TX send [0x%02X] failed, will retry. retryCount at %d", pkt_ac.pkt.m_data.value.cmd, retryCount);
+                else
+                    ESP_LOGD(TAG, "SEC2 TX send failed, will retry. retryCount at %d", retryCount);
+
                 // get out now, leaving the TX packet on the queue.
                 return false;
             }
             else
             {
-                ESP_LOGE(TAG, "SEC1 TX send failed, exceeded max retry");
+                ESP_LOGE(TAG, "SEC%d TX send failed, exceeded max retry", doorControlType);
                 retryCount = 0;
                 // Remove TX packet from the queue
                 txQueuePop(&pkt_ac);
@@ -1340,6 +1403,20 @@ bool process_send_queue()
     }
     return true;
 }
+
+#ifdef ESP32
+void receiveErrorHandler(hardwareSerial_error_t error)
+{
+    // ESP_LOGD(TAG, "-- onReceiveError: [ERR#%d:%s]", error, uartErrorStrings[error]);
+
+    if (error == hardwareSerial_error_t::UART_PARITY_ERROR)
+    {
+        // LOOKS LIKE THE BYTE THE ERROR HAPPENS ON, IS NOT
+        // PLACED IN THE RECEIVE BUFFER
+        // might need to post in espressif to find out
+    }
+}
+#endif
 
 void comms_loop_sec1()
 {
@@ -1361,9 +1438,9 @@ void comms_loop_sec1()
 
     // get all the rxed bytes processed now
     // any rx bytes will reset clearToSend
-    while (sw_serial.available())
+    while (Sec1Serial.available())
     {
-        uint8_t ser_byte = sw_serial.read();
+        uint8_t ser_byte = Sec1Serial.read();
 
         // reading byte so clear flag
         isRxPending();
@@ -1389,8 +1466,9 @@ void comms_loop_sec1()
             break;
         }
 
-        // parity check on byte
-        if (sw_serial.readParity() != sw_serial.parityEven(ser_byte))
+#ifdef ESP8266
+        // parity check on byte (only available of SoftwareSerial)
+        if (Sec1Serial.readParity() != Sec1Serial.parityEven(ser_byte))
         {
             if (reading_msg)
                 ESP_LOGD(TAG, "SEC1 RX Parity error on 2nd byte of poll msg [0x%02X:0x%02X]", rx_packet[0], ser_byte);
@@ -1402,6 +1480,7 @@ void comms_loop_sec1()
 
             continue;
         }
+#endif
 
         if (ser_byte == secplus1Codes::QueryDoorStatus_0x37 && !reading_msg)
         {
@@ -1477,7 +1556,7 @@ void comms_loop_sec1()
     // or if a RX BIT has been has been received
     // or any ready bytes available (a byte came in somehow during above while loop, during testing it was only ever 1 byte)
     // process on next pass
-    if (reading_msg == true || isRxPending() || sw_serial.available())
+    if (reading_msg == true || isRxPending() || Sec1Serial.available())
     {
         return;
     }
@@ -1531,7 +1610,7 @@ void comms_loop_sec2()
                 break;
             default:
                 ESP_LOGE(TAG, "Got unknown door state");
-                current_state = GarageDoorCurrentState::UNKNOWN;
+                current_state = (GarageDoorCurrentState)0xFF;
                 break;
             }
             update_door_state(current_state);
@@ -1773,7 +1852,7 @@ void comms_loop_sec2()
 
 void comms_loop_drycontact()
 {
-    static GarageDoorCurrentState previousDoorState = GarageDoorCurrentState::UNKNOWN;
+    static GarageDoorCurrentState previousDoorState = (GarageDoorCurrentState)0xFF;
 
     // Notify HomeKit when the door state changes
     if (doorState != previousDoorState)
@@ -1867,7 +1946,7 @@ bool transmitSec1(byte toSend)
     bool success = false;
 
     // safety #1
-    if (sw_serial.available())
+    if (Sec1Serial.available())
     {
         ESP_LOGD(TAG, "SEC1 TX incoming data detected, cannot send right now");
         noSend = true;
@@ -1914,11 +1993,13 @@ bool transmitSec1(byte toSend)
             // ESP_LOGD(TAG, "WP-");
             delay(2);
         }
+
+        ESP_LOGD(TAG, "SEC1 TX 0x%02X (%s)", toSend, SEC1_CMD(toSend));
     }
 
     // aprox 10ms to write byte
     // every byte we send echos, but want the echo on polls to id the GDO response
-    sw_serial.write(toSend);
+    Sec1Serial.write(toSend);
     // timestamp tx
     last_tx = _millis();
     // byte sent
@@ -1930,11 +2011,12 @@ bool transmitSec1(byte toSend)
     if (!poll_cmd)
     {
         // read off echo, it is ready right after the write()
-        int echoByte = sw_serial.read();
+        byte echoByte;
+        int count = Sec1Serial.readBytes(&echoByte, 1);
         // clear RxPending flag
         isRxPending();
         // check echo
-        if (echoByte == -1)
+        if (count == 0)
         {
             // LOST THE BYTE COMPLETELY
             ESP_LOGD(TAG, "SEC1 TX LOST ECHO OF: 0x%02X", toSend);
@@ -1972,8 +2054,8 @@ bool transmitSec1(byte toSend)
             // settle
             delay(2);
             // we just connected the panel, if some bits coming in (due to connection), clear RxPending flag & flush
-            if (isRxPending())
-                sw_serial.flush();
+            isRxPending();
+            Sec1Serial.flush();
         }
     }
 
@@ -2030,148 +2112,15 @@ bool transmitSec2(PacketAction &pkt_ac)
 
 bool process_PacketAction(PacketAction &pkt_ac)
 {
-    bool success = false;
-
     if (doorControlType == 2)
     {
         return transmitSec2(pkt_ac);
     }
-
-    // Must be Sec+1.0 protocol...
-    // check which action
-    switch (pkt_ac.pkt.m_data.type)
+    else if (pkt_ac.pkt.m_data.value.cmd)
     {
-    // using this type for emulation of wall panel
-    case PacketDataType::Status:
-    {
-        // 0x38 || 0x39 || 0x3A
-        if (pkt_ac.pkt.m_data.value.cmd)
-        {
-            success = transmitSec1(pkt_ac.pkt.m_data.value.cmd);
-            if (success)
-            {
-                // use for SEC1 debug only as its too chatty
-#ifdef DEBUG_SECPLUS1_COMMS
-                ESP_LOGI(TAG, "SEC1 TX sent POLL: %02X", pkt_ac.pkt.m_data.value.cmd);
-#endif
-            }
-        }
-        break;
+        return transmitSec1(pkt_ac.pkt.m_data.value.cmd);
     }
-    case PacketDataType::DoorAction:
-    {
-        if (pkt_ac.pkt.m_data.value.door_action.pressed == true)
-        {
-            // ESP_LOGI(TAG, "SEC1 TX sending DOOR button press");
-
-            success = transmitSec1(secplus1Codes::DoorButtonPress);
-            if (success)
-            {
-                // ESP_LOGI(TAG, "SEC1 TX sent DOOR button press");
-            }
-            else
-            {
-                ESP_LOGI(TAG, "SEC1 TX failed to send DOOR button press");
-            }
-        }
-        else
-        {
-            // ESP_LOGI(TAG, "SEC1 TX sending DOOR button release");
-
-            success = transmitSec1(secplus1Codes::DoorButtonRelease);
-            if (success)
-            {
-                // ESP_LOGI(TAG, "SEC1 TX sent DOOR button release");
-            }
-            else
-            {
-                ESP_LOGI(TAG, "SEC1 TX failed to send DOOR button release");
-            }
-        }
-        break;
-    }
-
-    case PacketDataType::Light:
-    {
-        if (pkt_ac.pkt.m_data.value.light.pressed == true)
-        {
-            // ESP_LOGI(TAG, "SEC1 TX sending LIGHT button press");
-
-            success = transmitSec1(secplus1Codes::LightButtonPress);
-            if (success)
-            {
-                // ESP_LOGI(TAG, "SEC1 TX sent LIGHT button press");
-            }
-            else
-            {
-                ESP_LOGI(TAG, "SEC1 TX failed to send LIGHT button press");
-            }
-        }
-        else
-        {
-            // ESP_LOGI(TAG, "SEC1 TX sending LIGHT button release");
-
-            success = transmitSec1(secplus1Codes::LightButtonRelease);
-            if (success)
-            {
-                // ESP_LOGI(TAG, "SEC1 TX sent LIGHT button release");
-            }
-            else
-            {
-                ESP_LOGI(TAG, "SEC1 TX failed to send LIGHT button release");
-            }
-        }
-        break;
-    }
-
-    case PacketDataType::Lock:
-    {
-        if (pkt_ac.pkt.m_data.value.lock.pressed == true)
-        {
-            // ESP_LOGI(TAG, "SEC1 TX sending LOCK button press");
-            /* Removing this section as testing with 398LM (a 0x37 wall panel) was never successful.
-            if (is_0x37_panel)
-            {
-                // ESPhome firmware does not send lock button press here... it is deferred until
-                // immediately after receiving the 0x37.  WHY??? No Idea.
-                break; // success is false
-            }
-            */
-            success = transmitSec1(secplus1Codes::LockButtonPress);
-            if (success)
-            {
-                // ESP_LOGI(TAG, "SEC1 TX sent LOCK button press");
-            }
-            else
-            {
-                ESP_LOGI(TAG, "SEC1 TX failed to send LOCK button press");
-            }
-        }
-        else
-        {
-            // ESP_LOGI(TAG, "SEC1 TX sending LOCK button release");
-
-            success = transmitSec1(secplus1Codes::LockButtonRelease);
-            if (success)
-            {
-                // ESP_LOGI(TAG, "SEC1 TX sent LOCK button release");
-            }
-            else
-            {
-                ESP_LOGI(TAG, "SEC1 TX failed to send LOCK button release");
-            }
-        }
-        break;
-    }
-
-    default:
-    {
-        ESP_LOGE(TAG, "SEC1 TX UNHANDLED pkt_ac.pkt.m_data.type=%d", pkt_ac.pkt.m_data.type);
-        break;
-    }
-    } // end of switch()
-
-    return success;
+    return false;
 }
 
 void sync()
@@ -2207,6 +2156,7 @@ void door_command(DoorAction action)
         data.type = PacketDataType::DoorAction;
         data.value.door_action.action = action;
         data.value.door_action.pressed = true;
+        data.value.cmd = secplus1Codes::DoorButtonPress;
         data.value.door_action.id = 1;
 
         Packet pkt = Packet(PacketCommand::DoorAction, data, id_code);
@@ -2229,6 +2179,7 @@ void door_command(DoorAction action)
 
         // do button release
         pkt_ac.pkt.m_data.value.door_action.pressed = false;
+        pkt_ac.pkt.m_data.value.cmd = secplus1Codes::DoorButtonRelease;
         pkt_ac.inc_counter = true;
         if (!txQueuePush(&pkt_ac))
         {
@@ -2396,6 +2347,7 @@ void TTCtimerFn(void (*callback)(), bool light)
         // only SEC+1,0
         if (doorControlType == 1)
         {
+            // sec1_light_release(2, 250);
             sec1_light_release(4);
         }
 #endif
@@ -2591,6 +2543,7 @@ bool set_lock(bool value, bool verify)
     if (doorControlType == 1)
     {
         data.value.lock.pressed = true;
+        data.value.cmd = secplus1Codes::LockButtonPress;
         Packet pkt = Packet(PacketCommand::Lock, data, id_code);
         PacketAction pkt_ac = {pkt, true, 0};
 
@@ -2601,6 +2554,7 @@ bool set_lock(bool value, bool verify)
         }
         // button release
         pkt_ac.pkt.m_data.value.lock.pressed = false;
+        pkt_ac.pkt.m_data.value.cmd = secplus1Codes::LockButtonRelease;
         if (!txQueuePush(&pkt_ac))
         {
             ESP_LOGE(TAG, "packet queue full, dropping lock pkt");
@@ -2642,17 +2596,16 @@ bool set_light(bool value, bool verify)
 }
 #else
 
-void sec1_light_press()
+void sec1_light_press(uint32_t delay)
 {
     PacketData data;
     data.type = PacketDataType::Light;
     data.value.light.light = LightState::On;
     data.value.light.pressed = true;
+    data.value.cmd = secplus1Codes::LightButtonPress;
     Packet pkt = Packet(PacketCommand::Light, data, id_code);
-    PacketAction pkt_ac = {pkt, true, 0};
+    PacketAction pkt_ac = {pkt, true, delay};
 
-    if (doorControlType == 1)
-        pkt_ac.delay = 150;
     if (!txQueuePush(&pkt_ac))
     {
         ESP_LOGE(TAG, "packet queue full, dropping light press pkt");
@@ -2665,17 +2618,16 @@ void sec1_light_press()
     }
 }
 
-void sec1_light_release(uint8_t howManyReleases)
+void sec1_light_release(uint8_t howManyReleases, uint32_t delay)
 {
     PacketData data;
     data.type = PacketDataType::Light;
     data.value.light.light = LightState::On;
     data.value.light.pressed = false;
+    data.value.cmd = secplus1Codes::LightButtonRelease;
     Packet pkt = Packet(PacketCommand::Light, data, id_code);
-    PacketAction pkt_ac = {pkt, true, 0};
+    PacketAction pkt_ac = {pkt, true, delay};
 
-    if (doorControlType == 1)
-        pkt_ac.delay = 250;
     for (int numReleases = 0; numReleases < std::max(2, (int)howManyReleases); numReleases++)
     {
         if (!txQueuePush(&pkt_ac))
