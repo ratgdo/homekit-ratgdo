@@ -51,8 +51,8 @@ void blink_led(int d, int times)
 
 void setup_improv()
 {
-#ifndef ESP8266
-    ESP_LOGI(TAG, "Enable Improv for WiFi provisioning. Disable HomeSpan serial logging and CLI");
+#ifdef USE_HOMESPAN
+    ESP_LOGI(TAG, "Enable Improv for WiFi provisioning. Disable HomeSpan serial logging and CLI. Return to HomeSpan CLI with command 'c' or 'C'");
     // This is necessary so as not to interfere with Improv use of serial port
     homeSpan.setLogLevel(-1);
     homeSpan.setSerialInputDisable(true);
@@ -68,8 +68,8 @@ void disable_improv()
 {
     improv_setup_done = false;
     suppressSerialLog = false;
-#ifndef ESP8266
-    ESP_LOGI(TAG, "Enable HomeSpan logging and serial port input");
+#ifdef USE_HOMESPAN
+    ESP_LOGI(TAG, "Enable HomeSpan logging and serial CLI. Return to RATGDO CLI with command '@c' or '@C'");
     homeSpan.setLogLevel(0);
     homeSpan.setSerialInputDisable(false);
 #endif
@@ -230,13 +230,13 @@ bool onCommandCallback(improv::ImprovCommand cmd)
         {
 
             blink_led(100, 3);
-#ifdef ESP8266
+#ifdef USE_HOMESPAN
+            homeSpan.setWifiCredentials(cmd.ssid.c_str(), cmd.password.c_str());
+#else
             WiFi.persistent(true); // Set persist to store wifi credentials
             // Call begin with connect = false because we are allready connected in fn connect_wifi()
             WiFi.begin(cmd.ssid.c_str(), cmd.password.c_str(), 0, NULL, false);
             WiFi.persistent(false); // clear the persist flag so other settings do not get written to flash
-#else
-            homeSpan.setWifiCredentials(cmd.ssid.c_str(), cmd.password.c_str());
 #endif
             userConfig->set(cfg_staticIP, false);
             userConfig->set(cfg_wifiPower, WIFI_POWER_MAX);

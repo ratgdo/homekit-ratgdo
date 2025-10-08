@@ -21,6 +21,7 @@
 #include "softAP.h"
 #include "web.h"
 #include "comms.h"
+#include "provision.h"
 
 // Logger tag
 static const char *TAG = "ratgdo-serialCLI";
@@ -33,7 +34,9 @@ void serialCLI(char cmd)
     case '?':
     {
         _millis_t upTime = _millis();
-        Serial.printf_P(PSTR("\nServer uptime:         %llums (%s)\n"), (int64_t)upTime, toHHMMSSmmm(upTime));
+        Serial.printf_P(PSTR("\nHostname:              http://%s.local\n"), device_name_rfc952);
+        Serial.printf_P(PSTR("IP Address:            %s\n"), userConfig->getLocalIP());
+        Serial.printf_P(PSTR("Server uptime:         %llums (%s)\n"), (int64_t)upTime, toHHMMSSmmm(upTime));
         if (enableNTP && clockSet)
         {
             Serial.printf_P(PSTR("Current System time:   %s\n"), timeString());
@@ -44,22 +47,40 @@ void serialCLI(char cmd)
         Serial.printf_P(PSTR("Minimum heap:          %d\n"), min_heap);
         Serial.printf_P(PSTR("Log level:             %d\n"), userConfig->getLogLevel());
         Serial.printf_P(PSTR("Log to Serial console: %s\n\n"), suppressSerialLog ? "Disabled" : "Enabled");
-        Serial.printf_P(PSTR("Valid commands:\n"));
+        Serial.printf_P(PSTR("Commands:\n"));
+        Serial.printf_P(PSTR(" A - reboot into Access Point mode (192.168.4.1)\n"));
+        Serial.printf_P(PSTR(" R - restart RATGDO\n"));
         Serial.printf_P(PSTR(" F - factory reset RATGDO and reboot\n"));
+        // Serial.printf_P(PSTR(" Z - scan and select WiFi network\n"));
+#ifdef USE_HOMESPAN
+        if (!softAPmode)
+        {
+            Serial.printf_P(PSTR(" C - switch to HomeSpan CLI (and disable Improv WiFi provisioning)\n"));
+        }
+#endif
+        Serial.println();
         Serial.printf_P(PSTR(" l - print RATGDO buffered message log\n"));
         Serial.printf_P(PSTR(" L - print RATGDO saved reboot log\n"));
         Serial.printf_P(PSTR(" r - %s log to serial port\n"), suppressSerialLog ? "enable" : "disable");
-        Serial.printf_P(PSTR(" R - reboot RATGDO\n"));
-        Serial.printf_P(PSTR(" S - reboot into Soft AP mode (access at 192.168.4.1)\n"));
 #ifdef CONFIG_FREERTOS_USE_TRACE_FACILITY
         Serial.printf_P(PSTR(" t - print FreeRTOS task info\n"));
 #endif
         Serial.printf_P(PSTR(" T - time-to-close test (flash without closing)\n"));
         Serial.printf_P(PSTR(" u - %s force recovery with multiple button press\n"), !force_recover.enable ? "enable" : "disable");
-        // Serial.printf_P(PSTR(" w - scan and select WiFi network\n"));
-        Serial.printf_P(PSTR(" 0..5 - set ESP log level 0(none), 1(error), 2(warn), 3(info), 4(debug), 5(verbose)\n\n"));
+        Serial.println();
+        Serial.printf_P(PSTR(" 0..5 - set log level 0(none), 1(error), 2(warn), 3(info), 4(debug), 5(verbose)\n\n"));
         break;
     }
+
+#ifdef USE_HOMESPAN
+    case 'c':
+    case 'C':
+    {
+        userConfig->set(cfg_homespanCLI, true);
+        disable_improv();
+        break;
+    }
+#endif
 
     case 'F':
     {
@@ -123,7 +144,7 @@ void serialCLI(char cmd)
         break;
     }
 
-    case 'S':
+    case 'A':
     {
         userConfig->set(cfg_softAPmode, true);
         ESP8266_SAVE_CONFIG();
@@ -142,15 +163,11 @@ void serialCLI(char cmd)
     case 'T':
     {
         ESP_LOGI(TAG, "Test time-to-close delay with light flash for 5 seconds");
-        delayFnCall(5 * 1000, []() {
-            ESP_LOGD(TAG, "TTC test call back");
+        delayFnCall(5 * 1000, []()
+                    {
+            ESP_LOGD(TAG, "Time-to-close test callback function");
             // This will send a light press / release / release without checking whether necessary or not.
-            if (doorControlType == 1)
-            {
-                sec1_light_press(250);
-                sec1_light_release(2,250);
-            }
-        });
+            set_light(false,false); });
         break;
     }
 
@@ -161,7 +178,8 @@ void serialCLI(char cmd)
         break;
     }
 
-    case 'w':
+    case 'z':
+    case 'Z':
     {
         String currentSSID = "";
         // wifiNet_t net;

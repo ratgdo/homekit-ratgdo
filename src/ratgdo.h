@@ -14,6 +14,10 @@
  */
 #pragma once
 
+#ifdef ESP32
+#define USE_HOMESPAN
+#endif
+
 // ESP system includes
 #ifndef ESP8266
 #include <driver/gpio.h>
@@ -149,7 +153,7 @@ enum GarageDoorCurrentState : uint8_t
     CURR_OPENING = Characteristic::CurrentDoorState::OPENING,
     CURR_CLOSING = Characteristic::CurrentDoorState::CLOSING,
     CURR_STOPPED = Characteristic::CurrentDoorState::STOPPED,
-    UNKNOWN = 0xFF,
+    // UNKNOWN = 0xFF, // Not a valid HomeKit value, so should not have in our enum.
 };
 
 enum GarageDoorTargetState : uint8_t
