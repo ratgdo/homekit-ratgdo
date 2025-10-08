@@ -192,7 +192,9 @@ LOG::LOG()
         resetMagic = RESET_MAGIC;
         crashCount = 0;
         crashUpTime = 0;
+        crashTime = 0;
         rebootUpTime = 0;
+        rebootTime = 0;
     }
     logMutex = xSemaphoreCreateRecursiveMutex();
     msgBuffer = static_cast<logBuffer *>(malloc(sizeof(logBuffer)));
@@ -308,9 +310,11 @@ void LOG::printCrashLog(Print &outputDev)
     TAKE_MUTEX();
     if (crashCount > 0)
     {
-
-        outputDev.printf("Server boot time: %llu (%s)\n", crashTime - (crashUpTime / 1000), timeString(crashTime - (crashUpTime / 1000)));
-        outputDev.printf("Server crash time: %llu (%s)\n", crashTime, timeString(crashTime));
+        if (crashTime)
+        {
+            outputDev.printf("Server boot time: %llu (%s)\n", crashTime - (crashUpTime / 1000), timeString(crashTime - (crashUpTime / 1000)));
+            outputDev.printf("Server crash time: %llu (%s)\n", crashTime, timeString(crashTime));
+        }
         outputDev.printf("Server uptime: %llu ms (%s)\n", crashUpTime, toHHMMSSmmm((_millis_t)crashUpTime));
         outputDev.printf("Crash reason: %s\n", reasonString);
         outputDev.printf("Firmware version: %s\n\n", crashVersion);
@@ -424,8 +428,11 @@ void LOG::printSavedLog(Print &outputDev)
 #else
     if (rebootUpTime != 0)
     {
-        outputDev.printf("Server boot time: %llu (%s)\n", rebootTime - (rebootUpTime / 1000), timeString(rebootTime - (rebootUpTime / 1000)));
-        outputDev.printf("Server log time: %llu (%s)\n", rebootTime, timeString(rebootTime));
+        if (rebootTime)
+        {
+            outputDev.printf("Server boot time: %llu (%s)\n", rebootTime - (rebootUpTime / 1000), timeString(rebootTime - (rebootUpTime / 1000)));
+            outputDev.printf("Server log time: %llu (%s)\n", rebootTime, timeString(rebootTime));
+        }
         outputDev.printf("Server uptime: %llu ms (%s)\n", rebootUpTime, toHHMMSSmmm((_millis_t)rebootUpTime));
         outputDev.println("Firmware version: " AUTO_VERSION);
         outputDev.flush();
