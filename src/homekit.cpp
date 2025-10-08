@@ -27,6 +27,7 @@
 #include "web.h"
 #include "softAP.h"
 #include "led.h"
+#include "provision.h"
 
 #ifdef RATGDO32_DISCO
 #include "vehicle.h"
@@ -470,6 +471,12 @@ void setLogLevel(const char *buf)
     }
 }
 
+void enableImprov(const char *buf)
+{
+    userConfig->set(cfg_homespanCLI, false);
+    setup_improv();
+}
+
 #ifdef USE_GDOLIB
 void testMoveDoor(const char *buf)
 {
@@ -665,6 +672,8 @@ void setup_homekit()
 #ifdef CRASH_DEBUG
     new SpanUserCommand('z', "- test function", testDelayFn);
 #endif
+    new SpanUserCommand('c', "switch to RATGDO CLI (and enable Improv WiFi provisioning)", enableImprov);
+    new SpanUserCommand('C', "switch to RATGDO CLI (and enable Improv WiFi provisioning)", enableImprov);
 
     // Define a bridge (as more than 3 accessories)
     new SpanAccessory(HOMEKIT_AID_BRIDGE);
