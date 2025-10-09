@@ -210,6 +210,17 @@ function showQrCode(payload) {
     qrcode.makeCode(payload);
 }
 
+function makeRfc952(src) {
+    // Make device name RFC952 compliant (simple, just checking for the basics)
+    // RFC952 says max len of 24, [a-z][A-Z][0-9][-.] and no dash or period in last char.
+    let dest = src.substring(0, 24);
+    dest = dest.replace(/[^a-zA-Z0-9.]/g, '-');
+    while (dest.length > 0 && (dest.slice(-1) === '-' || dest.slice(-1) === '.')) {
+        dest = dest.substring(0, dest.length - 1);
+    }
+    return dest;
+}
+
 // Update all elements on HTML page to reflect status
 function setElementsFromStatus(status) {
     let date = new Date();
@@ -280,6 +291,8 @@ function setElementsFromStatus(status) {
                 document.getElementById(key).innerHTML = value;
                 document.title = value;
                 document.getElementById("newDeviceName").placeholder = value;
+                let mdnsAddress = makeRfc952(value) + ".local";
+                document.getElementById("mdnsAddress").innerHTML = `<a href="http://${mdnsAddress}" target="_blank">${mdnsAddress}</a>`;
                 break;
             case "userName":
                 document.getElementById("newUserName").placeholder = value;
