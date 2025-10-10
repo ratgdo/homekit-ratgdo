@@ -289,7 +289,7 @@ userSettings::userSettings()
 {
 #ifdef ESP8266
     LittleFS.begin();
-    snprintf(default_device_name, sizeof(default_device_name), "Garage Door %06X", ESP.getChipId());
+    snprintf_P(default_device_name, sizeof(default_device_name), PSTR("Garage Door %06X"), ESP.getChipId());
 #else
     mutex = xSemaphoreCreateMutex(); // need to serialize set's
     uint8_t mac[6];
@@ -380,15 +380,15 @@ void userSettings::toStdOut()
     {
         if (std::holds_alternative<configStr>(it.second.value))
         {
-            Serial.printf("%s:\t%s\n", it.first.c_str(), std::get<configStr>(it.second.value).str);
+            Serial.printf_P(PSTR("%s:\t%s\n"), it.first.c_str(), std::get<configStr>(it.second.value).str);
         }
         else if (std::holds_alternative<int>(it.second.value))
         {
-            Serial.printf("%s:\t%d\n", it.first.c_str(), std::get<int>(it.second.value));
+            Serial.printf_P(PSTR("%s:\t%d\n"), it.first.c_str(), std::get<int>(it.second.value));
         }
         else
         {
-            Serial.printf("%s:\t%d\n", it.first.c_str(), std::get<bool>(it.second.value));
+            Serial.printf_P(PSTR("%s:\t%d\n"), it.first.c_str(), std::get<bool>(it.second.value));
         }
     }
 }
@@ -399,30 +399,30 @@ void userSettings::toFile(Print &file)
     {
         if (std::holds_alternative<configStr>(it.second.value))
         {
-            file.printf("%s,,%s\n", it.first.c_str(), std::get<configStr>(it.second.value).str);
+            file.printf_P(PSTR("%s,,%s\n"), it.first.c_str(), std::get<configStr>(it.second.value).str);
         }
         else if (std::holds_alternative<int>(it.second.value))
         {
-            file.printf("%s,,%d\n", it.first.c_str(), std::get<int>(it.second.value));
+            file.printf_P(PSTR("%s,,%d\n"), it.first.c_str(), std::get<int>(it.second.value));
 #ifdef ESP8266
             // Also save selected values under their old (v1.9.x and older) keynames
             // Just-in-case user uploads back-level firmware.
             if (it.first == cfg_GDOSecurityType)
-                file.printf("gdoSecurityType,,%d\n", std::get<int>(it.second.value));
+                file.printf_P(PSTR("gdoSecurityType,,%d\n"), std::get<int>(it.second.value));
             else if (it.first == cfg_TTCseconds)
-                file.printf("TTCdelay,,%d\n", std::get<int>(it.second.value));
+                file.printf_P(PSTR("TTCdelay,,%d\n"), std::get<int>(it.second.value));
             else if (it.first == cfg_LEDidle)
-                file.printf("ledIdleState,,%d\n", std::get<int>(it.second.value));
+                file.printf_P(PSTR("ledIdleState,,%d\n"), std::get<int>(it.second.value));
 #endif
         }
         else
         {
-            file.printf("%s,,%d\n", it.first.c_str(), std::get<bool>(it.second.value));
+            file.printf_P(PSTR("%s,,%d\n"), it.first.c_str(), std::get<bool>(it.second.value));
 #ifdef ESP8266
             // Also save selected values under their old (v1.9.x and older) keynames
             // Just-in-case user uploads back-level firmware.
             if (it.first == cfg_passwordRequired)
-                file.printf("wwwPWrequired,,%d\n", std::get<bool>(it.second.value));
+                file.printf_P(PSTR("wwwPWrequired,,%d\n"), std::get<bool>(it.second.value));
 #endif
         }
     }
