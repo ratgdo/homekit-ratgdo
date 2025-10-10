@@ -194,6 +194,8 @@ extern bool suspend_service_loop;
 extern bool wifi_got_ip;
 extern "C" uint32_t free_heap;
 extern "C" uint32_t min_heap;
+extern "C" uint32_t free_heap_at_boot;
+extern "C" uint32_t free_iram_at_boot;
 
 #define MOTION_TIMER_DURATION 5000  // how long to keep HomeKit motion sensor active for
 #define LED_BLINK_INTERVAL 5 * 1000 // time between each "alive and working" LED blink
