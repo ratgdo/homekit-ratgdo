@@ -98,7 +98,7 @@ void serialCLI(char cmd)
         }
         else
         {
-            Serial.println("Factory reset request aborted");
+            Serial.printf_P(PSTR("Factory reset request aborted\n"));
         }
         break;
     }

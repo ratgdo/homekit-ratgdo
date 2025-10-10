@@ -115,7 +115,7 @@ void setup_homekit()
 {
     ESP_LOGI(TAG, "=== Starting HomeKit Server");
     String macAddress = WiFi.macAddress();
-    snprintf(serial_number, SERIAL_NAME_SIZE, "%s", macAddress.c_str());
+    snprintf_P(serial_number, SERIAL_NAME_SIZE, PSTR("%s"), macAddress.c_str());
 
     current_door_state.getter = current_door_state_get;
     target_door_state.getter = target_door_state_get;

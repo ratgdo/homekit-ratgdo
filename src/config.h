@@ -49,63 +49,63 @@ extern char default_device_name[DEVICE_NAME_SIZE];
 
 // Define all the user setting keys as consts so we don't repeat strings
 // throughout the code... and compiler will pick up any typos for us.
-// const char cfg_deviceName[] = "deviceName";
+// const char cfg_deviceName[] PROGMEM = "deviceName";
 // On ESP32 these are saved to NVRAM, on ESP8266 we will save to a file.
 // NOTE... truncated to 15 chars when saving to NVRAM !!!
-constexpr char cfg_deviceName[] = "deviceName";
-constexpr char cfg_wifiChanged[] = "wifiChanged";
-constexpr char cfg_wifiPower[] = "wifiPower";
-constexpr char cfg_wifiPhyMode[] = "wifiPhyMode";
-constexpr char cfg_staticIP[] = "staticIP";
-constexpr char cfg_localIP[] = "localIP";
-constexpr char cfg_subnetMask[] = "subnetMask";
-constexpr char cfg_gatewayIP[] = "gatewayIP";
-constexpr char cfg_nameserverIP[] = "nameserverIP";
-constexpr char cfg_passwordRequired[] = "passwordRequired";
-constexpr char cfg_wwwUsername[] = "wwwUsername";
-constexpr char cfg_wwwCredentials[] = "wwwCredentials";
-constexpr char cfg_GDOSecurityType[] = "GDOSecurityType";
-constexpr char cfg_TTCseconds[] = "TTCseconds";
-constexpr char cfg_TTClight[] = "TTClight";
-constexpr char cfg_rebootSeconds[] = "rebootSeconds";
-constexpr char cfg_LEDidle[] = "LEDidle";
-constexpr char cfg_motionTriggers[] = "motionTriggers";
-constexpr char cfg_enableNTP[] = "enableNTP";
-constexpr char cfg_doorUpdateAt[] = "doorUpdateAt";
-constexpr char cfg_doorOpenAt[] = "doorOpenAt";
-constexpr char cfg_doorCloseAt[] = "doorCloseAt";
-constexpr char cfg_timeZone[] = "timeZone";
-constexpr char cfg_softAPmode[] = "softAPmode";
-constexpr char cfg_syslogEn[] = "syslogEn";
-constexpr char cfg_syslogIP[] = "syslogIP";
-constexpr char cfg_syslogPort[] = "syslogPort";
-constexpr char cfg_syslogFacility[] = "syslogFacility";
-constexpr char cfg_logLevel[] = "logLevel";
-constexpr char cfg_dcOpenClose[] = "dcOpenClose";
-constexpr char cfg_dcDebounceDuration[] = "dcDebounceDuration";
-constexpr char cfg_useSWserial[] = "useSWserial";
-constexpr char cfg_obstFromStatus[] = "obstFromStatus";
+constexpr char cfg_deviceName[] PROGMEM = "deviceName";
+constexpr char cfg_wifiChanged[] PROGMEM = "wifiChanged";
+constexpr char cfg_wifiPower[] PROGMEM = "wifiPower";
+constexpr char cfg_wifiPhyMode[] PROGMEM = "wifiPhyMode";
+constexpr char cfg_staticIP[] PROGMEM = "staticIP";
+constexpr char cfg_localIP[] PROGMEM = "localIP";
+constexpr char cfg_subnetMask[] PROGMEM = "subnetMask";
+constexpr char cfg_gatewayIP[] PROGMEM = "gatewayIP";
+constexpr char cfg_nameserverIP[] PROGMEM = "nameserverIP";
+constexpr char cfg_passwordRequired[] PROGMEM = "passwordRequired";
+constexpr char cfg_wwwUsername[] PROGMEM = "wwwUsername";
+constexpr char cfg_wwwCredentials[] PROGMEM = "wwwCredentials";
+constexpr char cfg_GDOSecurityType[] PROGMEM = "GDOSecurityType";
+constexpr char cfg_TTCseconds[] PROGMEM = "TTCseconds";
+constexpr char cfg_TTClight[] PROGMEM = "TTClight";
+constexpr char cfg_rebootSeconds[] PROGMEM = "rebootSeconds";
+constexpr char cfg_LEDidle[] PROGMEM = "LEDidle";
+constexpr char cfg_motionTriggers[] PROGMEM = "motionTriggers";
+constexpr char cfg_enableNTP[] PROGMEM = "enableNTP";
+constexpr char cfg_doorUpdateAt[] PROGMEM = "doorUpdateAt";
+constexpr char cfg_doorOpenAt[] PROGMEM = "doorOpenAt";
+constexpr char cfg_doorCloseAt[] PROGMEM = "doorCloseAt";
+constexpr char cfg_timeZone[] PROGMEM = "timeZone";
+constexpr char cfg_softAPmode[] PROGMEM = "softAPmode";
+constexpr char cfg_syslogEn[] PROGMEM = "syslogEn";
+constexpr char cfg_syslogIP[] PROGMEM = "syslogIP";
+constexpr char cfg_syslogPort[] PROGMEM = "syslogPort";
+constexpr char cfg_syslogFacility[] PROGMEM = "syslogFacility";
+constexpr char cfg_logLevel[] PROGMEM = "logLevel";
+constexpr char cfg_dcOpenClose[] PROGMEM = "dcOpenClose";
+constexpr char cfg_dcDebounceDuration[] PROGMEM = "dcDebounceDuration";
+constexpr char cfg_useSWserial[] PROGMEM = "useSWserial";
+constexpr char cfg_obstFromStatus[] PROGMEM = "obstFromStatus";
 #ifdef ESP8266
 // On ESP8266 we save user config to a file in LittleFS
-constexpr char cfg_configFile[] = "user_config";
+constexpr char cfg_configFile[] PROGMEM = "user_config";
 #else
-constexpr char cfg_builtInTTC[] = "builtInTTC";
-constexpr char cfg_vehicleThreshold[] = "vehicleThreshold";
-constexpr char cfg_vehicleHomeKit[] = "vehicleHomeKit";
-constexpr char cfg_laserEnabled[] = "laserEnabled";
-constexpr char cfg_laserHomeKit[] = "laserHomeKit";
-constexpr char cfg_assistDuration[] = "assistDuration";
-constexpr char cfg_occupancyDuration[] = "occupancyDuration";
-constexpr char cfg_enableIPv6[] = "enableIPv6";
-constexpr char cfg_homespanCLI[] = "homespanCLI";
+constexpr char cfg_builtInTTC[] PROGMEM = "builtInTTC";
+constexpr char cfg_vehicleThreshold[] PROGMEM = "vehicleThreshold";
+constexpr char cfg_vehicleHomeKit[] PROGMEM = "vehicleHomeKit";
+constexpr char cfg_laserEnabled[] PROGMEM = "laserEnabled";
+constexpr char cfg_laserHomeKit[] PROGMEM = "laserHomeKit";
+constexpr char cfg_assistDuration[] PROGMEM = "assistDuration";
+constexpr char cfg_occupancyDuration[] PROGMEM = "occupancyDuration";
+constexpr char cfg_enableIPv6[] PROGMEM = "enableIPv6";
+constexpr char cfg_homespanCLI[] PROGMEM = "homespanCLI";
 #endif
 
-constexpr char nvram_id_code[] = "id_code";
-constexpr char nvram_rolling[] = "rolling";
-constexpr char nvram_has_motion[] = "has_motion";
+constexpr char nvram_id_code[] PROGMEM = "id_code";
+constexpr char nvram_rolling[] PROGMEM = "rolling";
+constexpr char nvram_has_motion[] PROGMEM = "has_motion";
 #ifndef ESP8266
-constexpr char nvram_ratgdo_pw[] = "ratgdo_pw";
-constexpr char nvram_has_distance[] = "has_distance";
+constexpr char nvram_ratgdo_pw[] PROGMEM = "ratgdo_pw";
+constexpr char nvram_has_distance[] PROGMEM = "has_distance";
 #endif
 
 struct configStr
