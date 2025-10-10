@@ -56,9 +56,10 @@ extern void printTaskInfo(const char *buf = nullptr);
 // need to make more space available for initialization.
 #include <umm_malloc/umm_malloc.h>
 #include <umm_malloc/umm_heap_select.h>
-#define IRAM_START(tag)           \
-    {                             \
-        HeapSelectIram ephemeral; \
+#define IRAM_START(tag)                                                                       \
+    {                                                                                         \
+        HeapSelectIram ephemeral;                                                             \
+        free_iram_at_boot = (free_iram_at_boot == 0) ? ESP.getFreeHeap() : free_iram_at_boot; \
         ESP_LOGI(tag, "IRAM_START heap (%s): %d", __func__, ESP.getFreeHeap());
 #define IRAM_END(tag)                                                     \
     ESP_LOGI(tag, "IRAM_END heap (%s): %d", __func__, ESP.getFreeHeap()); \
