@@ -203,6 +203,13 @@ bool helperSyslogFacility(const std::string &key, const char *value, configSetti
     return true;
 }
 
+bool helperSyslogPort(const std::string &key, const char *value, configSetting *action)
+{
+    userConfig->set(key, value);
+    syslogPort = userConfig->getSyslogPort();
+    return true;
+}
+
 bool helperLogLevel(const std::string &key, const char *value, configSetting *action)
 {
     userConfig->set(key, value);
@@ -347,7 +354,7 @@ userSettings::userSettings()
         {cfg_softAPmode, {true, false, false, NULL}},
         {cfg_syslogEn, {false, false, false, helperSyslogEn}}, // call fn to set globals
         {cfg_syslogIP, {false, false, (configStr){IP4ADDR_STRLEN_MAX, syslogIPBuf}, NULL}},
-        {cfg_syslogPort, {false, false, 514, NULL}},
+        {cfg_syslogPort, {false, false, 514, helperSyslogPort}},                   // call fn to set global
         {cfg_syslogFacility, {false, false, SYSLOG_LOCAL0, helperSyslogFacility}}, // call fn to set global
         {cfg_logLevel, {false, false, ESP_LOG_INFO, helperLogLevel}},              // call fn to set log level
         {cfg_dcOpenClose, {true, false, false, NULL}},
