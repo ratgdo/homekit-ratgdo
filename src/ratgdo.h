@@ -14,6 +14,10 @@
  */
 #pragma once
 
+#ifdef ESP32
+#define USE_HOMESPAN
+#endif
+
 // ESP system includes
 #ifndef ESP8266
 #include <driver/gpio.h>
@@ -149,7 +153,7 @@ enum GarageDoorCurrentState : uint8_t
     CURR_OPENING = Characteristic::CurrentDoorState::OPENING,
     CURR_CLOSING = Characteristic::CurrentDoorState::CLOSING,
     CURR_STOPPED = Characteristic::CurrentDoorState::STOPPED,
-    UNKNOWN = 0xFF,
+    // UNKNOWN = 0xFF, // Not a valid HomeKit value, so should not have in our enum.
 };
 
 enum GarageDoorTargetState : uint8_t
@@ -173,10 +177,25 @@ enum LockTargetState : uint8_t
 };
 #endif
 
+#define DOOR_STATE(s) (s == 0) ? "Open" : (s == 1) ? "Closed"  \
+                                      : (s == 2)   ? "Opening" \
+                                      : (s == 3)   ? "Closing" \
+                                      : (s == 4)   ? "Stopped" \
+                                                   : "Unknown"
+#define LOCK_STATE(s) (s == 0) ? "Unsecured" : (s == 1) ? "Secured" \
+                                           : (s == 2)   ? "Jammed"  \
+                                                        : "Unknown"
+// Caution, do not change Enabled / Disabled text without changing functions.js to match
+#define REMOTES_STATE(s) (s == 0) ? "Enabled" : (s == 1) ? "Disabled" \
+                                            : (s == 2)   ? "Jammed"   \
+                                                         : "Unknown"
+
 extern bool suspend_service_loop;
 extern bool wifi_got_ip;
 extern "C" uint32_t free_heap;
 extern "C" uint32_t min_heap;
+extern "C" uint32_t free_heap_at_boot;
+extern "C" uint32_t free_iram_at_boot;
 
 #define MOTION_TIMER_DURATION 5000  // how long to keep HomeKit motion sensor active for
 #define LED_BLINK_INTERVAL 5 * 1000 // time between each "alive and working" LED blink
@@ -209,9 +228,4 @@ struct __attribute__((aligned(4))) GarageDoor
 #endif
 };
 extern GarageDoor garage_door;
-
-struct __attribute__((aligned(4))) ForceRecover
-{
-    uint32_t push_count;
-    _millis_t timeout;
-};
+extern GarageDoor last_reported_garage_door;

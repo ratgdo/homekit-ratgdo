@@ -219,15 +219,6 @@ static SemaphoreHandle_t jsonMutex = NULL;
 #define GIVE_MUTEX() xSemaphoreGive(jsonMutex)
 #endif
 
-#define DOOR_STATE(s) (s == 0) ? "Open" : (s == 1) ? "Closed"  \
-                                      : (s == 2)   ? "Opening" \
-                                      : (s == 3)   ? "Closing" \
-                                      : (s == 4)   ? "Stopped" \
-                                                   : "Unknown"
-#define LOCK_STATE(s) (s == 0) ? "Enabled" : (s == 1) ? "Disabled" \
-                                         : (s == 2)   ? "Jammed"   \
-                                                      : "Unknown"
-
 // Connection throttling
 #define MAX_CONCURRENT_REQUESTS 8
 #define REQUEST_TIMEOUT_MS 2000
@@ -389,7 +380,7 @@ void web_loop()
     // Conditional macros, only add if value has changed
     JSON_ADD_BOOL_C("paired", homekit_is_paired(), last_reported_paired);
     JSON_ADD_STR_C("garageDoorState", DOOR_STATE(garage_door.current_state), garage_door.current_state, last_reported_garage_door.current_state);
-    JSON_ADD_STR_C("garageLockState", LOCK_STATE(garage_door.current_lock), garage_door.current_lock, last_reported_garage_door.current_lock);
+    JSON_ADD_STR_C("garageLockState", REMOTES_STATE(garage_door.current_lock), garage_door.current_lock, last_reported_garage_door.current_lock);
     JSON_ADD_BOOL_C("garageLightOn", garage_door.light, last_reported_garage_door.light);
     JSON_ADD_BOOL_C("garageMotion", garage_door.motion, last_reported_garage_door.motion);
     JSON_ADD_BOOL_C("pinBasedObst", garage_door.pinModeObstructionSensor, last_reported_garage_door.pinModeObstructionSensor);
@@ -636,7 +627,7 @@ void load_page(const char *page)
     if ((CACHE_CONTROL > 0) &&
         (!strcmp_P(type, type_css) || !strcmp_P(type, type_js) || strstr_P(type, PSTR("image"))))
     {
-        snprintf(cacheHdr, sizeof(cacheHdr), "max-age=%d", CACHE_CONTROL);
+        snprintf_P(cacheHdr, sizeof(cacheHdr), PSTR("max-age=%d"), CACHE_CONTROL);
         cache = true;
     }
     if (server.hasHeader(F("If-None-Match")))
@@ -771,7 +762,7 @@ void handle_status()
     JSON_ADD_INT(cfg_GDOSecurityType, (uint32_t)userConfig->getGDOSecurityType());
     JSON_ADD_BOOL("garageSec1Emulated", garage_door.wallPanelEmulated);
     JSON_ADD_STR("garageDoorState", garage_door.active ? DOOR_STATE(garage_door.current_state) : DOOR_STATE(255));
-    JSON_ADD_STR("garageLockState", LOCK_STATE(garage_door.current_lock));
+    JSON_ADD_STR("garageLockState", REMOTES_STATE(garage_door.current_lock));
     JSON_ADD_BOOL("garageLightOn", garage_door.light);
     JSON_ADD_BOOL("garageMotion", garage_door.motion);
     JSON_ADD_BOOL("garageObstructed", garage_door.obstructed);
@@ -997,6 +988,11 @@ bool helperFactoryReset(const std::string &key, const char *value, configSetting
     return true;
 }
 
+void factoryReset()
+{
+    helperFactoryReset("", "", nullptr);
+}
+
 #ifdef RATGDO32_DISCO
 bool helperAssistLaser(const std::string &key, const char *value, configSetting *action)
 {
@@ -1014,15 +1010,15 @@ void handle_setgdo()
     // Build-in handlers that do not set a configuration value, or if they do they set multiple values.
     // key, {reboot, wifiChanged, value, fn to call}
     static const std::unordered_map<std::string, configSetting> setGDOhandlers = {
-        {"resetDoor", {true, false, 0, helperResetDoor}},
-        {"garageLightOn", {false, false, 0, helperGarageLightOn}},
-        {"garageDoorState", {false, false, 0, helperGarageDoorState}},
-        {"garageLockState", {false, false, 0, helperGarageLockState}},
-        {"credentials", {false, false, 0, helperCredentials}}, // parse out wwwUsername and credentials
-        {"updateUnderway", {false, false, 0, helperUpdateUnderway}},
-        {"factoryReset", {true, false, 0, helperFactoryReset}},
+        {PSTR("resetDoor"), {true, false, 0, helperResetDoor}},
+        {PSTR("garageLightOn"), {false, false, 0, helperGarageLightOn}},
+        {PSTR("garageDoorState"), {false, false, 0, helperGarageDoorState}},
+        {PSTR("garageLockState"), {false, false, 0, helperGarageLockState}},
+        {PSTR("credentials"), {false, false, 0, helperCredentials}}, // parse out wwwUsername and credentials
+        {PSTR("updateUnderway"), {false, false, 0, helperUpdateUnderway}},
+        {PSTR("factoryReset"), {true, false, 0, helperFactoryReset}},
 #ifdef RATGDO32_DISCO
-        {"assistLaser", {false, false, 0, helperAssistLaser}},
+        {PSTR("assistLaser"), {false, false, 0, helperAssistLaser}},
 #endif
     };
     bool reboot = false;
@@ -1186,7 +1182,7 @@ void SSEheartbeat(SSESubscription *s)
         JSON_END();
         JSON_REMOVE_NL(json);
         // retry needed to before event:
-        snprintf(writeBuffer, sizeof(writeBuffer), "event: message\ndata: %s\n\n", json);
+        snprintf_P(writeBuffer, sizeof(writeBuffer), PSTR("event: message\ndata: %s\n\n"), json);
         clientWrite(s->client, writeBuffer);
         GIVE_MUTEX();
         YIELD();
@@ -1451,7 +1447,7 @@ void SSEBroadcastState(const char *data, BroadcastType type)
                 {
                     if (subscription[i].logViewer)
                     {
-                        if (snprintf(writeBuffer, sizeof(writeBuffer), "event: logger\ndata: %s\n\n", data) >= (int)sizeof(writeBuffer))
+                        if (snprintf_P(writeBuffer, sizeof(writeBuffer), PSTR("event: logger\ndata: %s\n\n"), data) >= (int)sizeof(writeBuffer))
                         {
                             // Will not fit in our write buffer, let system printf handle
 #ifdef ESP8266
@@ -1469,7 +1465,7 @@ void SSEBroadcastState(const char *data, BroadcastType type)
                 {
                     String IPaddrstr = IPAddress(subscription[i].clientIP).toString();
                     ESP_LOGV(TAG, "Client %s (%s) send status SSE on channel %d, data: %s", IPaddrstr.c_str(), subscription[i].clientUUID.c_str(), i, data);
-                    if (snprintf(writeBuffer, sizeof(writeBuffer), "event: message\ndata: %s\n\n", data) >= (int)sizeof(writeBuffer))
+                    if (snprintf_P(writeBuffer, sizeof(writeBuffer), PSTR("event: message\ndata: %s\n\n"), data) >= (int)sizeof(writeBuffer))
                     {
                         // Will not fit in our write buffer, let system printf handle
 #ifdef ESP8266
@@ -1599,13 +1595,7 @@ void handle_firmware_upload()
             // Ignore vehicle distance sensor
             vehicle_setup_done = false;
 #endif
-#ifdef USE_GDOLIB
-            // Shutdown GDO comms
-            gdo_deinit();
-#else
-            // This prevents loop code from running
-            comms_setup_done = false;
-#endif
+            shutdown_comms();
 #ifdef ESP8266
             // Shutdown HomeKit
             homekit_setup_done = false;
@@ -1655,7 +1645,7 @@ void handle_firmware_upload()
                     JSON_ADD_INT("uploadPercent", uploadPercent);
                     JSON_END();
                     JSON_REMOVE_NL(json);
-                    snprintf(writeBuffer, sizeof(writeBuffer), "event: uploadStatus\ndata: %s\n\n", json);
+                    snprintf_P(writeBuffer, sizeof(writeBuffer), PSTR("event: uploadStatus\ndata: %s\n\n"), json);
                     clientWrite(firmwareUpdateSub->client, writeBuffer);
                     GIVE_MUTEX();
                 }

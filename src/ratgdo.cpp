@@ -78,9 +78,29 @@ GarageDoor garage_door = {
 bool wifi_got_ip = false;
 
 // Track our memory usage
+#ifdef ESP8266
+#define SYSTEM_STACK_END_ADDRESS 0x3FFFC000
+uint32_t free_sys_stack_at_boot = 0;
+uint32_t free_sys_stack = (1024 * 1024);
+uint32_t free_stack_at_boot = 0;
+Ticker stackCheck = Ticker();
+void stackCheckFn()
+{
+    static uint32_t lastAddr = 0xffffffff;
+    register uint32_t stackAddress asm("a1");
+    if (stackAddress < lastAddr)
+    {
+        lastAddr = stackAddress;
+        free_sys_stack = stackAddress - SYSTEM_STACK_END_ADDRESS - CONT_STACKSIZE; // reduced by 4K because user (cont) stack overwrites bottom
+    }
+    return;
+}
+#endif
+uint32_t free_heap_at_boot = 0;
 uint32_t free_heap = (1024 * 1024);
 uint32_t min_heap = (1024 * 1024);
 #ifdef MMU_IRAM_HEAP
+uint32_t free_iram_at_boot = 0;
 uint32_t free_iram = (1024 * 1024);
 uint32_t min_iram = (1024 * 1024);
 #endif // MMU_IRAM_HEAP
@@ -110,8 +130,23 @@ static void ping_stop();
  */
 void setup()
 {
+    free_heap_at_boot = ESP.getFreeHeap();
 #ifdef ESP8266
-    disable_extra4k_at_link_time();
+    // Arduino memory optimization moves the user (cont) stack (4K in size) to overlap the bottom
+    // of the system stack (16K in size) thereby reducing available system stack to 12K but
+    // increasing the available memory heap by 4K.
+    // Some system services may use more than 12K of stack. The WiFi Protected Setup (WPS) and
+    // possibly WPA2-Enterprise authentication are suspected of requiring this, so the Arduino
+    // optimization can be turned off with a call to..
+    // disable_extra4k_at_link_time();
+    // For RATGDO we can choose not to support WPS and enterprise authentication. And we need every
+    // bit of memory for HomeKit and mDNS. So instead we will closely monitor both the user (cont)
+    // and system stack
+    free_stack_at_boot = ESP.getFreeContStack();
+    stackCheckFn();
+    free_sys_stack_at_boot = free_sys_stack;
+    // Check system stack every 100ms
+    stackCheck.attach_ms(100, stackCheckFn);
 #else
     esp_core_dump_init();
 #ifdef RATGDO32_DISCO
@@ -126,7 +161,12 @@ void setup()
     ESP_LOGI(TAG, "Flash chip size 0x%X", ESP.getFlashChipSize());
     ESP_LOGI(TAG, "Flash chip mode 0x%X", ESP.getFlashChipMode());
     ESP_LOGI(TAG, "Flash chip speed 0x%X (%d MHz)", ESP.getFlashChipSpeed(), ESP.getFlashChipSpeed() / 1000000);
-    ESP_LOGI(TAG, "Free heap: %d", ESP.getFreeHeap());
+    ESP_LOGI(TAG, "Free heap at boot: %d", free_heap_at_boot);
+#ifdef MMU_IRAM_HEAP
+    ESP_LOGI(TAG, "Free IRAM at boot: %d", free_iram_at_boot);
+#endif
+    ESP_LOGI(TAG, "Free cont stack at boot: %d", free_stack_at_boot);
+    ESP_LOGI(TAG, "Free system stack at boot: %d", free_sys_stack_at_boot);
     // Load users saved configuration (or set defaults)
     load_all_config_settings();
     // Now set log level to whatever user has requested
@@ -239,6 +279,24 @@ void loop()
         setup_web();
         setup_after_IP_done = true;
         ESP_LOGI(TAG, "=== Initialization after IP address acquired complete");
+        ESP_LOGI(TAG, "Free heap at boot:  %d", free_heap_at_boot);
+        ESP_LOGI(TAG, "Current free heap:  %d", ESP.getFreeHeap());
+#ifdef MMU_IRAM_HEAP
+        // Also track IRAM heap usage
+        // IRAM heap is only allocated during initialization, so this should stabilize after setup.
+        {
+            HeapSelectIram ephemeral;
+            ESP_LOGI(TAG, "Free IRAM at boot:  %d", free_iram_at_boot);
+            ESP_LOGI(TAG, "Current free IRAM:  %d", ESP.getFreeHeap());
+        }
+#endif
+#ifdef ESP8266
+        ESP_LOGI(TAG, "Free cont stack at boot:    %d", free_stack_at_boot);
+        ESP_LOGI(TAG, "Current minimum cont stack: %d", ESP.getFreeContStack());
+        ESP_LOGI(TAG, "Free sys stack at boot:     %d", free_sys_stack_at_boot);
+        ESP_LOGI(TAG, "Current minimum sys stack:  %d", free_sys_stack);
+#endif
+        ESP_LOGI(TAG, "=== Initialization complete");
 #ifdef RATGDO32_DISCO
         // beep on completing startup.
         static bool startupBeeped = false;
@@ -357,6 +415,21 @@ void service_timer_loop()
             }
         }
 #endif // MMU_IRAM_HEAP
+#ifdef ESP8266
+        static uint32_t min_stack = (1024 * 1024);
+        uint32_t free_stack = ESP.getFreeContStack();
+        if (free_stack < min_stack)
+        {
+            min_stack = free_stack;
+            ESP_LOGI(TAG, "Free cont stack dropped to %d", free_stack);
+        }
+        static uint32_t min_sys_stack = (1024 * 1024);
+        if (free_sys_stack < min_sys_stack)
+        {
+            min_sys_stack = free_sys_stack;
+            ESP_LOGI(TAG, "Free sys stack dropped to %d", free_sys_stack);
+        }
+#endif
     }
 
 #ifndef ESP8266

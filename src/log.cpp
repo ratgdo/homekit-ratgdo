@@ -41,7 +41,6 @@ bool syslogEn = false;
 uint32_t syslogPort = 514;
 char syslogIP[IP4ADDR_STRLEN_MAX] = "";
 uint32_t syslogFacility = SYSLOG_LOCAL0;
-char timestr[16];
 WiFiUDP syslog;
 bool suppressSerialLog = false;
 esp_log_level_t logLevel = ESP_LOG_VERBOSE;
@@ -52,18 +51,6 @@ esp_log_level_t logLevel = ESP_LOG_VERBOSE;
         if (!suppressSerialLog) \
             Serial.print(x);    \
     } while (0)
-
-char *toHHMMSSmmm(_millis_t t)
-{
-    uint32_t secs = t / 1000;
-    uint32_t ms = t % 1000;
-    uint32_t mins = secs / 60;
-    secs = secs % 60;
-    uint32_t hrs = mins / 60;
-    mins = mins % 60;
-    snprintf(timestr, sizeof(timestr), "%02u:%02u:%02u.%03u", hrs, mins, secs, ms);
-    return timestr;
-}
 
 // Allows us to intercept all ESP_LOGx() even outside our code.
 void esp_log_hook(const char *fmt, va_list args)
@@ -153,6 +140,10 @@ const int rtcSize = sizeof(rtcRebootLog) + sizeof(rtcCrashLog) + sizeof(rebootTi
 
 void panic_handler(arduino_panic_info_t *info, void *arg)
 {
+    // As precaution... reset UART pins as failing to do this could cause the door to open/close
+    gpio_reset_pin(UART_TX_PIN);
+    gpio_reset_pin(UART_RX_PIN);
+
     // crashCount could be negative... indicating that there is a core dump image, but no saved crash log.
     // But now we are saving a crash log, so need to make sure it is positive.
     crashUpTime = _millis();
@@ -201,7 +192,9 @@ LOG::LOG()
         resetMagic = RESET_MAGIC;
         crashCount = 0;
         crashUpTime = 0;
+        crashTime = 0;
         rebootUpTime = 0;
+        rebootTime = 0;
     }
     logMutex = xSemaphoreCreateRecursiveMutex();
     msgBuffer = static_cast<logBuffer *>(malloc(sizeof(logBuffer)));
@@ -317,9 +310,11 @@ void LOG::printCrashLog(Print &outputDev)
     TAKE_MUTEX();
     if (crashCount > 0)
     {
-
-        outputDev.printf("Server boot time: %llu (%s)\n", crashTime - (crashUpTime / 1000), timeString(crashTime - (crashUpTime / 1000)));
-        outputDev.printf("Server crash time: %llu (%s)\n", crashTime, timeString(crashTime));
+        if (crashTime)
+        {
+            outputDev.printf("Server boot time: %llu (%s)\n", crashTime - (crashUpTime / 1000), timeString(crashTime - (crashUpTime / 1000)));
+            outputDev.printf("Server crash time: %llu (%s)\n", crashTime, timeString(crashTime));
+        }
         outputDev.printf("Server uptime: %llu ms (%s)\n", crashUpTime, toHHMMSSmmm((_millis_t)crashUpTime));
         outputDev.printf("Crash reason: %s\n", reasonString);
         outputDev.printf("Firmware version: %s\n\n", crashVersion);
@@ -433,8 +428,11 @@ void LOG::printSavedLog(Print &outputDev)
 #else
     if (rebootUpTime != 0)
     {
-        outputDev.printf("Server boot time: %llu (%s)\n", rebootTime - (rebootUpTime / 1000), timeString(rebootTime - (rebootUpTime / 1000)));
-        outputDev.printf("Server log time: %llu (%s)\n", rebootTime, timeString(rebootTime));
+        if (rebootTime)
+        {
+            outputDev.printf("Server boot time: %llu (%s)\n", rebootTime - (rebootUpTime / 1000), timeString(rebootTime - (rebootUpTime / 1000)));
+            outputDev.printf("Server log time: %llu (%s)\n", rebootTime, timeString(rebootTime));
+        }
         outputDev.printf("Server uptime: %llu ms (%s)\n", rebootUpTime, toHHMMSSmmm((_millis_t)rebootUpTime));
         outputDev.println("Firmware version: " AUTO_VERSION);
         outputDev.flush();

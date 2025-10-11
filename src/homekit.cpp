@@ -17,8 +17,6 @@
 #ifdef ESP8266
 #include <arduino_homekit_server.h>
 #include <ESP8266WiFi.h>
-#else // not ESP8266
-#include <magic_enum.hpp>
 #endif // ESP8266
 
 // RATGDO project includes
@@ -29,6 +27,7 @@
 #include "web.h"
 #include "softAP.h"
 #include "led.h"
+#include "provision.h"
 
 #ifdef RATGDO32_DISCO
 #include "vehicle.h"
@@ -109,6 +108,71 @@ char *toBase62(char *base62, size_t len, uint32_t base10)
  * the change is required in both implementations.
  */
 
+void homekit_event(homekit_event_t event)
+{
+    static bool reset_comms = false;
+    switch (event)
+    {
+    case homekit_event_t::HOMEKIT_EVENT_SERVER_INITIALIZED:
+    {
+        ESP_LOGI(TAG, "HomeKit Server Initialized");
+        break;
+    }
+    case homekit_event_t::HOMEKIT_EVENT_CLIENT_CONNECTED:
+    {
+        if (!homekit_is_paired())
+        {
+            ESP_LOGI(TAG, "Client connected... not paired yet");
+            // During pairing process suspend the GDO comms loop.  This improves reliability of pairing on ESP8266
+            if (comms_setup_done)
+            {
+                ESP_LOGD(TAG, "Disable comms loop while pairing");
+                comms_setup_done = false;
+                reset_comms = true;
+            }
+            // comms loop will be enabled again on any other HomeKit event.
+            return;
+        }
+        else
+        {
+            ESP_LOGI(TAG, "Client connected... paired");
+        }
+        break;
+    }
+    case homekit_event_t::HOMEKIT_EVENT_CLIENT_VERIFIED:
+    {
+        ESP_LOGI(TAG, "Client verified");
+        break;
+    }
+    case homekit_event_t::HOMEKIT_EVENT_CLIENT_DISCONNECTED:
+    {
+        ESP_LOGI(TAG, "Client disconnected");
+        break;
+    }
+    case homekit_event_t::HOMEKIT_EVENT_PAIRING_ADDED:
+    {
+        ESP_LOGI(TAG, "Pairing added");
+        break;
+    }
+    case homekit_event_t::HOMEKIT_EVENT_PAIRING_REMOVED:
+    {
+        ESP_LOGI(TAG, "Pairing removed");
+        break;
+    }
+    default:
+    {
+        ESP_LOGI(TAG, "Server unknown event: %d", event);
+        break;
+    }
+    } // end switch
+    if (reset_comms)
+    {
+        ESP_LOGD(TAG, "Re-enable comms loop");
+        comms_setup_done = true;
+        reset_comms = false;
+    }
+}
+
 /****************************************************************************
  * Setup HomeKit, non-HomeSpan version.
  */
@@ -116,7 +180,7 @@ void setup_homekit()
 {
     ESP_LOGI(TAG, "=== Starting HomeKit Server");
     String macAddress = WiFi.macAddress();
-    snprintf(serial_number, SERIAL_NAME_SIZE, "%s", macAddress.c_str());
+    snprintf_P(serial_number, SERIAL_NAME_SIZE, PSTR("%s"), macAddress.c_str());
 
     current_door_state.getter = current_door_state_get;
     target_door_state.getter = target_door_state_get;
@@ -147,6 +211,7 @@ void setup_homekit()
     ESP_LOGI(TAG, "HomeKit QR setup payload: %s", qrPayload);
     config.password = HKpassword;
     config.setupId = &setupID[1];
+    config.on_event = homekit_event;
 
     garage_door.has_motion_sensor = (bool)read_int_from_file(nvram_has_motion);
     if (!garage_door.has_motion_sensor && (userConfig->getMotionTriggers() == 0))
@@ -158,14 +223,6 @@ void setup_homekit()
     {
         ESP_LOGI(TAG, "Dry contact does not support light control.  Disabling Service");
         config.accessories[0]->services[2] = NULL;
-    }
-
-    // We can set current lock state to unknown as HomeKit has value for that.
-    // But we can't do the same for door state as HomeKit has no value for that.
-
-    if (garage_door.current_lock == 0xFF)
-    {
-        garage_door.current_lock = CURR_UNKNOWN;
     }
 
     arduino_homekit_setup(&config);
@@ -182,19 +239,23 @@ void homekit_loop()
 
 homekit_value_t current_door_state_get()
 {
-    ESP_LOGD(TAG, "get current door state: %d", garage_door.current_state);
-    return HOMEKIT_UINT8_CPP(garage_door.current_state);
+    // We cannot sent an illegal value to HomeKit, subsititute with value in valid range
+    GarageDoorCurrentState state = (garage_door.current_state == 0xFF) ? CURR_CLOSED : garage_door.current_state;
+    ESP_LOGD(TAG, "Get current door state: %s", DOOR_STATE(state));
+    return HOMEKIT_UINT8_CPP(state);
 }
 
 homekit_value_t target_door_state_get()
 {
-    ESP_LOGD(TAG, "get target door state: %d", garage_door.target_state);
-    return HOMEKIT_UINT8_CPP(garage_door.target_state);
+    // We cannot sent an illegal value to HomeKit, subsititute with value in valid range
+    GarageDoorTargetState state = (garage_door.target_state == 0xFF) ? TGT_CLOSED : garage_door.target_state;
+    ESP_LOGD(TAG, "Get target door state: %s", DOOR_STATE(state));
+    return HOMEKIT_UINT8_CPP(state);
 }
 
 void target_door_state_set(const homekit_value_t value)
 {
-    ESP_LOGD(TAG, "set door state: %d", value.uint8_value);
+    ESP_LOGD(TAG, "Set door state: %s", DOOR_STATE(value.uint8_value));
     switch (value.uint8_value)
     {
     case TGT_OPEN:
@@ -211,37 +272,41 @@ void target_door_state_set(const homekit_value_t value)
 
 homekit_value_t obstruction_detected_get()
 {
-    ESP_LOGD(TAG, "get obstruction: %d", garage_door.obstructed);
+    ESP_LOGD(TAG, "Get obstruction: %s", (garage_door.obstructed) ? "Obstructed" : "Clear");
     return HOMEKIT_BOOL_CPP(garage_door.obstructed);
 }
 
 homekit_value_t current_lock_state_get()
 {
-    ESP_LOGD(TAG, "get current lock state: %d", garage_door.current_lock);
-    return HOMEKIT_UINT8_CPP(garage_door.current_lock);
+    // We cannot sent an illegal value to HomeKit, subsititute with value in valid range
+    LockCurrentState state = (garage_door.current_lock == 0xFF) ? LockCurrentState::CURR_UNKNOWN : garage_door.current_lock;
+    ESP_LOGD(TAG, "Get current lock state: %s", LOCK_STATE(state));
+    return HOMEKIT_UINT8_CPP(state);
 }
 
 homekit_value_t target_lock_state_get()
 {
-    ESP_LOGD(TAG, "get target lock state: %d", garage_door.target_lock);
-    return HOMEKIT_UINT8_CPP(garage_door.target_lock);
+    // We cannot sent an illegal value to HomeKit, subsititute with value in valid range
+    LockTargetState state = (garage_door.target_lock == 0xFF) ? LockTargetState::TGT_UNLOCKED : garage_door.target_lock;
+    ESP_LOGD(TAG, "Get target lock state: %s", LOCK_STATE(state));
+    return HOMEKIT_UINT8_CPP(state);
 }
 
 void target_lock_state_set(const homekit_value_t value)
 {
-    ESP_LOGD(TAG, "set lock state: %d", value.uint8_value);
+    ESP_LOGD(TAG, "Set lock state: %d", LOCK_STATE(value.uint8_value));
     set_lock(value.uint8_value);
 }
 
 homekit_value_t light_state_get()
 {
-    ESP_LOGD(TAG, "get light state: %s", garage_door.light ? "On" : "Off");
+    ESP_LOGD(TAG, "Get light state: %s", garage_door.light ? "On" : "Off");
     return HOMEKIT_BOOL_CPP(garage_door.light);
 }
 
 void light_state_set(const homekit_value_t value)
 {
-    ESP_LOGD(TAG, "set light: %s", value.bool_value ? "On" : "Off");
+    ESP_LOGD(TAG, "Set light: %s", value.bool_value ? "On" : "Off");
     set_light(value.bool_value);
 }
 
@@ -420,6 +485,7 @@ void statusCallback(HS_STATUS status)
         break;
     case HS_REBOOTING:
         rebooting = true;
+        shutdown_comms();
         ESP_LOGI(TAG, "Status: Rebooting");
         break;
     case HS_FACTORY_RESET:
@@ -438,30 +504,6 @@ void statusCallback(HS_STATUS status)
  * Functions called from HomeSpan CLI that provide ratgdo specific
  * diagnostic info.  Used in setup_homekit()
  */
-#ifdef CONFIG_FREERTOS_USE_TRACE_FACILITY
-void printTaskInfo(const char *buf)
-{
-    int count = uxTaskGetNumberOfTasks();
-    TaskStatus_t *tasks = static_cast<TaskStatus_t *>(pvPortMalloc(sizeof(TaskStatus_t) * count));
-    if (tasks != NULL)
-    {
-        uxTaskGetSystemState(tasks, count, NULL);
-        Serial.print("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n");
-        Serial.print("Name                    Core\tPri\tStack\tState\n");
-        for (size_t i = 0; i < count; i++)
-        {
-            Serial.printf("%s\t%s\t%4d\t%3d\t%5d\t%s\n", const_cast<char *>(tasks[i].pcTaskName),
-                          strlen(const_cast<char *>(tasks[i].pcTaskName)) > 7 ? "" : "\t",
-                          (int)(tasks[i].xCoreID < 16) ? tasks[i].xCoreID : -1,
-                          (int)tasks[i].uxBasePriority,
-                          (int)tasks[i].usStackHighWaterMark,
-                          (magic_enum::enum_name(tasks[i].eCurrentState)).data());
-        }
-        Serial.print("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n\n");
-    }
-    vPortFree(tasks);
-};
-#endif // CONFIG_FREERTOS_USE_TRACE_FACILITY
 
 void printLogInfo(const char *buf)
 {
@@ -493,6 +535,12 @@ void setLogLevel(const char *buf)
     {
         Serial.print("Invalid log level, value must be between 0(none) and 5(verbose)\n");
     }
+}
+
+void enableImprov(const char *buf)
+{
+    userConfig->set(cfg_homespanCLI, false);
+    setup_improv();
 }
 
 #ifdef USE_GDOLIB
@@ -690,6 +738,8 @@ void setup_homekit()
 #ifdef CRASH_DEBUG
     new SpanUserCommand('z', "- test function", testDelayFn);
 #endif
+    new SpanUserCommand('c', "switch to RATGDO CLI (and enable Improv WiFi provisioning)", enableImprov);
+    new SpanUserCommand('C', "switch to RATGDO CLI (and enable Improv WiFi provisioning)", enableImprov);
 
     // Define a bridge (as more than 3 accessories)
     new SpanAccessory(HOMEKIT_AID_BRIDGE);
@@ -814,9 +864,6 @@ DEV_GarageDoor::DEV_GarageDoor() : Service::GarageDoorOpener()
         lockCurrent = nullptr;
         lockTarget = nullptr;
     }
-    // We can set current lock state to unknown as HomeKit has value for that.
-    // But we can't do the same for door state as HomeKit has no value for that.
-    garage_door.current_lock = CURR_UNKNOWN;
 }
 
 boolean DEV_GarageDoor::update()
@@ -841,17 +888,17 @@ void DEV_GarageDoor::loop()
         GDOEvent e;
         xQueueReceive(event_q, &e, 0);
         if (e.c == current)
-            ESP_LOGI(TAG, "Garage door set CurrentDoorState: %d", e.value.u);
+            ESP_LOGI(TAG, "Set current door state: %s", DOOR_STATE(e.value.u));
         else if (e.c == target)
-            ESP_LOGI(TAG, "Garage door set TargetDoorState: %d", e.value.u);
+            ESP_LOGI(TAG, "Set target door state: %s", DOOR_STATE(e.value.u));
         else if (e.c == obstruction)
-            ESP_LOGI(TAG, "Garage door set ObstructionDetected: %d", e.value.u);
+            ESP_LOGI(TAG, "Set obstruction: %s", e.value.u ? "Obstructed" : "Clear");
         else if (e.c == lockCurrent)
-            ESP_LOGI(TAG, "Garage door set LockCurrentState: %d", e.value.u);
+            ESP_LOGI(TAG, "Set current lock state: %s", LOCK_STATE(e.value.u));
         else if (e.c == lockTarget)
-            ESP_LOGI(TAG, "Garage door set LockTargetState: %d", e.value.u);
+            ESP_LOGI(TAG, "Set target lock state: %s", LOCK_STATE(e.value.u));
         else
-            ESP_LOGI(TAG, "Garage door set Unknown: %d", e.value.u);
+            ESP_LOGI(TAG, "Set Unknown: %d", e.value.u);
         e.c->setVal(e.value.u);
     }
 }
