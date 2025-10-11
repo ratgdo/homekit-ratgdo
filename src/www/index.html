@@ -78,11 +78,21 @@
             </tr>
             <tr>
               <td>IP&nbsp;Address:</td>
-              <td id="localIP"></td>
+              <td class="copy"><span class="copyTxt" id="localIP"></span>
+                <img class="copyBtn" src="copy.svg?v=CRC-32" alt="copy IP clipboard" title="Copy to clipboard"
+                  onclick="copyToClipboard(event)" style="width:1em;height: 1em; cursor: pointer; vertical-align: top;">
+                <span class="copied"
+                  style="font-size: 0.6em; position: relative; left: -2em; top: -.2em; visibility: hidden;">Copied</span>
+              </td>
             </tr>
             <tr>
-              <td>mDNS&nbsp;Address:</td>
-              <td id="mdnsAddress"></td>
+              <td>mDNS&nbsp;Name:</td>
+              <td class="copy"><span class="copyTxt" id="mdnsName"></span>
+                <img class="copyBtn" src="copy.svg?v=CRC-32" alt="copy mdns clipboard" title="Copy to clipboard"
+                  onclick="copyToClipboard(event)" style="width:1em;height: 1em; cursor: pointer; vertical-align: top;">
+                <span class="copied"
+                  style="font-size: 0.6em; position: relative; left: -2em; top: -.2em; visibility: hidden;">Copied</span>
+              </td>
             </tr>
             <tr>
               <td>Netmask:</td>

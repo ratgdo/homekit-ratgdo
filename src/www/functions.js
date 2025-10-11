@@ -210,6 +210,61 @@ function showQrCode(payload) {
     qrcode.makeCode(payload);
 }
 
+function copyToClipboard(event) {
+    const codeBlock = event.target.closest('.copy');
+    const copyButton = codeBlock.querySelector('.copyBtn');
+    const copiedText = codeBlock.querySelector('.copied');
+    const textToCopy = codeBlock.querySelector('.copyTxt');
+
+    // get the text
+    const text = textToCopy.innerHTML;
+    var success = false;
+
+    // check if in https (secure) environment
+    if (window.isSecureContext && navigator.clipboard && Object.hasOwn(navigator.clipboard, "writeText")) {
+        // copy to clipboard
+        navigator.clipboard.writeText(text)
+            .then(() => {
+                success = true;
+            })
+            .catch(err => {
+                console.error('Unable to copy to clipboard ', err);
+            });
+    } else {
+        const textArea = document.createElement("textarea");
+        // Set the text to be copied into the textarea
+        textArea.value = text;
+        // Append to the DOM
+        document.body.appendChild(textArea);
+        // Select and execute the copy command
+        textArea.focus();
+        textArea.select();
+        try {
+            // still works on most broswers
+            document.execCommand('copy');
+            success = true;
+        } catch (err) {
+            console.error('Unable to copy to clipboard (Fallback failed) ', err);
+        }
+        // Remove the now-unnecessary element
+        document.body.removeChild(textArea);
+    }
+
+    if (success) {
+        // Show success message
+        copyButton.style.visibility = 'hidden';
+        copiedText.style.visibility = 'visible';
+        // Hide the message after short delay
+        setTimeout(() => {
+            copiedText.style.visibility = 'hidden';
+            copyButton.style.visibility = 'visible';
+        }, 500);
+    }
+    else {
+        console.error('Unable to copy to clipboard (success false)');
+    }
+}
+
 function makeRfc952(src) {
     // Make device name RFC952 compliant (simple, just checking for the basics)
     // RFC952 says max len of 24, [a-z][A-Z][0-9][-.] and no dash or period in last char.
@@ -291,8 +346,8 @@ function setElementsFromStatus(status) {
                 document.getElementById(key).innerHTML = value;
                 document.title = value;
                 document.getElementById("newDeviceName").placeholder = value;
-                let mdnsAddress = makeRfc952(value) + ".local";
-                document.getElementById("mdnsAddress").innerHTML = `<a href="http://${mdnsAddress}" target="_blank">${mdnsAddress}</a>`;
+                let mdnsName = makeRfc952(value) + ".local";
+                document.getElementById("mdnsName").innerHTML = mdnsName;
                 break;
             case "userName":
                 document.getElementById("newUserName").placeholder = value;
