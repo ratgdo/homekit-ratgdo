@@ -108,6 +108,71 @@ char *toBase62(char *base62, size_t len, uint32_t base10)
  * the change is required in both implementations.
  */
 
+void homekit_event(homekit_event_t event)
+{
+    static bool reset_comms = false;
+    switch (event)
+    {
+    case homekit_event_t::HOMEKIT_EVENT_SERVER_INITIALIZED:
+    {
+        ESP_LOGI(TAG, "HomeKit Server Initialized");
+        break;
+    }
+    case homekit_event_t::HOMEKIT_EVENT_CLIENT_CONNECTED:
+    {
+        if (!homekit_is_paired())
+        {
+            ESP_LOGI(TAG, "Client connected... not paired yet");
+            // During pairing process suspend the GDO comms loop.  This improves reliability of pairing on ESP8266
+            if (comms_setup_done)
+            {
+                ESP_LOGD(TAG, "Disable comms loop while pairing");
+                comms_setup_done = false;
+                reset_comms = true;
+            }
+            // comms loop will be enabled again on any other HomeKit event.
+            return;
+        }
+        else
+        {
+            ESP_LOGI(TAG, "Client connected... paired");
+        }
+        break;
+    }
+    case homekit_event_t::HOMEKIT_EVENT_CLIENT_VERIFIED:
+    {
+        ESP_LOGI(TAG, "Client verified");
+        break;
+    }
+    case homekit_event_t::HOMEKIT_EVENT_CLIENT_DISCONNECTED:
+    {
+        ESP_LOGI(TAG, "Client disconnected");
+        break;
+    }
+    case homekit_event_t::HOMEKIT_EVENT_PAIRING_ADDED:
+    {
+        ESP_LOGI(TAG, "Pairing added");
+        break;
+    }
+    case homekit_event_t::HOMEKIT_EVENT_PAIRING_REMOVED:
+    {
+        ESP_LOGI(TAG, "Pairing removed");
+        break;
+    }
+    default:
+    {
+        ESP_LOGI(TAG, "Server unknown event: %d", event);
+        break;
+    }
+    } // end switch
+    if (reset_comms)
+    {
+        ESP_LOGD(TAG, "Re-enable comms loop");
+        comms_setup_done = true;
+        reset_comms = false;
+    }
+}
+
 /****************************************************************************
  * Setup HomeKit, non-HomeSpan version.
  */
@@ -146,6 +211,7 @@ void setup_homekit()
     ESP_LOGI(TAG, "HomeKit QR setup payload: %s", qrPayload);
     config.password = HKpassword;
     config.setupId = &setupID[1];
+    config.on_event = homekit_event;
 
     garage_door.has_motion_sensor = (bool)read_int_from_file(nvram_has_motion);
     if (!garage_door.has_motion_sensor && (userConfig->getMotionTriggers() == 0))
