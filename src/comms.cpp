@@ -808,7 +808,7 @@ void wallPlate_Emulation()
         return;
     }
 
-    // Only get this far if we have not detected a digital wall panel or started emulation 
+    // Only get this far if we have not detected a digital wall panel or started emulation
     // wait up to 15 seconds to look for an existing wallplate or it could be booting, so need to wait
     if (currentMillis - startMillis < SECPLUS1_DIGITAL_WALLPLATE_TIMEOUT || wallPanelBooting == true)
     {
@@ -890,7 +890,13 @@ void update_door_state(GarageDoorCurrentState current_state)
                 open_average += open_history[i];
             open_average /= count;
             garage_door.openDuration = (open_average + 500) / 1000; // round up/down to closest second
-            ESP_LOGI(TAG, "Door open duration: %lums, average: %lums (%s)", (uint32_t)open_duration, (uint32_t)open_average, timeString());
+            ESP_LOGI(TAG, "Door open duration: %lums, History: %lums, %lums, %lums, %lums, Average: %lums (%s)",
+                     (uint32_t)open_duration,
+                     (uint32_t)open_history[(open_counter + MAX_HISTORY - 2) % MAX_HISTORY],
+                     (uint32_t)open_history[(open_counter + MAX_HISTORY - 3) % MAX_HISTORY],
+                     (uint32_t)open_history[(open_counter + MAX_HISTORY - 4) % MAX_HISTORY],
+                     (uint32_t)open_history[(open_counter + MAX_HISTORY - 5) % MAX_HISTORY],
+                     (uint32_t)open_average, timeString());
         }
         else
         {
@@ -912,10 +918,16 @@ void update_door_state(GarageDoorCurrentState current_state)
             close_history[close_counter++ % MAX_HISTORY] = close_duration;
             uint32_t count = std::min(close_counter, MAX_HISTORY);
             for (uint32_t i = 0; i < count; i++)
-                close_average += close_history[i++];
+                close_average += close_history[i];
             close_average /= count;
             garage_door.closeDuration = (close_average + 500) / 1000; // round up/down to closest second
-            ESP_LOGI(TAG, "Door close duration: %lums, average: %lums (%s)", (uint32_t)close_duration, (uint32_t)close_average, timeString());
+            ESP_LOGI(TAG, "Door close duration: %lums, History: %lums, %lums, %lums, %lums, Average: %lums (%s)",
+                     (uint32_t)close_duration,
+                     (uint32_t)close_history[(close_counter + MAX_HISTORY - 2) % MAX_HISTORY],
+                     (uint32_t)close_history[(close_counter + MAX_HISTORY - 3) % MAX_HISTORY],
+                     (uint32_t)close_history[(close_counter + MAX_HISTORY - 4) % MAX_HISTORY],
+                     (uint32_t)close_history[(close_counter + MAX_HISTORY - 5) % MAX_HISTORY],
+                     (uint32_t)close_average, timeString());
         }
         else
         {
