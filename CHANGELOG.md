@@ -11,6 +11,7 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 * Bugfix: Web wage status occasionally getting out-of-sync with actual light/lock/door state.
 * Bugfix: Door open/close duration calculation not handling cases where door reverses before reaching open/close state.
 * Bugfix: Setting syslog port not taking effect until after reboot. https://github.com/ratgdo/homekit-ratgdo/issues/304
+* Bugfix: do not attempt to act on Sec+2.0 packet that failed to decode. Issue https://github.com/ratgdo/homekit-ratgdo32/issues/106
 * Feature: Change WiFi and MDNS hostname when user changes GDO name. https://github.com/ratgdo/homekit-ratgdo32/issues/93
 * Feature: Add clipboard copy icon to IP address and mDNS name.
 * Other: Detect (but do not support) 0x37 wall panels like LiftMaster 398LM. https://github.com/ratgdo/homekit-ratgdo32/issues/95
