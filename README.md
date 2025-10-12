@@ -516,7 +516,11 @@ Clicking on the system logs link will open a new browser tab with details of cur
 
 ### Serial port log
 
-If you are unable to connect to the ratgdo web page then it is still possible to capture logs from the USB serial port.  If you installed homekit-ratgdo using the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo/flash.html), you can use this same tool to display serial logs which you can then copy and use in a bug report.
+If you are unable to connect to the ratgdo web page then it is possible to capture logs from the USB serial port.  If you installed homekit-ratgdo using the [online browser-based flash tool](https://ratgdo.github.io/homekit-ratgdo/flash.html), you can use this same tool to display serial logs which you can then copy and use in a bug report.
+
+### Serial port command line interface
+
+There is a basic Command Line Interface (CLI) available through the serial port where basic commands like reboot, show logs and factory reset are available. For a full list of commands enter ? (question mark) followed by the enter/return key. If you are running on ratgdo32 then a more extensive CLI is available from the HomeSpan library... you can switch between the ratgdo CLI and the HomeSpan CLI as documented in the command list.
 
 ## How can I contribute?
 
