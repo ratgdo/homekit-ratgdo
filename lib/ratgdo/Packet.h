@@ -695,15 +695,21 @@ struct Packet
         uint32_t pkt_rolling = 0;   // three bytes
         uint64_t pkt_remote_id = 0; // three bytes
         uint32_t pkt_data = 0;
+        uint16_t cmd = 0;
 
         int8_t ret = decode_wireline(pktbuf, &pkt_rolling, &pkt_remote_id, &pkt_data);
         if (ret < 0)
         {
             ESP_LOGE(TAG, "Failed to decode packet");
+            // leave cmd at zero (unknown) so that later code does not
+            // try and act on what could be a corrupt data packet
+            cmd = 0;
+        }
+        else
+        {
+            cmd = ((pkt_remote_id >> 24) & 0xF00) | (pkt_data & 0xFF);
         }
         ESP_LOGD(TAG, "DECODED  %08lX %016" PRIX64 " %08lX", pkt_rolling, pkt_remote_id, pkt_data);
-
-        uint16_t cmd = ((pkt_remote_id >> 24) & 0xF00) | (pkt_data & 0xFF);
 
         m_pkt_cmd = PacketCommand::from_word(cmd);
         m_rolling = pkt_rolling;
