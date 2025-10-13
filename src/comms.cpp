@@ -2168,7 +2168,8 @@ void door_command(DoorAction action)
         data.type = PacketDataType::DoorAction;
         data.value.door_action.action = action;
         data.value.door_action.pressed = true;
-        data.value.cmd = secplus1Codes::DoorButtonPress;
+        if (doorControlType == 1)
+            data.value.cmd = secplus1Codes::DoorButtonPress;
         data.value.door_action.id = 1;
 
         Packet pkt = Packet(PacketCommand::DoorAction, data, id_code);
@@ -2191,7 +2192,8 @@ void door_command(DoorAction action)
 
         // do button release
         pkt_ac.pkt.m_data.value.door_action.pressed = false;
-        pkt_ac.pkt.m_data.value.cmd = secplus1Codes::DoorButtonRelease;
+        if (doorControlType == 1)
+            pkt_ac.pkt.m_data.value.cmd = secplus1Codes::DoorButtonRelease;
         pkt_ac.inc_counter = true;
         if (!txQueuePush(&pkt_ac))
         {
