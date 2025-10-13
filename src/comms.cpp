@@ -1865,40 +1865,10 @@ void comms_loop_sec2()
 void comms_loop_drycontact()
 {
     static GarageDoorCurrentState previousDoorState = (GarageDoorCurrentState)0xFF;
-
-    // Notify HomeKit when the door state changes
     if (doorState != previousDoorState)
     {
-        switch (doorState)
-        {
-        case GarageDoorCurrentState::CURR_OPEN:
-            garage_door.current_state = GarageDoorCurrentState::CURR_OPEN;
-            garage_door.target_state = GarageDoorTargetState::TGT_OPEN;
-            break;
-        case GarageDoorCurrentState::CURR_CLOSED:
-            garage_door.current_state = GarageDoorCurrentState::CURR_CLOSED;
-            garage_door.target_state = GarageDoorTargetState::TGT_CLOSED;
-            break;
-        case GarageDoorCurrentState::CURR_OPENING:
-            garage_door.current_state = GarageDoorCurrentState::CURR_OPENING;
-            garage_door.target_state = GarageDoorTargetState::TGT_OPEN;
-            break;
-        case GarageDoorCurrentState::CURR_CLOSING:
-            garage_door.current_state = GarageDoorCurrentState::CURR_CLOSING;
-            garage_door.target_state = GarageDoorTargetState::TGT_CLOSED;
-            break;
-        default:
-            garage_door.current_state = GarageDoorCurrentState::CURR_STOPPED;
-            break;
-        }
-
-        notify_homekit_current_door_state_change(garage_door.current_state);
-        notify_homekit_target_door_state_change(garage_door.target_state);
-
         previousDoorState = doorState;
-
-        // Log the state change for debugging
-        ESP_LOGI(TAG, "Door state updated: Current: %d, Target: %d", garage_door.current_state, garage_door.target_state);
+        update_door_state(doorState);
     }
 }
 #endif
@@ -1935,13 +1905,20 @@ void comms_loop()
     }
 
 #ifndef USE_GDOLIB
-    if (doorControlType == 1)
+    switch (doorControlType)
+    {
+    case 1:
         comms_loop_sec1();
-    else if (doorControlType == 2)
+        break;
+    case 2:
         comms_loop_sec2();
-    else
+        break;
+    case 3:
         comms_loop_drycontact();
-
+        break;
+    default:
+        break;
+    }
     obstruction_timer();
 #endif // USE_GDOLIB
 }
