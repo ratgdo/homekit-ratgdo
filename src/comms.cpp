@@ -144,9 +144,23 @@ Ticker TTCtimer = Ticker();
 Ticker callbackDelay = Ticker();
 bool TTCwasLightOn = false;
 
+// For door open/close duration
+constexpr uint32_t MAX_HISTORY = 5;            // Number of door operations to average across
+constexpr uint32_t MAX_DURATION = (45 * 1000); // Maximum time it should take to open/close a door
+struct DoorHistory
+{
+    uint32_t max = MAX_HISTORY;
+    uint32_t count = 0;
+    uint32_t duration[MAX_HISTORY] = {0};
+};
+static struct DoorHistory openHistory = {0};
+static struct DoorHistory closeHistory = {0};
+
+// For forced recovery if cannot reach by IP address
 struct ForceRecover force_recover;
 #define force_recover_delay 3
 
+// Initialize GDO communications
 #ifdef USE_GDOLIB
 static gdo_status_t gdo_status;
 
@@ -682,6 +696,46 @@ void setup_comms()
     // set the status pin for output
     pinMode(STATUS_OBST_PIN, OUTPUT);
 #endif
+
+    // Restore previously saved door open/close duration history
+#ifdef ESP32
+    nvRam->readBlob(nvram_open_history, &openHistory, sizeof(openHistory));
+    nvRam->readBlob(nvram_close_history, &closeHistory, sizeof(closeHistory));
+#else
+    read_blob_from_file(nvram_open_history, &openHistory, sizeof(openHistory));
+    read_blob_from_file(nvram_close_history, &closeHistory, sizeof(closeHistory));
+#endif
+    if (openHistory.max != MAX_HISTORY || closeHistory.max != MAX_HISTORY)
+    {
+        // Someone changed the MAX_HISTORY const. Reset everything
+        ESP_LOGI(TAG, "New MAX_HISTORY for door open/close durations, reset door history to zero");
+        openHistory = {}; // reset to defaults
+        closeHistory = {};
+    }
+    else
+    {
+        // calculate open average
+        uint32_t average = 0;
+        uint32_t count = std::min(openHistory.count, MAX_HISTORY);
+        for (uint32_t i = 0; i < count; i++)
+            average += openHistory.duration[i];
+        average /= count;
+        garage_door.openDuration = (average + 500) / 1000; // round up/down to closest second
+        // calculate close average
+        average = 0;
+        count = std::min(closeHistory.count, MAX_HISTORY);
+        for (uint32_t i = 0; i < count; i++)
+            average += closeHistory.duration[i];
+        average /= count;
+        garage_door.closeDuration = (average + 500) / 1000; // round up/down to closest second
+    }
+#define openHistory(n) (openHistory.duration[(openHistory.count + MAX_HISTORY - (n)) % MAX_HISTORY])
+#define closeHistory(n) (closeHistory.duration[(closeHistory.count + MAX_HISTORY - (n)) % MAX_HISTORY])
+    ESP_LOGI(TAG, "Door open history (%d):  %lums, %lums, %lums, %lums, %lums", openHistory.count,
+             openHistory(1), openHistory(2), openHistory(3), openHistory(4), openHistory(5));
+    ESP_LOGI(TAG, "Door close history (%d): %lums, %lums, %lums, %lums, %lums", closeHistory.count,
+             closeHistory(1), closeHistory(2), closeHistory(3), closeHistory(4), closeHistory(5));
+
     comms_setup_done = true;
     comms_status_start = _millis();
 }
@@ -754,10 +808,14 @@ void reset_door()
     nvRam->erase(nvram_rolling);
     nvRam->erase(nvram_id_code);
     nvRam->erase(nvram_has_motion);
+    nvRam->erase(nvram_open_history);
+    nvRam->erase(nvram_close_history);
 #else
     delete_file(nvram_rolling);
     delete_file(nvram_id_code);
     delete_file(nvram_has_motion);
+    delete_file(nvram_open_history);
+    delete_file(nvram_close_history);
 #endif
 }
 #ifndef USE_GDOLIB
@@ -839,14 +897,10 @@ void wallPlate_Emulation()
 
 void update_door_state(GarageDoorCurrentState current_state)
 {
-    constexpr uint32_t MAX_HISTORY = 5;            // Number of door operations to average across
-    constexpr uint32_t MAX_DURATION = (45 * 1000); // Maximum time it should take to open/close a door
     static _millis_t start_opening = 0;
     static _millis_t start_closing = 0;
-    static _millis_t open_history[MAX_HISTORY] = {0};
-    static uint32_t open_counter = 0;
-    static _millis_t close_history[MAX_HISTORY] = {0};
-    static uint32_t close_counter = 0;
+    _millis_t now = _millis();
+
     GarageDoorTargetState target_state = garage_door.target_state;
 
     // Determine target state
@@ -875,64 +929,66 @@ void update_door_state(GarageDoorCurrentState current_state)
     // Calculate door open/close duration
     if (current_state == CURR_OPENING && garage_door.current_state == CURR_CLOSED)
     {
-        start_opening = _millis();
+        start_opening = now;
         ESP_LOGD(TAG, "Record start time of door opening: %llums", (uint64_t)start_opening);
     }
     else if (current_state == CURR_OPEN && garage_door.current_state == CURR_OPENING && start_opening > 0)
     {
-        _millis_t open_duration = _millis() - start_opening;
-        if (open_duration <= MAX_DURATION)
+        _millis_t duration = now - start_opening;
+        if (duration <= MAX_DURATION)
         {
-            _millis_t open_average = 0;
-            open_history[open_counter++ % MAX_HISTORY] = open_duration;
-            uint32_t count = std::min(open_counter, MAX_HISTORY);
+            _millis_t average = 0;
+            openHistory.duration[openHistory.count++ % MAX_HISTORY] = (uint32_t)duration;
+            uint32_t count = std::min(openHistory.count, MAX_HISTORY);
             for (uint32_t i = 0; i < count; i++)
-                open_average += open_history[i];
-            open_average /= count;
-            garage_door.openDuration = (open_average + 500) / 1000; // round up/down to closest second
+                average += openHistory.duration[i];
+            average /= count;
+            garage_door.openDuration = (average + 500) / 1000; // round up/down to closest second
             ESP_LOGI(TAG, "Door open duration: %lums, History: %lums, %lums, %lums, %lums, Average: %lums (%s)",
-                     (uint32_t)open_duration,
-                     (uint32_t)open_history[(open_counter + MAX_HISTORY - 2) % MAX_HISTORY],
-                     (uint32_t)open_history[(open_counter + MAX_HISTORY - 3) % MAX_HISTORY],
-                     (uint32_t)open_history[(open_counter + MAX_HISTORY - 4) % MAX_HISTORY],
-                     (uint32_t)open_history[(open_counter + MAX_HISTORY - 5) % MAX_HISTORY],
-                     (uint32_t)open_average, timeString());
+                     (uint32_t)duration, openHistory(2), openHistory(3), openHistory(4), openHistory(5),
+                     (uint32_t)average, timeString());
+#ifdef ESP32
+            nvRam->writeBlob(nvram_open_history, &openHistory, sizeof(openHistory));
+#else
+            write_blob_to_file(nvram_open_history, &openHistory, sizeof(openHistory));
+#endif
         }
         else
         {
             start_opening = 0;
-            ESP_LOGW(TAG, "Ignoring implausibly long open duration: %lums (%s)", (uint32_t)open_duration, timeString());
+            ESP_LOGW(TAG, "Ignoring implausibly long open duration: %lums (%s)", (uint32_t)duration, timeString());
         }
     }
     else if (current_state == CURR_CLOSING && garage_door.current_state == CURR_OPEN)
     {
-        start_closing = _millis();
+        start_closing = now;
         ESP_LOGD(TAG, "Record start time of door closing: %llums", (uint64_t)start_closing);
     }
     else if (current_state == CURR_CLOSED && garage_door.current_state == CURR_CLOSING && start_closing > 0)
     {
-        _millis_t close_duration = _millis() - start_closing;
-        if (close_duration <= MAX_DURATION)
+        _millis_t duration = now - start_closing;
+        if (duration <= MAX_DURATION)
         {
-            _millis_t close_average = 0;
-            close_history[close_counter++ % MAX_HISTORY] = close_duration;
-            uint32_t count = std::min(close_counter, MAX_HISTORY);
+            _millis_t average = 0;
+            closeHistory.duration[closeHistory.count++ % MAX_HISTORY] = (uint32_t)duration;
+            uint32_t count = std::min(closeHistory.count, MAX_HISTORY);
             for (uint32_t i = 0; i < count; i++)
-                close_average += close_history[i];
-            close_average /= count;
-            garage_door.closeDuration = (close_average + 500) / 1000; // round up/down to closest second
+                average += closeHistory.duration[i];
+            average /= count;
+            garage_door.closeDuration = (average + 500) / 1000; // round up/down to closest second
             ESP_LOGI(TAG, "Door close duration: %lums, History: %lums, %lums, %lums, %lums, Average: %lums (%s)",
-                     (uint32_t)close_duration,
-                     (uint32_t)close_history[(close_counter + MAX_HISTORY - 2) % MAX_HISTORY],
-                     (uint32_t)close_history[(close_counter + MAX_HISTORY - 3) % MAX_HISTORY],
-                     (uint32_t)close_history[(close_counter + MAX_HISTORY - 4) % MAX_HISTORY],
-                     (uint32_t)close_history[(close_counter + MAX_HISTORY - 5) % MAX_HISTORY],
-                     (uint32_t)close_average, timeString());
+                     (uint32_t)duration, closeHistory(2), closeHistory(3), closeHistory(4), closeHistory(5),
+                     (uint32_t)average, timeString());
+#ifdef ESP32
+            nvRam->writeBlob(nvram_close_history, &closeHistory, sizeof(closeHistory));
+#else
+            write_blob_to_file(nvram_close_history, &closeHistory, sizeof(closeHistory));
+#endif
         }
         else
         {
             start_closing = 0;
-            ESP_LOGW(TAG, "Ignoring implausibly long close duration: %lums (%s)", (uint32_t)close_duration, timeString());
+            ESP_LOGW(TAG, "Ignoring implausibly long close duration: %lums (%s)", (uint32_t)duration, timeString());
         }
     }
     else if ((current_state == CURR_STOPPED) ||
