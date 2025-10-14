@@ -2,17 +2,30 @@
 
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
-## v2.0.7 (2025-10-12)
+## v2.0.8 (2025-10-19)
 
 ### What's Changed
 
-* Sec+2.0 doors not opening or closing. Issue https://github.com/ratgdo/homekit-ratgdo/issues/305
+* Bugfix: dry contact doors not reporting status correctly on web page. https://github.com/ratgdo/homekit-ratgdo32/issues/109
+* Bugfix: Sec+1.0 add timeout when waiting for GDO reply to poll commands https://github.com/ratgdo/homekit-ratgdo32/issues/111
+* Other: Save door open/close durations so not reset to unknown on a reboot
+* Other: Add timers to check that door starts to open/close and reaches fully opened/closed state in expected time
+* Other: Sec+2.0 use MotorOn packet to error correct if we miss notification packet of door opening or closing
+* Other: Add serial CLI commands to scan WiFi networks and reset door ID & rolling codes
+* Other: Remove known issues list from prior versions in CHANGELOG.md... because they are now repeating
 
 ### Known Issues
 
 * Sec+ 1.0 doors with digital wall panel (e.g. 889LM) sometimes do not close after a time-to-close delay. Please watch your door to make sure it closes after TTC delay.
 * Sec+ 1.0 doors with "0x37" digital wall panel (e.g. 398LM) not working.  We now detect but will not support them.  Recommend replacing with 889LM panel.
 * When creating automations in Apple Home the garage door may show only lock/unlock and not open/close as triggers.  This is a bug in Apple Home. Workaround is to use the Eve App to create the automation, it will show both options.
+* ESP8266 (original ratgdo) only... possible crash when a storm of HomeKit messages arrives... which may be triggered on a upgrade to Apple iOS 26 / tvOS 26 / etc.  System recovers.
+
+## v2.0.7 (2025-10-12)
+
+### What's Changed
+
+* Bugfix: Sec+2.0 doors not opening or closing. Issue https://github.com/ratgdo/homekit-ratgdo/issues/305
 
 ## v2.0.6 (2025-10-12)
 
@@ -29,12 +42,6 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 * Other: ESP8266 (original ratgdo) only... suspend GDO communications during HomeKit pairing process.
 * Other: ESP8266 (original ratgdo) only... move more constants into PROGMEM and optimize use of system stack.
 
-### Known Issues
-
-* Sec+ 1.0 doors with digital wall panel (e.g. 889LM) sometimes do not close after a time-to-close delay. Please watch your door to make sure it closes after TTC delay.
-* Sec+ 1.0 doors with "0x37" digital wall panel (e.g. 398LM) not working.  We now detect but will not support them.  Recommend replacing with 889LM panel.
-* When creating automations in Apple Home the garage door may show only lock/unlock and not open/close as triggers.  This is a bug in Apple Home. Workaround is to use the Eve App to create the automation, it will show both options.
-
 ## v2.0.5 (2025-09-28)
 
 ### What's Changed
@@ -43,12 +50,6 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 * Bugfix: Buffer overrun that caused Improv setup to fail, https://github.com/ratgdo/homekit-ratgdo/issues/298
 * Bugfix: Log messages that are truncated for exceeding buffer size not null terminated
 * Other: Add simple serial console CLI to allow setting debug level, displaying saved logs and request reboot.
-
-### Known Issues
-
-* Sec+ 1.0 doors with digital wall panel (e.g. 889LM) sometimes do not close after a time-to-close delay. Please watch your door to make sure it closes after TTC delay.
-* Sec+ 1.0 doors with "0x37" digital wall panel (e.g. 389LM) not working.
-* Possible crash when a storm of HomeKit messages arrives... which may be triggered on a upgrade to Apple iOS 26 / tvOS 26 / etc.  System recovers.
 
 ## v2.0.4 (2025-09-27)
 
@@ -61,12 +62,6 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 * Other: Disable HomeKit and garage door communications during OTA firmware update.
 * Other: Miscellaneous stability improvements.
 
-### Known Issues
-
-* Sec+ 1.0 doors with digital wall panel (e.g. 889LM) sometimes do not close after a time-to-close delay. Please watch your door to make sure it closes after TTC delay.
-* Sec+ 1.0 doors with "0x37" digital wall panel (e.g. 389LM) not working.
-* Possible crash when a storm of HomeKit messages arrives... which may be triggered on a upgrade to Apple iOS 26 / tvOS 26 / etc.  System recovers.
-
 ## v2.0.3 (2025-09-21)
 
 ### What's Changed
@@ -77,15 +72,10 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 
 ### What's Changed
 
-* Bugfix... Date and time on web page now displayed in the time zone of the server (NTP server feature must be enabled).
-* Bugfix... Crash log display was not showing stack dump, now fixed.
-* New Feature... last door open and close date and time is displayed under opening/closing status (NTP server feature must be enabled).
-* Other... Add a "home" button to system logs page because iOS and iPad OS 26 have removed the "done" button.
-
-### Known Issues
-
-* Sec+ 1.0 doors with digital wall panel (e.g. 889LM) sometimes do not close after a time-to-close delay. Please watch your door to make sure it closes after TTC delay.
-* Possible crash when a storm of HomeKit messages arrives... which may be triggered on a upgrade to Apple iOS 26 / tvOS 26 / etc.  System recovers.
+* Bugfix: Date and time on web page now displayed in the time zone of the server (NTP server feature must be enabled).
+* Bugfix: Crash log display was not showing stack dump, now fixed.
+* New Feature: last door open and close date and time is displayed under opening/closing status (NTP server feature must be enabled).
+* Other: Add a "home" button to system logs page because iOS and iPad OS 26 have removed the "done" button.
 
 ## v2.0.1 (2025-09-14)
 
