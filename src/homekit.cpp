@@ -420,6 +420,12 @@ void connectionCallback(int count)
         userConfig->set(cfg_nameserverIP, WiFi.dnsIP().toString().c_str());
 
     // With WiFi connected, we can now initialize the rest of our app.
+#ifdef USE_GDOLIB
+    // start communications with garage door opener
+    // for some unknown reason we need to start GDOLIB comms from this callback and
+    // not in our regular loop.
+    setup_comms();
+#endif
     wifi_got_ip = true;
 }
 

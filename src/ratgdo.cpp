@@ -232,8 +232,14 @@ void setup()
         setup_improv();
 #endif
 
+#ifndef USE_GDOLIB
     // Then initialize communication with the garage door and sensors
+    // When using GDOLIB this is done in homekit.cpp callback. For unknown
+    // reason, if we do it here then SoftwareSerial is not working. I suspect
+    // it is to do with which FreeRTOS task it is started from, because we use
+    // inter-task comms in s/w serial. 
     setup_comms();
+#endif
 #ifdef RATGDO32_DISCO
     setup_vehicle();
 #endif
