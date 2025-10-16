@@ -143,8 +143,10 @@ static bool door_moving = false;
 // For Time-to-close control
 static const uint32_t TTCinterval = 250;
 static uint32_t TTCiterations = 0;
-Ticker TTCtimer = Ticker();
-Ticker callbackDelay = Ticker();
+static Ticker TTCtimer = Ticker();
+static Ticker callbackDelay = Ticker();
+static Ticker checkDoorMoving = Ticker();
+static Ticker checkDoorCompleted = Ticker();
 bool TTCwasLightOn = false;
 
 // For door open/close duration
@@ -262,8 +264,6 @@ static bool rolling_code_operation_in_progress = false;
 
 /******************************* SECURITY 1.0 *********************************/
 #ifndef USE_GDOLIB
-static const uint8_t RX_LENGTH = 2;
-typedef uint8_t RxPacket[RX_LENGTH * 4];
 // time stamping
 _millis_t last_tx = 0;
 _millis_t msg_start = 0;
@@ -302,12 +302,12 @@ enum secplus1Codes : uint8_t
     QueryDoorStatus = 0x38,
     QueryObstructionStatus = 0x39,
     QueryLightLockStatus = 0x3A,
-    
+
     // sent by a "0x37" wall panel
-    QueryDoorMovingStatus = 0x40, 
-    
+    QueryDoorMovingStatus = 0x40,
+
     // sent by wall panel at the end of its "release" button sequence
-    QueryUnknownStatus_0x53 = 0x53, 
+    QueryUnknownStatus_0x53 = 0x53,
 
     Unknown = 0xFF // (when rx fails parity test)
 };
@@ -925,24 +925,56 @@ void update_door_state(GarageDoorCurrentState current_state)
     switch (current_state)
     {
     case GarageDoorCurrentState::CURR_OPEN:
-        target_state = TGT_OPEN;
+        target_state = GarageDoorTargetState::TGT_OPEN;
         break;
     case GarageDoorCurrentState::CURR_CLOSED:
-        target_state = TGT_CLOSED;
-        break;
-    case GarageDoorCurrentState::CURR_STOPPED:
-        target_state = TGT_OPEN;
+        target_state = GarageDoorTargetState::TGT_CLOSED;
         break;
     case GarageDoorCurrentState::CURR_OPENING:
-        target_state = TGT_OPEN;
+        target_state = GarageDoorTargetState::TGT_OPEN;
         break;
     case GarageDoorCurrentState::CURR_CLOSING:
-        target_state = TGT_CLOSED;
+        target_state = GarageDoorTargetState::TGT_CLOSED;
+        break;
+    case GarageDoorCurrentState::CURR_STOPPED:
+        target_state = (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSING)
+                           ? GarageDoorTargetState::TGT_CLOSED
+                           : GarageDoorTargetState::TGT_OPEN;
         break;
     default:
-        ESP_LOGE(TAG, "Got door state unknown");
+        ESP_LOGE(TAG, "Got unknown door state");
         break;
-    }
+    } // end switch
+
+    // Terminate any timers started to check for success
+    switch (current_state)
+    {
+    case GarageDoorCurrentState::CURR_CLOSING:
+        // If we are in a time-to-close delay timeout, cancel the timeout
+        if (TTCtimer.active())
+        {
+            ESP_LOGI(TAG, "Canceling TTC delay timer");
+            TTCtimer.detach();
+        }
+        // Fall through to "opening"
+    case GarageDoorCurrentState::CURR_OPENING:
+        // Terminate the timer that confirms that a door open/close actually worked.
+        checkDoorMoving.detach();
+        break;
+
+    case GarageDoorCurrentState::CURR_OPEN:
+    case GarageDoorCurrentState::CURR_CLOSED:
+    case GarageDoorCurrentState::CURR_STOPPED:
+        // If timer that checks door completely opens/closes is active, cancel it.
+        if (checkDoorCompleted.active())
+        {
+            checkDoorCompleted.detach();
+        }
+        break;
+    default:
+        // We logged an error in the previous switch()
+        break;
+    } // end switch
 
     // Calculate door open/close duration
     if (current_state == CURR_OPENING && garage_door.current_state == CURR_CLOSED)
@@ -1019,31 +1051,10 @@ void update_door_state(GarageDoorCurrentState current_state)
         ESP_LOGD(TAG, "Aborting door open/close duration calculation");
     }
 
-    // If we are in a time-to-close delay timeout, cancel the timeout
-    if ((current_state == CURR_CLOSING) && (TTCtimer.active()))
-    {
-        ESP_LOGI(TAG, "Canceling TTC delay timer");
-        TTCtimer.detach();
-    }
-
-    // First time initialization
-    if (!garage_door.active)
+    // retrieve number of door open/close cycles.
+    if (!garage_door.active || (current_state == CURR_CLOSED && (current_state != garage_door.current_state)))
     {
         garage_door.active = true;
-        if (current_state == CURR_OPENING || current_state == CURR_OPEN)
-        {
-            target_state = TGT_OPEN;
-        }
-        else
-        {
-            target_state = TGT_CLOSED;
-        }
-        // retrieve number of door open/close cycles.
-        send_get_openings();
-    }
-    else if (current_state == CURR_CLOSED && (current_state != garage_door.current_state))
-    {
-        // door activated, retrieve number of door open/close cycles.
         send_get_openings();
     }
 
@@ -1507,7 +1518,7 @@ void receiveErrorHandler(hardwareSerial_error_t error)
 void comms_loop_sec1()
 {
     static bool reading_msg = false;
-    static RxPacket rx_packet;
+    static uint8_t sec1cmd = 0;
     static uint8_t syncByteCount = 0;
 
     // CTS timer
@@ -1559,7 +1570,7 @@ void comms_loop_sec1()
         if (Sec1Serial.readParity() != Sec1Serial.parityEven(ser_byte))
         {
             if (reading_msg)
-                ESP_LOGD(TAG, "SEC1 RX Parity error on 2nd byte of poll msg [0x%02X:0x%02X]", rx_packet[0], ser_byte);
+                ESP_LOGD(TAG, "SEC1 RX Parity error on 2nd byte of poll msg [0x%02X:0x%02X]", sec1cmd, ser_byte);
             else
                 ESP_LOGD(TAG, "SEC1 RX Parity error [0x%02X]", ser_byte);
 
@@ -1610,9 +1621,9 @@ void comms_loop_sec1()
             // if we already waiting for a GDO response, and got a new poll...
             if (reading_msg)
             {
-                ESP_LOGD(TAG, "SEC1 RX Prior poll msg incomplete [0x%02X] received, but lost GDO response", rx_packet[0]);
+                ESP_LOGD(TAG, "SEC1 RX Prior poll msg incomplete [0x%02X] received, but lost GDO response", sec1cmd);
             }
-            rx_packet[0] = ser_byte;
+            sec1cmd = ser_byte;
             // timestamp begining of message
             msg_start = _millis();
             reading_msg = true;
@@ -1622,10 +1633,8 @@ void comms_loop_sec1()
         {
             if (reading_msg)
             {
-                // we only allow 2 bytes max, and the reading_msg controls that
-                // this is the value to response of the GDO query
-                rx_packet[1] = ser_byte;
-                sec1_process_message(rx_packet[0], rx_packet[1]);
+                // received byte is the response from the sec1 command we sent
+                sec1_process_message(sec1cmd, ser_byte);
                 // time stamp
                 msg_complete = _millis();
                 // reset start of message
@@ -2294,19 +2303,26 @@ void door_command_close()
 
     if (garage_door.closeDuration > 0)
     {
-        // ESPhome firmware starts a timer that fires two seconds after expected close duration
-        // It checks that the door got to CLOSED or STOPPED state, and if not then proactively
-        // queries the door for status (which only works on Sec+2.0)
-        Ticker checkStatus = Ticker();
-        checkStatus.once_ms((garage_door.closeDuration + 2) * 1000, []()
-                            {
-            if (garage_door.current_state != GarageDoorCurrentState::CURR_CLOSED &&
-                garage_door.current_state != GarageDoorCurrentState::CURR_STOPPED)
-            {
-                garage_door.current_state = GarageDoorCurrentState::CURR_CLOSED; // probably missed a status mesage, assume it's closed
-                send_get_status();  // query in case we're wrong and it's stopped
-            } });
+        checkDoorCompleted.detach(); // just in case.
+        checkDoorCompleted.once_ms((garage_door.closeDuration + 2) * 1000, []()
+                                   {
+                                       // If this timer fires (was not cancelled when we get notification that door has stopped) then
+                                       // we probably missed a status mesage, assume it's closed.
+                                       ESP_LOGW(TAG, "Door did not close in expected time, assuming it is closed");
+                                       garage_door.current_state = GarageDoorCurrentState::CURR_CLOSED;
+                                       send_get_status(); // query in case we're wrong and it's stopped (Sec+2.0)
+                                   });
     }
+    // Check door starts to close
+    checkDoorMoving.detach(); // just in case!
+    checkDoorMoving.once_ms(2000, []()
+                            {
+                                // If this timer fires (was not cancelled when we get notification that door is closing) then
+                                // it is likely that there is an error and door did not move from its open state.
+                                checkDoorCompleted.detach();
+                                ESP_LOGE(TAG, "Door is supposed to be closing but is not.  Current state: %s", DOOR_STATE(garage_door.current_state));
+                                notify_homekit_current_door_state_change(GarageDoorCurrentState::CURR_OPEN);
+                                notify_homekit_target_door_state_change(GarageDoorTargetState::TGT_OPEN); });
 #endif
     return;
 }
@@ -2323,19 +2339,26 @@ void door_command_open()
 
     if (garage_door.openDuration > 0)
     {
-        // ESPhome firmware starts a timer that fires two seconds after expected open duration
-        // It checks that the door got to OPEN or STOPPED state, and if not then proactively
-        // queries the door for status (which only works on Sec+2.0)
-        Ticker checkStatus = Ticker();
-        checkStatus.once_ms((garage_door.openDuration + 2) * 1000, []()
-                            {
-            if (garage_door.current_state != GarageDoorCurrentState::CURR_OPEN &&
-                garage_door.current_state != GarageDoorCurrentState::CURR_STOPPED)
-            {
-                garage_door.current_state = GarageDoorCurrentState::CURR_OPEN; // probably missed a status mesage, assume it's open
-                send_get_status();  // query in case we're wrong and it's stopped
-            } });
+        checkDoorCompleted.detach(); // just in case.
+        checkDoorCompleted.once_ms((garage_door.openDuration + 2) * 1000, []()
+                                   {
+                                       // If this timer fires (was not cancelled when we get notification that door has stopped) then
+                                       // we probably missed a status mesage, assume it's open.
+                                       ESP_LOGW(TAG, "Door did not open in expected time, assuming it is open");
+                                       garage_door.current_state = GarageDoorCurrentState::CURR_OPEN;
+                                       send_get_status(); // query in case we're wrong and it's stopped (Sec+2.0)
+                                   });
     }
+    // Check door starts to open
+    checkDoorMoving.detach(); // just in case!
+    checkDoorMoving.once_ms(2000, []()
+                            {
+                                // If this timer fires (was not cancelled when we get notification that door is opening) then
+                                // it is likely that there is an error and door did not move from its closed state.
+                                checkDoorCompleted.detach();
+                                ESP_LOGE(TAG, "Door is supposed to be opening but is not.  Current state: %s", DOOR_STATE(garage_door.current_state));
+                                notify_homekit_current_door_state_change(GarageDoorCurrentState::CURR_CLOSED);
+                                notify_homekit_target_door_state_change(GarageDoorTargetState::TGT_CLOSED); });
 #endif
     return;
 }
