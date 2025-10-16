@@ -202,15 +202,15 @@ void handle_softAPweb()
     {
         // If we are in Soft Access Point mode
         ESP_LOGI(TAG, "WiFi Soft Access Point mode requesting: %s", page.c_str());
-        if (page == "/" || page == "/wifiap")
+        if (page.equals("/") || page.equals("/wifiap"))
             return handle_wifiap();
-        else if (page == "/wifinets")
+        else if (page.equals("/wifinets"))
             return handle_wifinets();
-        else if (page == "/setssid" && method == HTTP_POST)
+        else if (page.equals("/setssid") && method == HTTP_POST)
             return handle_setssid();
-        else if (page == "/reboot" && method == HTTP_POST)
+        else if (page.equals("/reboot") && method == HTTP_POST)
             return handle_reboot();
-        else if (page == "/rescan" && method == HTTP_POST)
+        else if (page.equals("/rescan") && method == HTTP_POST)
             return handle_rescan();
         else
             return handle_notfound();
@@ -285,7 +285,7 @@ void handle_setssid()
 
     const unsigned int net = atoi(server.arg("net").c_str());
     String ssid = server.arg("userSSID");
-    bool advanced = server.arg("advanced") == "on";
+    bool advanced = server.arg("advanced").equals("on");
     wifiNet_t wifiNet;
 
     if (net < wifiNets.size())
