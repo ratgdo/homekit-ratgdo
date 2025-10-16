@@ -64,24 +64,81 @@ char *getServiceName(char *service_name, size_t max)
     return service_name;
 }
 
+const char *encryptionToString(uint16_t e)
+{
+    // static char *str[16];
+#ifdef ESP32
+    switch (e)
+    {
+    case WIFI_AUTH_OPEN:
+        return "OPEN";
+    case WIFI_AUTH_WEP:
+        return "WEP";
+    case WIFI_AUTH_WPA_PSK:
+        return "WPA";
+    case WIFI_AUTH_WPA2_PSK:
+        return "WPA2";
+    case WIFI_AUTH_WPA_WPA2_PSK:
+        return "WPA+WPA2";
+    case WIFI_AUTH_WPA2_ENTERPRISE:
+        return "WPA2-EAP";
+    case WIFI_AUTH_WPA3_PSK:
+        return "WPA3";
+    case WIFI_AUTH_WPA2_WPA3_PSK:
+        return "WPA2+WPA3";
+    case WIFI_AUTH_WAPI_PSK:
+        return "WAPI";
+    default:
+        return "UNKNOWN";
+    }
+#else
+    switch (e)
+    {
+    case ENC_TYPE_WEP:
+        return PSTR("WEP");
+    case ENC_TYPE_TKIP:
+        return PSTR("WPA");
+    case ENC_TYPE_CCMP:
+        return PSTR("WPA2");
+    case ENC_TYPE_NONE:
+        return PSTR("OPEN");
+    case ENC_TYPE_AUTO:
+        return PSTR("AUTO");
+    default:
+        return PSTR("UNKNOWN");
+    }
+#endif
+}
+
 void wifi_scan()
 {
     // scan for networks
-    ESP_LOGI(TAG, "Scanning for networks...");
+    ESP_LOGI(TAG, "Scanning WiFi Networks...");
     wifiNet_t wifiNet;
     wifiNets.clear();
     int nNets = std::min((int)WiFi.scanNetworks(), 127);
-    ESP_LOGI(TAG, "Found %d networks", nNets);
-    for (int i = 0; i < nNets; i++)
+    if (nNets == 0)
     {
-        wifiNet.ssid = WiFi.SSID(i);
-        wifiNet.channel = WiFi.channel(i);
-        wifiNet.rssi = WiFi.RSSI(i);
-        memcpy(wifiNet.bssid, WiFi.BSSID(i), sizeof(wifiNet.bssid));
-        wifiNet.encryptionType = WiFi.encryptionType(i);
-        ESP_LOGI(TAG, "Network: %s (Ch:%d, %ddBm) AP: %s, Encryption: %d",
-                 wifiNet.ssid.c_str(), wifiNet.channel, wifiNet.rssi, WiFi.BSSIDstr(i).c_str(), wifiNet.encryptionType);
-        wifiNets.insert(wifiNet);
+        ESP_LOGI(TAG, "No networks found!");
+    }
+    else
+    {
+        static const char d[] PROGMEM = "----------------------------------------";
+        ESP_LOGI(TAG, "%-32.32s  %17.17s  %4.4s  %4.4s  %12.12s", "SSID", "BSSID", "RSSI", "CHAN", "ENCRYPTION");
+        ESP_LOGI(TAG, "%-32.32s  %17.17s  %4.4s  %4.4s  %12.12s", d, d, d, d, d);
+        for (int i = 0; i < nNets; i++)
+        {
+            wifiNet.ssid = WiFi.SSID(i);
+            wifiNet.channel = WiFi.channel(i);
+            wifiNet.rssi = WiFi.RSSI(i);
+            memcpy(wifiNet.bssid, WiFi.BSSID(i), sizeof(wifiNet.bssid));
+            wifiNet.encryptionType = WiFi.encryptionType(i);
+            ESP_LOGI(TAG, "%-32.32s  %17.17s  %4ld  %4ld  %12.12s",
+                     wifiNet.ssid.c_str(), WiFi.BSSIDstr(i).c_str(),
+                     wifiNet.rssi, wifiNet.channel,
+                     encryptionToString(wifiNet.encryptionType));
+            wifiNets.insert(wifiNet);
+        }
     }
     // delete scan from memory
     WiFi.scanDelete();

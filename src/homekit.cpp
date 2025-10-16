@@ -744,7 +744,6 @@ void setup_homekit()
 #ifdef CRASH_DEBUG
     new SpanUserCommand('z', "- test function", testDelayFn);
 #endif
-    new SpanUserCommand('c', "switch to RATGDO CLI (and enable Improv WiFi provisioning)", enableImprov);
     new SpanUserCommand('C', "switch to RATGDO CLI (and enable Improv WiFi provisioning)", enableImprov);
 
     // Define a bridge (as more than 3 accessories)
