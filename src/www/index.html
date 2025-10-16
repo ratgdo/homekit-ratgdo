@@ -662,6 +662,12 @@
       <span id="modalTitle">Installed Firmware:&nbsp;<span id="firmwareVersion2">xxx</span><br></span><br>
       <div id="updateDialog" style="float: none; padding:0px">
         <fieldset>
+          <legend>Update from local file</legend>
+          <input type="file" accept=".bin,.bin.gz" name="firmware" style="border: 0px; padding: 0px;">
+          <input type="button" value="Update" style="float: right;" onclick="firmwareUpdate(false)">
+        </fieldset>
+        <br>
+        <fieldset>
           <legend>Update from GitHub</legend>
           <table>
             <tr>
@@ -674,12 +680,6 @@
           <span style="font-size: 0.8em;">Include pre-releases</span>
           <input type="button" value="Update" style="float: right;" onclick="firmwareUpdate(true)">
           <span id="firmwareDescription" style="font-size: 0.6em;"></span>
-        </fieldset>
-        <br>
-        <fieldset>
-          <legend>Update from local file</legend>
-          <input type="file" accept=".bin,.bin.gz" name="firmware" style="border: 0px; padding: 0px;">
-          <input type="button" value="Update" style="float: right;" onclick="firmwareUpdate(false)">
         </fieldset>
       </div>
       <div id="updateDotDot" style="display:none; float: none; padding:0px">
