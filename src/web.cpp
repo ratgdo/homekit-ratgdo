@@ -708,7 +708,7 @@ void handle_everything()
     else if (method == HTTP_GET || method == HTTP_HEAD)
     {
         // HTTP_GET that does not match a built-in handler
-        if (page == "/")
+        if (page.equals("/"))
         {
             load_page("/index.html");
         }
@@ -1274,11 +1274,11 @@ void handle_subscribe()
     int heartbeatIntervalArgIdx = -1;
     for (int i = 0; i < server.args(); i++)
     {
-        if (server.argName(i) == "id")
+        if (server.argName(i).equals("id"))
             id = i;
-        else if (server.argName(i) == "log")
+        else if (server.argName(i).equals( "log"))
             logViewer = true;
-        else if (server.argName(i) == "heartbeat")
+        else if (server.argName(i).equals("heartbeat"))
             heartbeatIntervalArgIdx = i;
     }
 
