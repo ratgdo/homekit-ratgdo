@@ -869,7 +869,7 @@ void wallPlate_Emulation()
         stateIndex++;
 
         // at the 1st poll item? switch rate of send
-        if (delay == SECPLUS1_TX_MINIMUM_DELAY && secplus1States[stateIndex] == secplus1Codes::QueryDoorStatus)
+        if (delay < SECPLUS1_EMULATION_POLL_RATE && secplus1States[stateIndex] == secplus1Codes::QueryDoorStatus)
         {
             // switch to poll rate of 250ms
             delay = SECPLUS1_EMULATION_POLL_RATE;
@@ -880,6 +880,32 @@ void wallPlate_Emulation()
         {
             // loop back for polls
             stateIndex = sizeof(secplus1States) - SECPLUS1_POLL_ITEMS;
+
+            // Check that the garage door is responding to our emulation after 5 seconds.
+            // If not then we will redo the initialization sequence.
+            static bool success = false;
+            static _millis_t lastCheck = currentMillis;
+            if (!success && (currentMillis - lastCheck) > 5000)
+            {
+                lastCheck = currentMillis;
+                if (garage_door.current_state == (GarageDoorCurrentState)0xFF)
+                {
+                    ESP_LOGW(TAG, "Wall panel emulation failed, no response from garage door");
+                    // Try again, this time start from the first lock button release (0x35)
+                    stateIndex = 0;
+                    while (stateIndex < sizeof(secplus1States) && secplus1States[stateIndex] != secplus1Codes::LockButtonRelease)
+                        stateIndex++;
+                    if (stateIndex >= sizeof(secplus1States)) // safety
+                        stateIndex = 0;
+                    // How about we try a little slower this time, just in case.
+                    delay = SECPLUS1_TX_MINIMUM_DELAY * 2;
+                }
+                else
+                {
+                    ESP_LOGI(TAG, "Wall panel emulation successful, garage door responding");
+                    success = true;
+                }
+            }
         }
         return;
     }
