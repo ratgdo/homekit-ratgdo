@@ -121,7 +121,7 @@ SoftwareSerial sw_serial;
 
 // times in miliseconds
 #define SECPLUS1_DIGITAL_WALLPLATE_TIMEOUT 15000
-#define SECPLUS1_RX_MESSAGE_TIMEOUT 20
+#define SECPLUS1_RX_MESSAGE_TIMEOUT 25
 #define SECPLUS1_TX_WINDOW_OPEN 5
 #define SECPLUS1_TX_WINDOW_CLOSE 200
 #define SECPLUS1_TX_MINIMUM_DELAY 30
@@ -282,8 +282,8 @@ GarageDoorCurrentState doorState = (GarageDoorCurrentState)0xFF;
 // MJS: this is what MY 889LM exhibited when powered up (release of all buttons, and then polls)
 // MJS/DK: added in additional 0x31's & 0x35's hopefully to aid older GDO to sync up
 // MJS: the 0x53, GDO responds with 0x01 (we dont use response)
-byte secplus1States[] = {0x31, 0x31, 0x31, 0x31, 0x35, 0x35, 0x35, 0x35, 0x33, 0x33, 0x53, 0x53, 0x38, 0x3A, 0x3A, 0x3A, 0x39,
-                         /* POLL ITEMS --> */ 0x38, 0x3A, 0x39, 0x3A};
+uint8_t secplus1States[] = {0x31, 0x31, 0x31, 0x31, 0x35, 0x35, 0x35, 0x35, 0x33, 0x33, 0x53, 0x53, 0x38, 0x3A, 0x3A, 0x3A, 0x39,
+                            /* POLL ITEMS --> */ 0x38, 0x3A, 0x39, 0x3A};
 #define SECPLUS1_POLL_ITEMS 4 // poll last x items at end of secplus1States[]
 
 // values for SECURITY+1.0 communication
@@ -853,18 +853,15 @@ void wallPlate_Emulation()
     static _millis_t lastRequestMillis = 0;
     static _millis_t startMillis = currentMillis;
     static bool emulateWallPanel = false;
-    static uint8_t delay = SECPLUS1_TX_MINIMUM_DELAY;
+    static uint32_t delay = SECPLUS1_TX_MINIMUM_DELAY;
 
     // transmit every x ms
-    if (emulateWallPanel && (currentMillis - lastRequestMillis) > delay)
+    if (emulateWallPanel && (uint32_t)(currentMillis - lastRequestMillis) > delay)
     {
-        static uint8_t stateIndex = 0;
+        static uint32_t stateIndex = 0;
+
         lastRequestMillis = currentMillis;
-
-        byte secplus1ToSend = byte(secplus1States[stateIndex]);
-
-        sec1_poll_status(secplus1ToSend);
-
+        sec1_poll_status(secplus1States[stateIndex]);
         // set next poll
         stateIndex++;
 
@@ -1099,16 +1096,6 @@ void update_door_state(GarageDoorCurrentState current_state)
 
 void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
 {
-    if (value != 0xFF)
-    {
-        // Unknown key values will be logged in default of switch statement below.
-        // This logs all key/value pairs from known "poll" commands and the response from the GDO.
-        _millis_t now = _millis();
-        static _millis_t lastTime = now;
-        ESP_LOGV(TAG, "SEC1 RX IDLE:%lums - MSG: 0x%02X:0x%02X", (uint32_t)(now - lastTime), key, value);
-        lastTime = now;
-    }
-
     switch (key)
     {
     // door button press
@@ -1546,6 +1533,7 @@ void comms_loop_sec1()
     static bool reading_msg = false;
     static uint8_t sec1cmd = 0;
     static uint8_t syncByteCount = 0;
+    _millis_t current_millis = _millis();
 
     // CTS timer
     // when wall panel present, need 5ms elapsed after last complete message arrives.
@@ -1553,22 +1541,19 @@ void comms_loop_sec1()
     if (!clearToSend)
     {
         // open the tx window
-        if ((_millis() - msg_complete) >= SECPLUS1_TX_WINDOW_OPEN)
+        if ((current_millis - msg_complete) >= SECPLUS1_TX_WINDOW_OPEN)
         {
             clearToSend = true;
         }
     }
 
-    // get all the rxed bytes processed now
-    // any rx bytes will reset clearToSend
+readIn:
     while (Sec1Serial.available())
     {
         uint8_t ser_byte = Sec1Serial.read();
 
-        // reading byte so clear flag
-        isRxPending();
-
-        clearToSend = false;
+        isRxPending();       // reading byte so clear flag
+        clearToSend = false; // any RX bytes reset clearToSend
 
         // this byte is received with invalid parity
         // it is sent when there is no buss traffic (need to look at it with scope)
@@ -1581,14 +1566,11 @@ void comms_loop_sec1()
                 // alternate way to detect no wall panel
                 // not in use as of now
                 // but could start emulator here
-
                 ESP_LOGV(TAG, "SEC1 RX received 10 GDO Sync bytes(0xFF)");
             }
-
             // reset start of message (just incase somehow is 2nd byte)
             reading_msg = false;
-
-            break;
+            continue;
         }
 
 #ifdef ESP8266
@@ -1602,7 +1584,6 @@ void comms_loop_sec1()
 
             // toss message, start over
             reading_msg = false;
-
             continue;
         }
 #endif
@@ -1632,8 +1613,7 @@ void comms_loop_sec1()
         case secplus1Codes::LockButtonRelease:
         {
             sec1_process_message(ser_byte);
-            // reset start of message
-            reading_msg = false;
+            reading_msg = false; // reset start of message
             break;
         }
         // Double byte... Commands sent by a wall panel or ourselves, plus reply from GDO...
@@ -1647,11 +1627,10 @@ void comms_loop_sec1()
             // if we already waiting for a GDO response, and got a new poll...
             if (reading_msg)
             {
-                ESP_LOGD(TAG, "SEC1 RX Prior poll msg incomplete [0x%02X] received, but lost GDO response", sec1cmd);
+                ESP_LOGD(TAG, "SEC1 RX Prior 0x%02X poll msg incomplete, received 0x%02X but lost GDO response", sec1cmd, ser_byte);
             }
             sec1cmd = ser_byte;
-            // timestamp begining of message
-            msg_start = _millis();
+            msg_start = current_millis; // timestamp begining of message
             reading_msg = true;
             break;
         }
@@ -1660,11 +1639,13 @@ void comms_loop_sec1()
             if (reading_msg)
             {
                 // received byte is the response from the sec1 command we sent
+                msg_complete = current_millis; // timestamp receipt of GDO response to poll command
+                static _millis_t lastTime = msg_complete;
+                ESP_LOGV(TAG, "SEC1 RX IDLE:%lums - MSG: 0x%02X:0x%02X (%lums)", (uint32_t)(msg_complete - lastTime), sec1cmd, ser_byte, (uint32_t)(msg_complete - msg_start));
+                lastTime = msg_complete;
+
                 sec1_process_message(sec1cmd, ser_byte);
-                // time stamp
-                msg_complete = _millis();
-                // reset start of message
-                reading_msg = false;
+                reading_msg = false; // reset start of message
             }
             else
             {
@@ -1673,14 +1654,25 @@ void comms_loop_sec1()
             break;
         }
         } // end of switch()
-    } // end of while()
+    }; // end of while()
 
-    // if still reading the message, no need to process further
-    // or if a RX BIT has been has been received
-    // or any ready bytes available (a byte came in somehow during above while loop, during testing it was only ever 1 byte)
-    // process on next pass
-    if (reading_msg == true || isRxPending() || Sec1Serial.available())
+    // this happens occasionally (a byte came in somehow during above while loop, during testing it was only ever 1 byte)
+    if (Sec1Serial.available())
     {
+        //ESP_LOGD(TAG, "SEC1 RX available() is true after the while!!!");
+        goto readIn;
+    }
+
+    if (reading_msg && (uint32_t)(current_millis - msg_start) > SECPLUS1_RX_MESSAGE_TIMEOUT)
+    {
+        // waited too long for a reply, assume not coming.
+        ESP_LOGD(TAG, "SEC1 RX Prior 0x%02X poll msg incomplete, timeout %ldms waiting GDO response", sec1cmd, (uint32_t)(current_millis - msg_start));
+        reading_msg = false;
+    }
+
+    if (reading_msg == true || isRxPending())
+    {
+        // exit now as its not a good time to send as RX bits are incoming
         return;
     }
 
