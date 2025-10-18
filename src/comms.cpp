@@ -150,13 +150,15 @@ static Ticker checkDoorCompleted = Ticker();
 bool TTCwasLightOn = false;
 
 // For door open/close duration
-constexpr uint32_t MAX_HISTORY = 5;            // Number of door operations to average across
-constexpr uint32_t MAX_DURATION = (45 * 1000); // Maximum time it should take to open/close a door
+constexpr uint32_t DOOR_MAX_HISTORY = 5;            // Number of door operations to average across
+constexpr uint32_t DOOR_MAX_DURATION = (45 * 1000); // Maximum time it should take to open/close a door
+constexpr uint32_t DOOR_MIN_DURATION = (3 * 1000);  // Minimum time it should take to open/close a door
+
 struct DoorHistory
 {
-    uint32_t max = MAX_HISTORY;
+    uint32_t max = DOOR_MAX_HISTORY;
     uint32_t count = 0;
-    uint32_t duration[MAX_HISTORY] = {0};
+    uint32_t duration[DOOR_MAX_HISTORY] = {0};
 };
 static struct DoorHistory openHistory = {0};
 static struct DoorHistory closeHistory = {0};
@@ -712,10 +714,10 @@ void setup_comms()
     read_blob_from_file(nvram_open_history, &openHistory, sizeof(openHistory));
     read_blob_from_file(nvram_close_history, &closeHistory, sizeof(closeHistory));
 #endif
-    if (openHistory.max != MAX_HISTORY || closeHistory.max != MAX_HISTORY)
+    if (openHistory.max != DOOR_MAX_HISTORY || closeHistory.max != DOOR_MAX_HISTORY)
     {
-        // Someone changed the MAX_HISTORY const. Reset everything
-        ESP_LOGI(TAG, "New MAX_HISTORY for door open/close durations, reset door history to zero");
+        // Someone changed the DOOR_MAX_HISTORY const. Reset everything
+        ESP_LOGI(TAG, "New DOOR_MAX_HISTORY for door open/close durations, reset door history to zero");
         openHistory = {}; // reset to defaults
         closeHistory = {};
     }
@@ -723,21 +725,21 @@ void setup_comms()
     {
         // calculate open average
         uint32_t average = 0;
-        uint32_t count = std::min(openHistory.count, MAX_HISTORY);
+        uint32_t count = std::min(openHistory.count, DOOR_MAX_HISTORY);
         for (uint32_t i = 0; i < count; i++)
             average += openHistory.duration[i];
         average /= count;
         garage_door.openDuration = (average + 500) / 1000; // round up/down to closest second
         // calculate close average
         average = 0;
-        count = std::min(closeHistory.count, MAX_HISTORY);
+        count = std::min(closeHistory.count, DOOR_MAX_HISTORY);
         for (uint32_t i = 0; i < count; i++)
             average += closeHistory.duration[i];
         average /= count;
         garage_door.closeDuration = (average + 500) / 1000; // round up/down to closest second
     }
-#define openHistory(n) (openHistory.duration[(openHistory.count + MAX_HISTORY - (n)) % MAX_HISTORY])
-#define closeHistory(n) (closeHistory.duration[(closeHistory.count + MAX_HISTORY - (n)) % MAX_HISTORY])
+#define openHistory(n) (openHistory.duration[(openHistory.count + DOOR_MAX_HISTORY - (n)) % DOOR_MAX_HISTORY])
+#define closeHistory(n) (closeHistory.duration[(closeHistory.count + DOOR_MAX_HISTORY - (n)) % DOOR_MAX_HISTORY])
     ESP_LOGI(TAG, "Door open history (%d):  %lums, %lums, %lums, %lums, %lums", openHistory.count,
              openHistory(1), openHistory(2), openHistory(3), openHistory(4), openHistory(5));
     ESP_LOGI(TAG, "Door close history (%d): %lums, %lums, %lums, %lums, %lums", closeHistory.count,
@@ -1008,11 +1010,11 @@ void update_door_state(GarageDoorCurrentState current_state)
     else if (current_state == CURR_OPEN && garage_door.current_state == CURR_OPENING && start_opening > 0)
     {
         _millis_t duration = now - start_opening;
-        if (duration <= MAX_DURATION)
+        if (DOOR_MIN_DURATION <= duration && duration <= DOOR_MAX_DURATION)
         {
             _millis_t average = 0;
-            openHistory.duration[openHistory.count++ % MAX_HISTORY] = (uint32_t)duration;
-            uint32_t count = std::min(openHistory.count, MAX_HISTORY);
+            openHistory.duration[openHistory.count++ % DOOR_MAX_HISTORY] = (uint32_t)duration;
+            uint32_t count = std::min(openHistory.count, DOOR_MAX_HISTORY);
             for (uint32_t i = 0; i < count; i++)
                 average += openHistory.duration[i];
             average /= count;
@@ -1029,7 +1031,7 @@ void update_door_state(GarageDoorCurrentState current_state)
         else
         {
             start_opening = 0;
-            ESP_LOGW(TAG, "Ignoring implausibly long open duration: %lums (%s)", (uint32_t)duration, timeString());
+            ESP_LOGW(TAG, "Ignoring implausibly short or long open duration: %lums (%s)", (uint32_t)duration, timeString());
         }
     }
     else if (current_state == CURR_CLOSING && garage_door.current_state == CURR_OPEN)
@@ -1040,11 +1042,11 @@ void update_door_state(GarageDoorCurrentState current_state)
     else if (current_state == CURR_CLOSED && garage_door.current_state == CURR_CLOSING && start_closing > 0)
     {
         _millis_t duration = now - start_closing;
-        if (duration <= MAX_DURATION)
+        if (DOOR_MIN_DURATION <= duration && duration <= DOOR_MAX_DURATION)
         {
             _millis_t average = 0;
-            closeHistory.duration[closeHistory.count++ % MAX_HISTORY] = (uint32_t)duration;
-            uint32_t count = std::min(closeHistory.count, MAX_HISTORY);
+            closeHistory.duration[closeHistory.count++ % DOOR_MAX_HISTORY] = (uint32_t)duration;
+            uint32_t count = std::min(closeHistory.count, DOOR_MAX_HISTORY);
             for (uint32_t i = 0; i < count; i++)
                 average += closeHistory.duration[i];
             average /= count;
@@ -1061,7 +1063,7 @@ void update_door_state(GarageDoorCurrentState current_state)
         else
         {
             start_closing = 0;
-            ESP_LOGW(TAG, "Ignoring implausibly long close duration: %lums (%s)", (uint32_t)duration, timeString());
+            ESP_LOGW(TAG, "Ignoring implausibly short or long close duration: %lums (%s)", (uint32_t)duration, timeString());
         }
     }
     else if ((current_state == CURR_STOPPED) ||
@@ -1659,7 +1661,7 @@ readIn:
     // this happens occasionally (a byte came in somehow during above while loop, during testing it was only ever 1 byte)
     if (Sec1Serial.available())
     {
-        //ESP_LOGD(TAG, "SEC1 RX available() is true after the while!!!");
+        // ESP_LOGD(TAG, "SEC1 RX available() is true after the while!!!");
         goto readIn;
     }
 
@@ -2319,15 +2321,19 @@ void door_command_close()
         door_command(DoorAction::Toggle);
     }
 
-    if (garage_door.closeDuration > 0)
+    if (doorControlType == 2 && garage_door.openDuration > 0)
     {
+        // Sec+2.0 doors send us notifications as events happen, and an update every 5 minutes.
+        // We may miss a notification which is why we have this test.
+        // Sec+1.0 doors send a constant stream of status, so we get door uppdate every 500ms, so no need for this.
         checkDoorCompleted.detach(); // just in case.
-        checkDoorCompleted.once_ms((garage_door.closeDuration + 2) * 1000, []()
+        checkDoorCompleted.once_ms((garage_door.closeDuration + 3) * 1000, []()
                                    {
                                        // If this timer fires (was not cancelled when we get notification that door has stopped) then
                                        // we probably missed a status mesage, assume it's closed.
                                        ESP_LOGW(TAG, "Door did not close in expected time, assuming it is closed");
-                                       garage_door.current_state = GarageDoorCurrentState::CURR_CLOSED;
+                                       notify_homekit_current_door_state_change(GarageDoorCurrentState::CURR_CLOSED);
+                                       notify_homekit_target_door_state_change(GarageDoorTargetState::TGT_CLOSED);
                                        send_get_status(); // query in case we're wrong and it's stopped (Sec+2.0)
                                    });
     }
@@ -2355,15 +2361,19 @@ void door_command_open()
 #else
     door_command(DoorAction::Open);
 
-    if (garage_door.openDuration > 0)
+    if (doorControlType == 2 && garage_door.openDuration > 0)
     {
+        // Sec+2.0 doors send us notifications as events happen, and an update every 5 minutes.
+        // We may miss a notification which is why we have this test.
+        // Sec+1.0 doors send a constant stream of status, so we get door uppdate every 500ms, so no need for this.
         checkDoorCompleted.detach(); // just in case.
-        checkDoorCompleted.once_ms((garage_door.openDuration + 2) * 1000, []()
+        checkDoorCompleted.once_ms((garage_door.openDuration + 3) * 1000, []()
                                    {
                                        // If this timer fires (was not cancelled when we get notification that door has stopped) then
                                        // we probably missed a status mesage, assume it's open.
                                        ESP_LOGW(TAG, "Door did not open in expected time, assuming it is open");
-                                       garage_door.current_state = GarageDoorCurrentState::CURR_OPEN;
+                                       notify_homekit_current_door_state_change(GarageDoorCurrentState::CURR_OPEN);
+                                       notify_homekit_target_door_state_change(GarageDoorTargetState::TGT_OPEN);
                                        send_get_status(); // query in case we're wrong and it's stopped (Sec+2.0)
                                    });
     }
