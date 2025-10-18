@@ -1778,6 +1778,34 @@ void comms_loop_sec2()
             break;
         }
 
+        case PacketCommand::MotorOn:
+        {
+            // If we get a MotorOn packet then the door is moving, either opening or closing.
+            // If our state does not reflect opening or closing then we missed the packet (error reading the serial port?)
+            switch (garage_door.current_state)
+            {
+            case GarageDoorCurrentState::CURR_STOPPED:
+                // Started moving from stopped (half open) so we cannot deduce direction it is moving
+            case GarageDoorCurrentState::CURR_OPENING:
+            case GarageDoorCurrentState::CURR_CLOSING:
+                // Opening or closing is good... we already know which direction it is moving.
+                break;
+            case GarageDoorCurrentState::CURR_OPEN:
+                // If last known state was open, then we missed that packet and should be in closing state.
+                ESP_LOGI(TAG, "Door moving from OPEN state but we missed the notification packet. Update our state to CLOSING");
+                update_door_state(GarageDoorCurrentState::CURR_CLOSING);
+                break;
+            case GarageDoorCurrentState::CURR_CLOSED:
+                // If last known state was open, then we missed that packet and should be in closing state.
+                ESP_LOGI(TAG, "Door moving from CLOSED state but we missed the notification packet. Update our state to OPENING");
+                update_door_state(GarageDoorCurrentState::CURR_OPENING);
+                break;
+            default:
+                break;
+            } // end switch
+            break;
+        }
+
         case PacketCommand::Lock:
         {
             LockTargetState lock = garage_door.target_lock;
