@@ -38,6 +38,7 @@ extern std::multiset<wifiNet_t, bool (*)(const wifiNet_t &, const wifiNet_t &)> 
 extern void start_soft_ap();
 extern void soft_ap_loop();
 extern void wifi_scan();
+const char *encryptionToString(uint16_t e);
 
 extern void handle_setssid();
 extern void handle_rescan();

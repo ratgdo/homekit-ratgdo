@@ -103,6 +103,8 @@ constexpr char cfg_homespanCLI[] PROGMEM = "homespanCLI";
 constexpr char nvram_id_code[] PROGMEM = "id_code";
 constexpr char nvram_rolling[] PROGMEM = "rolling";
 constexpr char nvram_has_motion[] PROGMEM = "has_motion";
+constexpr char nvram_open_history[] PROGMEM = "open_history";
+constexpr char nvram_close_history[] PROGMEM = "close_history";
 #ifndef ESP8266
 constexpr char nvram_ratgdo_pw[] PROGMEM = "ratgdo_pw";
 constexpr char nvram_has_distance[] PROGMEM = "has_distance";
@@ -208,6 +210,8 @@ extern userSettings *userConfig;
 // No NVRAM on ESP8266 so just use simple read/write from files
 uint32_t read_int_from_file(const char *filename, uint32_t defaultValue = 0);
 void write_int_to_file(const char *filename, uint32_t value);
+bool read_blob_from_file(const char *filename, void *value, size_t size);
+void write_blob_to_file(const char *filename, const void *value, size_t size);
 void delete_file(const char *filename);
 #else
 class nvRamClass
@@ -229,9 +233,9 @@ public:
     bool write(const std::string &constKey, const int32_t value) { return write(constKey, value, true); };
     bool write(const std::string &constKey, const char *value, bool commit);
     bool write(const std::string &constKey, const char *value) { return write(constKey, value, true); };
-    bool writeBlob(const std::string &constKey, const char *value, size_t size, bool commit);
-    bool writeBlob(const std::string &constKey, const char *value, size_t size) { return writeBlob(constKey, value, size, true); };
-    bool readBlob(const std::string &constKey, char *value, size_t size);
+    bool writeBlob(const std::string &constKey, const void *value, size_t size, bool commit);
+    bool writeBlob(const std::string &constKey, const void *value, size_t size) { return writeBlob(constKey, value, size, true); };
+    bool readBlob(const std::string &constKey, void *value, size_t size);
     bool erase(const std::string &constKey);
     void erase();
 };

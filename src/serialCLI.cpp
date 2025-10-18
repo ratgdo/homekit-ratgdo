@@ -26,6 +26,20 @@
 // Logger tag
 static const char *TAG = "ratgdo-serialCLI";
 
+bool areYouSure(const char *txt)
+{
+    Serial.setTimeout(5000);
+    while (Serial.available())
+        Serial.read();
+    Serial.printf_P(txt);
+    String confirm = Serial.readStringUntil('\n');
+    while (Serial.available())
+        Serial.read();
+    confirm.trim(); // remove whitespace
+    Serial.println(confirm);
+    return (confirm.equalsIgnoreCase("Y") || confirm.equalsIgnoreCase("YES"));
+}
+
 void serialCLI(char cmd)
 {
 
@@ -50,8 +64,9 @@ void serialCLI(char cmd)
         Serial.printf_P(PSTR("Commands:\n"));
         Serial.printf_P(PSTR(" A - reboot into Access Point mode (192.168.4.1)\n"));
         Serial.printf_P(PSTR(" R - restart RATGDO\n"));
+        Serial.printf_P(PSTR(" r - reset door values (ID & rolling code, open/close history)\n"));
         Serial.printf_P(PSTR(" F - factory reset RATGDO and reboot\n"));
-        // Serial.printf_P(PSTR(" Z - scan and select WiFi network\n"));
+        Serial.printf_P(PSTR(" Z - scan for available WiFi networks\n"));
 #ifdef USE_HOMESPAN
         if (!softAPmode)
         {
@@ -61,7 +76,7 @@ void serialCLI(char cmd)
         Serial.println();
         Serial.printf_P(PSTR(" l - print RATGDO buffered message log\n"));
         Serial.printf_P(PSTR(" L - print RATGDO saved reboot log\n"));
-        Serial.printf_P(PSTR(" r - %s log to serial port\n"), suppressSerialLog ? "enable" : "disable");
+        Serial.printf_P(PSTR(" s - %s log to serial port\n"), suppressSerialLog ? "enable" : "disable");
 #ifdef CONFIG_FREERTOS_USE_TRACE_FACILITY
         Serial.printf_P(PSTR(" t - print FreeRTOS task info\n"));
 #endif
@@ -73,7 +88,6 @@ void serialCLI(char cmd)
     }
 
 #ifdef USE_HOMESPAN
-    case 'c':
     case 'C':
     {
         userConfig->set(cfg_homespanCLI, true);
@@ -84,15 +98,7 @@ void serialCLI(char cmd)
 
     case 'F':
     {
-        Serial.setTimeout(5000);
-        while (Serial.available())
-            Serial.read();
-        Serial.printf_P(PSTR("Factory reset reqested, are you sure Y/N: "));
-        String confirm = Serial.readStringUntil('\n');
-        while (Serial.available())
-            Serial.read();
-        Serial.println(confirm);
-        if (confirm == "Y" || confirm == "y")
+        if (areYouSure(PSTR("Factory reset reqested, are you sure Y/N: ")))
         {
             factoryReset();
         }
@@ -131,6 +137,19 @@ void serialCLI(char cmd)
 
     case 'r':
     {
+        if (areYouSure(PSTR("Reset door ID, rolling code, motion and open/close history, are you sure Y/N: ")))
+        {
+            reset_door();
+        }
+        else
+        {
+            Serial.printf_P(PSTR("Door reset request aborted\n"));
+        }
+        break;
+    }
+
+    case 's':
+    {
         // switch logging to serial console (in case Improv suppressed it)
         suppressSerialLog = !suppressSerialLog;
         ESP_LOGI(TAG, "logging to serial port %s", suppressSerialLog ? "disabled" : "enabled");
@@ -146,6 +165,7 @@ void serialCLI(char cmd)
 
     case 'A':
     {
+        // Reboot into soft AP mode
         userConfig->set(cfg_softAPmode, true);
         ESP8266_SAVE_CONFIG();
         sync_and_restart();
@@ -178,32 +198,45 @@ void serialCLI(char cmd)
         break;
     }
 
-    case 'z':
     case 'Z':
     {
         String currentSSID = "";
         // wifiNet_t net;
         int32_t count = 0;
+        bool allNets = true;
         bool saved = suppressSerialLog;
         suppressSerialLog = true;
-        Serial.printf_P(PSTR("Scanning for networks...\n"));
+        Serial.printf_P(PSTR("Scanning WiFi Networks...\n"));
         wifi_scan();
-        Serial.printf_P(PSTR("Found %d networks, Strongest access points:\n"), wifiNets.size());
-        for (wifiNet_t net : wifiNets)
+        if (wifiNets.size() == 0)
         {
-            // wifiNets may have multiple entries for a SSID sorted by RSSI,
-            // we use the first (strongest signal) in the list.
-            if (currentSSID != net.ssid)
-            {
-                currentSSID = net.ssid;
-                count++;
-                Serial.printf_P(PSTR(" %2d: %-12s (Ch:%2d, %ddBm) AP: %02x:%02x:%02x:%02x:%02x:%02x\n"),
-                                count, net.ssid.c_str(), net.channel, net.rssi,
-                                net.bssid[0], net.bssid[1], net.bssid[2], net.bssid[3], net.bssid[4], net.bssid[5]);
-            }
+            Serial.printf_P(PSTR("No networks found!\n"));
         }
-        Serial.printf_P(PSTR("Found %d unique SSID\n"), count);
+        else
+        {
+            Serial.printf_P(PSTR("Found %d networks...\n"), wifiNets.size());
+            static const char d[] PROGMEM = "----------------------------------------";
+            Serial.printf_P(PSTR("%-32.32s  %17.17s  %4.4s  %4.4s  %12.12s\n"), "SSID", "BSSID", "RSSI", "CHAN", "ENCRYPTION");
+            Serial.printf_P(PSTR("%-32.32s  %17.17s  %4.4s  %4.4s  %12.12s\n"), d, d, d, d, d);
+
+            for (wifiNet_t net : wifiNets)
+            {
+                // wifiNets may have multiple entries for a SSID sorted by RSSI,
+                // we use the first (strongest signal) in the list.
+                if (allNets || currentSSID != net.ssid)
+                {
+                    currentSSID = net.ssid;
+                    count++;
+                    Serial.printf_P(PSTR("%-32.32s  %02x:%02x:%02x:%02x:%02x:%02x  %4ld  %4ld  %12.12s\n"),
+                                    net.ssid.c_str(),
+                                    net.bssid[0], net.bssid[1], net.bssid[2], net.bssid[3], net.bssid[4], net.bssid[5],
+                                    net.rssi, net.channel, encryptionToString(net.encryptionType));
+                }
+            }
+            Serial.println();
+        }
         suppressSerialLog = saved;
+        break;
         /* Work in progress
         Serial.setTimeout(5000);
         Serial.printf_P(PSTR("Select Network: "));
@@ -232,7 +265,7 @@ void serialCLI(char cmd)
                 }
             }
         }
-        if (ssid == "")
+        if (ssid.equals("")) // TODO check length?
         {
             Serial.printf_P(PSTR("\nInvalid network selection: %d\n"), num);
             break;
@@ -242,7 +275,7 @@ void serialCLI(char cmd)
         String password = Serial.readStringUntil('\n');
         while (Serial.available())
             Serial.read();
-        if (password == "")
+        if (password.equals("")) // TODO check length?
         {
             Serial.printf_P(PSTR("\nNo password provided\n"));
             break;

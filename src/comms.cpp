@@ -119,11 +119,14 @@ SoftwareSerial sw_serial;
 
 #endif // not USE_GDOLIB
 
+// times in miliseconds
 #define SECPLUS1_DIGITAL_WALLPLATE_TIMEOUT 15000
-#define SECPLUS1_RX_MESSAGE_TIMEOUT 20
+#define SECPLUS1_RX_MESSAGE_TIMEOUT 25
 #define SECPLUS1_TX_WINDOW_OPEN 5
 #define SECPLUS1_TX_WINDOW_CLOSE 200
 #define SECPLUS1_TX_MINIMUM_DELAY 30
+#define SECPLUS1_EMULATION_POLL_RATE 250
+
 #define SECPLUS2_TX_MINIMUM_DELAY 50
 
 #define COMMS_STATUS_TIMEOUT 2000
@@ -140,13 +143,31 @@ static bool door_moving = false;
 // For Time-to-close control
 static const uint32_t TTCinterval = 250;
 static uint32_t TTCiterations = 0;
-Ticker TTCtimer = Ticker();
-Ticker callbackDelay = Ticker();
+static Ticker TTCtimer = Ticker();
+static Ticker callbackDelay = Ticker();
+static Ticker checkDoorMoving = Ticker();
+static Ticker checkDoorCompleted = Ticker();
 bool TTCwasLightOn = false;
 
+// For door open/close duration
+constexpr uint32_t DOOR_MAX_HISTORY = 5;            // Number of door operations to average across
+constexpr uint32_t DOOR_MAX_DURATION = (45 * 1000); // Maximum time it should take to open/close a door
+constexpr uint32_t DOOR_MIN_DURATION = (3 * 1000);  // Minimum time it should take to open/close a door
+
+struct DoorHistory
+{
+    uint32_t max = DOOR_MAX_HISTORY;
+    uint32_t count = 0;
+    uint32_t duration[DOOR_MAX_HISTORY] = {0};
+};
+static struct DoorHistory openHistory = {0};
+static struct DoorHistory closeHistory = {0};
+
+// For forced recovery if cannot reach by IP address
 struct ForceRecover force_recover;
 #define force_recover_delay 3
 
+// Initialize GDO communications
 #ifdef USE_GDOLIB
 static gdo_status_t gdo_status;
 
@@ -245,8 +266,6 @@ static bool rolling_code_operation_in_progress = false;
 
 /******************************* SECURITY 1.0 *********************************/
 #ifndef USE_GDOLIB
-static const uint8_t RX_LENGTH = 2;
-typedef uint8_t RxPacket[RX_LENGTH * 4];
 // time stamping
 _millis_t last_tx = 0;
 _millis_t msg_start = 0;
@@ -263,8 +282,10 @@ GarageDoorCurrentState doorState = (GarageDoorCurrentState)0xFF;
 
 // power up sequence + poll items for digitial wall panel 889LM
 // MJS: this is what MY 889LM exhibited when powered up (release of all buttons, and then polls)
-// MJS: the 0x53, GDO responds with 0x01 (since we dont use it, seems OK to not sent to GDO)
-byte secplus1States[] = {0x31, 0x31, 0x35, 0x35, 0x33, 0x33, 0x53, 0x53, /* POLL ITEMS --> */ 0x38, 0x3A, 0x39, 0x3A};
+// MJS/DK: added in additional 0x31's & 0x35's hopefully to aid older GDO to sync up
+// MJS: the 0x53, GDO responds with 0x01 (we dont use response)
+uint8_t secplus1States[] = {0x31, 0x31, 0x31, 0x31, 0x35, 0x35, 0x35, 0x35, 0x33, 0x33, 0x53, 0x53, 0x38, 0x3A, 0x3A, 0x3A, 0x39,
+                            /* POLL ITEMS --> */ 0x38, 0x3A, 0x39, 0x3A};
 #define SECPLUS1_POLL_ITEMS 4 // poll last x items at end of secplus1States[]
 
 // values for SECURITY+1.0 communication
@@ -277,16 +298,18 @@ enum secplus1Codes : uint8_t
     LockButtonPress = 0x34,
     LockButtonRelease = 0x35,
 
-    Unknown_0x36 = 0x36,
-    QueryDoorStatus_0x37 = 0x37, // sent by a "0x37" wall panel
+    // sent by a "0x37" wall panel, and unable to actually get a status from returned byte
+    QueryDoorStatus_0x37 = 0x37,
 
-    DoorStatus = 0x38,
-    ObstructionStatus = 0x39,
-    LightLockStatus = 0x3A,
+    QueryDoorStatus = 0x38,
+    QueryObstructionStatus = 0x39,
+    QueryLightLockStatus = 0x3A,
 
-    DoorMovingStatus = 0x40, // sent by a "0x37" wall panel
+    // sent by a "0x37" wall panel
+    QueryDoorMovingStatus = 0x40,
 
-    UnknownStatus_0x53 = 0x53, // sent by a "0x37" wall panel and WP when done its "power up"
+    // sent by wall panel at the end of its "release" button sequence
+    QueryUnknownStatus_0x53 = 0x53,
 
     Unknown = 0xFF // (when rx fails parity test)
 };
@@ -682,6 +705,46 @@ void setup_comms()
     // set the status pin for output
     pinMode(STATUS_OBST_PIN, OUTPUT);
 #endif
+
+    // Restore previously saved door open/close duration history
+#ifdef ESP32
+    nvRam->readBlob(nvram_open_history, &openHistory, sizeof(openHistory));
+    nvRam->readBlob(nvram_close_history, &closeHistory, sizeof(closeHistory));
+#else
+    read_blob_from_file(nvram_open_history, &openHistory, sizeof(openHistory));
+    read_blob_from_file(nvram_close_history, &closeHistory, sizeof(closeHistory));
+#endif
+    if (openHistory.max != DOOR_MAX_HISTORY || closeHistory.max != DOOR_MAX_HISTORY)
+    {
+        // Someone changed the DOOR_MAX_HISTORY const. Reset everything
+        ESP_LOGI(TAG, "New DOOR_MAX_HISTORY for door open/close durations, reset door history to zero");
+        openHistory = {}; // reset to defaults
+        closeHistory = {};
+    }
+    else
+    {
+        // calculate open average
+        uint32_t average = 0;
+        uint32_t count = std::min(openHistory.count, DOOR_MAX_HISTORY);
+        for (uint32_t i = 0; i < count; i++)
+            average += openHistory.duration[i];
+        average /= count;
+        garage_door.openDuration = (average + 500) / 1000; // round up/down to closest second
+        // calculate close average
+        average = 0;
+        count = std::min(closeHistory.count, DOOR_MAX_HISTORY);
+        for (uint32_t i = 0; i < count; i++)
+            average += closeHistory.duration[i];
+        average /= count;
+        garage_door.closeDuration = (average + 500) / 1000; // round up/down to closest second
+    }
+#define openHistory(n) (openHistory.duration[(openHistory.count + DOOR_MAX_HISTORY - (n)) % DOOR_MAX_HISTORY])
+#define closeHistory(n) (closeHistory.duration[(closeHistory.count + DOOR_MAX_HISTORY - (n)) % DOOR_MAX_HISTORY])
+    ESP_LOGI(TAG, "Door open history (%d):  %lums, %lums, %lums, %lums, %lums", openHistory.count,
+             openHistory(1), openHistory(2), openHistory(3), openHistory(4), openHistory(5));
+    ESP_LOGI(TAG, "Door close history (%d): %lums, %lums, %lums, %lums, %lums", closeHistory.count,
+             closeHistory(1), closeHistory(2), closeHistory(3), closeHistory(4), closeHistory(5));
+
     comms_setup_done = true;
     comms_status_start = _millis();
 }
@@ -754,10 +817,14 @@ void reset_door()
     nvRam->erase(nvram_rolling);
     nvRam->erase(nvram_id_code);
     nvRam->erase(nvram_has_motion);
+    nvRam->erase(nvram_open_history);
+    nvRam->erase(nvram_close_history);
 #else
     delete_file(nvram_rolling);
     delete_file(nvram_id_code);
     delete_file(nvram_has_motion);
+    delete_file(nvram_open_history);
+    delete_file(nvram_close_history);
 #endif
 }
 #ifndef USE_GDOLIB
@@ -788,22 +855,56 @@ void wallPlate_Emulation()
     static _millis_t lastRequestMillis = 0;
     static _millis_t startMillis = currentMillis;
     static bool emulateWallPanel = false;
+    static uint32_t delay = SECPLUS1_TX_MINIMUM_DELAY;
 
-    // transmit every 250ms
-    if (emulateWallPanel && (currentMillis - lastRequestMillis) > 250)
+    // transmit every x ms
+    if (emulateWallPanel && (uint32_t)(currentMillis - lastRequestMillis) > delay)
     {
-        static uint8_t stateIndex = 0;
+        static uint32_t stateIndex = 0;
+
         lastRequestMillis = currentMillis;
-
-        byte secplus1ToSend = byte(secplus1States[stateIndex]);
-
-        sec1_poll_status(secplus1ToSend);
-
+        sec1_poll_status(secplus1States[stateIndex]);
         // set next poll
         stateIndex++;
+
+        // at the 1st poll item? switch rate of send
+        if (delay < SECPLUS1_EMULATION_POLL_RATE && secplus1States[stateIndex] == secplus1Codes::QueryDoorStatus)
+        {
+            // switch to poll rate of 250ms
+            delay = SECPLUS1_EMULATION_POLL_RATE;
+        }
+
+        // at the end?
         if (stateIndex == sizeof(secplus1States))
         {
+            // loop back for polls
             stateIndex = sizeof(secplus1States) - SECPLUS1_POLL_ITEMS;
+
+            // Check that the garage door is responding to our emulation after 5 seconds.
+            // If not then we will redo the initialization sequence.
+            static bool success = false;
+            static _millis_t lastCheck = currentMillis;
+            if (!success && (currentMillis - lastCheck) > 5000)
+            {
+                lastCheck = currentMillis;
+                if (garage_door.current_state == (GarageDoorCurrentState)0xFF)
+                {
+                    ESP_LOGW(TAG, "Wall panel emulation failed, no response from garage door");
+                    // Try again, this time start from the first lock button release (0x35)
+                    stateIndex = 0;
+                    while (stateIndex < sizeof(secplus1States) && secplus1States[stateIndex] != secplus1Codes::LockButtonRelease)
+                        stateIndex++;
+                    if (stateIndex >= sizeof(secplus1States)) // safety
+                        stateIndex = 0;
+                    // How about we try a little slower this time, just in case.
+                    delay = SECPLUS1_TX_MINIMUM_DELAY * 2;
+                }
+                else
+                {
+                    ESP_LOGI(TAG, "Wall panel emulation successful, garage door responding");
+                    success = true;
+                }
+            }
         }
         return;
     }
@@ -839,100 +940,130 @@ void wallPlate_Emulation()
 
 void update_door_state(GarageDoorCurrentState current_state)
 {
-    constexpr uint32_t MAX_HISTORY = 5;            // Number of door operations to average across
-    constexpr uint32_t MAX_DURATION = (45 * 1000); // Maximum time it should take to open/close a door
     static _millis_t start_opening = 0;
     static _millis_t start_closing = 0;
-    static _millis_t open_history[MAX_HISTORY] = {0};
-    static uint32_t open_counter = 0;
-    static _millis_t close_history[MAX_HISTORY] = {0};
-    static uint32_t close_counter = 0;
+    _millis_t now = _millis();
+
     GarageDoorTargetState target_state = garage_door.target_state;
 
     // Determine target state
     switch (current_state)
     {
     case GarageDoorCurrentState::CURR_OPEN:
-        target_state = TGT_OPEN;
+        target_state = GarageDoorTargetState::TGT_OPEN;
         break;
     case GarageDoorCurrentState::CURR_CLOSED:
-        target_state = TGT_CLOSED;
-        break;
-    case GarageDoorCurrentState::CURR_STOPPED:
-        target_state = TGT_OPEN;
+        target_state = GarageDoorTargetState::TGT_CLOSED;
         break;
     case GarageDoorCurrentState::CURR_OPENING:
-        target_state = TGT_OPEN;
+        target_state = GarageDoorTargetState::TGT_OPEN;
         break;
     case GarageDoorCurrentState::CURR_CLOSING:
-        target_state = TGT_CLOSED;
+        target_state = GarageDoorTargetState::TGT_CLOSED;
+        break;
+    case GarageDoorCurrentState::CURR_STOPPED:
+        target_state = (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSING)
+                           ? GarageDoorTargetState::TGT_CLOSED
+                           : GarageDoorTargetState::TGT_OPEN;
         break;
     default:
-        ESP_LOGE(TAG, "Got door state unknown");
+        ESP_LOGE(TAG, "Got unknown door state");
         break;
-    }
+    } // end switch
+
+    // Terminate any timers started to check for success
+    switch (current_state)
+    {
+    case GarageDoorCurrentState::CURR_CLOSING:
+        // If we are in a time-to-close delay timeout, cancel the timeout
+        if (TTCtimer.active())
+        {
+            ESP_LOGI(TAG, "Canceling TTC delay timer");
+            TTCtimer.detach();
+        }
+        // Fall through to "opening"
+    case GarageDoorCurrentState::CURR_OPENING:
+        // Terminate the timer that confirms that a door open/close actually worked.
+        checkDoorMoving.detach();
+        break;
+
+    case GarageDoorCurrentState::CURR_OPEN:
+    case GarageDoorCurrentState::CURR_CLOSED:
+    case GarageDoorCurrentState::CURR_STOPPED:
+        // If timer that checks door completely opens/closes is active, cancel it.
+        if (checkDoorCompleted.active())
+        {
+            checkDoorCompleted.detach();
+        }
+        break;
+    default:
+        // We logged an error in the previous switch()
+        break;
+    } // end switch
 
     // Calculate door open/close duration
     if (current_state == CURR_OPENING && garage_door.current_state == CURR_CLOSED)
     {
-        start_opening = _millis();
+        start_opening = now;
         ESP_LOGD(TAG, "Record start time of door opening: %llums", (uint64_t)start_opening);
     }
     else if (current_state == CURR_OPEN && garage_door.current_state == CURR_OPENING && start_opening > 0)
     {
-        _millis_t open_duration = _millis() - start_opening;
-        if (open_duration <= MAX_DURATION)
+        _millis_t duration = now - start_opening;
+        if (DOOR_MIN_DURATION <= duration && duration <= DOOR_MAX_DURATION)
         {
-            _millis_t open_average = 0;
-            open_history[open_counter++ % MAX_HISTORY] = open_duration;
-            uint32_t count = std::min(open_counter, MAX_HISTORY);
+            _millis_t average = 0;
+            openHistory.duration[openHistory.count++ % DOOR_MAX_HISTORY] = (uint32_t)duration;
+            uint32_t count = std::min(openHistory.count, DOOR_MAX_HISTORY);
             for (uint32_t i = 0; i < count; i++)
-                open_average += open_history[i];
-            open_average /= count;
-            garage_door.openDuration = (open_average + 500) / 1000; // round up/down to closest second
+                average += openHistory.duration[i];
+            average /= count;
+            garage_door.openDuration = (average + 500) / 1000; // round up/down to closest second
             ESP_LOGI(TAG, "Door open duration: %lums, History: %lums, %lums, %lums, %lums, Average: %lums (%s)",
-                     (uint32_t)open_duration,
-                     (uint32_t)open_history[(open_counter + MAX_HISTORY - 2) % MAX_HISTORY],
-                     (uint32_t)open_history[(open_counter + MAX_HISTORY - 3) % MAX_HISTORY],
-                     (uint32_t)open_history[(open_counter + MAX_HISTORY - 4) % MAX_HISTORY],
-                     (uint32_t)open_history[(open_counter + MAX_HISTORY - 5) % MAX_HISTORY],
-                     (uint32_t)open_average, timeString());
+                     (uint32_t)duration, openHistory(2), openHistory(3), openHistory(4), openHistory(5),
+                     (uint32_t)average, timeString());
+#ifdef ESP32
+            nvRam->writeBlob(nvram_open_history, &openHistory, sizeof(openHistory));
+#else
+            write_blob_to_file(nvram_open_history, &openHistory, sizeof(openHistory));
+#endif
         }
         else
         {
             start_opening = 0;
-            ESP_LOGW(TAG, "Ignoring implausibly long open duration: %lums (%s)", (uint32_t)open_duration, timeString());
+            ESP_LOGW(TAG, "Ignoring implausibly short or long open duration: %lums (%s)", (uint32_t)duration, timeString());
         }
     }
     else if (current_state == CURR_CLOSING && garage_door.current_state == CURR_OPEN)
     {
-        start_closing = _millis();
+        start_closing = now;
         ESP_LOGD(TAG, "Record start time of door closing: %llums", (uint64_t)start_closing);
     }
     else if (current_state == CURR_CLOSED && garage_door.current_state == CURR_CLOSING && start_closing > 0)
     {
-        _millis_t close_duration = _millis() - start_closing;
-        if (close_duration <= MAX_DURATION)
+        _millis_t duration = now - start_closing;
+        if (DOOR_MIN_DURATION <= duration && duration <= DOOR_MAX_DURATION)
         {
-            _millis_t close_average = 0;
-            close_history[close_counter++ % MAX_HISTORY] = close_duration;
-            uint32_t count = std::min(close_counter, MAX_HISTORY);
+            _millis_t average = 0;
+            closeHistory.duration[closeHistory.count++ % DOOR_MAX_HISTORY] = (uint32_t)duration;
+            uint32_t count = std::min(closeHistory.count, DOOR_MAX_HISTORY);
             for (uint32_t i = 0; i < count; i++)
-                close_average += close_history[i];
-            close_average /= count;
-            garage_door.closeDuration = (close_average + 500) / 1000; // round up/down to closest second
+                average += closeHistory.duration[i];
+            average /= count;
+            garage_door.closeDuration = (average + 500) / 1000; // round up/down to closest second
             ESP_LOGI(TAG, "Door close duration: %lums, History: %lums, %lums, %lums, %lums, Average: %lums (%s)",
-                     (uint32_t)close_duration,
-                     (uint32_t)close_history[(close_counter + MAX_HISTORY - 2) % MAX_HISTORY],
-                     (uint32_t)close_history[(close_counter + MAX_HISTORY - 3) % MAX_HISTORY],
-                     (uint32_t)close_history[(close_counter + MAX_HISTORY - 4) % MAX_HISTORY],
-                     (uint32_t)close_history[(close_counter + MAX_HISTORY - 5) % MAX_HISTORY],
-                     (uint32_t)close_average, timeString());
+                     (uint32_t)duration, closeHistory(2), closeHistory(3), closeHistory(4), closeHistory(5),
+                     (uint32_t)average, timeString());
+#ifdef ESP32
+            nvRam->writeBlob(nvram_close_history, &closeHistory, sizeof(closeHistory));
+#else
+            write_blob_to_file(nvram_close_history, &closeHistory, sizeof(closeHistory));
+#endif
         }
         else
         {
             start_closing = 0;
-            ESP_LOGW(TAG, "Ignoring implausibly long close duration: %lums (%s)", (uint32_t)close_duration, timeString());
+            ESP_LOGW(TAG, "Ignoring implausibly short or long close duration: %lums (%s)", (uint32_t)duration, timeString());
         }
     }
     else if ((current_state == CURR_STOPPED) ||
@@ -945,31 +1076,10 @@ void update_door_state(GarageDoorCurrentState current_state)
         ESP_LOGD(TAG, "Aborting door open/close duration calculation");
     }
 
-    // If we are in a time-to-close delay timeout, cancel the timeout
-    if ((current_state == CURR_CLOSING) && (TTCtimer.active()))
-    {
-        ESP_LOGI(TAG, "Canceling TTC delay timer");
-        TTCtimer.detach();
-    }
-
-    // First time initialization
-    if (!garage_door.active)
+    // retrieve number of door open/close cycles.
+    if (!garage_door.active || (current_state == CURR_CLOSED && (current_state != garage_door.current_state)))
     {
         garage_door.active = true;
-        if (current_state == CURR_OPENING || current_state == CURR_OPEN)
-        {
-            target_state = TGT_OPEN;
-        }
-        else
-        {
-            target_state = TGT_CLOSED;
-        }
-        // retrieve number of door open/close cycles.
-        send_get_openings();
-    }
-    else if (current_state == CURR_CLOSED && (current_state != garage_door.current_state))
-    {
-        // door activated, retrieve number of door open/close cycles.
         send_get_openings();
     }
 
@@ -988,16 +1098,6 @@ void update_door_state(GarageDoorCurrentState current_state)
 
 void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
 {
-    if (value != 0xFF)
-    {
-        // Unknown key values will be logged in default of switch statement below.
-        // This logs all key/value pairs from known "poll" commands and the response from the GDO.
-        static _millis_t lastTime = 0;
-        _millis_t now = _millis();
-        ESP_LOGV(TAG, "SEC1 RX IDLE:%lums - MSG: 0x%02X:0x%02X", (uint32_t)(now - lastTime), key, value);
-        lastTime = now;
-    }
-
     switch (key)
     {
     // door button press
@@ -1057,7 +1157,7 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
     }
 
     // Door moving - only seen with 0x37 panels
-    case secplus1Codes::DoorMovingStatus:
+    case secplus1Codes::QueryDoorMovingStatus:
     {
         static uint8_t previous = 0xFF;
         if (value != previous)
@@ -1085,7 +1185,7 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
     }
 
     // Unknown status packet
-    case secplus1Codes::UnknownStatus_0x53:
+    case secplus1Codes::QueryUnknownStatus_0x53:
     {
         static uint8_t previous = 0xFF;
         if (value != previous)
@@ -1130,7 +1230,7 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
             if (door_moving || (_millis() - last_status_query > 10000))
             {
                 // Write directly rather than go through all checking done by transmitSec1()
-                sw_serial.write(secplus1Codes::DoorStatus);
+                sw_serial.write(secplus1Codes::QueryDoorStatus);
                 // timestamp tx
                 last_tx = last_status_query = _millis();
             }
@@ -1140,7 +1240,7 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
     }
 
     // door status
-    case secplus1Codes::DoorStatus:
+    case secplus1Codes::QueryDoorStatus:
     {
         // 0x5X = stopped
         // 0x0X = moving
@@ -1221,7 +1321,7 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
     }
 
     // obstruction states
-    case secplus1Codes::ObstructionStatus:
+    case secplus1Codes::QueryObstructionStatus:
     {
         // 0x00         No obstruction
         // 0x00 -> 0x04 Obstruction beam broken, implies motion
@@ -1258,7 +1358,7 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
     }
 
     // light & lock
-    case secplus1Codes::LightLockStatus:
+    case secplus1Codes::QueryLightLockStatus:
     {
         // only use for real sec1 comms debugging, its just too chatty
         // ESP_LOGD(TAG, "SEC1 RX 0x3A value: 0x%02X", value);
@@ -1433,8 +1533,9 @@ void receiveErrorHandler(hardwareSerial_error_t error)
 void comms_loop_sec1()
 {
     static bool reading_msg = false;
-    static RxPacket rx_packet;
+    static uint8_t sec1cmd = 0;
     static uint8_t syncByteCount = 0;
+    _millis_t current_millis = _millis();
 
     // CTS timer
     // when wall panel present, need 5ms elapsed after last complete message arrives.
@@ -1442,22 +1543,19 @@ void comms_loop_sec1()
     if (!clearToSend)
     {
         // open the tx window
-        if ((_millis() - msg_complete) >= SECPLUS1_TX_WINDOW_OPEN)
+        if ((current_millis - msg_complete) >= SECPLUS1_TX_WINDOW_OPEN)
         {
             clearToSend = true;
         }
     }
 
-    // get all the rxed bytes processed now
-    // any rx bytes will reset clearToSend
+readIn:
     while (Sec1Serial.available())
     {
         uint8_t ser_byte = Sec1Serial.read();
 
-        // reading byte so clear flag
-        isRxPending();
-
-        clearToSend = false;
+        isRxPending();       // reading byte so clear flag
+        clearToSend = false; // any RX bytes reset clearToSend
 
         // this byte is received with invalid parity
         // it is sent when there is no buss traffic (need to look at it with scope)
@@ -1470,12 +1568,11 @@ void comms_loop_sec1()
                 // alternate way to detect no wall panel
                 // not in use as of now
                 // but could start emulator here
+                ESP_LOGV(TAG, "SEC1 RX received 10 GDO Sync bytes(0xFF)");
             }
-
             // reset start of message (just incase somehow is 2nd byte)
             reading_msg = false;
-
-            break;
+            continue;
         }
 
 #ifdef ESP8266
@@ -1483,13 +1580,12 @@ void comms_loop_sec1()
         if (Sec1Serial.readParity() != Sec1Serial.parityEven(ser_byte))
         {
             if (reading_msg)
-                ESP_LOGD(TAG, "SEC1 RX Parity error on 2nd byte of poll msg [0x%02X:0x%02X]", rx_packet[0], ser_byte);
+                ESP_LOGD(TAG, "SEC1 RX Parity error on 2nd byte of poll msg [0x%02X:0x%02X]", sec1cmd, ser_byte);
             else
                 ESP_LOGD(TAG, "SEC1 RX Parity error [0x%02X]", ser_byte);
 
             // toss message, start over
             reading_msg = false;
-
             continue;
         }
 #endif
@@ -1519,26 +1615,24 @@ void comms_loop_sec1()
         case secplus1Codes::LockButtonRelease:
         {
             sec1_process_message(ser_byte);
-            // reset start of message
-            reading_msg = false;
+            reading_msg = false; // reset start of message
             break;
         }
         // Double byte... Commands sent by a wall panel or ourselves, plus reply from GDO...
         case secplus1Codes::QueryDoorStatus_0x37:
-        case secplus1Codes::DoorMovingStatus:
-        case secplus1Codes::UnknownStatus_0x53:
-        case secplus1Codes::DoorStatus:
-        case secplus1Codes::ObstructionStatus:
-        case secplus1Codes::LightLockStatus:
+        case secplus1Codes::QueryDoorMovingStatus:
+        case secplus1Codes::QueryUnknownStatus_0x53:
+        case secplus1Codes::QueryDoorStatus:
+        case secplus1Codes::QueryObstructionStatus:
+        case secplus1Codes::QueryLightLockStatus:
         {
             // if we already waiting for a GDO response, and got a new poll...
             if (reading_msg)
             {
-                ESP_LOGD(TAG, "SEC1 RX Prior poll msg incomplete [0x%02X] received, but lost GDO response", rx_packet[0]);
+                ESP_LOGD(TAG, "SEC1 RX Prior 0x%02X poll msg incomplete, received 0x%02X but lost GDO response", sec1cmd, ser_byte);
             }
-            rx_packet[0] = ser_byte;
-            // timestamp begining of message
-            msg_start = _millis();
+            sec1cmd = ser_byte;
+            msg_start = current_millis; // timestamp begining of message
             reading_msg = true;
             break;
         }
@@ -1546,14 +1640,14 @@ void comms_loop_sec1()
         {
             if (reading_msg)
             {
-                // we only allow 2 bytes max, and the reading_msg controls that
-                // this is the value to response of the GDO query
-                rx_packet[1] = ser_byte;
-                sec1_process_message(rx_packet[0], rx_packet[1]);
-                // time stamp
-                msg_complete = _millis();
-                // reset start of message
-                reading_msg = false;
+                // received byte is the response from the sec1 command we sent
+                msg_complete = current_millis; // timestamp receipt of GDO response to poll command
+                static _millis_t lastTime = msg_complete;
+                ESP_LOGV(TAG, "SEC1 RX IDLE:%lums - MSG: 0x%02X:0x%02X (%lums)", (uint32_t)(msg_complete - lastTime), sec1cmd, ser_byte, (uint32_t)(msg_complete - msg_start));
+                lastTime = msg_complete;
+
+                sec1_process_message(sec1cmd, ser_byte);
+                reading_msg = false; // reset start of message
             }
             else
             {
@@ -1562,14 +1656,25 @@ void comms_loop_sec1()
             break;
         }
         } // end of switch()
-    } // end of while()
+    }; // end of while()
 
-    // if still reading the message, no need to process further
-    // or if a RX BIT has been has been received
-    // or any ready bytes available (a byte came in somehow during above while loop, during testing it was only ever 1 byte)
-    // process on next pass
-    if (reading_msg == true || isRxPending() || Sec1Serial.available())
+    // this happens occasionally (a byte came in somehow during above while loop, during testing it was only ever 1 byte)
+    if (Sec1Serial.available())
     {
+        // ESP_LOGD(TAG, "SEC1 RX available() is true after the while!!!");
+        goto readIn;
+    }
+
+    if (reading_msg && (uint32_t)(current_millis - msg_start) > SECPLUS1_RX_MESSAGE_TIMEOUT)
+    {
+        // waited too long for a reply, assume not coming.
+        ESP_LOGD(TAG, "SEC1 RX Prior 0x%02X poll msg incomplete, timeout %ldms waiting GDO response", sec1cmd, (uint32_t)(current_millis - msg_start));
+        reading_msg = false;
+    }
+
+    if (reading_msg == true || isRxPending())
+    {
+        // exit now as its not a good time to send as RX bits are incoming
         return;
     }
 
@@ -1670,6 +1775,34 @@ void comms_loop_sec2()
             }
 
             comms_status_done = true;
+            break;
+        }
+
+        case PacketCommand::MotorOn:
+        {
+            // If we get a MotorOn packet then the door is moving, either opening or closing.
+            // If our state does not reflect opening or closing then we missed the packet (error reading the serial port?)
+            switch (garage_door.current_state)
+            {
+            case GarageDoorCurrentState::CURR_STOPPED:
+                // Started moving from stopped (half open) so we cannot deduce direction it is moving
+            case GarageDoorCurrentState::CURR_OPENING:
+            case GarageDoorCurrentState::CURR_CLOSING:
+                // Opening or closing is good... we already know which direction it is moving.
+                break;
+            case GarageDoorCurrentState::CURR_OPEN:
+                // If last known state was open, then we missed that packet and should be in closing state.
+                ESP_LOGI(TAG, "Door moving from OPEN state but we missed the notification packet. Update our state to CLOSING");
+                update_door_state(GarageDoorCurrentState::CURR_CLOSING);
+                break;
+            case GarageDoorCurrentState::CURR_CLOSED:
+                // If last known state was open, then we missed that packet and should be in closing state.
+                ESP_LOGI(TAG, "Door moving from CLOSED state but we missed the notification packet. Update our state to OPENING");
+                update_door_state(GarageDoorCurrentState::CURR_OPENING);
+                break;
+            default:
+                break;
+            } // end switch
             break;
         }
 
@@ -1865,40 +1998,10 @@ void comms_loop_sec2()
 void comms_loop_drycontact()
 {
     static GarageDoorCurrentState previousDoorState = (GarageDoorCurrentState)0xFF;
-
-    // Notify HomeKit when the door state changes
     if (doorState != previousDoorState)
     {
-        switch (doorState)
-        {
-        case GarageDoorCurrentState::CURR_OPEN:
-            garage_door.current_state = GarageDoorCurrentState::CURR_OPEN;
-            garage_door.target_state = GarageDoorTargetState::TGT_OPEN;
-            break;
-        case GarageDoorCurrentState::CURR_CLOSED:
-            garage_door.current_state = GarageDoorCurrentState::CURR_CLOSED;
-            garage_door.target_state = GarageDoorTargetState::TGT_CLOSED;
-            break;
-        case GarageDoorCurrentState::CURR_OPENING:
-            garage_door.current_state = GarageDoorCurrentState::CURR_OPENING;
-            garage_door.target_state = GarageDoorTargetState::TGT_OPEN;
-            break;
-        case GarageDoorCurrentState::CURR_CLOSING:
-            garage_door.current_state = GarageDoorCurrentState::CURR_CLOSING;
-            garage_door.target_state = GarageDoorTargetState::TGT_CLOSED;
-            break;
-        default:
-            garage_door.current_state = GarageDoorCurrentState::CURR_STOPPED;
-            break;
-        }
-
-        notify_homekit_current_door_state_change(garage_door.current_state);
-        notify_homekit_target_door_state_change(garage_door.target_state);
-
         previousDoorState = doorState;
-
-        // Log the state change for debugging
-        ESP_LOGI(TAG, "Door state updated: Current: %d, Target: %d", garage_door.current_state, garage_door.target_state);
+        update_door_state(doorState);
     }
 }
 #endif
@@ -1935,13 +2038,20 @@ void comms_loop()
     }
 
 #ifndef USE_GDOLIB
-    if (doorControlType == 1)
+    switch (doorControlType)
+    {
+    case 1:
         comms_loop_sec1();
-    else if (doorControlType == 2)
+        break;
+    case 2:
         comms_loop_sec2();
-    else
+        break;
+    case 3:
         comms_loop_drycontact();
-
+        break;
+    default:
+        break;
+    }
     obstruction_timer();
 #endif // USE_GDOLIB
 }
@@ -1983,9 +2093,9 @@ bool transmitSec1(byte toSend)
     }
 
     // sending a poll (889LM emulation)
-    bool poll_cmd = (toSend == secplus1Codes::DoorStatus) || (toSend == secplus1Codes::ObstructionStatus) || (toSend == secplus1Codes::LightLockStatus);
+    bool poll_cmd = (toSend == secplus1Codes::QueryDoorStatus) || (toSend == secplus1Codes::QueryObstructionStatus) || (toSend == secplus1Codes::QueryLightLockStatus);
     // one time poll from (889LM emulation) at end of "power up sequence"
-    poll_cmd = poll_cmd || (toSend == secplus1Codes::UnknownStatus_0x53);
+    poll_cmd = poll_cmd || (toSend == secplus1Codes::QueryUnknownStatus_0x53);
     // if not a poll command (and polls are only with wall panel emulation enabled),
     // disable disable rx (allows for cleaner tx, and no echo)
     if (!poll_cmd)
@@ -2239,21 +2349,32 @@ void door_command_close()
         door_command(DoorAction::Toggle);
     }
 
-    if (garage_door.closeDuration > 0)
+    if (doorControlType == 2 && garage_door.openDuration > 0)
     {
-        // ESPhome firmware starts a timer that fires two seconds after expected close duration
-        // It checks that the door got to CLOSED or STOPPED state, and if not then proactively
-        // queries the door for status (which only works on Sec+2.0)
-        Ticker checkStatus = Ticker();
-        checkStatus.once_ms((garage_door.closeDuration + 2) * 1000, []()
-                            {
-            if (garage_door.current_state != GarageDoorCurrentState::CURR_CLOSED &&
-                garage_door.current_state != GarageDoorCurrentState::CURR_STOPPED)
-            {
-                garage_door.current_state = GarageDoorCurrentState::CURR_CLOSED; // probably missed a status mesage, assume it's closed
-                send_get_status();  // query in case we're wrong and it's stopped
-            } });
+        // Sec+2.0 doors send us notifications as events happen, and an update every 5 minutes.
+        // We may miss a notification which is why we have this test.
+        // Sec+1.0 doors send a constant stream of status, so we get door uppdate every 500ms, so no need for this.
+        checkDoorCompleted.detach(); // just in case.
+        checkDoorCompleted.once_ms((garage_door.closeDuration + 3) * 1000, []()
+                                   {
+                                       // If this timer fires (was not cancelled when we get notification that door has stopped) then
+                                       // we probably missed a status mesage, assume it's closed.
+                                       ESP_LOGW(TAG, "Door did not close in expected time, assuming it is closed");
+                                       notify_homekit_current_door_state_change(GarageDoorCurrentState::CURR_CLOSED);
+                                       notify_homekit_target_door_state_change(GarageDoorTargetState::TGT_CLOSED);
+                                       send_get_status(); // query in case we're wrong and it's stopped (Sec+2.0)
+                                   });
     }
+    // Check door starts to close
+    checkDoorMoving.detach(); // just in case!
+    checkDoorMoving.once_ms(2000, []()
+                            {
+                                // If this timer fires (was not cancelled when we get notification that door is closing) then
+                                // it is likely that there is an error and door did not move from its open state.
+                                checkDoorCompleted.detach();
+                                ESP_LOGE(TAG, "Door is supposed to be closing but is not.  Current state: %s", DOOR_STATE(garage_door.current_state));
+                                notify_homekit_current_door_state_change(GarageDoorCurrentState::CURR_OPEN);
+                                notify_homekit_target_door_state_change(GarageDoorTargetState::TGT_OPEN); });
 #endif
     return;
 }
@@ -2268,21 +2389,32 @@ void door_command_open()
 #else
     door_command(DoorAction::Open);
 
-    if (garage_door.openDuration > 0)
+    if (doorControlType == 2 && garage_door.openDuration > 0)
     {
-        // ESPhome firmware starts a timer that fires two seconds after expected open duration
-        // It checks that the door got to OPEN or STOPPED state, and if not then proactively
-        // queries the door for status (which only works on Sec+2.0)
-        Ticker checkStatus = Ticker();
-        checkStatus.once_ms((garage_door.openDuration + 2) * 1000, []()
-                            {
-            if (garage_door.current_state != GarageDoorCurrentState::CURR_OPEN &&
-                garage_door.current_state != GarageDoorCurrentState::CURR_STOPPED)
-            {
-                garage_door.current_state = GarageDoorCurrentState::CURR_OPEN; // probably missed a status mesage, assume it's open
-                send_get_status();  // query in case we're wrong and it's stopped
-            } });
+        // Sec+2.0 doors send us notifications as events happen, and an update every 5 minutes.
+        // We may miss a notification which is why we have this test.
+        // Sec+1.0 doors send a constant stream of status, so we get door uppdate every 500ms, so no need for this.
+        checkDoorCompleted.detach(); // just in case.
+        checkDoorCompleted.once_ms((garage_door.openDuration + 3) * 1000, []()
+                                   {
+                                       // If this timer fires (was not cancelled when we get notification that door has stopped) then
+                                       // we probably missed a status mesage, assume it's open.
+                                       ESP_LOGW(TAG, "Door did not open in expected time, assuming it is open");
+                                       notify_homekit_current_door_state_change(GarageDoorCurrentState::CURR_OPEN);
+                                       notify_homekit_target_door_state_change(GarageDoorTargetState::TGT_OPEN);
+                                       send_get_status(); // query in case we're wrong and it's stopped (Sec+2.0)
+                                   });
     }
+    // Check door starts to open
+    checkDoorMoving.detach(); // just in case!
+    checkDoorMoving.once_ms(2000, []()
+                            {
+                                // If this timer fires (was not cancelled when we get notification that door is opening) then
+                                // it is likely that there is an error and door did not move from its closed state.
+                                checkDoorCompleted.detach();
+                                ESP_LOGE(TAG, "Door is supposed to be opening but is not.  Current state: %s", DOOR_STATE(garage_door.current_state));
+                                notify_homekit_current_door_state_change(GarageDoorCurrentState::CURR_CLOSED);
+                                notify_homekit_target_door_state_change(GarageDoorTargetState::TGT_CLOSED); });
 #endif
     return;
 }
@@ -2628,7 +2760,7 @@ void sec1_light_press(uint32_t delay)
     // this better emulates wall panel
     if (garage_door.wallPanelEmulated)
     {
-        sec1_poll_status(secplus1Codes::LightLockStatus);
+        sec1_poll_status(secplus1Codes::QueryLightLockStatus);
     }
 }
 

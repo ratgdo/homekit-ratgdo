@@ -277,7 +277,13 @@ During early development there were several reports that the ratgdo device would
 
 ### Reset Door
 
-This button resets the Security+ 2.0 rolling codes and whether your door opener has a motion sensor. This may be necessary if the ratgdo device gets out-of-sync with what the door opener expects. Selecting this button requires the ratgdo to reboot and does not save any new settings.
+This button resets garage door saved values:
+
+- Generate a new Security+ 2.0 door ID and reset rolling codes to zero
+- Whether your door opener has a motion sensor (learned)
+- The history of last five door open and closing durations
+
+A door reset may be necessary if the ratgdo device gets out-of-sync with what the door opener expects, or if you wish to reset the door open/close duration which is calculated by averaging over the last five open/close operations. Selecting this button requires the ratgdo to reboot and does not save any changed settings.
 
 ### Set WiFi SSID
 

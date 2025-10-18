@@ -694,6 +694,26 @@ void write_int_to_file(const char *filename, uint32_t value)
     file.close();
 }
 
+bool read_blob_from_file(const char *filename, void *value, size_t size)
+{
+    File file = LittleFS.open(filename, "r");
+    if (file)
+    {
+        file.read((uint8_t *)value, size);
+        file.close();
+        return true;
+    }
+    return false; // file does not exist?
+}
+
+void write_blob_to_file(const char *filename, const void *value, size_t size)
+{
+    File file = LittleFS.open(filename, "w");
+    ESP_LOGI(TAG, "writing blob of size %d to file %s", size, filename);
+    file.write((uint8_t *)value, size);
+    file.close();
+}
+
 void delete_file(const char *filename)
 {
     LittleFS.remove(filename);
@@ -797,7 +817,7 @@ bool nvRamClass::write(const std::string &constKey, const int32_t value, bool co
     return true;
 }
 
-bool nvRamClass::readBlob(const std::string &constKey, char *value, size_t size)
+bool nvRamClass::readBlob(const std::string &constKey, void *value, size_t size)
 {
     std::string key = constKey;
     if (key.length() >= NVS_KEY_NAME_MAX_SIZE)
@@ -812,7 +832,7 @@ bool nvRamClass::readBlob(const std::string &constKey, char *value, size_t size)
     return true;
 }
 
-bool nvRamClass::writeBlob(const std::string &constKey, const char *value, size_t size, bool commit)
+bool nvRamClass::writeBlob(const std::string &constKey, const void *value, size_t size, bool commit)
 {
     std::string key = constKey;
     if (key.length() >= NVS_KEY_NAME_MAX_SIZE)
