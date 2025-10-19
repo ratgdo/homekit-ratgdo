@@ -150,7 +150,7 @@ static Ticker checkDoorCompleted = Ticker();
 bool TTCwasLightOn = false;
 
 // For door open/close duration
-constexpr uint32_t DOOR_MAX_HISTORY = 5;            // Number of door operations to average across
+constexpr uint32_t DOOR_MAX_HISTORY = 6;            // Number of door operations to average across
 constexpr uint32_t DOOR_MAX_DURATION = (45 * 1000); // Maximum time it should take to open/close a door
 constexpr uint32_t DOOR_MIN_DURATION = (3 * 1000);  // Minimum time it should take to open/close a door
 
@@ -162,6 +162,57 @@ struct DoorHistory
 };
 static struct DoorHistory openHistory = {0};
 static struct DoorHistory closeHistory = {0};
+
+#define openHistory(n) (openHistory.duration[(openHistory.count + DOOR_MAX_HISTORY - (n)) % DOOR_MAX_HISTORY])
+#define closeHistory(n) (closeHistory.duration[(closeHistory.count + DOOR_MAX_HISTORY - (n)) % DOOR_MAX_HISTORY])
+
+uint32_t doorMean(const uint32_t *arr, uint32_t n)
+{
+    if (n == 0 || n > DOOR_MAX_HISTORY)
+    {
+        return 0;
+    }
+    else
+    {
+        uint32_t sum = 0;
+        for (uint32_t i = 0; i < n; i++)
+            sum += arr[i];
+        return sum / n;
+    }
+}
+
+uint32_t doorMedian(const uint32_t *arr, uint32_t n)
+{
+    if (n == 0 || n > DOOR_MAX_HISTORY)
+    {
+        return 0;
+    }
+    else if (n == 1)
+    {
+        return arr[0];
+    }
+    else if (n == 2)
+    {
+        return (arr[0] + arr[1]) / 2;
+    }
+    else
+    {
+        uint32_t cpy[DOOR_MAX_HISTORY] = {0};
+        for (uint32_t i = 0; i < n; i++)
+            cpy[i] = arr[i];
+        std::sort(cpy, cpy + n);
+        if (n % 2 == 1)
+        {
+            // odd size array
+            return cpy[n / 2];
+        }
+        else
+        {
+            // even size array
+            return (cpy[(n / 2) - 1] + cpy[n / 2]) / 2;
+        }
+    }
+}
 
 // For forced recovery if cannot reach by IP address
 struct ForceRecover force_recover;
@@ -723,27 +774,15 @@ void setup_comms()
     }
     else
     {
-        // calculate open average
-        uint32_t average = 0;
-        uint32_t count = std::min(openHistory.count, DOOR_MAX_HISTORY);
-        for (uint32_t i = 0; i < count; i++)
-            average += openHistory.duration[i];
-        average /= count;
-        garage_door.openDuration = (average + 500) / 1000; // round up/down to closest second
-        // calculate close average
-        average = 0;
-        count = std::min(closeHistory.count, DOOR_MAX_HISTORY);
-        for (uint32_t i = 0; i < count; i++)
-            average += closeHistory.duration[i];
-        average /= count;
-        garage_door.closeDuration = (average + 500) / 1000; // round up/down to closest second
+
+        garage_door.openDuration = (doorMedian(openHistory.duration, std::min(openHistory.count, DOOR_MAX_HISTORY)) + 500) / 1000;    // round up/down to closest second
+        garage_door.closeDuration = (doorMedian(closeHistory.duration, std::min(closeHistory.count, DOOR_MAX_HISTORY)) + 500) / 1000; // round up/down to closest second
     }
-#define openHistory(n) (openHistory.duration[(openHistory.count + DOOR_MAX_HISTORY - (n)) % DOOR_MAX_HISTORY])
-#define closeHistory(n) (closeHistory.duration[(closeHistory.count + DOOR_MAX_HISTORY - (n)) % DOOR_MAX_HISTORY])
-    ESP_LOGI(TAG, "Door open history (%d):  %lums, %lums, %lums, %lums, %lums", openHistory.count,
-             openHistory(1), openHistory(2), openHistory(3), openHistory(4), openHistory(5));
-    ESP_LOGI(TAG, "Door close history (%d): %lums, %lums, %lums, %lums, %lums", closeHistory.count,
-             closeHistory(1), closeHistory(2), closeHistory(3), closeHistory(4), closeHistory(5));
+
+    ESP_LOGI(TAG, "Door open history (%d):  %lums, %lums, %lums, %lums, %lums, %lums; Median: %dsecs", openHistory.count,
+             openHistory(1), openHistory(2), openHistory(3), openHistory(4), openHistory(5), openHistory(6), garage_door.openDuration);
+    ESP_LOGI(TAG, "Door close history (%d): %lums, %lums, %lums, %lums, %lums, %lums; Median: %dsecs", closeHistory.count,
+             closeHistory(1), closeHistory(2), closeHistory(3), closeHistory(4), closeHistory(5), closeHistory(6), garage_door.closeDuration);
 
     comms_setup_done = true;
     comms_status_start = _millis();
@@ -1009,19 +1048,15 @@ void update_door_state(GarageDoorCurrentState current_state)
     }
     else if (current_state == CURR_OPEN && garage_door.current_state == CURR_OPENING && start_opening > 0)
     {
-        _millis_t duration = now - start_opening;
+        uint32_t duration = (uint32_t)(now - start_opening);
         if (DOOR_MIN_DURATION <= duration && duration <= DOOR_MAX_DURATION)
         {
-            _millis_t average = 0;
-            openHistory.duration[openHistory.count++ % DOOR_MAX_HISTORY] = (uint32_t)duration;
-            uint32_t count = std::min(openHistory.count, DOOR_MAX_HISTORY);
-            for (uint32_t i = 0; i < count; i++)
-                average += openHistory.duration[i];
-            average /= count;
-            garage_door.openDuration = (average + 500) / 1000; // round up/down to closest second
-            ESP_LOGI(TAG, "Door open duration: %lums, History: %lums, %lums, %lums, %lums, Average: %lums (%s)",
-                     (uint32_t)duration, openHistory(2), openHistory(3), openHistory(4), openHistory(5),
-                     (uint32_t)average, timeString());
+            openHistory.duration[openHistory.count++ % DOOR_MAX_HISTORY] = duration;
+            uint32_t median = doorMedian(openHistory.duration, std::min(openHistory.count, DOOR_MAX_HISTORY));
+            garage_door.openDuration = (median + 500) / 1000; // round up/down to closest second
+            ESP_LOGI(TAG, "Door open duration: %lums, History: %lums, %lums, %lums, %lums, %lums; Median: %lums (%s)",
+                     duration, openHistory(2), openHistory(3), openHistory(4), openHistory(5), openHistory(6),
+                     median, timeString());
 #ifdef ESP32
             nvRam->writeBlob(nvram_open_history, &openHistory, sizeof(openHistory));
 #else
@@ -1041,19 +1076,15 @@ void update_door_state(GarageDoorCurrentState current_state)
     }
     else if (current_state == CURR_CLOSED && garage_door.current_state == CURR_CLOSING && start_closing > 0)
     {
-        _millis_t duration = now - start_closing;
+        uint32_t duration = (uint32_t)(now - start_closing);
         if (DOOR_MIN_DURATION <= duration && duration <= DOOR_MAX_DURATION)
         {
-            _millis_t average = 0;
-            closeHistory.duration[closeHistory.count++ % DOOR_MAX_HISTORY] = (uint32_t)duration;
-            uint32_t count = std::min(closeHistory.count, DOOR_MAX_HISTORY);
-            for (uint32_t i = 0; i < count; i++)
-                average += closeHistory.duration[i];
-            average /= count;
-            garage_door.closeDuration = (average + 500) / 1000; // round up/down to closest second
-            ESP_LOGI(TAG, "Door close duration: %lums, History: %lums, %lums, %lums, %lums, Average: %lums (%s)",
-                     (uint32_t)duration, closeHistory(2), closeHistory(3), closeHistory(4), closeHistory(5),
-                     (uint32_t)average, timeString());
+            closeHistory.duration[closeHistory.count++ % DOOR_MAX_HISTORY] = duration;
+            uint32_t median = doorMedian(closeHistory.duration, std::min(closeHistory.count, DOOR_MAX_HISTORY));
+            garage_door.closeDuration = (median + 500) / 1000; // round up/down to closest second
+            ESP_LOGI(TAG, "Door close duration: %lums, History: %lums, %lums, %lums, %lums, %lums; Median: %lums (%s)",
+                     duration, closeHistory(2), closeHistory(3), closeHistory(4), closeHistory(5), closeHistory(6),
+                     median, timeString());
 #ifdef ESP32
             nvRam->writeBlob(nvram_close_history, &closeHistory, sizeof(closeHistory));
 #else
@@ -2349,7 +2380,7 @@ void door_command_close()
         door_command(DoorAction::Toggle);
     }
 
-    if (doorControlType == 2 && garage_door.openDuration > 0)
+    if (doorControlType == 2 && garage_door.closeDuration > 0)
     {
         // Sec+2.0 doors send us notifications as events happen, and an update every 5 minutes.
         // We may miss a notification which is why we have this test.
