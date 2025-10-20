@@ -71,6 +71,8 @@ void onGotIP(const WiFiEventStationModeGotIP &evt)
 {
     ESP_LOGI(TAG, "WiFi Got IP: %s, Mask: %s, Gateway: %s, DNS: %s", evt.ip.toString().c_str(), evt.mask.toString().c_str(),
              evt.gw.toString().c_str(), (WiFi.dnsIP().isSet()) ? WiFi.dnsIP().toString().c_str() : evt.gw.toString().c_str());
+    ESP_LOGI(TAG, "WiFi SSID %s at %ddBm on channel %d to access point %s", WiFi.SSID().c_str(), WiFi.RSSI(), WiFi.channel(), WiFi.BSSIDstr().c_str());
+
     if (softAPmode)
         return;
 

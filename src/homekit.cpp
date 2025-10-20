@@ -406,6 +406,7 @@ void connectionCallback(int count)
              WiFi.subnetMask().toString().c_str(),
              WiFi.gatewayIP().toString().c_str(),
              WiFi.dnsIP().toString().c_str());
+    ESP_LOGI(TAG, "WiFi SSID %s at %ddBm on channel %d to access point %s", WiFi.SSID().c_str(), WiFi.RSSI(), WiFi.channel(), WiFi.BSSIDstr().c_str());
 
     if (softAPmode)
         return;
