@@ -213,6 +213,11 @@ void write_int_to_file(const char *filename, uint32_t value);
 bool read_blob_from_file(const char *filename, void *value, size_t size);
 void write_blob_to_file(const char *filename, const void *value, size_t size);
 void delete_file(const char *filename);
+#define read_door_int read_int_from_file
+#define write_door_int write_int_to_file
+#define read_door_data read_blob_from_file
+#define write_door_data write_blob_to_file
+#define erase_door_data delete_file
 #else
 class nvRamClass
 {
@@ -240,4 +245,11 @@ public:
     void erase();
 };
 extern nvRamClass *nvRam;
+#define read_door_int nvRam->read
+#define write_door_int nvRam->write
+#define read_door_str nvRam->read
+#define write_door_str nvRam->write
+#define read_door_data nvRam->readBlob
+#define write_door_data nvRam->writeBlob
+#define erase_door_data nvRam->erase
 #endif

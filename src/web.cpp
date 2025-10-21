@@ -513,7 +513,7 @@ String *ratgdoAuthenticate(HTTPAuthMethod mode, String enteredUsernameOrReq, Str
     // ESP_LOGI(TAG, "User: %s", enteredUsernameOrReq);       // Username
     // ESP_LOGI(TAG, "Param 0: %s", extraParams[0].c_str());  // Realm
     // ESP_LOGI(TAG, "Param 1: %s", extraParams[1].c_str());  // URI
-    String *pw = new String(nvRam->read(nvram_ratgdo_pw, "password").c_str());
+    String *pw = new String(read_door_str(nvram_ratgdo_pw, "password").c_str());
     return pw;
 }
 
@@ -903,7 +903,7 @@ bool helperCredentials(const std::string &key, const char *value, configSetting 
     userConfig->set(cfg_wwwCredentials, newCredentials);
 #ifndef ESP8266
     // We only need to save password (distinct from credentials) on ESP32
-    nvRam->write(nvram_ratgdo_pw, newPassword);
+    write_door_str(nvram_ratgdo_pw, newPassword);
 #endif
     ESP8266_SAVE_CONFIG();
     return true;
@@ -958,7 +958,7 @@ bool helperFactoryReset(const std::string &key, const char *value, configSetting
 #else
     ESP_LOGI(TAG, "System boot time: %s", timeString(lastRebootAt));
     ESP_LOGI(TAG, "Factory reset at: %s", timeString());
-    nvRam->erase();
+    erase_door_data();
     reset_door();
     homeSpan.processSerialCommand("F");
 #endif
