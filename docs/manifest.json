@@ -1,6 +1,6 @@
 {
   "name": "homekit-ratgdo",
-  "version": "v2.0.8",
+  "version": "v2.0.9",
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 60,
   "builds": [

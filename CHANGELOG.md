@@ -2,6 +2,21 @@
 
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
+## v2.0.9 (2025-10-24)
+
+### What's Changed
+
+* Bugfix: Update function that calculates median door open/close duration. https://github.com/ratgdo/homekit-ratgdo/issues/309
+* Bugfix: Do not cancel time-to-close if second door close request received. https://github.com/ratgdo/homekit-ratgdo32/issues/112
+* Other: Additional Serial CLI commands for development and debugging to e.g, provision WiFi SSID and password.
+
+### Known Issues
+
+* Sec+ 1.0 doors with digital wall panel (e.g. 889LM) sometimes do not close after a time-to-close delay. Please watch your door to make sure it closes after TTC delay.
+* Sec+ 1.0 doors with "0x37" digital wall panel (e.g. 398LM) not working.  We now detect but will not support them.  Recommend replacing with 889LM panel.
+* When creating automations in Apple Home the garage door may show only lock/unlock and not open/close as triggers.  This is a bug in Apple Home. Workaround is to use the Eve App to create the automation, it will show both options.
+* ESP8266 (original ratgdo) only... possible crash when a storm of HomeKit messages arrives... which may be triggered on a upgrade to Apple iOS 26 / tvOS 26 / etc.  System recovers.
+
 ## v2.0.8 (2025-10-19)
 
 ### What's Changed
@@ -13,13 +28,6 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 * Other: Sec+2.0 use MotorOn packet to error correct if we miss notification packet of door opening or closing
 * Other: Add serial CLI commands to scan WiFi networks and reset door ID & rolling codes
 * Other: Remove known issues list from prior versions in CHANGELOG.md... because they are now repeating
-
-### Known Issues
-
-* Sec+ 1.0 doors with digital wall panel (e.g. 889LM) sometimes do not close after a time-to-close delay. Please watch your door to make sure it closes after TTC delay.
-* Sec+ 1.0 doors with "0x37" digital wall panel (e.g. 398LM) not working.  We now detect but will not support them.  Recommend replacing with 889LM panel.
-* When creating automations in Apple Home the garage door may show only lock/unlock and not open/close as triggers.  This is a bug in Apple Home. Workaround is to use the Eve App to create the automation, it will show both options.
-* ESP8266 (original ratgdo) only... possible crash when a storm of HomeKit messages arrives... which may be triggered on a upgrade to Apple iOS 26 / tvOS 26 / etc.  System recovers.
 
 ## v2.0.7 (2025-10-12)
 
