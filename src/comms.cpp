@@ -163,26 +163,9 @@ struct DoorHistory
 static struct DoorHistory openHistory = {0};
 static struct DoorHistory closeHistory = {0};
 
-#define openHistory(n) (openHistory.duration[(openHistory.count + DOOR_MAX_HISTORY - (n)) % DOOR_MAX_HISTORY])
-#define closeHistory(n) (closeHistory.duration[(closeHistory.count + DOOR_MAX_HISTORY - (n)) % DOOR_MAX_HISTORY])
-
-uint32_t doorMean(const uint32_t *arr, uint32_t n)
-{
-    if (n == 0 || n > DOOR_MAX_HISTORY)
-    {
-        return 0;
-    }
-    else
-    {
-        uint32_t sum = 0;
-        for (uint32_t i = 0; i < n; i++)
-            sum += arr[i];
-        return sum / n;
-    }
-}
-
 uint32_t doorMedian(const uint32_t *arr, uint32_t n)
 {
+    static uint32_t cpy[DOOR_MAX_HISTORY];
     if (n == 0 || n > DOOR_MAX_HISTORY)
     {
         return 0;
@@ -197,10 +180,18 @@ uint32_t doorMedian(const uint32_t *arr, uint32_t n)
     }
     else
     {
-        uint32_t cpy[DOOR_MAX_HISTORY] = {0};
+        // Insertion sort
         for (uint32_t i = 0; i < n; i++)
-            cpy[i] = arr[i];
-        std::sort(cpy, cpy + n);
+        {
+            int32_t j = i - 1;
+            while (j >= 0 && cpy[j] > arr[i])
+            {
+                cpy[j + 1] = cpy[j];
+                j--;
+            }
+            cpy[j + 1] = arr[i];
+        }
+        // return median in the array
         if (n % 2 == 1)
         {
             // odd size array
@@ -768,17 +759,24 @@ void setup_comms()
     if (openHistory.max != DOOR_MAX_HISTORY || closeHistory.max != DOOR_MAX_HISTORY)
     {
         // Someone changed the DOOR_MAX_HISTORY const. Reset everything
-        ESP_LOGI(TAG, "New DOOR_MAX_HISTORY for door open/close durations, reset door history to zero");
+        ESP_LOGI(TAG, "New DOOR_MAX_HISTORY (new %d was %d) for door open/close durations, reset door history to zero", DOOR_MAX_HISTORY, openHistory.max);
         openHistory = {}; // reset to defaults
         closeHistory = {};
+#ifdef ESP32
+        nvRam->writeBlob(nvram_open_history, &openHistory, sizeof(openHistory));
+        nvRam->writeBlob(nvram_close_history, &closeHistory, sizeof(closeHistory));
+#else
+        write_blob_to_file(nvram_open_history, &openHistory, sizeof(openHistory));
+        write_blob_to_file(nvram_close_history, &closeHistory, sizeof(closeHistory));
+#endif
     }
     else
     {
-
         garage_door.openDuration = (doorMedian(openHistory.duration, std::min(openHistory.count, DOOR_MAX_HISTORY)) + 500) / 1000;    // round up/down to closest second
         garage_door.closeDuration = (doorMedian(closeHistory.duration, std::min(closeHistory.count, DOOR_MAX_HISTORY)) + 500) / 1000; // round up/down to closest second
     }
-
+#define openHistory(n) (openHistory.duration[(openHistory.count + DOOR_MAX_HISTORY - (n)) % DOOR_MAX_HISTORY])
+#define closeHistory(n) (closeHistory.duration[(closeHistory.count + DOOR_MAX_HISTORY - (n)) % DOOR_MAX_HISTORY])
     ESP_LOGI(TAG, "Door open history (%d):  %lums, %lums, %lums, %lums, %lums, %lums; Median: %dsecs", openHistory.count,
              openHistory(1), openHistory(2), openHistory(3), openHistory(4), openHistory(5), openHistory(6), garage_door.openDuration);
     ESP_LOGI(TAG, "Door close history (%d): %lums, %lums, %lums, %lums, %lums, %lums; Median: %dsecs", closeHistory.count,
