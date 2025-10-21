@@ -60,16 +60,16 @@ extern void printTaskInfo(const char *buf = nullptr);
     {                                                                                         \
         HeapSelectIram ephemeral;                                                             \
         free_iram_at_boot = (free_iram_at_boot == 0) ? ESP.getFreeHeap() : free_iram_at_boot; \
-        ESP_LOGI(tag, "IRAM_START heap (%s): %d", __func__, ESP.getFreeHeap());
+        ESP_LOGI(tag, "IRAM_START (%s) heap: %d", __func__, ESP.getFreeHeap());
 #define IRAM_END(tag)                                                     \
-    ESP_LOGI(tag, "IRAM_END heap (%s): %d", __func__, ESP.getFreeHeap()); \
+    ESP_LOGI(tag, "IRAM_END (%s) heap: %d", __func__, ESP.getFreeHeap()); \
     }
 #else // MMU_IRAM_HEAP
 #define IRAM_START(tag) \
     {                   \
-        ESP_LOGI(tag, "Start heap (%s): %d", __func__, ESP.getFreeHeap());
+        ESP_LOGI(tag, "Start (%s) heap: %d", __func__, ESP.getFreeHeap());
 #define IRAM_END(tag)                                                \
-    ESP_LOGI(tag, "End heap (%s): %d", __func__, ESP.getFreeHeap()); \
+    ESP_LOGI(tag, "End (%s) heap: %d", __func__, ESP.getFreeHeap()); \
     }
 #endif // MMU_IRAM_HEAP
 
