@@ -229,3 +229,13 @@ struct __attribute__((aligned(4))) GarageDoor
 };
 extern GarageDoor garage_door;
 extern GarageDoor last_reported_garage_door;
+
+// JSON response caching
+#ifdef ESP8266
+#define STATUS_JSON_BUFFER_SIZE (256 * 7)
+#else
+#define STATUS_JSON_BUFFER_SIZE (256 * 8)
+#endif
+#define LOOP_JSON_BUFFER_SIZE 512
+extern char *status_json;
+extern char *loop_json;

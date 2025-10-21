@@ -195,19 +195,8 @@ uint32_t subscriptionCount = 0;
 
 // Performance monitoring
 static uint32_t request_count = 0;
-static uint32_t dropped_connections = 0;
+static uint32_t max_response_time = 0;
 
-// JSON response caching
-#ifdef ESP8266
-#define STATUS_JSON_BUFFER_SIZE (256 * 7)
-#else
-#define STATUS_JSON_BUFFER_SIZE (256 * 8)
-#endif
-// #define STATUS_JSON_CACHE_TIMEOUT_MS 500
-#define LOOP_JSON_BUFFER_SIZE 512
-
-static char *status_json = NULL;
-static char *loop_json = NULL;
 #ifdef ESP8266
 // ESP8266 is single core / single threaded, no mutex's.
 #define TAKE_MUTEX()
@@ -431,20 +420,6 @@ void setup_web()
     // available during operations.  We need to carefully monitor useage so as not
     // to exceed available IRAM.  We can adjust the LOG_BUFFER_SIZE (in log.h) if we
     // need to make more space available for initialization.
-    status_json = static_cast<char *>(malloc(STATUS_JSON_BUFFER_SIZE));
-    if (!status_json)
-    {
-        ESP_LOGE(TAG, "Failed to allocated buffer for status JSON, size: %d", STATUS_JSON_BUFFER_SIZE);
-        return;
-    }
-    ESP_LOGI(TAG, "Allocated buffer for status JSON, size: %d", STATUS_JSON_BUFFER_SIZE);
-    loop_json = static_cast<char *>(malloc(LOOP_JSON_BUFFER_SIZE));
-    if (!loop_json)
-    {
-        ESP_LOGE(TAG, "Failed to allocated buffer for loop JSON, size: %d", LOOP_JSON_BUFFER_SIZE);
-        return;
-    }
-    ESP_LOGI(TAG, "Allocated buffer for loop JSON, size: %d", LOOP_JSON_BUFFER_SIZE);
 #ifndef ESP8266
     // We allocated json as a global block.  We are on dual core CPU.  We need to serialize access to the resource.
     jsonMutex = xSemaphoreCreateMutex();
@@ -725,19 +700,10 @@ void handle_everything()
     return;
 }
 
-void handle_status()
+void build_status_json(char *json)
 {
-    static uint32_t max_response_time = 0;
-    _millis_t startTime = _millis();
-    _millis_t upTime = startTime;
-    uint32_t response_time;
-    uint32_t build_time;
-    static char *json = status_json;
-
-    TAKE_MUTEX();
-    request_count++;
-
     // Build the JSON string
+    _millis_t upTime = _millis();
     JSON_START(json);
     JSON_ADD_STR("gitRepo", gitRepo);
     JSON_ADD_INT("upTime", upTime);
@@ -843,9 +809,20 @@ void handle_status()
     JSON_ADD_BOOL(cfg_homespanCLI, userConfig->getEnableHomeSpanCLI());
 #endif
     JSON_ADD_INT("webRequests", request_count);
-    JSON_ADD_INT("webDroppedConns", dropped_connections);
     JSON_ADD_INT("webMaxResponseTime", max_response_time);
     JSON_END();
+}
+
+void handle_status()
+{
+    _millis_t startTime = _millis();
+    uint32_t response_time;
+    uint32_t build_time;
+    static char *json = status_json;
+
+    TAKE_MUTEX();
+    request_count++;
+    build_status_json(json);
     build_time = (uint32_t)(_millis() - startTime);
 
     last_reported_garage_door = garage_door;
@@ -1276,7 +1253,7 @@ void handle_subscribe()
     {
         if (server.argName(i).equals("id"))
             id = i;
-        else if (server.argName(i).equals( "log"))
+        else if (server.argName(i).equals("log"))
             logViewer = true;
         else if (server.argName(i).equals("heartbeat"))
             heartbeatIntervalArgIdx = i;
