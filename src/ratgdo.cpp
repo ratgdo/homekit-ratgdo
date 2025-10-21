@@ -108,6 +108,10 @@ _millis_t next_heap_check = 0;
 #define MIN_FREE_HEAP (1024 * 4)
 #define FREE_HEAP_CHECK_MS 1000
 
+// Buffer to hold our status as JSON string
+char *status_json = NULL;
+char *loop_json = NULL;
+
 // Forward declare functions
 bool suspend_service_loop = false;
 void service_timer_loop();
@@ -209,6 +213,28 @@ void setup()
     esp_log_level_set("*", (esp_log_level_t)userConfig->getLogLevel());
 #endif
 
+    IRAM_START(TAG);
+    // IRAM heap is used only for allocating globals, to leave as much regular heap
+    // available during operations.  We need to carefully monitor useage so as not
+    // to exceed available IRAM.  We can adjust the LOG_BUFFER_SIZE (in log.h) if we
+    // need to make more space available for initialization.
+    status_json = static_cast<char *>(malloc(STATUS_JSON_BUFFER_SIZE));
+    if (!status_json)
+    {
+        ESP_LOGE(TAG, "Failed to allocated buffer for status JSON, size: %d", STATUS_JSON_BUFFER_SIZE);
+        return;
+    }
+    ESP_LOGI(TAG, "Allocated buffer for status JSON, size: %d", STATUS_JSON_BUFFER_SIZE);
+
+    loop_json = static_cast<char *>(malloc(LOOP_JSON_BUFFER_SIZE));
+    if (!loop_json)
+    {
+        ESP_LOGE(TAG, "Failed to allocated buffer for loop JSON, size: %d", LOOP_JSON_BUFFER_SIZE);
+        return;
+    }
+    ESP_LOGI(TAG, "Allocated buffer for loop JSON, size: %d", LOOP_JSON_BUFFER_SIZE);
+    IRAM_END(TAG);
+
     if (softAPmode)
     {
         start_soft_ap();
@@ -237,7 +263,7 @@ void setup()
     // When using GDOLIB this is done in homekit.cpp callback. For unknown
     // reason, if we do it here then SoftwareSerial is not working. I suspect
     // it is to do with which FreeRTOS task it is started from, because we use
-    // inter-task comms in s/w serial. 
+    // inter-task comms in s/w serial.
     setup_comms();
 #endif
 #ifdef RATGDO32_DISCO

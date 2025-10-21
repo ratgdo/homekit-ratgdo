@@ -39,6 +39,8 @@ extern void factoryReset();
 
 extern void load_page(const char *page);
 
+extern void build_status_json(char *json);
+
 extern const char response400invalid[];
 extern const char type_txt[];
 
