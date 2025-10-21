@@ -213,7 +213,7 @@ void setup_homekit()
     config.setupId = &setupID[1];
     config.on_event = homekit_event;
 
-    garage_door.has_motion_sensor = (bool)read_int_from_file(nvram_has_motion);
+    garage_door.has_motion_sensor = (bool)read_door_int(nvram_has_motion);
     if (!garage_door.has_motion_sensor && (userConfig->getMotionTriggers() == 0))
     {
         ESP_LOGI(TAG, "Motion Sensor not detected.  Disabling Service");
@@ -774,7 +774,7 @@ void setup_homekit()
     }
 
     // only create motion if we know we have motion sensor(s)
-    garage_door.has_motion_sensor = (bool)nvRam->read(nvram_has_motion);
+    garage_door.has_motion_sensor = (bool)read_door_int(nvram_has_motion);
     if (garage_door.has_motion_sensor || userConfig->getMotionTriggers() != 0)
     {
         createMotionAccessories();
@@ -786,7 +786,7 @@ void setup_homekit()
 
 #ifdef RATGDO32_DISCO
     // only create sensors if we know we have time-of-flight distance sensor
-    garage_door.has_distance_sensor = (bool)nvRam->read(nvram_has_distance);
+    garage_door.has_distance_sensor = (bool)read_door_int(nvram_has_distance);
     if (garage_door.has_distance_sensor)
     {
         enable_service_homekit_vehicle(userConfig->getVehicleHomeKit());
@@ -1213,7 +1213,7 @@ void enable_service_homekit_motion(bool reboot)
     // only create if not already created
     if (!garage_door.has_motion_sensor)
     {
-        nvRam->write(nvram_has_motion, 1);
+        write_door_int(nvram_has_motion, 1);
         garage_door.has_motion_sensor = true;
         createMotionAccessories();
         if (reboot)
@@ -1222,7 +1222,7 @@ void enable_service_homekit_motion(bool reboot)
         }
     }
 #else
-    write_int_to_file(nvram_has_motion, 1);
+    write_door_int(nvram_has_motion, 1);
     if (reboot)
     {
         sync_and_restart();

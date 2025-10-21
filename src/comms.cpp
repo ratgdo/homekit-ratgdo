@@ -561,29 +561,17 @@ void setup_comms()
         sw_serial.enableIntTx(false);
         sw_serial.enableAutoBaud(true); // found in ratgdo/espsoftwareserial branch autobaud
 
-#ifdef ESP32
-        id_code = nvRam->read(nvram_id_code);
-#else
-        id_code = read_int_from_file(nvram_id_code);
-#endif
+        id_code = read_door_int(nvram_id_code);
         if (!id_code)
         {
             ESP_LOGI(TAG, "id code not found");
             id_code = (random(0x1, 0xFFF) << 12) | 0x539;
-#ifdef ESP32
-            nvRam->write(nvram_id_code, id_code);
-#else
-            write_int_to_file(nvram_id_code, id_code);
-#endif
+            write_door_int(nvram_id_code, id_code);
         }
         ESP_LOGI(TAG, "id code %lu (0x%02lX)", id_code, id_code);
 
         // read from flash, default of 0 if file not exist
-#ifdef ESP32
-        rolling_code = nvRam->read(nvram_rolling);
-#else
-        rolling_code = read_int_from_file(nvram_rolling, 0);
-#endif
+        rolling_code = read_door_int(nvram_rolling);
         // last saved rolling code may be behind what the GDO thinks, so bump it up so that it will
         // always be ahead of what the GDO thinks it should be, and save it.
         rolling_code = (rolling_code != 0) ? rolling_code + MAX_CODES_WITHOUT_FLASH_WRITE : 0;
@@ -636,13 +624,13 @@ void setup_comms()
             return;
         }
         // read from flash, default of 0 if file not exist
-        uint32_t id_code = nvRam->read(nvram_id_code);
-        uint32_t rolling_code = nvRam->read(nvram_rolling);
+        uint32_t id_code = read_door_int(nvram_id_code);
+        uint32_t rolling_code = read_door_int(nvram_rolling);
         if (!id_code || !rolling_code)
         {
             ESP_LOGI(TAG, "generate new id code");
             id_code = (random(0x1, 0xFFF) << 12) | 0x539;
-            nvRam->write(nvram_id_code, id_code);
+            write_door_int(nvram_id_code, id_code);
         }
         ESP_LOGI(TAG, "id code %lu (0x%02lX)", id_code, id_code);
 
@@ -738,26 +726,16 @@ void setup_comms()
 #endif
 
     // Restore previously saved door open/close duration history
-#ifdef ESP32
-    nvRam->readBlob(nvram_open_history, &openHistory, sizeof(openHistory));
-    nvRam->readBlob(nvram_close_history, &closeHistory, sizeof(closeHistory));
-#else
-    read_blob_from_file(nvram_open_history, &openHistory, sizeof(openHistory));
-    read_blob_from_file(nvram_close_history, &closeHistory, sizeof(closeHistory));
-#endif
+    read_door_data(nvram_open_history, &openHistory, sizeof(openHistory));
+    read_door_data(nvram_close_history, &closeHistory, sizeof(closeHistory));
     if (openHistory.max != DOOR_MAX_HISTORY || closeHistory.max != DOOR_MAX_HISTORY)
     {
         // Someone changed the DOOR_MAX_HISTORY const. Reset everything
         ESP_LOGI(TAG, "New DOOR_MAX_HISTORY (new %d was %d) for door open/close durations, reset door history to zero", DOOR_MAX_HISTORY, openHistory.max);
         openHistory = {}; // reset to defaults
         closeHistory = {};
-#ifdef ESP32
-        nvRam->writeBlob(nvram_open_history, &openHistory, sizeof(openHistory));
-        nvRam->writeBlob(nvram_close_history, &closeHistory, sizeof(closeHistory));
-#else
-        write_blob_to_file(nvram_open_history, &openHistory, sizeof(openHistory));
-        write_blob_to_file(nvram_close_history, &closeHistory, sizeof(closeHistory));
-#endif
+        write_door_data(nvram_open_history, &openHistory, sizeof(openHistory));
+        write_door_data(nvram_close_history, &closeHistory, sizeof(closeHistory));
     }
     else
     {
@@ -817,14 +795,10 @@ void save_rolling_code()
     if (gdo_status.rolling_code != 0)
         gdo_get_status(&gdo_status); // get most recent rolling code if we are not resetting it.
     ESP_LOGI(TAG, "Save rolling code: %d", gdo_status.rolling_code);
-    nvRam->write(nvram_rolling, gdo_status.rolling_code);
+    write_door_int(nvram_rolling, gdo_status.rolling_code);
     last_saved_code = gdo_status.rolling_code;
 #else // !USE_GDOLIB
-#ifdef ESP32
-    nvRam->write(nvram_rolling, rolling_code);
-#else
-    write_int_to_file(nvram_rolling, rolling_code);
-#endif
+    write_door_int(nvram_rolling, rolling_code);
     last_saved_code = rolling_code;
 #endif // !USE_GDOLIB
     rolling_code_operation_in_progress = false;
@@ -837,19 +811,11 @@ void reset_door()
 #else
     rolling_code = 0; // because sync_and_reboot writes this.
 #endif
-#ifdef ESP32
-    nvRam->erase(nvram_rolling);
-    nvRam->erase(nvram_id_code);
-    nvRam->erase(nvram_has_motion);
-    nvRam->erase(nvram_open_history);
-    nvRam->erase(nvram_close_history);
-#else
-    delete_file(nvram_rolling);
-    delete_file(nvram_id_code);
-    delete_file(nvram_has_motion);
-    delete_file(nvram_open_history);
-    delete_file(nvram_close_history);
-#endif
+    erase_door_data(nvram_rolling);
+    erase_door_data(nvram_id_code);
+    erase_door_data(nvram_has_motion);
+    erase_door_data(nvram_open_history);
+    erase_door_data(nvram_close_history);
 }
 #ifndef USE_GDOLIB
 /****************************************************************************
@@ -1042,11 +1008,7 @@ void update_door_state(GarageDoorCurrentState current_state)
             ESP_LOGI(TAG, "Door open duration: %lums, History: %lums, %lums, %lums, %lums, %lums; Median: %lums (%s)",
                      duration, openHistory(2), openHistory(3), openHistory(4), openHistory(5), openHistory(6),
                      median, timeString());
-#ifdef ESP32
-            nvRam->writeBlob(nvram_open_history, &openHistory, sizeof(openHistory));
-#else
-            write_blob_to_file(nvram_open_history, &openHistory, sizeof(openHistory));
-#endif
+            write_door_data(nvram_open_history, &openHistory, sizeof(openHistory));
         }
         else
         {
@@ -1070,11 +1032,7 @@ void update_door_state(GarageDoorCurrentState current_state)
             ESP_LOGI(TAG, "Door close duration: %lums, History: %lums, %lums, %lums, %lums, %lums; Median: %lums (%s)",
                      duration, closeHistory(2), closeHistory(3), closeHistory(4), closeHistory(5), closeHistory(6),
                      median, timeString());
-#ifdef ESP32
-            nvRam->writeBlob(nvram_close_history, &closeHistory, sizeof(closeHistory));
-#else
-            write_blob_to_file(nvram_close_history, &closeHistory, sizeof(closeHistory));
-#endif
+            write_door_data(nvram_close_history, &closeHistory, sizeof(closeHistory));
         }
         else
         {
