@@ -276,6 +276,10 @@ function makeRfc952(src) {
     return dest;
 }
 
+function capitalizeFirstLetter(val) {
+    return String(val).charAt(0).toUpperCase() + String(val).slice(1);
+}
+
 // Update all elements on HTML page to reflect status
 function setElementsFromStatus(status) {
     let date = new Date();
@@ -524,16 +528,20 @@ function setElementsFromStatus(status) {
                 setMotionTriggers(value);
                 break;
             case "garageLightOn":
-                document.getElementById(key).innerHTML = value;
+                document.getElementById(key).innerHTML = capitalizeFirstLetter(value);
                 document.getElementById("lightButton").value = (value == false) ? "Light On" : "Light Off";
                 break;
             case "garageDoorState":
-                document.getElementById(key).innerHTML = value;
+                document.getElementById(key).innerHTML = capitalizeFirstLetter(value);
                 document.getElementById("doorButton").value = (value == "Closed") ? "Open Door" : "Close Door";
                 break;
             case "garageLockState":
-                document.getElementById(key).innerHTML = value;
+                document.getElementById(key).innerHTML = capitalizeFirstLetter(value);
                 document.getElementById("lockButton").value = (value == "Enabled") ? "Disable Remotes" : "Enable Remotes";
+                break;
+            case "garageObstructed":
+            case "garageMotion":
+                document.getElementById(key).innerHTML = capitalizeFirstLetter(value);
                 break;
             case "assistLaser":
                 document.getElementById("laserButton").value = (value == false) ? "Laser On" : "Laser Off";
