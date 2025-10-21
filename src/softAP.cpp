@@ -318,6 +318,13 @@ void handle_setssid()
     delay(500);
     free(txtBuffer);
 
+    set_new_ssid(ssid.c_str(), server.arg("pw").c_str(), (advanced) ? wifiNet.bssid : NULL);
+    sync_and_restart();
+    return;
+}
+
+bool set_new_ssid(const char *ssid, const char *password, const uint8_t *bssid)
+{
     const bool connected = WiFi.isConnected();
     String previousSSID;
     String previousPSK;
@@ -330,17 +337,17 @@ void handle_setssid()
         ESP_LOGI(TAG, "Current SSID: %s / BSSID:%s", previousSSID.c_str(), previousBSSID.c_str());
         WiFi.disconnect();
     }
-    ESP_LOGI(TAG, "Attempt to connect to %s with pw %s", ssid.c_str(), server.arg("pw").c_str());
-    if (connect_wifi(ssid.c_str(), server.arg("pw").c_str(), (advanced) ? wifiNet.bssid : NULL))
+    ESP_LOGI(TAG, "Attempt to connect to %s", ssid);
+    if (connect_wifi(ssid, password, bssid))
     {
         ESP_LOGI(TAG, "WiFi Successfully connects to SSID: %s", ssid);
 #ifdef ESP8266
         WiFi.persistent(true); // Set persist to store wifi credentials
         // Call begin with connect = false because we are allready connected in fn connect_wifi()
-        WiFi.begin(ssid, server.arg("pw"), 0, (advanced) ? wifiNet.bssid : NULL, false);
+        WiFi.begin(ssid, password, 0, bssid);
         WiFi.persistent(false); // clear the persist flag so other settings do not get written to flash
 #else
-        homeSpan.setWifiCredentials(ssid.c_str(), server.arg("pw").c_str());
+        homeSpan.setWifiCredentials(ssid, password);
 #endif
         // We should reset WiFi if changing networks or were not currently connected.
         if (!connected || previousBSSID != ssid)
@@ -350,10 +357,11 @@ void handle_setssid()
             userConfig->set(cfg_wifiPhyMode, 0);
             userConfig->set(cfg_timeZone, "");
         }
+        return true;
     }
     else
     {
-        ESP_LOGI(TAG, "WiFi Failed to connect to SSID: %s", ssid.c_str());
+        ESP_LOGI(TAG, "WiFi Failed to connect to SSID: %s", ssid);
         if (connected)
         {
             ESP_LOGI(TAG, "Resetting WiFi to previous SSID: %s, removing any Access Point BSSID lock", previousSSID.c_str());
@@ -368,9 +376,8 @@ void handle_setssid()
             userConfig->set(cfg_wifiPhyMode, 0);
             userConfig->set(cfg_timeZone, "");
         }
+        return false;
     }
-    sync_and_restart();
-    return;
 }
 
 bool connect_wifi(const char *ssid, const char *password, const uint8_t *bssid)

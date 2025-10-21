@@ -46,3 +46,4 @@ extern void handle_wifinets();
 extern void handle_wifiap();
 
 extern bool connect_wifi(const char *ssid, const char *password, const uint8_t *bssid = NULL);
+extern bool set_new_ssid(const char *ssid, const char *password, const uint8_t *bssid = NULL);
