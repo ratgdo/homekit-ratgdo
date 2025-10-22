@@ -558,10 +558,10 @@ function setElementsFromStatus(status) {
                 document.getElementById(key).innerHTML = (value == 6) ? "Charging" : (value == 8) ? "Fully&nbsp;Charged" : "Unknown";
                 break;
             case "openDuration":
-                document.getElementById(key).innerHTML = value + "&nbsp;seconds";
+                document.getElementById(key).innerHTML = value + "&nbsp;Seconds";
                 break;
             case "closeDuration":
-                document.getElementById(key).innerHTML = value + "&nbsp;seconds";
+                document.getElementById(key).innerHTML = value + "&nbsp;Seconds";
                 break;
             case "freeIramHeap":
                 // Unused... remove this case statement when/if we add to html.
@@ -577,6 +577,12 @@ function setElementsFromStatus(status) {
                 break;
             case "webMaxResponseTime":
                 // No-op: Performance metric, not displayed in UI
+                break;
+            case "openHistory":
+                // No-op: Not displayed in UI
+                break;
+            case "closeHistory":
+                // No-op: Not displayed in UI
                 break;
             default:
                 try {
@@ -1254,7 +1260,7 @@ async function saveSettings() {
 }
 
 async function resetDoor() {
-    if (confirm('Reset door rolling codes and presence of motion sensor. Settings will not change but device will reboot, are you sure?')) {
+    if (confirm('Reset door open/close history, rolling codes and presence of motion sensor. Settings will not change but device will reboot, are you sure?')) {
         await setGDO("resetDoor", true);
         countdown(rebootSeconds, "Door reset, RATGDO device rebooting...&nbsp;");
     }
