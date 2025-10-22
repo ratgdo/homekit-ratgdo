@@ -770,10 +770,18 @@ void build_status_json(char *json)
     if (garage_door.openDuration)
     {
         JSON_ADD_INT("openDuration", garage_door.openDuration);
+        snprintf_P(writeBuffer, sizeof(writeBuffer), PSTR("{ \"max\": %d, \"count\": %d, \"duration\": [ %d, %d, %d, %d, %d, %d ] }"),
+                   openHistory.max, openHistory.count,
+                   openHistory(1), openHistory(2), openHistory(3), openHistory(4), openHistory(5), openHistory(6));
+        JSON_ADD_RAW("openHistory", writeBuffer);
     }
     if (garage_door.closeDuration)
     {
         JSON_ADD_INT("closeDuration", garage_door.closeDuration);
+        snprintf_P(writeBuffer, sizeof(writeBuffer), PSTR("{ \"max\": %d, \"count\": %d, \"duration\": [ %d, %d, %d, %d, %d, %d ] }"),
+                   closeHistory.max, closeHistory.count,
+                   closeHistory(1), closeHistory(2), closeHistory(3), closeHistory(4), closeHistory(5), closeHistory(6));
+        JSON_ADD_RAW("closeHistory", writeBuffer);
     }
 #ifdef ESP8266
 #define accessoryID arduino_homekit_get_running_server() ? arduino_homekit_get_running_server()->accessory_id : "Inactive"
@@ -836,7 +844,7 @@ void handle_status()
     }
     else
     {
-        ESP_LOGI(TAG, "JSON length: %d, build time %lums, response time: %lums", strlen(json), build_time, response_time);
+        ESP_LOGI(TAG, "JSON length: %d (%d%%), build time %lums, response time: %lums", strlen(json), strlen(json) * 100 / STATUS_JSON_BUFFER_SIZE, build_time, response_time);
     }
     GIVE_MUTEX();
     return;

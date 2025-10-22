@@ -80,16 +80,18 @@ inline char *add_int(char *s, const char *k, uint32_t v)
     return s;
 }
 
-inline char *add_str(char *s, const char *k, const char *v)
+inline char *add_str(char *s, const char *k, const char *v, bool raw = false)
 {
     *s++ = '"';
     s = stpcpy(s, k);
     *s++ = '"';
     *s++ = ':';
     *s++ = ' ';
-    *s++ = '"';
+    if (!raw) // wrap the value in quotes?
+        *s++ = '"';
     s = stpcpy(s, v);
-    *s++ = '"';
+    if (!raw)
+        *s++ = '"';
     *s++ = ',';
     *s++ = '\n';
     *s = 0; // null terminate
@@ -115,6 +117,7 @@ inline char *add_bool(char *s, const char *k, bool v)
 #define JSON_ADD_INT(k, v) _json_p = add_int(_json_p, k, v)
 #define JSON_ADD_STR(k, v) _json_p = add_str(_json_p, k, v)
 #define JSON_ADD_BOOL(k, v) _json_p = add_bool(_json_p, k, v)
+#define JSON_ADD_RAW(k, v) _json_p = add_str(_json_p, k, v, true) // value added without surrounding quotes
 
 #define JSON_ADD_INT_C(k, v, ov) \
     {                            \
