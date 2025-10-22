@@ -68,8 +68,9 @@ void serialCLI(char cmd)
         Serial.println();
         Serial.printf_P(PSTR(" l - print RATGDO buffered message log\n"));
         Serial.printf_P(PSTR(" L - print RATGDO saved reboot log\n"));
+        Serial.printf_P(PSTR(" P - print RATGDO crash log\n"));
+        Serial.printf_P(PSTR(" S - print RATGDO status JSON\n"));
         Serial.printf_P(PSTR(" s - %s log to serial port\n"), suppressSerialLog ? "enable" : "disable");
-        Serial.printf_P(PSTR(" S - print RATGDO status\n"));
 #ifdef CONFIG_FREERTOS_USE_TRACE_FACILITY
         Serial.printf_P(PSTR(" t - print FreeRTOS task info\n"));
 #endif
@@ -128,6 +129,16 @@ void serialCLI(char cmd)
         break;
     }
 
+    case 'P':
+    {
+        // Print last crash log
+        bool saved = suppressSerialLog;
+        suppressSerialLog = true;
+        ratgdoLogger->printCrashLog(Serial);
+        suppressSerialLog = saved;
+        break;
+    }
+
     case 'r':
     {
         if (areYouSure(PSTR("Reset door ID, rolling code, motion and open/close history? Are you sure Y/N: ")))
@@ -170,12 +181,7 @@ void serialCLI(char cmd)
         static char *json = status_json;
         build_status_json(json);
         Serial.println(json);
-        Serial.printf_P(PSTR("{\n\"openHistory\": {\n  \"max\": %d,\n  \"count\": %d,\n  \"duration\": [ %d, %d, %d, %d, %d, %d ]\n  }\n}\n"),
-                        openHistory.max, openHistory.count,
-                        openHistory(1), openHistory(2), openHistory(3), openHistory(4), openHistory(5), openHistory(6));
-        Serial.printf_P(PSTR("{\n\"closeHistory\": {\n  \"max\": %d,\n  \"count\": %d,\n  \"duration\": [ %d, %d, %d, %d, %d, %d ]\n  }\n}\n"),
-                        closeHistory.max, closeHistory.count,
-                        closeHistory(1), closeHistory(2), closeHistory(3), closeHistory(4), closeHistory(5), closeHistory(6));
+        Serial.printf_P(PSTR("JSON length: %d, max: %d, used: %d%%\n"), strlen(json), STATUS_JSON_BUFFER_SIZE, strlen(json) * 100 / STATUS_JSON_BUFFER_SIZE);
         break;
     }
 
