@@ -797,7 +797,7 @@ void save_rolling_code()
     ESP_LOGI(TAG, "Save rolling code: %d", gdo_status.rolling_code);
     write_door_int(nvram_rolling, gdo_status.rolling_code);
     last_saved_code = gdo_status.rolling_code;
-#else // !USE_GDOLIB
+#else  // !USE_GDOLIB
     write_door_int(nvram_rolling, rolling_code);
     last_saved_code = rolling_code;
 #endif // !USE_GDOLIB
@@ -968,7 +968,7 @@ void update_door_state(GarageDoorCurrentState current_state)
         // If we are in a time-to-close delay timeout, cancel the timeout
         if (TTCtimer.active())
         {
-            ESP_LOGI(TAG, "Canceling TTC delay timer");
+            ESP_LOGI(TAG, "Door closing, canceling TTC delay timer");
             TTCtimer.detach();
         }
         // Fall through to "opening"
@@ -2399,7 +2399,7 @@ GarageDoorCurrentState open_door()
     {
         // We are in a time-to-close delay timeout.
         // Effect of open is to cancel the timeout (leaving door open)
-        ESP_LOGI(TAG, "Canceling TTC delay timer");
+        ESP_LOGI(TAG, "Door assumed to be open, canceling TTC delay timer");
         TTCtimer.detach();
         // Reset light to state it was at before delay start.
         set_light(TTCwasLightOn);
@@ -2559,11 +2559,14 @@ GarageDoorCurrentState close_door()
         if (TTCtimer.active())
         {
             // We are in a time-to-close delay timeout, cancel the timeout
-            ESP_LOGI(TAG, "Canceling TTC delay timer");
+            ESP_LOGI(TAG, "Door in time-to-close delay, request to close ignored, TTC will continue");
+            /* two closes in-a-row shoud not cancel TTC? Require an open request to cancel TTC
+            ESP_LOGI(TAG, "Close: Canceling TTC delay timer");
             TTCtimer.detach();
             // Reset light to state it was at before delay start.
             set_light(TTCwasLightOn);
             return GarageDoorCurrentState::CURR_OPEN;
+            */
         }
         else
         {

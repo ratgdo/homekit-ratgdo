@@ -533,7 +533,7 @@ function setElementsFromStatus(status) {
                 break;
             case "garageDoorState":
                 document.getElementById(key).innerHTML = capitalizeFirstLetter(value);
-                document.getElementById("doorButton").value = (value == "Closed") ? "Open Door" : "Close Door";
+                document.getElementById("doorButton").value = (value == "Closed" || value == "Closing" ) ? "Open Door" : "Close Door";
                 break;
             case "garageLockState":
                 document.getElementById(key).innerHTML = capitalizeFirstLetter(value);
