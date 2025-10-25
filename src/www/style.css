@@ -48,6 +48,14 @@ input[type="checkbox"] {
     padding-right: 0px;
 }
 
+
+input[type="file"]::-webkit-file-upload-button:active,
+input[type="file"]::file-selector-button:active,
+input[type="button"]:active {
+    background-color: rgba(184, 135, 11, 0.75);
+    transform: scale(0.95);
+}
+
 input.slider {
     -webkit-appearance: none;
     appearance: none;
@@ -121,6 +129,7 @@ div.serverstatus {
     position: relative;
     padding-left: 0px;
     padding-right: 0px;
+
     td:nth-child(1) {
         text-align: right;
     }

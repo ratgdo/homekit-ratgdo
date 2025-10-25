@@ -200,7 +200,9 @@ void serialCLI(char cmd)
                     {
             ESP_LOGD(TAG, "Time-to-close test callback function");
             // This will send a light press / release / release without checking whether necessary or not.
-            set_light(false,false); });
+            set_light(false,false);
+            // This will force us to send current state to browser, so it reports correct state.
+            last_reported_garage_door.current_state = (GarageDoorCurrentState)0xFF; });
         break;
     }
 
