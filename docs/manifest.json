@@ -8,7 +8,7 @@
       "chipFamily": "ESP8266",
       "parts": [
         {
-          "path": "firmware/homekit-ratgdo-v2.0.8.bin",
+          "path": "firmware/homekit-ratgdo-v2.0.9.bin",
           "offset": 0
         }
       ]
