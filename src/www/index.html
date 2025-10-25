@@ -125,23 +125,24 @@
           <input type="button" id="unpair" value="Reset HomeKit" style="width: 28%;" onclick="unpairRATGDO()">
         </div>
         <div class="fullwidth">
-          <table style="table-layout: fixed; width: 95%;">
+          <table style="table-layout: fixed; width: 100%;">
             <colgroup>
-              <col width="15%">
-              <col width="15%">
-              <col width="20%">
+              <col width="10%">
+              <col width="14%">
+              <col width="24%">
               <col width="5%">
-              <col width="5%">
-              <col width="15%">
-              <col width="25%">
+              <col width="3%">
+              <col width="13%">
+              <col width="31%">
             </colgroup>
             <tr>
               <td colspan="2">Door State:</td>
-              <td id="garageDoorState"></td>
+              <td>
+                <span id="garageDoorState"></span><span id="ttcActive" style="display: none;">&nbsp;in&nbsp;99</span>
+              </td>
               <td colspan="3">Obstruction:</td>
               <td>
-                <span id="garageObstructed"></span>
-                <span id="pinBasedObst" style="font-size: 0.6em">(pin)</span>
+                <span id="garageObstructed"></span><span id="pinBasedObst" style="font-size: 0.6em">&nbsp;(Pin-based)</span>
               </td>
             </tr>
             <tr id="lockLightRow">
@@ -153,8 +154,7 @@
             <tr>
               <td colspan="2">Door&nbsp;Protocol:</td>
               <td colspan="2" style="width: 35%;">
-                <span id="GDOSecurityType"></span>
-                <span id="sec1emulation" style="font-size: 0.6em; display: none">(Emulation)</span>
+                <span id="GDOSecurityType"></span><span id="sec1emulation" style="font-size: 0.6em; display: none">&nbsp;(Emulation)</span>
               </td>
               <td colspan="2" id="motionLabel">Motion:</td>
               <td id="garageMotion"></td>
@@ -193,7 +193,7 @@
           <input type="button" id="lightButton" value="Light On" style="width: 23%;"
             onclick="setGDO('garageLightOn', (event.target.value === 'Light On') ? '1' : '0');">
           <input type="button" id="doorButton" value="Open Door" style="width: 23%;"
-            onclick="setGDO('garageDoorState', (event.target.value === 'Open Door') ? '1' : '0');">
+            onclick="setGDO('garageDoorState', (event.target.value === 'Close Door') ? '0' : '1');">
           <input type="button" id="lockButton" value="Lock Remotes" style="width: 23%;"
             onclick="setGDO('garageLockState', (event.target.value === 'Disable Remotes') ? '1' : '0');">
           <input type="button" id="laserButton" value="Laser On" style="display:none; width: 23%;"

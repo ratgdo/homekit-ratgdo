@@ -72,6 +72,7 @@ GarageDoor garage_door = {
     .batteryState = 0,
     .openDuration = 0,
     .closeDuration = 0,
+    .ttcActive = 0,
 };
 
 // Some initialization is postponed until after we have an IP address

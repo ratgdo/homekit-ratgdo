@@ -382,6 +382,8 @@ void web_loop()
     }
     JSON_ADD_INT_C("openDuration", garage_door.openDuration, last_reported_garage_door.openDuration);
     JSON_ADD_INT_C("closeDuration", garage_door.closeDuration, last_reported_garage_door.closeDuration);
+    JSON_ADD_INT_C("ttcActive", is_ttc_active(), last_reported_garage_door.ttcActive);
+    // got any json?
     if (strlen(json) > 2)
     {
         // Have we added anything to the JSON string?
@@ -818,6 +820,7 @@ void build_status_json(char *json)
 #endif
     JSON_ADD_INT("webRequests", request_count);
     JSON_ADD_INT("webMaxResponseTime", max_response_time);
+    JSON_ADD_INT("ttcActive", is_ttc_active());
     JSON_END();
 }
 

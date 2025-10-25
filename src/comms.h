@@ -33,6 +33,8 @@ extern void sec1_light_release(uint8_t howManyReleases = 2, uint32_t delay = 0);
 extern void save_rolling_code();
 extern void reset_door();
 
+extern uint32_t is_ttc_active();
+
 extern uint32_t doorControlType;
 extern GarageDoorCurrentState doorState;
 extern bool comms_setup_done;

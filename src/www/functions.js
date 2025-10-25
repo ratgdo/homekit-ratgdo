@@ -341,7 +341,7 @@ function setElementsFromStatus(status) {
                 document.getElementById("dcDebounceDurationRow").style.display = (value == 3) ? "table-row" : "none";
                 break;
             case "pinBasedObst":
-                document.getElementById(key).innerHTML = (value == true) ? "(Pin-based)" : "(Message)";
+                document.getElementById(key).innerHTML = (value == true) ? "&nbsp;(Pin-based)" : "&nbsp;(Message)";
                 break;
             case "garageSec1Emulated":
                 document.getElementById("sec1emulation").style.display = (value == true) ? "" : "none";
@@ -533,7 +533,11 @@ function setElementsFromStatus(status) {
                 break;
             case "garageDoorState":
                 document.getElementById(key).innerHTML = capitalizeFirstLetter(value);
-                document.getElementById("doorButton").value = (value == "Closed" || value == "Closing" ) ? "Open Door" : "Close Door";
+                if (status.ttcActive) {
+                    document.getElementById("doorButton").value = "Cancel Close";
+                } else {
+                    document.getElementById("doorButton").value = (value == "Closed" || value == "Closing") ? "Open Door" : "Close Door";
+                }
                 break;
             case "garageLockState":
                 document.getElementById(key).innerHTML = capitalizeFirstLetter(value);
@@ -542,6 +546,20 @@ function setElementsFromStatus(status) {
             case "garageObstructed":
             case "garageMotion":
                 document.getElementById(key).innerHTML = capitalizeFirstLetter(value);
+                break;
+            case "ttcActive":
+                if (value) {
+                    document.getElementById("garageDoorState").innerHTML = "Closing";
+                    document.getElementById(key).innerHTML = `&nbsp;in&nbsp;${value}`;
+                    document.getElementById(key).style.display = "";
+                    document.getElementById("doorButton").value = "Cancel Close";
+                }
+                else {
+                    document.getElementById(key).style.display = "none";
+                    state = capitalizeFirstLetter(status.garageDoorState ? status.garageDoorState : "Closing");
+                    document.getElementById("garageDoorState").innerHTML = state;
+                    document.getElementById("doorButton").value = (state == "Closed" || state == "Closing") ? "Open Door" : "Close Door";
+                }
                 break;
             case "assistLaser":
                 document.getElementById("laserButton").value = (value == false) ? "Laser On" : "Laser Off";
