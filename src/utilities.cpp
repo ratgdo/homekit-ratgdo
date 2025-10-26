@@ -217,6 +217,7 @@ void load_all_config_settings()
     strlcpy(syslogIP, userConfig->getSyslogIP(), sizeof(syslogIP));
     syslogPort = userConfig->getSyslogPort();
     syslogEn = userConfig->getSyslogEn();
+    syslogFacility = userConfig->getSyslogFacility();
     rebootSeconds = userConfig->getRebootSeconds();
 
     // Now log what we have loaded
