@@ -39,7 +39,8 @@ void serialCLI(char cmd)
     case '?':
     {
         _millis_t upTime = _millis();
-        Serial.printf_P(PSTR("\nHostname:              http://%s.local\n"), device_name_rfc952);
+        Serial.printf_P(PSTR("\n----------> RATGDO <----------\n"));
+        Serial.printf_P(PSTR("Hostname:              http://%s.local\n"), device_name_rfc952);
         Serial.printf_P(PSTR("IP Address:            %s\n"), userConfig->getLocalIP());
         Serial.printf_P(PSTR("Server uptime:         %llums (%s)\n"), (int64_t)upTime, toHHMMSSmmm(upTime));
         if (enableNTP && clockSet)
@@ -52,6 +53,10 @@ void serialCLI(char cmd)
         Serial.printf_P(PSTR("Minimum heap:          %d\n"), min_heap);
         Serial.printf_P(PSTR("Log level:             %d\n"), userConfig->getLogLevel());
         Serial.printf_P(PSTR("Log to Serial console: %s\n\n"), suppressSerialLog ? "Disabled" : "Enabled");
+        if (softAPmode)
+        {
+            Serial.printf_P(PSTR("*** Running in Access Point Mode @ 192.168.4.1 ***\n\n"));
+        }
         Serial.printf_P(PSTR("Commands:\n"));
         Serial.printf_P(PSTR(" A - reboot into Access Point mode (192.168.4.1)\n"));
         Serial.printf_P(PSTR(" R - restart RATGDO\n"));
