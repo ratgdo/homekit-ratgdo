@@ -167,7 +167,7 @@ You can select the verbosity of log messages from none to verbose. Default is _I
 
 ### HomeSpan
 
-On ratgdo32 boards we use an external library, [HomeSpan](https://github.com/HomeSpan/HomeSpan), for all HomeKit operations. When debugging using the serial port it may be helpful to enable HomeSpan's message logging and Command Line Interface (CLI). If you enable this setting then Improv-based WiFi provisioning is disabled unless the ratgdo32 boots into SoftAP mode.
+On ratgdo32 boards we use an external library, [HomeSpan](https://github.com/HomeSpan/HomeSpan), for all HomeKit operations. When debugging using the serial port it may be helpful to enable HomeSpan's message logging and Command Line Interface (CLI). If you enable this setting then Improv-based serial port WiFi provisioning is disabled unless the ratgdo32 boots into SoftAP mode.
 
 ### Door Close Delay
 
@@ -181,11 +181,23 @@ You can disable the garage door opener light from flashing during the delay peri
 > The US Consumer Product Safety Act Regulations, section 1211.14, unattended operation requirements [16 CFR § 1211.14](https://www.law.cornell.edu/cfr/text/16/1211.14), state that there must be a minimum delay of 5 seconds before the door closes.
 > The regulation also requires that the light flash with audible beeping. If you select a time-to-close delay of under 5 seconds, or disable light flashing, then a warning is shown in the web settings page and you accept all responsibility and liability for injury or any other loss.
 
+### Automatic Close
+
+Security+ 2.0 doors have a built-in time-to-close feature that automatically closes the door a specified time after it is opened. This slider lets you set the duration between one minute and one hour after which the door will automatically close. The door will sound an audible warning and flash the lights for 5-6 seconds before closing.
+
+Setting the slider to zero, and saving the settings, will cancel the garage door built-in automatic close timer. If you need to send a cancel command and the slider is currently at zero, first set a non-zero duration, save that, then set it back to zero and save. The door opener will beep on receipt of a cancel command.
+
+> [!NOTE]
+> When ratgdo boots it cannot determine whether a automatic close time is set and the slider will default to zero, or the value last set here. If you set a time-to-close from a digital wall panel while ratgdo is online, then the ratgdo will receive notification of the setting and update itself.
+
+> [!WARNING]
+> Automatic close will not work if on battery power or if the obstruction sensors are misaligned. This feature is NOT intended to be the primary method of closing the door. **A keyless entry should be installed in the event of an accidental lock out while using this feature.**
+
 ### Motion Triggers
 
-This allows you to select what causes the HomeKit motion sensor accessory to trigger. The default is to use the motion sensor built into the garage door opener, if it exists. This checkbox is not selectable because presence of the motion sensor is detected automatically... based on detecting motion in the garage. If your door opener does not have a motion sensor then the checkbox will show as un-checked.
+This allows you to select what causes the HomeKit motion sensor accessory to trigger. The default is to use the motion sensor built into the garage door opener, if it exists. The presence of a motion sensor is detected automatically... based on detecting motion in the garage. If your door opener does not have a motion sensor then the checkbox will show as un-checked and un-selectable.
 
-Motion can also be triggered by the obstruction sensor. This is disabled by default but may be selected on the web page.
+Motion can also be triggered by the obstruction sensor or by a user pressing the door, light or lock buttons on the wall panel. This is disabled by default but may be selected on the web page.
 
 ### Occupancy Duration _(not supported on ratgdo v2.5 boards)_
 
