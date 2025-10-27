@@ -260,7 +260,7 @@ bool registerRequest()
     // Check if we're at capacity
     if (activeRequestCount >= MAX_CONCURRENT_REQUESTS)
     {
-        ESP_LOGI(TAG, "Max concurrent requests reached, rejecting %s", clientIP.toString().c_str());
+        ESP_LOGE(TAG, "Max concurrent requests reached, rejecting %s", clientIP.toString().c_str());
         return false;
     }
 
@@ -499,7 +499,7 @@ void setup_web()
 
 void handle_notfound()
 {
-    ESP_LOGI(TAG, "Sending 404 Not Found for: %s with method: %s to client: %s", server.uri().c_str(), http_methods[server.method()], server.client().remoteIP().toString().c_str());
+    ESP_LOGD(TAG, "Sending 404 Not Found for: %s with method: %s to client: %s", server.uri().c_str(), http_methods[server.method()], server.client().remoteIP().toString().c_str());
     server.send_P(404, type_txt, response404);
     return;
 }
@@ -582,7 +582,7 @@ void load_page(const char *page)
         }
         strlcat(writeBuffer, "/src/www", sizeof(writeBuffer));
         strlcat(writeBuffer, page, sizeof(writeBuffer));
-        ESP_LOGI(TAG, "Sending 303 redirect to client %s for: %s", clientIP.toString().c_str(), writeBuffer);
+        ESP_LOGD(TAG, "Sending 303 redirect to client %s for: %s", clientIP.toString().c_str(), writeBuffer);
         server.sendHeader(F("Location"), writeBuffer);
         server.send_P(303, type_txt, "", 0);
         return;
@@ -619,18 +619,18 @@ void load_page(const char *page)
             server.sendHeader(F("ETag"), crc32);
         if (method == HTTP_HEAD)
         {
-            ESP_LOGI(TAG, "Client %s requesting: %s (HTTP_HEAD, type: %s)", clientIP.toString().c_str(), page, type);
+            ESP_LOGD(TAG, "Client %s requesting: %s (HTTP_HEAD, type: %s)", clientIP.toString().c_str(), page, type);
             server.send_P(200, type, "", 0);
         }
         else
         {
-            ESP_LOGI(TAG, "Client %s requesting: %s (HTTP_GET, type: %s, length: %d)", clientIP.toString().c_str(), page, type, length);
+            ESP_LOGD(TAG, "Client %s requesting: %s (HTTP_GET, type: %s, length: %d)", clientIP.toString().c_str(), page, type, length);
             server.send_P(200, type, reinterpret_cast<const char *>(data), length);
         }
     }
     else
     {
-        ESP_LOGI(TAG, "Sending 304 not modified to client %s requesting: %s (method: %s, type: %s)", clientIP.toString().c_str(), page, http_methods[method], type);
+        ESP_LOGD(TAG, "Sending 304 not modified to client %s requesting: %s (method: %s, type: %s)", clientIP.toString().c_str(), page, http_methods[method], type);
         server.send_P(304, type, "", 0);
     }
     return;
@@ -654,7 +654,7 @@ void handle_everything()
     if (builtInUri.count(uri) > 0)
     {
         // requested page matches one of our built-in handlers
-        ESP_LOGI(TAG, "Client %s requesting: %s (method: %s)", server.client().remoteIP().toString().c_str(), uri, http_methods[method]);
+        ESP_LOGD(TAG, "Client %s requesting: %s (method: %s)", server.client().remoteIP().toString().c_str(), uri, http_methods[method]);
         if (method == builtInUri.at(uri).first)
         {
             builtInUri.at(uri).second();
@@ -843,11 +843,11 @@ void handle_status()
     max_response_time = std::max(max_response_time, response_time);
     if (strlen(json) > STATUS_JSON_BUFFER_SIZE * 95 / 100)
     {
-        ESP_LOGW(TAG, "WARNING status JSON length: %d is over 95%% of available buffer (%d), build time %lums, response time: %lums", strlen(json), STATUS_JSON_BUFFER_SIZE, build_time, response_time);
+        ESP_LOGW(TAG, "WARNING JSON status: %d is over 95%% of available buffer (%d), build time %lums, response time: %lums", strlen(json), STATUS_JSON_BUFFER_SIZE, build_time, response_time);
     }
     else
     {
-        ESP_LOGI(TAG, "JSON length: %d (%d%%), build time %lums, response time: %lums", strlen(json), strlen(json) * 100 / STATUS_JSON_BUFFER_SIZE, build_time, response_time);
+        ESP_LOGI(TAG, "JSON status: %d (%d%%), build time %lums, response time: %lums", strlen(json), strlen(json) * 100 / STATUS_JSON_BUFFER_SIZE, build_time, response_time);
     }
     GIVE_MUTEX();
     return;
@@ -909,7 +909,7 @@ bool helperCredentials(const std::string &key, const char *value, configSetting 
     *strchr(newCredentials, '"') = (char)0;
     *strchr(newPassword, '"') = (char)0;
     // save values...
-    ESP_LOGI(TAG, "Set credentials: %s (%s)", newUsername, newCredentials);
+    ESP_LOGI(TAG, "Set credentials for user: %s", newUsername);
     userConfig->set(cfg_wwwUsername, newUsername);
     userConfig->set(cfg_wwwCredentials, newCredentials);
 #ifndef ESP8266
@@ -1030,9 +1030,9 @@ void handle_setgdo()
         if (setGDOhandlers.count(key))
         {
             if (key == "credentials")
-                ESP_LOGI(TAG, "Call handler for Key: %s", key.c_str());
+                ESP_LOGI(TAG, "Call SetGDO handler for Key: %s", key.c_str());
             else
-                ESP_LOGI(TAG, "Call handler for Key: %s, Value: %s", key.c_str(), value.c_str());
+                ESP_LOGI(TAG, "Call SetGDO handler for Key: %s, Value: %s", key.c_str(), value.c_str());
             actions = setGDOhandlers.at(key);
             if (actions.fn)
             {
@@ -1074,7 +1074,7 @@ void handle_setgdo()
     if (error)
     {
         // Simple error handling...
-        ESP_LOGI(TAG, "Sending %s, for: %s", response400invalid, server.uri().c_str());
+        ESP_LOGE(TAG, "Sending %s, for: %s", response400invalid, server.uri().c_str());
         server.send_P(400, type_txt, response400invalid);
         return;
     }
@@ -1105,7 +1105,7 @@ void removeSSEsubscription(SSESubscription *s)
     if (subscriptionCount > 0)
         subscriptionCount--; // Prevent negative count
     s->heartbeatTimer.detach();
-    ESP_LOGI(TAG, "Remove SSE subscription. Total subscribed: %d", subscriptionCount);
+    ESP_LOGD(TAG, "Remove SSE subscription. Total subscribed: %d", subscriptionCount);
     s->client.stop();
     s->clientIP = INADDR_NONE;
     s->clientUUID.clear();
@@ -1126,12 +1126,12 @@ void SSEheartbeat(SSESubscription *s)
         {
             // 5 heartbeats have failed... assume client will not connect
             // and free up the slot
-            ESP_LOGI(TAG, "Client %s (%s) >5 heartbeat fails, remove SSE subscription", s->clientIP.toString().c_str(), s->clientUUID.c_str());
+            ESP_LOGD(TAG, "Client %s (%s) >5 heartbeat fails, remove SSE subscription", s->clientIP.toString().c_str(), s->clientUUID.c_str());
             removeSSEsubscription(s);
         }
         else
         {
-            ESP_LOGI(TAG, "Client %s (%s) not yet listening for SSE", s->clientIP.toString().c_str(), s->clientUUID.c_str());
+            ESP_LOGE(TAG, "Client %s (%s) not yet listening for SSE", s->clientIP.toString().c_str(), s->clientUUID.c_str());
         }
         return;
     }
@@ -1177,7 +1177,7 @@ void SSEheartbeat(SSESubscription *s)
     }
     else
     {
-        ESP_LOGI(TAG, "Client %s (%s) not listening (heartbeat), remove SSE subscription", s->clientIP.toString().c_str(), s->clientUUID.c_str());
+        ESP_LOGD(TAG, "Client %s (%s) not listening (heartbeat), remove SSE subscription", s->clientIP.toString().c_str(), s->clientUUID.c_str());
         removeSSEsubscription(s);
         YIELD();
     }
@@ -1187,7 +1187,7 @@ void SSEHandler(uint32_t channel)
 {
     if (server.args() != 1)
     {
-        ESP_LOGI(TAG, "Sending %s, for: %s", response400missing, server.uri().c_str());
+        ESP_LOGE(TAG, "Sending %s, for: %s", response400missing, server.uri().c_str());
         server.send_P(400, type_txt, response400missing);
         return;
     }
@@ -1196,7 +1196,7 @@ void SSEHandler(uint32_t channel)
     s.client = server.client(); // capture SSE server client connection
     if (s.clientUUID != server.arg(0))
     {
-        ESP_LOGI(TAG, "Client %s (%s) tries to listen for SSE but not subscribed", s.client.remoteIP().toString().c_str(), server.arg(0).c_str());
+        ESP_LOGE(TAG, "Client %s (%s) tries to listen for SSE but not subscribed", s.client.remoteIP().toString().c_str(), server.arg(0).c_str());
         return handle_notfound();
     }
     s.client.setNoDelay(true);
@@ -1222,7 +1222,7 @@ void SSEHandler(uint32_t channel)
 #endif
                                    });
     }
-    ESP_LOGI(TAG, "Client %s (%s) listening for SSE events on channel %d", s.client.remoteIP().toString().c_str(), s.clientUUID.c_str(), channel);
+    ESP_LOGD(TAG, "Client %s (%s) listening for SSE events on channel %d", s.client.remoteIP().toString().c_str(), s.clientUUID.c_str(), channel);
 }
 
 void handle_subscribe()
@@ -1233,17 +1233,17 @@ void handle_subscribe()
 
     if (subscriptionCount == SSE_MAX_CHANNELS)
     {
-        ESP_LOGI(TAG, "Client %s SSE Subscription declined, subscription count: %d", clientIP.toString().c_str(), subscriptionCount);
+        ESP_LOGE(TAG, "Client %s SSE Subscription declined, subscription count: %d", clientIP.toString().c_str(), subscriptionCount);
         for (channel = 0; channel < SSE_MAX_CHANNELS; channel++)
         {
-            ESP_LOGI(TAG, "Client %d: %s at %s", channel, subscription[channel].clientUUID.c_str(), subscription[channel].clientIP.toString().c_str());
+            ESP_LOGD(TAG, "Client %d: %s at %s", channel, subscription[channel].clientUUID.c_str(), subscription[channel].clientIP.toString().c_str());
         }
         return handle_notfound(); // We ran out of channels
     }
 
     if (clientIP == INADDR_NONE)
     {
-        ESP_LOGI(TAG, "Sending %s, for: %s as clientIP missing", response400invalid, server.uri().c_str());
+        ESP_LOGE(TAG, "Sending %s, for: %s as clientIP missing", response400invalid, server.uri().c_str());
         server.send_P(400, type_txt, response400invalid);
         return;
     }
@@ -1251,7 +1251,7 @@ void handle_subscribe()
     // check we were passed at least one argument
     if (server.args() < 1)
     {
-        ESP_LOGI(TAG, "Sending %s, for: %s", response400missing, server.uri().c_str());
+        ESP_LOGE(TAG, "Sending %s, for: %s", response400missing, server.uri().c_str());
         server.send_P(400, type_txt, response400missing);
         return;
     }
@@ -1279,14 +1279,14 @@ void handle_subscribe()
             if (subscription[channel].SSEconnected)
             {
                 // Already connected.  We need to close it down as client will be reconnecting
-                ESP_LOGI(TAG, "Client %s (%s) already connected on channel %d, remove SSE subscription", clientIP.toString().c_str(), server.arg(id).c_str(), channel);
+                ESP_LOGD(TAG, "Client %s (%s) already connected on channel %d, remove SSE subscription", clientIP.toString().c_str(), server.arg(id).c_str(), channel);
                 removeSSEsubscription(&subscription[channel]);
                 break; // without setting foundExisting... so we create new instance.
             }
             else
             {
                 // Subscribed but not connected yet, so nothing to close down.
-                ESP_LOGI(TAG, "Client %s (%s) already subscribed for SSE but not connected on channel %d", clientIP.toString().c_str(), server.arg(id).c_str(), channel);
+                ESP_LOGD(TAG, "Client %s (%s) already subscribed for SSE but not connected on channel %d", clientIP.toString().c_str(), server.arg(id).c_str(), channel);
             }
             foundExisting = true;
             break;
@@ -1309,7 +1309,7 @@ void handle_subscribe()
     // Check if we found a free slot
     if (channel >= SSE_MAX_CHANNELS)
     {
-        ESP_LOGI(TAG, "SSE subscription failed - no free slots available");
+        ESP_LOGE(TAG, "SSE subscription failed - no free slots available");
         server.send(503, type_txt, "No free subscription slots available");
         return;
     }
@@ -1318,7 +1318,7 @@ void handle_subscribe()
     WiFiClient client = server.client();
     if (!client || !client.connected())
     {
-        ESP_LOGI(TAG, "Invalid client for SSE subscription");
+        ESP_LOGE(TAG, "Invalid client for SSE subscription");
         server.send(400, type_txt, "Invalid client connection");
         return;
     }
@@ -1331,7 +1331,7 @@ void handle_subscribe()
         // in range of 0 (no heartbeat) to 60 seconds
         if (hbi < 0 || hbi > 60)
         {
-            ESP_LOGI(TAG, "Invalid client for SSE subscription");
+            ESP_LOGE(TAG, "Invalid heartbeat interval (0 - 60) for SSE subscription");
             server.send(400, type_txt, "Invalid heartbeat interval (0 - 60)");
             return;
         }
@@ -1353,7 +1353,7 @@ void handle_subscribe()
     subscription[channel].heartbeatInterval = heartbeatInterval;
 
     SSEurl += std::to_string(channel);
-    ESP_LOGI(TAG, "Client %s (%s) SSE subscription: %s, Total: %d, Heartbeat: %d, Log: %d", clientIP.toString().c_str(), server.arg(id).c_str(), SSEurl.c_str(), subscriptionCount, heartbeatInterval, (int)logViewer);
+    ESP_LOGD(TAG, "Client %s (%s) SSE subscription: %s, Total: %d, Heartbeat: %d, Log: %d", clientIP.toString().c_str(), server.arg(id).c_str(), SSEurl.c_str(), subscriptionCount, heartbeatInterval, (int)logViewer);
     server.sendHeader(F("Cache-Control"), F("no-cache, no-store"));
     server.send_P(200, type_txt, SSEurl.c_str());
 }
@@ -1470,7 +1470,7 @@ void SSEBroadcastState(const char *data, BroadcastType type)
             else
             {
                 // Client connection has gone.  Remove from our subscribed client list
-                ESP_LOGI(TAG, "Client %s (%s) not listening (broadcast), remove SSE subscription", subscription[i].clientIP.toString().c_str(), subscription[i].clientUUID.c_str());
+                ESP_LOGD(TAG, "Client %s (%s) not listening (broadcast), remove SSE subscription", subscription[i].clientIP.toString().c_str(), subscription[i].clientUUID.c_str());
                 removeSSEsubscription(&subscription[i]);
             }
         }
@@ -1485,7 +1485,7 @@ void _setUpdaterError()
     StreamString str;
     Update.printError(str);
     _updaterError = str.c_str();
-    ESP_LOGI(TAG, "Update error: %s", str.c_str());
+    ESP_LOGE(TAG, "Update error: %s", str.c_str());
 }
 
 void handle_update()
@@ -1550,7 +1550,7 @@ void handle_firmware_upload()
 #endif
         if (!_authenticatedUpdate)
         {
-            ESP_LOGI(TAG, "Unauthenticated Update");
+            ESP_LOGE(TAG, "Unauthenticated Update");
             return;
         }
         ESP_LOGI(TAG, "Update: %s", upload.filename.c_str());

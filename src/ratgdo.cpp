@@ -427,7 +427,7 @@ void service_timer_loop()
         if (free_heap < min_heap)
         {
             min_heap = free_heap;
-            ESP_LOGI(TAG, "Free heap dropped to %d", min_heap);
+            ESP_LOGD(TAG, "Free heap dropped to %d", min_heap);
             if (free_heap < MIN_FREE_HEAP)
             {
                 ESP_LOGW(TAG, "Free heap dropped below %d, rebooting to maintain stability", MIN_FREE_HEAP);
@@ -444,7 +444,7 @@ void service_timer_loop()
             if (free_iram < min_iram)
             {
                 min_iram = free_iram;
-                ESP_LOGI(TAG, "Free IRAM heap dropped to %d", min_iram);
+                ESP_LOGD(TAG, "Free IRAM heap dropped to %d", min_iram);
             }
         }
 #endif // MMU_IRAM_HEAP
@@ -454,13 +454,13 @@ void service_timer_loop()
         if (free_stack < min_stack)
         {
             min_stack = free_stack;
-            ESP_LOGI(TAG, "Free cont stack dropped to %d", free_stack);
+            ESP_LOGD(TAG, "Free cont stack dropped to %d", free_stack);
         }
         static uint32_t min_sys_stack = (1024 * 1024);
         if (free_sys_stack < min_sys_stack)
         {
             min_sys_stack = free_sys_stack;
-            ESP_LOGI(TAG, "Free sys stack dropped to %d", free_sys_stack);
+            ESP_LOGD(TAG, "Free sys stack dropped to %d", free_sys_stack);
         }
 #endif
     }
