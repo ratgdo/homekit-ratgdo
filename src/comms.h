@@ -24,7 +24,10 @@ extern void comms_loop();
 extern GarageDoorCurrentState open_door();
 extern GarageDoorCurrentState close_door();
 extern void delayFnCall(uint32_t ms, void (*callback)());
-
+#ifndef USE_GDOLIB
+extern void send_get_status();
+extern void send_get_openings();
+#endif
 extern bool set_lock(bool value, bool verify = true);
 extern bool set_light(bool value, bool verify = true);
 extern void sec1_light_press(uint32_t delay = 0);
