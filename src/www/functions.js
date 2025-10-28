@@ -332,7 +332,6 @@ function setElementsFromStatus(status) {
                 document.getElementById("lockButton").style.display = (value != 3) ? "inline-block" : "none";
                 document.getElementById("lightButton").style.display = (value != 3) ? "inline-block" : "none";
                 document.getElementById("lockLightRow").style.display = (value != 3) ? "table-row" : "none";
-                document.getElementById("durationRow").style.display = (value != 3) ? "table-row" : "none";
                 document.getElementById("dcOpenCloseRow").style.display = (value != 3) ? "table-row" : "none";
                 if (serverStatus["useSWserial"] != undefined) {
                     document.getElementById("useSWserialRow").style.display = (value != 3) ? "table-row" : "none";
