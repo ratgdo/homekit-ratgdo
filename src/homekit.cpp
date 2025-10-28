@@ -874,7 +874,7 @@ DEV_GarageDoor::DEV_GarageDoor() : Service::GarageDoorOpener()
 
 boolean DEV_GarageDoor::update()
 {
-    ESP_LOGI(TAG, "Garage Door Characteristics Update, door target: %d, lock target: %d", target->getNewVal(), lockTarget->getNewVal());
+    ESP_LOGI(TAG, "Garage Door Characteristics Update, door target: %d", target->getNewVal());
     GarageDoorCurrentState state = (target->getNewVal() == target->OPEN) ? open_door() : close_door();
     obstruction->setVal(false);
     current->setVal(state);
