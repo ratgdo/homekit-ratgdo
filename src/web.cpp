@@ -417,6 +417,15 @@ void setup_web()
         return;
 
     ESP_LOGI(TAG, "=== Starting HTTP web server ===");
+#ifndef USE_GDOLIB
+    if (!garage_door.active)
+    {
+        // Garage door should be active by now (will have set door state, etc.)
+        // If for some reason it is not, send a get status command (Sec+ 2.0 doors only)
+        ESP_LOGI(TAG, "Garage door comms not active yet, sending a getStatus to recover");
+        send_get_status();
+    }
+#endif
     IRAM_START(TAG);
     // IRAM heap is used only for allocating globals, to leave as much regular heap
     // available during operations.  We need to carefully monitor useage so as not
