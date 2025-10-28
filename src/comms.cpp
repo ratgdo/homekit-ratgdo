@@ -355,11 +355,8 @@ enum secplus1Codes : uint8_t
                                                                : "unknown"
 
 // prototypes
-void sync();
 bool process_PacketAction(PacketAction &pkt_ac);
 void door_command(DoorAction action);
-void send_get_status();
-void send_get_openings();
 bool transmitSec1(byte toSend);
 bool transmitSec2(PacketAction &pkt_ac);
 void obstruction_timer();
@@ -578,13 +575,11 @@ void setup_comms()
         rolling_code = (rolling_code != 0) ? rolling_code + MAX_CODES_WITHOUT_FLASH_WRITE : 0;
         save_rolling_code();
         ESP_LOGI(TAG, "rolling code %lu (0x%02X)", rolling_code, rolling_code);
-        sync();
-
-        // Get the initial state of the door
-        if (!digitalRead(UART_RX_PIN))
-        {
-            send_get_status();
-        }
+        // Series of get openings and status syncs the GDO with our rolling code.
+        send_get_openings();
+        send_get_status();
+        send_get_openings();
+        send_get_status();
     }
     else
     {
@@ -2220,30 +2215,6 @@ bool process_PacketAction(PacketAction &pkt_ac)
         return transmitSec1(pkt_ac.pkt.m_data.value.cmd);
     }
     return false;
-}
-
-void sync()
-{
-    // only for SECURITY2.0
-    if (doorControlType != 2)
-        return;
-
-    // for exposition about this process, see docs/syncing.md
-    ESP_LOGI(TAG, "Syncing rolling code counter after reboot...");
-    PacketData d;
-    d.type = PacketDataType::NoData;
-    d.value.no_data = NoData();
-    Packet pkt = Packet(PacketCommand::GetOpenings, d, id_code);
-    PacketAction pkt_ac = {pkt, true, 0};
-    process_PacketAction(pkt_ac);
-    delay(100);
-    pkt = Packet(PacketCommand::GetStatus, d, id_code);
-    pkt_ac.pkt = pkt;
-    process_PacketAction(pkt_ac);
-    delay(100);
-    pkt = Packet(PacketCommand::GetOpenings, d, id_code);
-    pkt_ac.pkt = pkt;
-    process_PacketAction(pkt_ac);
 }
 
 void door_command(DoorAction action)
