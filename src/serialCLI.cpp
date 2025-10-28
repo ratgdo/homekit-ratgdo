@@ -67,6 +67,12 @@ void serialCLI(char cmd)
 #ifdef USE_HOMESPAN
         if (!softAPmode)
         {
+#ifndef USE_GDOLIB
+            if (userConfig->getGDOSecurityType() == 2)
+            {
+                Serial.printf_P(PSTR(" g - send a get status and get openings to update GDO state\n"));
+            }
+#endif
             Serial.printf_P(PSTR(" C - switch to HomeSpan CLI (and disable Improv WiFi provisioning)\n"));
         }
 #endif
@@ -83,6 +89,15 @@ void serialCLI(char cmd)
         Serial.printf_P(PSTR(" u - %s force recovery with multiple button press\n"), !force_recover.enable ? "enable" : "disable");
         Serial.println();
         Serial.printf_P(PSTR(" 0..5 - set log level 0(none), 1(error), 2(warn), 3(info), 4(debug), 5(verbose)\n\n"));
+        break;
+    }
+
+    case 'A':
+    {
+        // Reboot into soft AP mode
+        userConfig->set(cfg_softAPmode, true);
+        ESP8266_SAVE_CONFIG();
+        sync_and_restart();
         break;
     }
 
@@ -107,6 +122,15 @@ void serialCLI(char cmd)
         }
         break;
     }
+
+#ifndef USE_GDOLIB
+    case 'g':
+    {
+        send_get_status();
+        send_get_openings();
+        break;
+    }
+#endif
 
     case 'l':
     {
@@ -157,14 +181,6 @@ void serialCLI(char cmd)
         break;
     }
 
-    case 's':
-    {
-        // switch logging to serial console (in case Improv suppressed it)
-        suppressSerialLog = !suppressSerialLog;
-        ESP_LOGI(TAG, "logging to serial port %s", suppressSerialLog ? "disabled" : "enabled");
-        break;
-    }
-
     case 'R':
     {
         // Reboot device
@@ -172,12 +188,11 @@ void serialCLI(char cmd)
         break;
     }
 
-    case 'A':
+    case 's':
     {
-        // Reboot into soft AP mode
-        userConfig->set(cfg_softAPmode, true);
-        ESP8266_SAVE_CONFIG();
-        sync_and_restart();
+        // switch logging to serial console (in case Improv suppressed it)
+        suppressSerialLog = !suppressSerialLog;
+        ESP_LOGI(TAG, "logging to serial port %s", suppressSerialLog ? "disabled" : "enabled");
         break;
     }
 
@@ -215,19 +230,6 @@ void serialCLI(char cmd)
     {
         force_recover.enable = !force_recover.enable;
         ESP_LOGI(TAG, "Forced recovery (enter Soft AP mode) by pressing wall panel buttons %s", !force_recover.enable ? "disabled" : "enabled");
-        break;
-    }
-
-    case 'Z':
-    {
-        uint32_t count = scanWifi(false);
-        if (count == 0)
-        {
-            Serial.printf_P(PSTR("No networks found!\n"));
-            break;
-        }
-
-        Serial.printf_P(PSTR("Found %d networks...\n"), count);
         break;
     }
 
@@ -308,6 +310,19 @@ void serialCLI(char cmd)
             Serial.printf_P(PSTR("\nFailed to connect to WiFi network %s, connected to previous network\n"), ssid.c_str());
         }
 
+        break;
+    }
+
+    case 'Z':
+    {
+        uint32_t count = scanWifi(false);
+        if (count == 0)
+        {
+            Serial.printf_P(PSTR("No networks found!\n"));
+            break;
+        }
+
+        Serial.printf_P(PSTR("Found %d networks...\n"), count);
         break;
     }
 
