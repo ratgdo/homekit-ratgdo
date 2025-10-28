@@ -330,6 +330,7 @@ function setElementsFromStatus(status) {
                 // Hide builtInTTC if it is not set... we want to allow turning off, but not turning on.
                 document.getElementById("builtInTTCrow").style.display = (value == 2 && status.builtInTTC) ? "table-row" : "none";
                 document.getElementById("lockButton").style.display = (value != 3) ? "inline-block" : "none";
+                document.getElementById("doorButton").style.margin = (value != 3) ? "" : "auto"; // auto will center the button
                 document.getElementById("lightButton").style.display = (value != 3) ? "inline-block" : "none";
                 document.getElementById("lockLightRow").style.display = (value != 3) ? "table-row" : "none";
                 document.getElementById("dcOpenCloseRow").style.display = (value != 3) ? "table-row" : "none";
