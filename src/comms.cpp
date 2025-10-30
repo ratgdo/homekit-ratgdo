@@ -1670,6 +1670,7 @@ void comms_loop_sec2()
         if (!reader.push_byte(ser_data))
             return;
 
+        static _millis_t lastStatusPkt = 0;
         // We have a full packet, process it.
         Packet pkt = Packet(reader.fetch_buf());
         // Log the received packet
@@ -1679,6 +1680,7 @@ void comms_loop_sec2()
         {
         case PacketCommand::Status:
         {
+            lastStatusPkt = _millis();
             GarageDoorCurrentState current_state = garage_door.current_state;
             switch (pkt.m_data.value.status.door)
             {
@@ -1706,7 +1708,7 @@ void comms_loop_sec2()
 
             if (pkt.m_data.value.status.light != garage_door.light)
             {
-                ESP_LOGI(TAG, "Light: %s (%s)", pkt.m_data.value.status.light ? "On" : "Off", timeString());
+                ESP_LOGD(TAG, "Light: %s (%s)", pkt.m_data.value.status.light ? "On" : "Off", timeString());
                 notify_homekit_light(pkt.m_data.value.status.light);
             }
 
@@ -1724,7 +1726,7 @@ void comms_loop_sec2()
             }
             if (current_lock != garage_door.current_lock)
             {
-                ESP_LOGI(TAG, "Remotes lock: %s (%s)", LOCK_STATE(current_lock), timeString());
+                ESP_LOGD(TAG, "Remotes lock: %s (%s)", LOCK_STATE(current_lock), timeString());
                 notify_homekit_target_lock(target_lock);
                 notify_homekit_current_lock(current_lock);
             }
@@ -1736,7 +1738,7 @@ void comms_loop_sec2()
                 bool status_obstructed = !pkt.m_data.value.status.obstruction;
                 if (garage_door.obstructed != status_obstructed)
                 {
-                    ESP_LOGI(TAG, "Obstruction: %s (Status packet) (%s)", status_obstructed ? "Obstructed" : "Clear", timeString());
+                    ESP_LOGD(TAG, "Obstruction: %s (Status packet) (%s)", status_obstructed ? "Obstructed" : "Clear", timeString());
                     notify_homekit_obstruction(status_obstructed);
                     digitalWrite(STATUS_OBST_PIN, !status_obstructed);
                     if (status_obstructed && motionTriggers.bit.obstruction)
@@ -1804,7 +1806,7 @@ void comms_loop_sec2()
             }
             if (lock != garage_door.target_lock)
             {
-                ESP_LOGI(TAG, "Lock Cmd %d", lock);
+                ESP_LOGD(TAG, "Lock Cmd %d", lock);
                 notify_homekit_target_lock(lock);
                 if (motionTriggers.bit.lockKey)
                 {
@@ -1835,7 +1837,7 @@ void comms_loop_sec2()
             }
             if (l != garage_door.light)
             {
-                ESP_LOGI(TAG, "Light Cmd %s", l ? "On" : "Off");
+                ESP_LOGD(TAG, "Light Cmd %s", l ? "On" : "Off");
                 notify_homekit_light(l);
                 if (motionTriggers.bit.lightKey)
                 {
@@ -1847,7 +1849,7 @@ void comms_loop_sec2()
 
         case PacketCommand::Motion:
         {
-            ESP_LOGI(TAG, "Motion Detected");
+            ESP_LOGD(TAG, "Motion Detected");
             // We got a motion message, so we know we have a motion sensor
             // If it's not yet enabled, add the service
             if (!garage_door.has_motion_sensor)
@@ -1864,19 +1866,23 @@ void comms_loop_sec2()
 #endif
             }
 
-            // When we get the motion detect message, notify HomeKit. Motion sensor
-            if (!garage_door.motion)
+            if (motionTriggers.bit.motion)
             {
+                if (!garage_door.light && !garage_door.motion)
+                {
+                    // If motion sensor triggered we expect the light to be on. If we don't think light is on,
+                    // and we are transitioning from no motion, then send a request to retrieve GDO status,
+                    send_get_status();
+                }
+                // When we get the motion detect message, notify HomeKit.
                 notify_homekit_motion(true);
             }
-            // Update status because things like light may have changed states
-            send_get_status();
             break;
         }
 
         case PacketCommand::DoorAction:
         {
-            ESP_LOGI(TAG, "Door Action");
+            ESP_LOGD(TAG, "Door Action");
             if (pkt.m_data.value.door_action.pressed)
             {
                 manual_recovery();
@@ -1906,7 +1912,6 @@ void comms_loop_sec2()
 
         case PacketCommand::GetStatus:
         case PacketCommand::GetOpenings:
-        case PacketCommand::Unknown:
         {
             // Silently ignore, because we see lots of these and they have no data, and Packet.h logged them.
             break;
@@ -1948,9 +1953,21 @@ void comms_loop_sec2()
             break;
         }
 
+        case PacketCommand::Unknown:
+        {
+            // Typically occurs if there is a fail-to-decode packet error.  This could be a regular status update.
+            // If it has been more than 5 minutes since the last status packet then request GDO to resend one.
+            if (_millis() - lastStatusPkt > (5 * 60 * 1000))
+            {
+                ESP_LOGD(TAG,"Missed a status packet, requsting GDO to resend");
+                send_get_status();
+            }
+            break;
+        }
+
         default:
             // Log if we get a command that we do not recognize.
-            ESP_LOGI(TAG, "Support for %s packet unimplemented. Ignoring.", PacketCommand::to_string(pkt.m_pkt_cmd));
+            ESP_LOGD(TAG, "Support for %s packet unimplemented. Ignoring.", PacketCommand::to_string(pkt.m_pkt_cmd));
             break;
         }
     }

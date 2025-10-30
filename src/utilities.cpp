@@ -37,8 +37,8 @@
 // Logger tag
 static const char *TAG = "ratgdo-utils";
 
-// What trigger motion...
-motionTriggersUnion motionTriggers = {0, 0, 0, 0, 0, 0};
+// What trigger motion... default to enable the motion sensor...
+motionTriggersUnion motionTriggers = {1, 0, 0, 0, 0, 0};
 // Control booting into soft access point mode
 bool softAPmode = false;
 // Realm for MD5 credential hashing
