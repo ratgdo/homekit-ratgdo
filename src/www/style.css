@@ -43,6 +43,10 @@ input[type="checkbox"] {
     margin: 0px;
 }
 
+input[type="checkbox"][disabled] {
+    cursor: not-allowed;
+}
+
 .button-row input[type="button"] {
     padding-left: 0px;
     padding-right: 0px;
@@ -462,6 +466,11 @@ div.logheader {
         color: black;
     }
 
+    input[type="checkbox"][disabled]+label {
+        color: rgba(0, 0, 0, 0.5);
+        cursor: not-allowed;
+    }
+
     div.footer,
     a {
         color: #505050;
@@ -487,6 +496,11 @@ div.logheader {
         background-color: #202020;
         border-color: #E0E0E0;
         color: white;
+    }
+
+    input[type="checkbox"][disabled]+label {
+        color: rgba(255, 255, 255, 0.5);
+        cursor: not-allowed;
     }
 
     div.footer,

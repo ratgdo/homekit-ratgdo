@@ -339,6 +339,7 @@ function setElementsFromStatus(status) {
                 }
                 document.getElementById("obstFromStatusRow").style.display = (value != 3) ? "table-row" : "none";
                 document.getElementById("dcDebounceDurationRow").style.display = (value == 3) ? "table-row" : "none";
+                document.getElementById("motionMotion").disabled = (value == 2) ? false : true;
                 break;
             case "pinBasedObst":
                 document.getElementById(key).innerHTML = (value == true) ? "&nbsp;(Pin-based)" : "&nbsp;(Message)";
@@ -1131,7 +1132,7 @@ function setMotionTriggers(bitset) {
     document.getElementById("motionObstruction").checked = (bitset & 2) ? true : false;
     document.getElementById("motionWallPanel").checked = (bitset & 28) ? true : false;
     // Hide checkbox to trigger motion from wall panel, because not implemented with GDOLIB
-    document.getElementById("motionWallPanelSpan").style.display = "none";
+    //document.getElementById("motionWallPanelSpan").style.display = "none";
     //document.getElementById("trOccupancyDuration").style.display = (bitset) ? "table-row" : "none";
 };
 

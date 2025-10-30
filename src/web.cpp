@@ -308,7 +308,7 @@ void web_loop()
     JSON_START(json);
     if (garage_door.active && garage_door.current_state != lastDoorState)
     {
-        ESP_LOGI(TAG, "Current Door State changing from %s to %s", DOOR_STATE(lastDoorState), DOOR_STATE(garage_door.current_state));
+        ESP_LOGD(TAG, "Current Door State changing from %s to %s", DOOR_STATE(lastDoorState), DOOR_STATE(garage_door.current_state));
         if (enableNTP && clockSet)
         {
             time_t timeNow = time(NULL);
@@ -437,25 +437,16 @@ void setup_web()
 #endif
     last_reported_paired = homekit_is_paired();
 
-    if (motionTriggers.asInt == 0)
+    if (!garage_door.has_motion_sensor && (bool)motionTriggers.bit.motion)
     {
-        // maybe just initialized. If we have motion sensor then set that and write back to file
-        if (garage_door.has_motion_sensor)
-        {
-            motionTriggers.bit.motion = 1;
-            userConfig->set(cfg_motionTriggers, motionTriggers.asInt);
-            ESP8266_SAVE_CONFIG();
-        }
-    }
-    else if (garage_door.has_motion_sensor != (bool)motionTriggers.bit.motion)
-    {
-        // sync up web page tracking of whether we have motion sensor or not.
-        ESP_LOGI(TAG, "Motion trigger mismatch, reset to %d", (int)garage_door.has_motion_sensor);
-        motionTriggers.bit.motion = (uint8_t)garage_door.has_motion_sensor;
+        // If we do not have a motion sensor, disable motion sensing setting
+        motionTriggers.bit.motion = 0;
         userConfig->set(cfg_motionTriggers, motionTriggers.asInt);
         ESP8266_SAVE_CONFIG();
     }
-    ESP_LOGI(TAG, "Motion triggers, motion : %d, obstruction: %d, light key: %d, door key: %d, lock key: %d, asInt: %d",
+
+    ESP_LOGI(TAG, "Has motion sensor %s, Triggers... motion %d, obstruction %d, light key %d, door key %d, lock key %d (asInt: %d)",
+             garage_door.has_motion_sensor ? "true" : "false",
              motionTriggers.bit.motion,
              motionTriggers.bit.obstruction,
              motionTriggers.bit.lightKey,
