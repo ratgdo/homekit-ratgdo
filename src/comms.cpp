@@ -1673,8 +1673,13 @@ void comms_loop_sec2()
         static _millis_t lastStatusPkt = 0;
         // We have a full packet, process it.
         Packet pkt = Packet(reader.fetch_buf());
-        // Log the received packet
-        pkt.print();
+
+        if ((esp_log_level_t)userConfig->getLogLevel() <= esp_log_level_t::ESP_LOG_INFO)
+        {
+            // If log level is Debug or higher then Packet() will have already logged it.
+            // This one logs at Info level.
+            pkt.print();
+        }
 
         switch (pkt.m_pkt_cmd)
         {
@@ -1928,27 +1933,88 @@ void comms_loop_sec2()
             break;
         }
 
+        case PacketCommand::SetTtc:
+        {
+            uint16_t secs = pkt.m_data.value.set_ttc.seconds;
+            if (secs >= 60)
+            {
+                ESP_LOGI(TAG, "Set built-in automatic time-to-close to %d seconds", secs);
+                garage_door.builtInTTC = secs;
+                userConfig->set(cfg_builtInTTC, secs);
+                ESP8266_SAVE_CONFIG();
+            }
+            else
+            {
+                ESP_LOGI(TAG, "Ignore request to set automatic time-to-close to %d seconds as less than 60 seconds", secs);
+            }
+            break;
+        }
+
+        case PacketCommand::UpdateTtc:
+        {
+            // We may receive a series of these while the door is open and it is counting down to a close.
+            // The first one will be highest and match what the GDO thinks is the TTC close.
+            // The last one (or two) will be zero seconds, indicating door is about to close (will start warning sequence)
+            uint16_t secs = pkt.m_data.value.update_ttc.seconds;
+            if (secs > 60 && secs > userConfig->getBuiltInTTC())
+            {
+                // If higher than what we have saved, then we need to update our saved value.
+                ESP_LOGI(TAG, "Update built-in automatic time-to-close to %d seconds", secs);
+                garage_door.builtInTTC = secs;
+                userConfig->set(cfg_builtInTTC, secs);
+                ESP8266_SAVE_CONFIG();
+            }
+            break;
+        }
+
+        case PacketCommand::CancelTtc:
+        {
+            garage_door.builtInTTC = 0;
+            userConfig->set(cfg_builtInTTC, 0);
+            ESP8266_SAVE_CONFIG();
+            break;
+        }
+
+        case PacketCommand::Pair2Resp:
+        {
+            // Received in confirmation of a SetTtc, whether set by us or someone else.
+            uint16_t secs = pkt.m_data.value.pair2resp.seconds;
+            if (secs > 60 && secs != userConfig->getBuiltInTTC())
+            {
+                ESP_LOGI(TAG, "Update built-in automatic time-to-close to %d seconds", secs);
+                garage_door.builtInTTC = secs;
+                userConfig->set(cfg_builtInTTC, secs);
+                ESP8266_SAVE_CONFIG();
+            }
+            break;
+        }
+
         case PacketCommand::Pair3Resp:
         {
-            // Only use Pair3Resp for obstruction detection if no sensor detected
-            if (!garage_door.pinModeObstructionSensor)
+            // Received in confirmation of some other action, e.g. CancelTtc.
+            // Byte1 values:
+            // 0x01: (has different id_code... from wall panel) when door finished opening (after the Pair3resp 0x02, Pair3 and UpdateTtc)
+            // 0x02: when door finished opening and there is a TTC active (after a Pair3 and UpdateTtc)
+            // 0x09: in response to a CancelTtc command AND ALSO when obstruction sensor changes from blocked to clear
+            // 0x0B: when TTC expires and door starts warning sequence (and after an UpdateTtc of zero seconds)
+            // 0x0C: at end of warning sequence and door is about to start closing (6-8 seconds after 0x0B received)
+            // 0x0E: when obstruction sensor changes clear to blocked
+            switch ((Pair3State)pkt.m_data.value.pair3resp.byte1)
             {
-                // Use Pair3Resp packets for obstruction detection via parity
-                // byte1 9 = clear, byte1 14 = obstructed
-                bool currently_obstructed = ((pkt.m_data.value.no_data.no_bits_set >> 16) & 0xFF) == 14;
-                // Only update if obstruction state has changed
-                if (garage_door.obstructed != currently_obstructed)
-                {
-                    ESP_LOGI(TAG, "Obstruction: %s (Pair3Resp) (%s)", currently_obstructed ? "Obstructed" : "Clear", timeString());
-                    // Notify HomeKit of the state change
-                    notify_homekit_obstruction(currently_obstructed);
-                    digitalWrite(STATUS_OBST_PIN, !currently_obstructed);
-                    // Trigger motion detection if enabled
-                    if (currently_obstructed && motionTriggers.bit.obstruction)
-                    {
-                        notify_homekit_motion(true);
-                    }
-                }
+            case Pair3State::WallpanelAck:
+                break;
+            case Pair3State::UpdateAck:
+                break;
+            case Pair3State::CancelAck:
+                break;
+            case Pair3State::WarningStart:
+                ESP_LOGI(TAG, "Door close warning sequence start");
+                break;
+            case Pair3State::WarningEnd:
+                ESP_LOGI(TAG, "Door close warning sequence end");
+                break;
+            case Pair3State::ObstBlocked:
+                break;
             }
             break;
         }
@@ -1957,9 +2023,9 @@ void comms_loop_sec2()
         {
             // Typically occurs if there is a fail-to-decode packet error.  This could be a regular status update.
             // If it has been more than 5 minutes since the last status packet then request GDO to resend one.
-            if (_millis() - lastStatusPkt > (5 * 60 * 1000))
+            if (_millis() - lastStatusPkt > (5 * 60 * 1000) || lastStatusPkt == 0)
             {
-                ESP_LOGD(TAG,"Missed a status packet, requsting GDO to resend");
+                ESP_LOGD(TAG, "Missed a status packet, requsting GDO to resend");
                 send_get_status();
             }
             break;
@@ -2613,7 +2679,43 @@ void send_get_openings()
     PacketAction pkt_ac = {pkt, true, 0};
     if (!txQueuePush(&pkt_ac))
     {
-        ESP_LOGE(TAG, "packet queue full, dropping get status pkt");
+        ESP_LOGE(TAG, "packet queue full, dropping get openings pkt");
+    }
+}
+
+void send_cancel_ttc()
+{
+    // only used with SECURITY2.0
+    if (doorControlType != 2)
+        return;
+
+    PacketData d;
+    d.type = PacketDataType::CancelTtc;
+    d.value.cancel_ttc.state = CancelTtcState::Cancel;
+    d.value.cancel_ttc.flags = 0x01;
+    Packet pkt = Packet(PacketCommand::CancelTtc, d, id_code);
+    PacketAction pkt_ac = {pkt, true, 0};
+    if (!txQueuePush(&pkt_ac))
+    {
+        ESP_LOGE(TAG, "packet queue full, dropping cancel ttc pkt");
+    }
+}
+
+void send_set_ttc(uint16_t seconds)
+{
+    // only used with SECURITY2.0
+    if (doorControlType != 2)
+        return;
+
+    PacketData d;
+    d.type = PacketDataType::SetTtc;
+    d.value.set_ttc.seconds = seconds;
+    d.value.set_ttc.flags = 0x01;
+    Packet pkt = Packet(PacketCommand::SetTtc, d, id_code);
+    PacketAction pkt_ac = {pkt, true, 0};
+    if (!txQueuePush(&pkt_ac))
+    {
+        ESP_LOGE(TAG, "packet queue full, dropping set ttc pkt");
     }
 }
 #endif
@@ -2791,6 +2893,11 @@ bool set_light(bool value, bool verify)
             send_get_status();
     }
     return true;
+}
+
+void toggle_light()
+{
+    set_light(!garage_door.light, true);
 }
 #endif // USE_GDOLIB
 

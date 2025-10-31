@@ -64,18 +64,23 @@ void serialCLI(char cmd)
         Serial.printf_P(PSTR(" F - factory reset RATGDO and reboot\n"));
         Serial.printf_P(PSTR(" W - configure WiFi Credentials\n"));
         Serial.printf_P(PSTR(" Z - scan for available WiFi networks\n"));
-#ifdef USE_HOMESPAN
         if (!softAPmode)
         {
+#ifdef USE_HOMESPAN
+            Serial.printf_P(PSTR(" C - switch to HomeSpan CLI (and disable Improv WiFi provisioning)\n"));
+#endif
 #ifndef USE_GDOLIB
             if (userConfig->getGDOSecurityType() == 2)
             {
                 Serial.printf_P(PSTR(" g - send a get status and get openings to update GDO state\n"));
+#ifdef TEST_TTC
+                Serial.printf_P(PSTR(" j - send a CancelTtc\n"));
+                Serial.printf_P(PSTR(" k - send a SetTtc for 10 seconds (remember to cancel)\n"));
+#endif
             }
 #endif
-            Serial.printf_P(PSTR(" C - switch to HomeSpan CLI (and disable Improv WiFi provisioning)\n"));
         }
-#endif
+
         Serial.println();
         Serial.printf_P(PSTR(" l - print RATGDO buffered message log\n"));
         Serial.printf_P(PSTR(" L - print RATGDO saved reboot log\n"));
@@ -130,6 +135,27 @@ void serialCLI(char cmd)
         send_get_openings();
         break;
     }
+#ifdef TEST_TTC
+    case 'j':
+    {
+        userConfig->set(cfg_builtInTTC, 0);
+        garage_door.builtInTTC = 0;
+        send_cancel_ttc();
+        break;
+    }
+
+    case 'k':
+    {
+        constexpr int secs = 10;
+        if (areYouSure(PSTR("Set built-in automatic close to 10 seconds? Are you sure Y/N: ")))
+        {
+            userConfig->set(cfg_builtInTTC, secs);
+            garage_door.builtInTTC = secs;
+            send_set_ttc(secs);
+        }
+        break;
+    }
+#endif
 #endif
 
     case 'l':

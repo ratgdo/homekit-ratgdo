@@ -36,7 +36,7 @@
   "wifiPhyMode": 0,
   "wifiPower": 10,
   "TTCseconds": 10,
-  "builtInTTC": false,
+  "builtInTTC": 0,
   "motionTriggers": 3,
   "LEDidle": 1,
   "enableNTP": true,

@@ -142,7 +142,8 @@
               </td>
               <td colspan="3">Obstruction:</td>
               <td>
-                <span id="garageObstructed"></span><span id="pinBasedObst" style="font-size: 0.6em">&nbsp;(Pin-based)</span>
+                <span id="garageObstructed"></span><span id="pinBasedObst"
+                  style="font-size: 0.6em">&nbsp;(Pin-based)</span>
               </td>
             </tr>
             <tr id="lockLightRow">
@@ -154,7 +155,8 @@
             <tr>
               <td colspan="2">Door&nbsp;Protocol:</td>
               <td colspan="2" style="width: 35%;">
-                <span id="GDOSecurityType"></span><span id="sec1emulation" style="font-size: 0.6em; display: none">&nbsp;(Emulation)</span>
+                <span id="GDOSecurityType"></span><span id="sec1emulation"
+                  style="font-size: 0.6em; display: none">&nbsp;(Emulation)</span>
               </td>
               <td colspan="2" id="motionLabel">Motion:</td>
               <td id="garageMotion"></td>
@@ -351,12 +353,20 @@
                     href="https://www.law.cornell.edu/cfr/text/16/1211.14" target="_blank">WARNING</a></span>
                 </td>
               </tr>
-              <tr id="builtInTTCrow" style="display:none;">
-                <td></td>
+              <tr id="builtInTTCrow">
+                <td class="label">Automatic Close:</td>
                 <td>&nbsp;
-                  <input type="checkbox" id="builtInTTC" name="builtInTTC" value="no" checked>
-                  <label for="builtInTTC">Use GDO built-in time-to-close</label>
+                  <input type="range" min="0" max="20" value="0" id="builtInTTC" name="builtInTTC" class="slider"
+                    style="width:150px;">
+                  <span style="vertical-align: middle; font-size: 0.8em"><span
+                      id="builtInTTCValue"></span>&nbsp;Minutes&nbsp;<a id="builtInWarning"
+                      style="display: none; color: red;"
+                      href="https://github.com/ratgdo/homekit-ratgdo32/blob/main/README.md#automatic-close"
+                      target="_blank">WARNING</a></span>
                 </td>
+              </tr>
+              <tr>
+                <td colspan="2">&nbsp;</td>
               </tr>
               <tr>
                 <td class="label">Motion Triggers:</td>
@@ -385,6 +395,9 @@
                     </tr>
                   </table>
                 </td>
+              </tr>
+              <tr id="vehicleSettingsSpacer" style="display:none;">
+                <td colspan="2">&nbsp;</td>
               </tr>
               <tr id="vehicleSetting" style="display:none;">
                 <td class="label">Vehicle Distance:</td>
@@ -801,12 +814,24 @@
     TTCwarning2 = document.getElementById("TTCwarning2");
     TTCtext.innerText = ((TTCslider.value <= 10) ? TTCslider.value : (TTCslider.value <= 20) ? ((TTCslider.value - 10) * 5) + 10 : 300);
     TTCslider.oninput = function () {
-      TTCtext.innerText = ((this.value <= 10) ? this.value : (this.value <= 20) ? ((this.value - 10) * 5) + 10 : 300);
+      TTCtext.innerText = ((this.value <= 10) ? this.value :
+        (this.value <= 20) ? ((this.value - 10) * 5) + 10 : 300);
       TTCwarning.style.display = (this.value < 5) ? "inline" : "none";
     };
     TTClight.onclick = function () {
       TTCwarning2.style.display = (this.checked) ? "none" : "inline";
     };
+
+    builtInSlider = document.getElementById("builtInTTC");
+    buildInText = document.getElementById("builtInTTCValue");
+    builtInWarning = document.getElementById("builtInWarning");
+    builtInSlider.oninput = function () {
+      let seconds = (this.value <= 10) ? this.value * 60 :
+        (this.value <= 20) ? ((this.value - 10) * 300) + 600 : 3600;
+      buildInText.innerText = (seconds / 60).toFixed(1).replace(/\.?0+$/, "");
+      builtInWarning.style.display = (this.value > 0) ? "inline" : "none";
+    };
+
 
     vDistSlider = document.getElementById("vehicleThreshold");
     vDistText1 = document.getElementById("vehicleThresholdCM");

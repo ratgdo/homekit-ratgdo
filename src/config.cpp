@@ -221,17 +221,25 @@ bool helperLogLevel(const std::string &key, const char *value, configSetting *ac
     return true;
 }
 
-#ifndef ESP8266
-// These features are not available on ESP8266
 bool helperBuiltInTTC(const std::string &key, const char *value, configSetting *action)
 {
     userConfig->set(key, value);
+    garage_door.builtInTTC = userConfig->getBuiltInTTC();
 #ifdef USE_GDOLIB
     if (!userConfig->getBuiltInTTC())
     {
         // We have just disabled use of GDO's built-in time-to-close.
         ESP_LOGI(TAG, "Disable built-in TTC, set to: %d", userConfig->getTTCseconds() < 60 ? 0 : userConfig->getTTCseconds());
         gdo_set_time_to_close(userConfig->getTTCseconds() < 60 ? 0 : userConfig->getTTCseconds());
+    }
+#else
+    if (garage_door.builtInTTC == 0)
+    {
+        send_cancel_ttc();
+    }
+    else
+    {
+        send_set_ttc(garage_door.builtInTTC);
     }
 #endif // USE_GDOLIB
     return true;
@@ -271,6 +279,7 @@ bool helperUseSWserial(const std::string &key, const char *value, configSetting 
 }
 #endif
 
+#ifdef ESP32
 bool helperOccupancyDuration(const std::string &key, const char *value, configSetting *action)
 {
     userConfig->set(key, value);
@@ -370,9 +379,9 @@ userSettings::userSettings()
 #ifdef USE_GDOLIB
         {cfg_useSWserial, {true, false, true, helperUseSWserial}}, // call fn to shut down GDO before switch
 #endif
+        {cfg_builtInTTC, {false, false, 0, helperBuiltInTTC}},
 #ifndef ESP8266
         // These features not available on ESP8266
-        {cfg_builtInTTC, {false, false, false, helperBuiltInTTC}},
         {cfg_occupancyDuration, {false, false, 0, helperOccupancyDuration}}, // call fn to enable/disable HomeKit accessories
         {cfg_enableIPv6, {true, false, false, NULL}},
         {cfg_homespanCLI, {false, false, false, helperHomeSpanCLI}}, // call fn to enable/disable HomeSpan CLI and Improv

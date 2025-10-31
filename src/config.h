@@ -85,11 +85,11 @@ constexpr char cfg_dcOpenClose[] PROGMEM = "dcOpenClose";
 constexpr char cfg_dcDebounceDuration[] PROGMEM = "dcDebounceDuration";
 constexpr char cfg_useSWserial[] PROGMEM = "useSWserial";
 constexpr char cfg_obstFromStatus[] PROGMEM = "obstFromStatus";
+constexpr char cfg_builtInTTC[] PROGMEM = "builtInTTC";
 #ifdef ESP8266
 // On ESP8266 we save user config to a file in LittleFS
 constexpr char cfg_configFile[] PROGMEM = "user_config";
 #else
-constexpr char cfg_builtInTTC[] PROGMEM = "builtInTTC";
 constexpr char cfg_vehicleThreshold[] PROGMEM = "vehicleThreshold";
 constexpr char cfg_vehicleHomeKit[] PROGMEM = "vehicleHomeKit";
 constexpr char cfg_laserEnabled[] PROGMEM = "laserEnabled";
@@ -189,6 +189,7 @@ public:
     bool getDCOpenClose() { return std::get<bool>(get(cfg_dcOpenClose)); };
     uint32_t getDCDebounceDuration() { return std::get<int>(get(cfg_dcDebounceDuration)); };
     bool getObstFromStatus() { return std::get<bool>(get(cfg_obstFromStatus)); };
+    uint32_t getBuiltInTTC() { return std::get<int>(get(cfg_builtInTTC)); };
 #ifdef RATGDO32_DISCO
     uint32_t getVehicleThreshold() { return std::get<int>(get(cfg_vehicleThreshold)); };
     bool getLaserEnabled() { return std::get<bool>(get(cfg_laserEnabled)); };
@@ -197,7 +198,6 @@ public:
     uint32_t getAssistDuration() { return std::get<int>(get(cfg_assistDuration)); };
 #endif
 #ifndef ESP8266
-    bool getBuiltInTTC() { return std::get<bool>(get(cfg_builtInTTC)); };
     bool getUseSWserial() { return std::get<bool>(get(cfg_useSWserial)); };
     uint32_t getOccupancyDuration() { return std::get<int>(get(cfg_occupancyDuration)); };
     bool getEnableIPv6() { return std::get<bool>(get(cfg_enableIPv6)); };

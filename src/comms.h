@@ -27,9 +27,12 @@ extern void delayFnCall(uint32_t ms, void (*callback)());
 #ifndef USE_GDOLIB
 extern void send_get_status();
 extern void send_get_openings();
+extern void send_cancel_ttc();
+extern void send_set_ttc(uint16_t seconds);
 #endif
 extern bool set_lock(bool value, bool verify = true);
 extern bool set_light(bool value, bool verify = true);
+extern void toggle_light();
 extern void sec1_light_press(uint32_t delay = 0);
 extern void sec1_light_release(uint8_t howManyReleases = 2, uint32_t delay = 0);
 
