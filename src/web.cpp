@@ -383,6 +383,7 @@ void web_loop()
     JSON_ADD_INT_C("openDuration", garage_door.openDuration, last_reported_garage_door.openDuration);
     JSON_ADD_INT_C("closeDuration", garage_door.closeDuration, last_reported_garage_door.closeDuration);
     JSON_ADD_INT_C("ttcActive", is_ttc_active(), last_reported_garage_door.ttcActive);
+    JSON_ADD_INT_C(cfg_builtInTTC, garage_door.builtInTTC, last_reported_garage_door.builtInTTC);
     // got any json?
     if (strlen(json) > 2)
     {
@@ -797,7 +798,7 @@ void build_status_json(char *json)
     JSON_ADD_INT(cfg_occupancyDuration, userConfig->getOccupancyDuration());
     JSON_ADD_BOOL(cfg_enableIPv6, userConfig->getEnableIPv6());
     JSON_ADD_STR("ipv6Addresses", ipv6_addresses);
-    JSON_ADD_BOOL(cfg_builtInTTC, userConfig->getBuiltInTTC());
+    JSON_ADD_INT(cfg_builtInTTC, userConfig->getBuiltInTTC());
 #ifdef USE_GDOLIB
     JSON_ADD_BOOL(cfg_useSWserial, userConfig->getUseSWserial());
 #endif

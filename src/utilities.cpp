@@ -219,6 +219,7 @@ void load_all_config_settings()
     syslogEn = userConfig->getSyslogEn();
     syslogFacility = userConfig->getSyslogFacility();
     rebootSeconds = userConfig->getRebootSeconds();
+    garage_door.builtInTTC = userConfig->getBuiltInTTC();
 
     // Now log what we have loaded
     ESP_LOGI(TAG, "   deviceName:          %s", userConfig->getDeviceName());
@@ -248,6 +249,7 @@ void load_all_config_settings()
     ESP_LOGI(TAG, "   syslogEn:            %s", userConfig->getSyslogEn() ? "true" : "false");
     ESP_LOGI(TAG, "   syslogIP:            %s", userConfig->getSyslogIP());
     ESP_LOGI(TAG, "   syslogPort:          %d", userConfig->getSyslogPort());
+    ESP_LOGI(TAG, "   syslogFacility:      %d", userConfig->getSyslogFacility());
 #ifdef RATGDO32_DISCO
     // Features not available on ESP8266
     ESP_LOGI(TAG, "   vehicleThreshold:    %d", userConfig->getVehicleThreshold());

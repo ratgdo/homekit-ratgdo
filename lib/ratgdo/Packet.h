@@ -617,11 +617,12 @@ struct Pair2RespCommandData
 
 enum class Pair3State : uint8_t
 {
-    Unknown = 0x01,
-    UpdateAck = 0x02,
-    CancelAck = 0x09,
-    WarningStart = 0x0b,
-    SetTtcAck = 0x0c,
+    WallpanelAck = 0x01, // from wall panel ID... when door finished opening (after the Pair3resp 0x02, Pair3 and UpdateTtc)
+    UpdateAck = 0x02,    // door finished opening and there is a TTC active (after a Pair3 and UpdateTtc)
+    CancelAck = 0x09,    // in response to a CancelTtc command AND ALSO when obstruction sensor changes from blocked to clear
+    WarningStart = 0x0b, // TTC expires and door starts warning sequence (and after an UpdateTtc of zero seconds)
+    WarningEnd = 0x0c,   // end of warning sequence and door is about to start closing (6-8 seconds after 0x0B received)
+    ObstBlocked = 0x0e,  // obstruction sensor changes clear to blocked
 };
 struct Pair3RespCommandData
 {
