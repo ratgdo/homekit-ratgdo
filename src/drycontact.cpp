@@ -26,16 +26,21 @@ static bool drycontact_setup_done = false;
 
 void onOpenSwitchPress();
 void onCloseSwitchPress();
+void onLightSwitchPress();
 void onOpenSwitchRelease();
 void onCloseSwitchRelease();
+void onLightSwitchRelease();
 
 // Define OneButton objects for open/close pins
 OneButton buttonOpen(DRY_CONTACT_OPEN_PIN, true, true); // Active low, with internal pull-up
 OneButton buttonClose(DRY_CONTACT_CLOSE_PIN, true, true);
+OneButton buttonLight(DRY_CONTACT_LIGHT_PIN, true, true);
 bool dryContactDoorOpen = false;
 bool dryContactDoorClose = false;
+bool dryContactLightToggle = false;
 bool previousDryContactDoorOpen = false;
 bool previousDryContactDoorClose = false;
+bool previousDryContactLightToggle = false;
 
 void setup_drycontact()
 {
@@ -49,15 +54,19 @@ void setup_drycontact()
 
     pinMode(DRY_CONTACT_OPEN_PIN, INPUT_PULLUP);
     pinMode(DRY_CONTACT_CLOSE_PIN, INPUT_PULLUP);
+    pinMode(DRY_CONTACT_LIGHT_PIN, INPUT_PULLUP);
 
     buttonOpen.setDebounceMs(userConfig->getDCDebounceDuration());
     buttonClose.setDebounceMs(userConfig->getDCDebounceDuration());
+    buttonLight.setDebounceMs(userConfig->getDCDebounceDuration());
 
     // Attach OneButton handlers
     buttonOpen.attachPress(onOpenSwitchPress);
     buttonClose.attachPress(onCloseSwitchPress);
+    buttonLight.attachPress(onLightSwitchPress);;
     buttonOpen.attachLongPressStop(onOpenSwitchRelease);
     buttonClose.attachLongPressStop(onCloseSwitchRelease);
+    buttonLight.attachLongPressStop(onLightSwitchRelease);
 
     drycontact_setup_done = true;
 }
@@ -70,6 +79,7 @@ void drycontact_loop()
     // Poll OneButton objects
     buttonOpen.tick();
     buttonClose.tick();
+    buttonLight.tick();
 
     if (doorControlType == 3)
     {
@@ -110,9 +120,14 @@ void drycontact_loop()
 
         if (dryContactDoorClose)
         {
-
             close_door();
             dryContactDoorClose = false;
+        }
+
+        if (dryContactLightToggle)
+        {
+            toggle_light();
+            dryContactLightToggle = false;
         }
     }
 }
@@ -131,6 +146,12 @@ void onCloseSwitchPress()
     ESP_LOGI(TAG, "Close switch pressed");
 }
 
+void onLightSwitchPress()
+{
+    dryContactLightToggle = true;
+    ESP_LOGI(TAG, "Light Toggle switch pressed");
+}
+
 void onOpenSwitchRelease()
 {
     dryContactDoorOpen = false;
@@ -142,4 +163,11 @@ void onCloseSwitchRelease()
     dryContactDoorClose = false;
     ESP_LOGI(TAG, "Close switch released");
 }
+
+void onLightSwitchRelease()
+{
+    dryContactLightToggle = false;
+    ESP_LOGI(TAG, "Light Toggle switch released");
+}
+
 #endif // not USE_GDOLIB

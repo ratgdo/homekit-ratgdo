@@ -55,6 +55,7 @@
 #define STATUS_DOOR_PIN D0       // output door status, HIGH for open, LOW for closed
 #define DRY_CONTACT_OPEN_PIN D5  // dry contact for open door limit switch
 #define DRY_CONTACT_CLOSE_PIN D6 // dry contact for close door limit switch
+#define DRY_CONTACT_LIGHT_PIN D3 // dry contact for light toggle switch
 
 #ifndef LED_BUILTIN_ON_STATE
 #define LED_BUILTIN_ON_STATE LOW
@@ -122,7 +123,7 @@ const gpio_num_t DRY_CONTACT_CLOSE_PIN = (gpio_num_t)DRY_CONTACT_CLOSE_GPIO; // 
 #ifndef DRY_CONTACT_LIGHT_GPIO
 #define DRY_CONTACT_LIGHT_GPIO GPIO_NUM_27
 #endif
-const gpio_num_t DRY_CONTACT_LIGHT_PIN = (gpio_num_t)DRY_CONTACT_LIGHT_GPIO; // toggle light !!! not coded
+const gpio_num_t DRY_CONTACT_LIGHT_PIN = (gpio_num_t)DRY_CONTACT_LIGHT_GPIO; // toggle light
 #ifndef STATUS_DOOR_GPIO
 #define STATUS_DOOR_GPIO GPIO_NUM_26
 #endif
