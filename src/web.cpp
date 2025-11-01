@@ -749,6 +749,7 @@ void build_status_json(char *json)
     JSON_ADD_INT(cfg_logLevel, userConfig->getLogLevel());
     JSON_ADD_INT(cfg_TTCseconds, userConfig->getTTCseconds());
     JSON_ADD_BOOL(cfg_TTClight, userConfig->getTTClight());
+    JSON_ADD_INT(cfg_builtInTTC, userConfig->getBuiltInTTC());
     JSON_ADD_INT(cfg_motionTriggers, (uint32_t)motionTriggers.asInt);
     JSON_ADD_INT(cfg_LEDidle, userConfig->getLEDidle());
     // We send milliseconds relative to current time... ie updated X milliseconds ago
@@ -798,7 +799,6 @@ void build_status_json(char *json)
     JSON_ADD_INT(cfg_occupancyDuration, userConfig->getOccupancyDuration());
     JSON_ADD_BOOL(cfg_enableIPv6, userConfig->getEnableIPv6());
     JSON_ADD_STR("ipv6Addresses", ipv6_addresses);
-    JSON_ADD_INT(cfg_builtInTTC, userConfig->getBuiltInTTC());
 #ifdef USE_GDOLIB
     JSON_ADD_BOOL(cfg_useSWserial, userConfig->getUseSWserial());
 #endif
