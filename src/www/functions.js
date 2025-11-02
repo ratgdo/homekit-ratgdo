@@ -369,17 +369,39 @@ function setElementsFromStatus(status) {
                 break;
             case "TTCseconds":
                 document.getElementById(key).value = (value <= 10) ? value : (value <= 20) ? (value - 10) / 5 + 10 : 21;
-                document.getElementById("TTCsecondsValue").innerText = value;
+                if (value > 0) {
+                    document.getElementById("TTCsecondsValue").innerText = value;
+                    document.getElementById("TTCunits").style.display = "inline";
+                } else {
+                    document.getElementById("TTCsecondsValue").innerText = "Off";
+                    document.getElementById("TTCunits").style.display = "none";
+                }
                 document.getElementById("TTCwarning").style.display = (value < 5) ? "inline" : "none";
                 break;
             case "builtInTTC":
                 document.getElementById(key).value = (value <= 600) ? value / 60 : (value <= 3600) ? (value - 600) / 300 + 10 : 20;
-                document.getElementById("builtInTTCValue").innerText = (value / 60).toFixed(1).replace(/\.?0+$/, "");
+                if (value > 0) {
+                    document.getElementById("builtInTTCValue").innerText = (value / 60).toFixed(1).replace(/\.?0+$/, "");
+                    document.getElementById("builtInUnits").style.display = "inline";
+                    document.getElementById("builtInWarning").style.display = "inline";
+                }
+                else {
+                    document.getElementById("builtInTTCValue").innerText = "Off";
+                    document.getElementById("builtInUnits").style.display = "none";
+                    document.getElementById("builtInWarning").style.display = "none";
+                }
                 break;
             case "occupancyDuration":
                 let mins = value / 60;
                 document.getElementById(key).value = (mins <= 10) ? mins : (mins <= 32) ? (mins - 10) / 5 + 10 : 0;
-                document.getElementById("occupancyValue").innerHTML = mins;
+                if (mins > 0) {
+                    document.getElementById("occupancyValue").innerHTML = mins;
+                    document.getElementById("occupancyUnits").style.display = "inline";
+                }
+                else {
+                    document.getElementById("occupancyValue").innerHTML = "Off";
+                    document.getElementById("occupancyUnits").style.display = "none";
+                }
                 document.getElementById("trOccupancyDuration").style.display = "table-row";
                 break;
             case "distanceSensor":
@@ -421,7 +443,13 @@ function setElementsFromStatus(status) {
                 break;
             case "assistDuration":
                 document.getElementById(key).value = value;
-                document.getElementById("assistValue").innerHTML = value;
+                if (value > 0) {
+                    document.getElementById("assistValue").innerHTML = value;
+                    document.getElementById("assistUnits").style.display = "inline";
+                } else {
+                    document.getElementById("assistValue").innerHTML = "Off";
+                    document.getElementById("assistUnits").style.display = "none";
+                }
                 break;
             case "dcDebounceDuration":
                 document.getElementById(key).value = value;
