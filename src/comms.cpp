@@ -150,6 +150,17 @@ static Ticker callbackDelay = Ticker();
 static Ticker checkDoorMoving = Ticker();
 static Ticker checkDoorCompleted = Ticker();
 bool TTCwasLightOn = false;
+static Ticker builtInTTCcountdown = Ticker();
+
+void cancel_builtin_TTC_countdown()
+{
+    if (builtInTTCcountdown.active())
+    {
+        ESP_LOGI(TAG, "Ending automatic close countdown timer");
+        builtInTTCcountdown.detach();
+    }
+    garage_door.builtInTTCremaining = 0;
+}
 
 struct DoorHistory openHistory = {0};
 struct DoorHistory closeHistory = {0};
@@ -973,6 +984,8 @@ void update_door_state(GarageDoorCurrentState current_state)
             // This will force us to send current state to browser, so it reports correct state.
             last_reported_garage_door.current_state = (GarageDoorCurrentState)0xFF;
         }
+        // If we were in a automatic close timeout, cancel and reset that.
+        cancel_builtin_TTC_countdown();
         // Fall through to "opening"
     case GarageDoorCurrentState::CURR_OPENING:
         // Terminate the timer that confirms that a door open/close actually worked.
@@ -1978,11 +1991,29 @@ void comms_loop_sec2()
                 userConfig->set(cfg_builtInTTC, secs);
                 ESP8266_SAVE_CONFIG();
             }
+
+            if ((garage_door.current_state == GarageDoorCurrentState::CURR_OPENING || garage_door.current_state == GarageDoorCurrentState::CURR_OPEN) && secs > 0)
+            {
+                garage_door.builtInTTCremaining = secs;
+                if (!builtInTTCcountdown.active())
+                {
+                    ESP_LOGI(TAG, "Start automatic close countdown timer");
+                    // start a timer that will count down number of seconds remaining in built-in automatic close timer.
+                    builtInTTCcountdown.attach_ms(1000, []()
+                                                  {if (--garage_door.builtInTTCremaining == 0)builtInTTCcountdown.detach(); });
+                }
+            }
+            else
+            {
+                cancel_builtin_TTC_countdown();
+            }
+
             break;
         }
 
         case PacketCommand::CancelTtc:
         {
+            cancel_builtin_TTC_countdown();
             garage_door.builtInTTC = 0;
             userConfig->set(cfg_builtInTTC, 0);
             ESP8266_SAVE_CONFIG();
@@ -2614,6 +2645,8 @@ GarageDoorCurrentState close_door()
         return GarageDoorCurrentState::CURR_CLOSED;
     }
 
+    cancel_builtin_TTC_countdown();
+
     if (garage_door.current_state == GarageDoorCurrentState::CURR_OPENING)
     {
         ESP_LOGI(TAG, "Door already opening; do stop");
@@ -2704,6 +2737,8 @@ void send_cancel_ttc()
     // only used with SECURITY2.0
     if (doorControlType != 2)
         return;
+
+    cancel_builtin_TTC_countdown();
 
     PacketData d;
     d.type = PacketDataType::CancelTtc;
