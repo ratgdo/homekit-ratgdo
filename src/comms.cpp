@@ -126,13 +126,14 @@ SoftwareSerial sw_serial;
 #define SECPLUS1_TX_WINDOW_CLOSE 200
 #define SECPLUS1_TX_MINIMUM_DELAY 30
 #define SECPLUS1_EMULATION_POLL_RATE 250
+#define SECPLUS1_EMULATION_COMMS_TIMEOUT (5 * 1000)
 
 #define SECPLUS2_TX_MINIMUM_DELAY 50
 
-#define COMMS_STATUS_TIMEOUT 2000
+#define COMMS_STATUS_TIMEOUT (3 * 1000) // Allow 3 seconds to retrieve initial status
 bool comms_status_done = false;
-_millis_t comms_status_start = 0;
-_millis_t tx_minimum_delay = SECPLUS2_TX_MINIMUM_DELAY;
+static _millis_t comms_status_start = 0;
+static _millis_t tx_minimum_delay = SECPLUS2_TX_MINIMUM_DELAY;
 uint32_t doorControlType = 0;
 
 static bool is_0x37_panel = false;
@@ -252,7 +253,6 @@ void IRAM_ATTR isr_obstruction()
     obstruction_sensor.low_count++;
 }
 
-#ifndef USE_GDOLIB
 // Becomes set from ISR / IRQ callback function.
 static bool rxPending;
 void IRAM_ATTR receiveHandler()
@@ -281,7 +281,6 @@ __attribute__((always_inline)) inline bool isRxPending()
 #endif
     return pending;
 }
-#endif // USE_GDOLIB
 
 /****************************** COMMON SETTING *********************************/
 #define MAX_COMMS_RETRY 10
@@ -293,7 +292,6 @@ uint32_t rolling_code = 0;
 #endif // USE_GDOLIB
 
 uint32_t last_saved_code = 0;
-static bool rolling_code_operation_in_progress = false;
 #define MAX_CODES_WITHOUT_FLASH_WRITE 10
 
 /******************************* SECURITY 1.0 *********************************/
@@ -504,6 +502,37 @@ static void gdo_event_handler(const gdo_status_t *status, gdo_cb_event_t event, 
 /****************************************************************************
  * Initialize communications with garage door.
  */
+
+void initialize_gdo_codes(uint32_t id)
+{
+    if (doorControlType != 2)
+        return;
+
+    if (id)
+    {
+        // We have an ID code, retrieve last saved rolling code which may be behind what the GDO thinks.
+        // Increment rolling code so that it will be ahead of what the GDO thinks it should be.
+        rolling_code = read_door_int(nvram_rolling) + MAX_CODES_WITHOUT_FLASH_WRITE;
+        id_code = id;
+    }
+    else
+    {
+        ESP_LOGI(TAG, "Generate a new random ID code for Sec+2.0");
+        id_code = (random(0x1, 0xFFF) << 12) | 0x539;
+        write_door_int(nvram_id_code, id_code);
+        rolling_code = 0;
+    }
+    ESP_LOGI(TAG, "Our ID code %lu (0x%02lX)", id_code, id_code);
+    ESP_LOGI(TAG, "Our rolling code %lu (0x%02X)", rolling_code, rolling_code);
+    save_rolling_code();
+
+    // Series of get openings and status syncs the GDO with our rolling code.
+    send_get_openings();
+    send_get_status();
+    send_get_openings();
+    send_get_status();
+}
+
 void setup_comms()
 {
     if (comms_setup_done)
@@ -559,27 +588,8 @@ void setup_comms()
         sw_serial.enableIntTx(false);
         sw_serial.enableAutoBaud(true); // found in ratgdo/espsoftwareserial branch autobaud
 
-        id_code = read_door_int(nvram_id_code);
-        if (!id_code)
-        {
-            ESP_LOGI(TAG, "id code not found");
-            id_code = (random(0x1, 0xFFF) << 12) | 0x539;
-            write_door_int(nvram_id_code, id_code);
-        }
-        ESP_LOGI(TAG, "id code %lu (0x%02lX)", id_code, id_code);
-
         // read from flash, default of 0 if file not exist
-        rolling_code = read_door_int(nvram_rolling);
-        // last saved rolling code may be behind what the GDO thinks, so bump it up so that it will
-        // always be ahead of what the GDO thinks it should be, and save it.
-        rolling_code = (rolling_code != 0) ? rolling_code + MAX_CODES_WITHOUT_FLASH_WRITE : 0;
-        save_rolling_code();
-        ESP_LOGI(TAG, "rolling code %lu (0x%02X)", rolling_code, rolling_code);
-        // Series of get openings and status syncs the GDO with our rolling code.
-        send_get_openings();
-        send_get_status();
-        send_get_openings();
-        send_get_status();
+        initialize_gdo_codes(read_door_int(nvram_id_code));
     }
     else
     {
@@ -744,7 +754,6 @@ void setup_comms()
              closeHistory(1), closeHistory(2), closeHistory(3), closeHistory(4), closeHistory(5), closeHistory(6), garage_door.closeDuration);
 
     comms_setup_done = true;
-    comms_status_start = _millis();
 }
 
 /****************************************************************************
@@ -782,10 +791,6 @@ void save_rolling_code()
 {
     if (doorControlType != 2)
         return;
-    // Prevent concurrent rolling code operations
-    if (rolling_code_operation_in_progress)
-        return;
-    rolling_code_operation_in_progress = true;
 
 #ifdef USE_GDOLIB
     if (gdo_status.rolling_code != 0)
@@ -797,7 +802,6 @@ void save_rolling_code()
     write_door_int(nvram_rolling, rolling_code);
     last_saved_code = rolling_code;
 #endif // !USE_GDOLIB
-    rolling_code_operation_in_progress = false;
 }
 
 void reset_door()
@@ -870,7 +874,7 @@ void wallPlate_Emulation()
             // If not then we will redo the initialization sequence.
             static bool success = false;
             static _millis_t lastCheck = currentMillis;
-            if (!success && (currentMillis - lastCheck) > 5000)
+            if (!success && (currentMillis - lastCheck) > SECPLUS1_EMULATION_COMMS_TIMEOUT)
             {
                 lastCheck = currentMillis;
                 if (garage_door.current_state == (GarageDoorCurrentState)0xFF)
@@ -1289,6 +1293,12 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
             break;
         }
         update_door_state(current_state);
+
+        if (!comms_status_done)
+        {
+            ESP_LOGI(TAG, "GDO initialization complete, status received (%lldms)", (uint64_t)(comms_status_start ? (_millis() - comms_status_start) : 0));
+            comms_status_done = true;
+        }
         break;
     }
 
@@ -1655,6 +1665,12 @@ readIn:
         // check for wall panel and provide emulator
         wallPlate_Emulation();
     }
+
+    if (!comms_status_done && comms_status_start && (_millis() - comms_status_start) > COMMS_STATUS_TIMEOUT)
+    {
+        ESP_LOGW(TAG, "Garage door is not responding to initialization sequence (timeout after %dms)", COMMS_STATUS_TIMEOUT);
+        comms_status_start = 0;
+    }
 }
 
 /****************************************************************************
@@ -1673,13 +1689,7 @@ void comms_loop_sec2()
         static _millis_t lastStatusPkt = 0;
         // We have a full packet, process it.
         Packet pkt = Packet(reader.fetch_buf());
-
-        if ((esp_log_level_t)userConfig->getLogLevel() <= esp_log_level_t::ESP_LOG_INFO)
-        {
-            // If log level is Debug or higher then Packet() will have already logged it.
-            // This one logs at Info level.
-            pkt.print();
-        }
+        pkt.print();
 
         switch (pkt.m_pkt_cmd)
         {
@@ -1753,7 +1763,11 @@ void comms_loop_sec2()
                 }
             }
 
-            comms_status_done = true;
+            if (!comms_status_done && comms_status_start)
+            {
+                ESP_LOGI(TAG, "GDO initialization complete, status received (%lldms)", (uint64_t)(_millis() - comms_status_start));
+                comms_status_done = true;
+            }
             break;
         }
 
@@ -2043,8 +2057,13 @@ void comms_loop_sec2()
         process_send_queue();
     }
 
-    // Only check if no rolling code operation is in progress to prevent race conditions
-    if (!rolling_code_operation_in_progress && rolling_code >= (last_saved_code + MAX_CODES_WITHOUT_FLASH_WRITE))
+    if (!comms_status_done && comms_status_start && (_millis() - comms_status_start) > COMMS_STATUS_TIMEOUT)
+    {
+        ESP_LOGW(TAG, "Garage door is not responding to initialization sequence, reset Sec+2.0 and try again (timeout after %dms)", COMMS_STATUS_TIMEOUT);
+        comms_status_start = 0;
+        initialize_gdo_codes(0); // sending a zero will force a new ID code
+    }
+    else if (rolling_code >= (last_saved_code + MAX_CODES_WITHOUT_FLASH_WRITE))
     {
         save_rolling_code();
     }
@@ -2066,16 +2085,6 @@ void comms_loop()
         return;
 
     _millis_t current_millis = _millis();
-    // wait for a status command to be processes to properly set the initial state of
-    // all homekit characteristics.  Also timeout if we don't receive a status in
-    // a reasonable amount of time.  This prevents unintentional state changes if
-    // a home hub reads the state before we initialize everything
-    // Note, secplus1 doesnt have a status command so it will just timeout
-    if (!comms_status_done && (current_millis - comms_status_start > COMMS_STATUS_TIMEOUT))
-    {
-        ESP_LOGI(TAG, "Comms initial status timeout");
-        comms_status_done = true;
-    }
 
 #ifdef ESP32
     // Room Occupancy Clear Timer
@@ -2173,6 +2182,12 @@ bool transmitSec1(byte toSend)
 
         ESP_LOGD(TAG, "SEC1 TX 0x%02X (%s)", toSend, SEC1_CMD(toSend));
     }
+    else if (!comms_status_done && !comms_status_start && toSend == secplus1Codes::QueryDoorStatus)
+    {
+        // First time we send a status poll command start timeout so we can tell if the GDO is responding to us.
+        comms_status_start = _millis();
+        ESP_LOGI(TAG, "Start GDO initialization timeout for %dms", COMMS_STATUS_TIMEOUT);
+    }
 
     // aprox 10ms to write byte
     // every byte we send echos, but want the echo on polls to id the GDO response
@@ -2256,32 +2271,33 @@ bool transmitSec2(PacketAction &pkt_ac)
         ESP_LOGI(TAG, "Collision detected, waiting to send packet");
         return false;
     }
+
+    if (!comms_status_done && !comms_status_start)
+    {
+        // First time we send a packet start a timeout so we can tell if the GDO is responding to us.
+        comms_status_start = _millis();
+        ESP_LOGI(TAG, "Start GDO initialization timeout for %dms", COMMS_STATUS_TIMEOUT);
+    }
+
+    uint8_t buf[SECPLUS2_CODE_LEN];
+    if (pkt_ac.pkt.encode(rolling_code, buf) != 0)
+    {
+        ESP_LOGE(TAG, "Could not encode packet");
+    }
     else
     {
-        uint8_t buf[SECPLUS2_CODE_LEN];
-        if (pkt_ac.pkt.encode(rolling_code, buf) != 0)
-        {
-            ESP_LOGE(TAG, "Could not encode packet");
-            pkt_ac.pkt.print();
-        }
-        else
-        {
-            // Use LED to signal activity
-            led.flash(FLASH_ACTIVITY_MS);
-            sw_serial.write(buf, SECPLUS2_CODE_LEN);
-            delayMicroseconds(100);
-            // timestamp tx
-            last_tx = _millis();
-        }
+        // Use LED to signal activity
+        led.flash(FLASH_ACTIVITY_MS);
+        sw_serial.write(buf, SECPLUS2_CODE_LEN);
+        delayMicroseconds(100);
+        // timestamp tx
+        last_tx = _millis();
+    }
+    pkt_ac.pkt.print();
 
-        if (pkt_ac.inc_counter)
-        {
-            // Protect rolling code increment from concurrent access
-            if (!rolling_code_operation_in_progress)
-            {
-                rolling_code = (rolling_code + 1) & 0xfffffff;
-            }
-        }
+    if (pkt_ac.inc_counter)
+    {
+        rolling_code = (rolling_code + 1) & 0xfffffff;
     }
 
     return true;
