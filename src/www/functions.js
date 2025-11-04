@@ -282,6 +282,9 @@ function capitalizeFirstLetter(val) {
 
 // Update all elements on HTML page to reflect status
 function setElementsFromStatus(status) {
+    // If this is called because we are loading the page then status will contain every serverStatus setting.
+    // However if this is called because server is notifying us of a status change, then the object contains
+    // only those values that have changed. upTime value will always be included, but that is the only one.
     let date = new Date();
     if (status.timeZone) {
         // Do timezone first, as some other values depend on this
@@ -381,14 +384,59 @@ function setElementsFromStatus(status) {
             case "builtInTTC":
                 document.getElementById(key).value = (value <= 600) ? value / 60 : (value <= 3600) ? (value - 600) / 300 + 10 : 20;
                 if (value > 0) {
-                    document.getElementById("builtInTTCValue").innerText = (value / 60).toFixed(1).replace(/\.?0+$/, "");
+                    document.getElementById("builtInTTCValue").innerText = Math.floor(value / 60);;
                     document.getElementById("builtInUnits").style.display = "inline";
                     document.getElementById("builtInWarning").style.display = "inline";
+                    // We have to use global serverStatus rather than local status, as local one only contains values
+                    // to be updated... which may not include builtInTTCremaining
+                    if (serverStatus.builtInTTCremaining) {
+                        let mins = Math.floor(serverStatus.builtInTTCremaining / 60);
+                        let units = "minutes";
+                        if (mins > 0) {
+                            mins = mins + ':';
+                        } else {
+                            mins = "";
+                            units = "seconds";
+                        }
+                        const secs = (serverStatus.builtInTTCremaining % 60 < 10) ? '0' + (serverStatus.builtInTTCremaining % 60) : (serverStatus.builtInTTCremaining % 60);
+                        document.getElementById("autoCloseValue").innerHTML = `in&nbsp;${mins}${secs}&nbsp;${units}`;
+                    } else {
+                        const mins = Math.floor(value / 60);
+                        const secs = (value % 60 == 0) ? "" : (value % 60 < 10) ? ':0' + (value % 60) : ':' + (value % 60);
+                        document.getElementById("autoCloseValue").innerHTML = `set&nbsp;for&nbsp;${mins}${secs}&nbsp;minutes`;
+                    }
+                    document.getElementById("autoCloseWarning").style.display = "";
                 }
                 else {
                     document.getElementById("builtInTTCValue").innerText = "Off";
                     document.getElementById("builtInUnits").style.display = "none";
                     document.getElementById("builtInWarning").style.display = "none";
+                    document.getElementById("autoCloseWarning").style.display = "none";
+                }
+                break;
+            case "builtInTTCremaining":
+                if (value > 0) {
+                    let mins = Math.floor(value / 60);
+                    let units = "minutes";
+                    if (mins > 0) {
+                        mins = mins + ':';
+                    } else {
+                        mins = "";
+                        units = "seconds";
+                    }
+                    const secs = (value % 60 < 10) ? '0' + (value % 60) : (value % 60);
+                    document.getElementById("autoCloseValue").innerHTML = `in&nbsp;${mins}${secs}&nbsp;${units}`;
+                    document.getElementById("autoCloseWarning").style.display = "";
+                }
+                // We have to use global serverStatus rather than local status, as local one only contains values
+                // to be updated... which may not include builtInTTC
+                else if (serverStatus.builtInTTC > 0) {
+                    const mins = Math.floor(serverStatus.builtInTTC / 60);
+                    const secs = (serverStatus.builtInTTC % 60 == 0) ? "" : (serverStatus.builtInTTC % 60 < 10) ? ':0' + (serverStatus.builtInTTC % 60) : ':' + (serverStatus.builtInTTC % 60);
+                    document.getElementById("autoCloseValue").innerHTML = `set&nbsp;for&nbsp;${mins}${secs}&nbsp;minutes`;
+                    document.getElementById("autoCloseWarning").style.display = "";
+                } else {
+                    document.getElementById("autoCloseWarning").style.display = "none";
                 }
                 break;
             case "occupancyDuration":
@@ -565,7 +613,9 @@ function setElementsFromStatus(status) {
                 break;
             case "garageDoorState":
                 document.getElementById(key).innerHTML = capitalizeFirstLetter(value);
-                if (status.ttcActive) {
+                // We have to use global serverStatus rather than local status, as local one only contains values
+                // to be updated... which may not include ttcActive
+                if (serverStatus.ttcActive) {
                     document.getElementById("doorButton").value = "Cancel Close";
                 } else {
                     document.getElementById("doorButton").value = (value == "Closed" || value == "Closing") ? "Open Door" : "Close Door";
@@ -588,7 +638,9 @@ function setElementsFromStatus(status) {
                 }
                 else {
                     document.getElementById(key).style.display = "none";
-                    state = capitalizeFirstLetter(status.garageDoorState ? status.garageDoorState : "Closing");
+                    // We have to use global serverStatus rather than local status, as local one only contains values
+                    // to be updated... which may not include garageDoorState
+                    state = capitalizeFirstLetter(serverStatus.garageDoorState ? serverStatus.garageDoorState : "Closing");
                     document.getElementById("garageDoorState").innerHTML = state;
                     document.getElementById("doorButton").value = (state == "Closed" || state == "Closing") ? "Open Door" : "Close Door";
                 }

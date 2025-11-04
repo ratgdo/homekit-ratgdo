@@ -43,7 +43,7 @@
         </div>
       </div>
       <!-- Main section of page ------------------------------------------------------------------>
-      <div id="main-page" style="padding: 0px; padding-bottom: 10px;">
+      <div id="main-page" style="padding: 0px; padding-bottom: 8px;">
         <div class="serverstatus">
           <table>
             <tr>
@@ -359,7 +359,7 @@
                     style="width:150px;">
                   <span style="vertical-align: middle; font-size: 0.8em"><span id="builtInTTCValue"></span>&nbsp;<span
                       id="builtInUnits">Minutes</span>&nbsp;<a id="builtInWarning" style="display: none; color: red;"
-                      href="https://github.com/ratgdo/homekit-ratgdo32/blob/main/README.md#automatic-close"
+                      href="https://github.com/ratgdo/homekit-ratgdo/blob/main/README.md#automatic-close"
                       target="_blank">WARNING</a></span>
                 </td>
               </tr>
@@ -623,6 +623,11 @@
     <!-- Footer section of page ------------------------------------------------------------------>
     <footer>
       <div class="footer">
+        <p id="autoCloseWarning"
+          style="display:none; margin:0px; padding-bottom: 7px; border-bottom-style: solid; border-bottom-width: 1px; margin-bottom: 4px;">
+          <a style="color: red;" href="https://github.com/ratgdo/homekit-ratgdo/blob/main/README.md#automatic-close"
+            target="_blank">WARNING</a>&nbsp;Automatic&nbsp;door&nbsp;close&nbsp;<span id="autoCloseValue"></span>
+        </p>
         <p style="margin:0px; padding-bottom: 4px;">For documentation and support see the <a id="docsLink"
             href="https://github.com/ratgdo/homekit-ratgdo">GitHub</a>
           page.<br>Copyright (c) 2023-25 <a id="contribLink"
@@ -837,7 +842,7 @@
       let seconds = (this.value <= 10) ? this.value * 60 :
         (this.value <= 20) ? ((this.value - 10) * 300) + 600 : 3600;
       if (this.value > 0) {
-        buildInText.innerText = (seconds / 60).toFixed(1).replace(/\.?0+$/, "");
+        buildInText.innerText = Math.floor(seconds / 60);
         builtInUnits.style.display = "inline";
         builtInWarning.style.display = "inline";
       }
