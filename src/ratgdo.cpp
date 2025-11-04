@@ -74,6 +74,7 @@ GarageDoor garage_door = {
     .closeDuration = 0,
     .ttcActive = 0,
     .builtInTTC = 0,
+    .builtInTTCremaining = 0,
 };
 
 // Some initialization is postponed until after we have an IP address

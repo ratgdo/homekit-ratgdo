@@ -379,11 +379,12 @@ void web_loop()
     {
         JSON_ADD_INT_C("batteryState", garage_door.batteryState, last_reported_garage_door.batteryState);
         JSON_ADD_INT_C("openingsCount", garage_door.openingsCount, last_reported_garage_door.openingsCount);
+        JSON_ADD_INT_C(cfg_builtInTTC, garage_door.builtInTTC, last_reported_garage_door.builtInTTC);
+        JSON_ADD_INT_C("builtInTTCremaining", garage_door.builtInTTCremaining, last_reported_garage_door.builtInTTCremaining);
     }
     JSON_ADD_INT_C("openDuration", garage_door.openDuration, last_reported_garage_door.openDuration);
     JSON_ADD_INT_C("closeDuration", garage_door.closeDuration, last_reported_garage_door.closeDuration);
     JSON_ADD_INT_C("ttcActive", is_ttc_active(), last_reported_garage_door.ttcActive);
-    JSON_ADD_INT_C(cfg_builtInTTC, garage_door.builtInTTC, last_reported_garage_door.builtInTTC);
     // got any json?
     if (strlen(json) > 2)
     {
@@ -749,7 +750,6 @@ void build_status_json(char *json)
     JSON_ADD_INT(cfg_logLevel, userConfig->getLogLevel());
     JSON_ADD_INT(cfg_TTCseconds, userConfig->getTTCseconds());
     JSON_ADD_BOOL(cfg_TTClight, userConfig->getTTClight());
-    JSON_ADD_INT(cfg_builtInTTC, userConfig->getBuiltInTTC());
     JSON_ADD_INT(cfg_motionTriggers, (uint32_t)motionTriggers.asInt);
     JSON_ADD_INT(cfg_LEDidle, userConfig->getLEDidle());
     // We send milliseconds relative to current time... ie updated X milliseconds ago
@@ -770,6 +770,8 @@ void build_status_json(char *json)
     {
         JSON_ADD_INT("batteryState", garage_door.batteryState);
         JSON_ADD_INT("openingsCount", garage_door.openingsCount);
+        JSON_ADD_INT(cfg_builtInTTC, userConfig->getBuiltInTTC());
+        JSON_ADD_INT("builtInTTCremaining", garage_door.builtInTTCremaining);
     }
     if (garage_door.openDuration)
     {
