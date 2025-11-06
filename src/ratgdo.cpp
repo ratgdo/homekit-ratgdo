@@ -314,6 +314,7 @@ void loop()
         setup_web();
         setup_after_IP_done = true;
         ESP_LOGI(TAG, "=== Initialization after IP address acquired complete");
+        // Some additional logging so that they are sent to syslog (which only works after we have IP address)
         ESP_LOGI(TAG, "Free heap at boot:  %d", free_heap_at_boot);
         ESP_LOGI(TAG, "Current free heap:  %d", ESP.getFreeHeap());
 #ifdef MMU_IRAM_HEAP
@@ -331,6 +332,11 @@ void loop()
         ESP_LOGI(TAG, "Free sys stack at boot:     %d", free_sys_stack_at_boot);
         ESP_LOGI(TAG, "Current minimum sys stack:  %d", free_sys_stack);
 #endif
+        if (doorControlType == 2)
+        {
+            ESP_LOGI(TAG, "Our ID code %lu (0x%02lX)", id_code, id_code);
+            ESP_LOGI(TAG, "Our rolling code %lu (0x%02X)", rolling_code, rolling_code);
+        }
         ESP_LOGI(TAG, "=== Initialization complete");
 #ifdef RATGDO32_DISCO
         // beep on completing startup.
