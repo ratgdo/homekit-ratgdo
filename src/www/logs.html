@@ -18,9 +18,9 @@
 
 <body>
   <!-- Title section of page ------------------------------------------------------------------>
-  <div class="logspage" style="max-width: 100%; height: 98vh; display:flex; flex-flow: column;">
+  <div id="fullpage" class="fullpage" style="max-width: 100%; height: 98vh; display:flex; flex-flow: column;">
     <div id="loader" class="ldrcenter"></div>
-    <div class="header logheader">
+    <div id="header" class="header logheader">
       <div class="logo">
         <pre class="logo">
  _____ _____ _____ _____ ____  _____
@@ -40,7 +40,7 @@
       </div>
     </div>
     <!-- view selection tabs ------------------------------------------------------------------->
-    <div class="tab">
+    <div id="tabs-bar" class="tab">
       <button class="tablinks" id="defaultOpen" onclick="openTab(event, 'logTab')">System Log</button>
       <button class="tablinks" onclick="openTab(event, 'statusTab')">Status</button>
       <button class="tablinks" onclick="openTab(event, 'rebootTab')">Reboot Log</button>
@@ -76,7 +76,7 @@ Loading...
       <pre id="crashlog" style="font-size: 0.6em; margin-top: 0px"></pre>
     </div>
     <!-- Footer section of page ------------------------------------------------------------------>
-    <div class="footer" style="flex: 0 1 0;">
+    <div id="footer" class="footer" style="flex: 0 1 0;">
       <p style="margin:0px;">For documentation and support see the <a
           href="https://github.com/ratgdo/homekit-ratgdo32">GitHub</a>
         page.<br>Copyright (c) 2024-25 <a
@@ -100,6 +100,38 @@ Loading...
     console.log('Client UUID: ' + clientUUID);
     const loaderElem = document.getElementById("loader");
     document.getElementById("defaultOpen").click();
+
+    const iOSiPadOS = navigator.platform.startsWith("iP") || navigator.platform.startsWith("Mac") && navigator.maxTouchPoints > 4;
+    if (iOSiPadOS) {
+      // Remove the border line when displayed on iOS device
+      document.getElementById("fullpage").style.borderStyle = "none";
+      document.getElementById("fullpage").style.padding = "5px";
+      // Fix the headers and footers to top/bottom of screen
+      const header = document.getElementById("header");
+      const tabsBar = document.getElementById("tabs-bar");
+      const footer = document.getElementById("footer");
+      header.style.position = "fixed";
+      header.style.zIndex = "1000";
+      header.style.top = "0px";
+      header.style.width = "calc(100% - 24px)";
+      header.style.padding = "0px";
+      tabsBar.style.position = "fixed";
+      tabsBar.style.zIndex = "999";
+      tabsBar.style.top = "0px";
+      tabsBar.style.width = "calc(100% - 24px)";
+      tabsBar.style.paddingTop = `${header.offsetHeight + 5}px`;
+      footer.style.position = "fixed";
+      footer.style.zIndex = "999";
+      footer.style.bottom = "0px";
+      footer.style.paddingBottom = "2em";
+      footer.style.width = "calc(100% - 24px)";
+      footer.style.borderTopStyle = "solid";
+      footer.style.borderTopWidth = "1px";
+      // adjust the height (margins) of the tab contents pages
+      const styleSheet = document.styleSheets[0];
+      styleSheet.insertRule(`div.tabcontent { margin-top: ${tabsBar.offsetHeight - 10}px; margin-bottom: ${footer.offsetHeight - 10}px; border-bottom-style: none; }`,
+        styleSheet.cssRules.length)
+    }
 
     loadLogs();
   </script>

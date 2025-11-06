@@ -20,10 +20,10 @@
 
 <body>
   <!-- Title section of page ------------------------------------------------------------------>
-  <div class="fullpage">
+  <div id="fullpage" class="fullpage">
     <div id="loader" class="ldrcenter"></div>
     <main>
-      <div class="header">
+      <div id="header" class="header">
         <div class="logo">
           <pre class="logo">
  _____ _____ _____ _____ ____  _____
@@ -36,7 +36,8 @@
         <div class="name">
           <p id="deviceName" style="margin:0px;">Garage Door</p>
         </div>
-        <div style="float:right;vertical-align: middle; padding-left: 0; padding-right: 0; cursor: pointer;">
+        <div
+          style="float: right; vertical-align: middle; padding-left: 0; padding-right: 0; cursor: pointer; position: absolute; right: 0;">
           <img id="settings-icon" src="settings-sliders.svg?v=CRC-32" alt="Settings" style="width:1.5em;height:1.5em;">
           <img id="main-icon" src="garage-car.svg?v=CRC-32" alt="Homepage" onclick="history.back()"
             style="display:none; width:1.5em; height:1.5em;">
@@ -666,7 +667,8 @@
           </tr>
         </table>
         <p style="margin:0px; padding-top:4px">
-          <a href="logs.html" target="_blank">Show system logs</a>&nbsp;(crashCount:&nbsp;<span id="crashCount"></span>)
+          <a href="logs.html?v=CRC-32" target="_blank">Show system logs</a>&nbsp;(crashCount:&nbsp;<span
+            id="crashCount"></span>)
         </p>
       </div>
     </footer>
@@ -710,9 +712,23 @@
 
   <!-- Initialization scripts ------------------------------------------------------------------>
   <script>
+    // Set global constants
     const loaderElem = document.getElementById("loader"); // Spinner while pages load
+    const iOSiPadOS = navigator.platform.startsWith("iP") || navigator.platform.startsWith("Mac") && navigator.maxTouchPoints > 4;
 
-    // Retrieve status from the server
+    // Remove the border line when displayed on iOS devices and lock the title to top of screen
+    if (iOSiPadOS) {
+      document.getElementById("fullpage").style.borderStyle = "none";
+      document.getElementById("fullpage").style.padding = "5px";
+      document.getElementById("header").style.position = "fixed";
+      document.getElementById("header").style.zIndex = "1000";
+      document.getElementById("header").style.top = "0px";
+      document.getElementById("header").style.width = "calc(100% - 24px)";
+      document.getElementById("main-page").style.paddingTop = "3.5em";
+      document.getElementById("settings-page").style.paddingTop = "3.5em";
+    }
+
+    // Retrieve status from the server, runs asynchronously
     checkStatus();
     // Load time zone info, this runs asynchronously
     loadTimeZones();
@@ -728,23 +744,7 @@
     document.addEventListener('touchstart', function (e) { swipeStart(e); }, false);
     document.addEventListener('touchend', function (e) { swipeEnd(e); }, false);
 
-    // When the user clicks anywhere outside of the modal, close it
-    /*** Disable this as it causes countdown/reboot/update dialog to hide in the middle of activity.
-    const modal = document.getElementById("myModal");
-    window.onclick = function (event) {
-      if (event.target == modal) {
-        modal.style.display = "none";
-      }
-    };
-    */
-
-    document.getElementById("settings-icon").onclick = async () => {
-      // Only display the Settings page if user is authenticated.
-      if (await checkAuth()) {
-        showSettings();
-        history.pushState("settings", "");
-      }
-    };
+    // Control show/hide of the main page and settings page
     function showSettings() {
       document.getElementById("settings-icon").style.display = "none";
       document.getElementById("main-page").style.display = "none";
@@ -758,6 +758,15 @@
       document.getElementById("main-page").style.display = "block";
       document.getElementById("settings-icon").style.display = "block";
     };
+    document.getElementById("settings-icon").onclick = async () => {
+      // Only display the Settings page if user is authenticated.
+      if (await checkAuth()) {
+        showSettings();
+        history.pushState("settings", "");
+      }
+    };
+
+    // Control how we handle the back button on browser
     history.replaceState("mainpage", "");
     window.addEventListener("popstate", (e) => {
       if (e.state === "mainpage") {
@@ -812,12 +821,10 @@
     WiFiSlider.oninput = function () {
       WiFiText.innerText = this.value;
     };
+
+    // Time-to-close delay slider
     TTCslider = document.getElementById("TTCseconds");
     TTCtext = document.getElementById("TTCsecondsValue");
-    TTClight = document.getElementById("TTClight");
-    TTCwarning = document.getElementById("TTCwarning");
-    TTCwarning2 = document.getElementById("TTCwarning2");
-    TTCunits = document.getElementById("TTCunits");
     TTCtext.innerText = ((TTCslider.value <= 10) ? TTCslider.value : (TTCslider.value <= 20) ? ((TTCslider.value - 10) * 5) + 10 : 300);
     TTCslider.oninput = function () {
       if (this.value > 0) {
@@ -826,34 +833,31 @@
       }
       else {
         TTCtext.innerText = "Off";
-        TTCunits.style.display = "none";
+        document.getElementById("TTCunits").style.display = "none";
       }
-      TTCwarning.style.display = (this.value < 5) ? "inline" : "none";
+      document.getElementById("TTCwarning").style.display = (this.value < 5) ? "inline" : "none";
     };
-    TTClight.onclick = function () {
-      TTCwarning2.style.display = (this.checked) ? "none" : "inline";
+    document.getElementById("TTClight").onclick = function () {
+      document.getElementById("TTCwarning2").style.display = (this.checked) ? "none" : "inline";
     };
 
-    builtInSlider = document.getElementById("builtInTTC");
-    buildInText = document.getElementById("builtInTTCValue");
-    builtInWarning = document.getElementById("builtInWarning");
-    builtInUnits = document.getElementById("builtInUnits");
-    builtInSlider.oninput = function () {
+    // Automatic close slider
+    document.getElementById("builtInTTC").oninput = function () {
       let seconds = (this.value <= 10) ? this.value * 60 :
         (this.value <= 20) ? ((this.value - 10) * 300) + 600 : 3600;
       if (this.value > 0) {
-        buildInText.innerText = Math.floor(seconds / 60);
-        builtInUnits.style.display = "inline";
-        builtInWarning.style.display = "inline";
+        document.getElementById("builtInTTCValue").innerText = Math.floor(seconds / 60);
+        document.getElementById("builtInUnits").style.display = "inline";
+        document.getElementById("builtInWarning").style.display = "inline";
       }
       else {
-        buildInText.innerText = "Off";
-        builtInUnits.style.display = "none";
-        builtInWarning.style.display = "none";
+        document.getElementById("builtInTTCValue").innerText = "Off";
+        document.getElementById("builtInUnits").style.display = "none";
+        document.getElementById("builtInWarning").style.display = "none";
       }
     };
 
-
+    // Vehicle distance threshold slider
     vDistSlider = document.getElementById("vehicleThreshold");
     vDistText1 = document.getElementById("vehicleThresholdCM");
     vDistText2 = document.getElementById("vehicleThresholdInch");
@@ -864,6 +868,7 @@
       vDistText2.innerText = (Math.round(this.value / .254) / 10);
     };
 
+    // Parking assist laser slider
     PAslider = document.getElementById("assistDuration");
     PAtext = document.getElementById("assistValue");
     PAtext.innerText = PAslider.value;
@@ -877,6 +882,7 @@
       }
     };
 
+    // Dry-contact debounce slider
     DBslider = document.getElementById("dcDebounceDuration");
     DBtext = document.getElementById("dcDebounceValue");
     DBtext.innerText = DBslider.value;
@@ -884,6 +890,7 @@
       DBtext.innerText = this.value;
     };
 
+    // Occupancy duration slider
     occSlider = document.getElementById("occupancyDuration");
     occText = document.getElementById("occupancyValue");
     occText.innerText = ((occSlider.value <= 10) ? occSlider.value : (occSlider.value <= 32) ? ((occSlider.value - 10) * 5) + 10 : 0);
