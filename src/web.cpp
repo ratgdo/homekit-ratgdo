@@ -381,6 +381,7 @@ void web_loop()
         JSON_ADD_INT_C("openingsCount", garage_door.openingsCount, last_reported_garage_door.openingsCount);
         JSON_ADD_INT_C(cfg_builtInTTC, garage_door.builtInTTC, last_reported_garage_door.builtInTTC);
         JSON_ADD_INT_C("builtInTTCremaining", garage_door.builtInTTCremaining, last_reported_garage_door.builtInTTCremaining);
+        JSON_ADD_BOOL_C("builtInTTChold", garage_door.builtInTTChold, last_reported_garage_door.builtInTTChold);
     }
     JSON_ADD_INT_C("openDuration", garage_door.openDuration, last_reported_garage_door.openDuration);
     JSON_ADD_INT_C("closeDuration", garage_door.closeDuration, last_reported_garage_door.closeDuration);
@@ -772,6 +773,7 @@ void build_status_json(char *json)
         JSON_ADD_INT("openingsCount", garage_door.openingsCount);
         JSON_ADD_INT(cfg_builtInTTC, userConfig->getBuiltInTTC());
         JSON_ADD_INT("builtInTTCremaining", garage_door.builtInTTCremaining);
+        JSON_ADD_BOOL("builtInTTChold", garage_door.builtInTTChold);
     }
     if (garage_door.openDuration)
     {

@@ -160,6 +160,7 @@ void cancel_builtin_TTC_countdown()
         builtInTTCcountdown.detach();
     }
     garage_door.builtInTTCremaining = 0;
+    garage_door.builtInTTChold = false;
 }
 
 struct DoorHistory openHistory = {0};
@@ -1995,12 +1996,14 @@ void comms_loop_sec2()
             if ((garage_door.current_state == GarageDoorCurrentState::CURR_OPENING || garage_door.current_state == GarageDoorCurrentState::CURR_OPEN) && secs > 0)
             {
                 garage_door.builtInTTCremaining = secs;
+                garage_door.builtInTTChold = false;
                 if (!builtInTTCcountdown.active())
                 {
                     ESP_LOGI(TAG, "Start automatic close countdown timer");
                     // start a timer that will count down number of seconds remaining in built-in automatic close timer.
                     builtInTTCcountdown.attach_ms(1000, []()
-                                                  {if (--garage_door.builtInTTCremaining == 0)builtInTTCcountdown.detach(); });
+                                                  { if (garage_door.builtInTTChold) return;
+                                                    if (--garage_door.builtInTTCremaining == 0)builtInTTCcountdown.detach(); });
                 }
             }
             else
@@ -2013,10 +2016,36 @@ void comms_loop_sec2()
 
         case PacketCommand::CancelTtc:
         {
-            cancel_builtin_TTC_countdown();
-            garage_door.builtInTTC = 0;
-            userConfig->set(cfg_builtInTTC, 0);
-            ESP8266_SAVE_CONFIG();
+            switch (pkt.m_data.value.cancel_ttc.state)
+            {
+            case CancelTtcState::Cancel:
+            {
+                cancel_builtin_TTC_countdown();
+                garage_door.builtInTTC = 0;
+                userConfig->set(cfg_builtInTTC, 0);
+                ESP8266_SAVE_CONFIG();
+                break;
+            }
+            case CancelTtcState::Hold:
+            {
+                if (builtInTTCcountdown.active())
+                {
+                    garage_door.builtInTTChold = !garage_door.builtInTTChold;
+                    ESP_LOGI(TAG, "Automatic close time-to-close hold %s %d seconds remaining", garage_door.builtInTTChold ? "at" : "released at", garage_door.builtInTTCremaining);
+                }
+                else
+                {
+                    garage_door.builtInTTChold = false;
+                    ESP_LOGI(TAG, "Received unexpected CancelTtc hold as countdown not active");
+                }
+                break;
+            }
+            default:
+            {
+                ESP_LOGI(TAG, "Unknown CancelTtc state: 0x%0X", pkt.m_data.value.cancel_ttc.state);
+                break;
+            }
+            }
             break;
         }
 
@@ -2053,10 +2082,10 @@ void comms_loop_sec2()
             case Pair3State::CancelAck:
                 break;
             case Pair3State::WarningStart:
-                ESP_LOGI(TAG, "Door close warning sequence start");
+                //ESP_LOGI(TAG, "Door close warning sequence start");
                 break;
             case Pair3State::WarningEnd:
-                ESP_LOGI(TAG, "Door close warning sequence end");
+                //ESP_LOGI(TAG, "Door close warning sequence end");
                 break;
             case Pair3State::ObstBlocked:
                 break;

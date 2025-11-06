@@ -23,10 +23,6 @@ var setGDOcmds = {              // setGDO commands that are not sent from server
 var gitUser = "ratgdo";         // default git user.
 var gitRepo = "homekit-ratgdo"; // default git repository.
 
-// https://stackoverflow.com/questions/7995752/detect-desktop-browser-not-mobile-with-javascript
-// const isTouchDevice = function () { return 'ontouchstart' in window || 'onmsgesturechange' in window; };
-// const isDesktop = window.screenX != 0 && !isTouchDevice() ? true : false;
-
 // See... https://github.com/nayarsystems/posix_tz_db
 // This is CSV form of the data, available at this web page.
 const timeZonesURL = "https://raw.githubusercontent.com/nayarsystems/posix_tz_db/refs/heads/master/zones.csv";
@@ -280,6 +276,49 @@ function capitalizeFirstLetter(val) {
     return String(val).charAt(0).toUpperCase() + String(val).slice(1);
 }
 
+// Show or hide the warning about GDO's built-in automatic close timer
+function showTTCwarning(TTCvalue, TTCremaining, TTChold) {
+    if (TTCvalue == 0) {
+        // built-in automatic close is off, hide the warning
+        document.getElementById("builtInTTCValue").innerText = "Off";
+        document.getElementById("builtInUnits").style.display = "none";
+        document.getElementById("builtInWarning").style.display = "none";
+        document.getElementById("autoCloseWarning").style.display = "none";
+    }
+    else {
+        // built-in automatic close is enabled for TTCvalue seconds
+        if (TTCremaining) {
+            // If we are in active countdown display mins:secs until time out
+            let units = "minutes";
+            let mins = Math.floor(TTCremaining / 60);
+            const secs = (TTCremaining % 60 < 10) ? '0' + (TTCremaining % 60) : (TTCremaining % 60);
+            if (mins > 0) {
+                mins = mins + ':';
+            } else {
+                mins = "";
+                units = "seconds";
+            }
+            if (TTChold) {
+                // Active countdown is on hold
+                document.getElementById("autoCloseValue").innerHTML = `holding&nbsp;at&nbsp;${mins}${secs}&nbsp;${units}`;
+            }
+            else {
+                document.getElementById("autoCloseValue").innerHTML = `in&nbsp;${mins}${secs}&nbsp;${units}`;
+            }
+        } else {
+            // If not in countdown then display minutes that automatic close is set at
+            const mins = Math.floor(TTCvalue / 60);
+            const secs = (TTCvalue % 60 == 0) ? "" : (TTCvalue % 60 < 10) ? ':0' + (TTCvalue % 60) : ':' + (TTCvalue % 60);
+            document.getElementById("autoCloseValue").innerHTML = `set&nbsp;for&nbsp;${mins}${secs}&nbsp;minutes`;
+        }
+        // And make everything visible
+        document.getElementById("builtInTTCValue").innerText = Math.floor(TTCvalue / 60);;
+        document.getElementById("builtInUnits").style.display = "inline";
+        document.getElementById("builtInWarning").style.display = "inline";
+        document.getElementById("autoCloseWarning").style.display = "";
+    }
+}
+
 // Update all elements on HTML page to reflect status
 function setElementsFromStatus(status) {
     // If this is called because we are loading the page then status will contain every serverStatus setting.
@@ -383,61 +422,15 @@ function setElementsFromStatus(status) {
                 break;
             case "builtInTTC":
                 document.getElementById(key).value = (value <= 600) ? value / 60 : (value <= 3600) ? (value - 600) / 300 + 10 : 20;
-                if (value > 0) {
-                    document.getElementById("builtInTTCValue").innerText = Math.floor(value / 60);;
-                    document.getElementById("builtInUnits").style.display = "inline";
-                    document.getElementById("builtInWarning").style.display = "inline";
-                    // We have to use global serverStatus rather than local status, as local one only contains values
-                    // to be updated... which may not include builtInTTCremaining
-                    if (serverStatus.builtInTTCremaining) {
-                        let mins = Math.floor(serverStatus.builtInTTCremaining / 60);
-                        let units = "minutes";
-                        if (mins > 0) {
-                            mins = mins + ':';
-                        } else {
-                            mins = "";
-                            units = "seconds";
-                        }
-                        const secs = (serverStatus.builtInTTCremaining % 60 < 10) ? '0' + (serverStatus.builtInTTCremaining % 60) : (serverStatus.builtInTTCremaining % 60);
-                        document.getElementById("autoCloseValue").innerHTML = `in&nbsp;${mins}${secs}&nbsp;${units}`;
-                    } else {
-                        const mins = Math.floor(value / 60);
-                        const secs = (value % 60 == 0) ? "" : (value % 60 < 10) ? ':0' + (value % 60) : ':' + (value % 60);
-                        document.getElementById("autoCloseValue").innerHTML = `set&nbsp;for&nbsp;${mins}${secs}&nbsp;minutes`;
-                    }
-                    document.getElementById("autoCloseWarning").style.display = "";
-                }
-                else {
-                    document.getElementById("builtInTTCValue").innerText = "Off";
-                    document.getElementById("builtInUnits").style.display = "none";
-                    document.getElementById("builtInWarning").style.display = "none";
-                    document.getElementById("autoCloseWarning").style.display = "none";
-                }
+                // We have to use global serverStatus rather than local status as local one only contains
+                // values to be updated... which may not include the other built-in TTC values
+                showTTCwarning(value, serverStatus.builtInTTCremaining, serverStatus.builtInTTChold);
                 break;
             case "builtInTTCremaining":
-                if (value > 0) {
-                    let mins = Math.floor(value / 60);
-                    let units = "minutes";
-                    if (mins > 0) {
-                        mins = mins + ':';
-                    } else {
-                        mins = "";
-                        units = "seconds";
-                    }
-                    const secs = (value % 60 < 10) ? '0' + (value % 60) : (value % 60);
-                    document.getElementById("autoCloseValue").innerHTML = `in&nbsp;${mins}${secs}&nbsp;${units}`;
-                    document.getElementById("autoCloseWarning").style.display = "";
-                }
-                // We have to use global serverStatus rather than local status, as local one only contains values
-                // to be updated... which may not include builtInTTC
-                else if (serverStatus.builtInTTC > 0) {
-                    const mins = Math.floor(serverStatus.builtInTTC / 60);
-                    const secs = (serverStatus.builtInTTC % 60 == 0) ? "" : (serverStatus.builtInTTC % 60 < 10) ? ':0' + (serverStatus.builtInTTC % 60) : ':' + (serverStatus.builtInTTC % 60);
-                    document.getElementById("autoCloseValue").innerHTML = `set&nbsp;for&nbsp;${mins}${secs}&nbsp;minutes`;
-                    document.getElementById("autoCloseWarning").style.display = "";
-                } else {
-                    document.getElementById("autoCloseWarning").style.display = "none";
-                }
+                showTTCwarning(serverStatus.builtInTTC, value, serverStatus.builtInTTChold);
+                break;
+            case "builtInTTChold":
+                showTTCwarning(serverStatus.builtInTTC, serverStatus.builtInTTCremaining, value);
                 break;
             case "occupancyDuration":
                 let mins = value / 60;
@@ -687,7 +680,6 @@ function setElementsFromStatus(status) {
 }
 
 // checkStatus is called once on page load to retrieve status from the server...
-// and setInterval a timer that will refresh the data every 10 seconds
 async function checkStatus() {
     // clean up any awaiting timeouts...
     clearTimeout(checkHeartbeat);

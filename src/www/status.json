@@ -38,6 +38,7 @@
   "TTCseconds": 10,
   "builtInTTC": 900,
   "builtInTTCremaining": 0,
+  "builtInTTChold": false,
   "motionTriggers": 3,
   "LEDidle": 1,
   "enableNTP": true,
