@@ -117,6 +117,13 @@ For ratgdo32-disco boards, vehicle status is shown as _Away_, _Parked_, _Arrivin
 > [!NOTE]
 > It is important that the distance sensor does not point at the glass windshield of your vehicle as this will give unreliable results.
 
+### Automatic Close Warning
+
+If you have a Security+ 2.0 door with an automatic time-to-close set, then a warning is displayed here showing the time in minutes after which the door will automatically close.  If the door is already open, then this section will display a countdown with the approximate time remaining before the door will close. See [Automatic Close](#automatic-close) section below.
+
+> [!NOTE]
+> This built-in automatic close feature is different from the [Door Close Delay](#door-close-delay) in that, if set, it is _always_ active and will close the door after the set delay without any user action.  A door close delay, however, is triggered only on a user requesting the door to close from the web page or an app, and is typically of much shorter duration.
+
 ### Information section
 
 The final section provides useful links to documentation and legal/license information. At the very bottom of the page is diagnostic information, see [Troubleshooting](#troubleshooting) section below.
