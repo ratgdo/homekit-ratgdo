@@ -14,7 +14,8 @@ body {
     background-color: darkgray;
     overflow-x: hidden;
     font-family: Verdana, Geneva, Tahoma, sans-serif;
-    font-size: 3vw
+    font-size: 3vw;
+    scrollbar-width: none;
 }
 
 input,
@@ -163,6 +164,8 @@ div.fullwidth {
 }
 
 div.header {
+    display: flex;
+    align-items: center;
     width: 100%;
     max-width: 800px;
     overflow: hidden;
@@ -174,7 +177,6 @@ div.header {
     padding-bottom: 5px;
 }
 
-div.logspage,
 div.fullpage {
     margin: auto;
     max-width: 800px;
@@ -228,9 +230,10 @@ div.name {
     padding: 0;
     margin: 0;
     margin-left: 2vw;
-    margin-top: 1.5vw;
     height: 100%;
     display: flex;
+    align-items: center;
+    padding-right: 30px;
 }
 
 td {
@@ -407,12 +410,6 @@ div.logheader {
     }
 }
 
-@media only screen and (max-width: 659px) {
-    div.logspage {
-        border-radius: 0 0 40px 40px;
-    }
-}
-
 @media only screen and (min-width: 660px) {
     body {
         font-size: 19.8px;
@@ -432,7 +429,6 @@ div.logheader {
     div.name {
         font-size: 26.4px;
         margin-left: 13.2px;
-        margin-top: 9.9px;
     }
 
     pre.logo {

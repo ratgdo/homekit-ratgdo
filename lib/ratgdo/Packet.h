@@ -1083,7 +1083,7 @@ struct Packet
 
         char buf[128];
         m_data.to_string(buf, sizeof(buf));
-        ESP_LOGD(TAG, "DECODED  %08lX %016" PRIX64 " %08lX (%s - %s)", pkt_rolling, pkt_remote_id, pkt_data, PacketCommand::to_string(m_pkt_cmd), buf);
+        ESP_LOGV(TAG, "DECODED  %08lX %016" PRIX64 " %08lX (%s - %s)", pkt_rolling, pkt_remote_id, pkt_data, PacketCommand::to_string(m_pkt_cmd), buf);
     }
 
     int8_t encode(uint32_t rolling, uint8_t *out_pktbuf)
@@ -1179,7 +1179,7 @@ struct Packet
 
         char buf[128];
         m_data.to_string(buf, sizeof(buf));
-        ESP_LOGD(TAG, "ENCODING %08lX %016" PRIX64 " %08lX (%s - %s)", m_rolling, fixed, pkt_data, PacketCommand::to_string(m_pkt_cmd), buf);
+        ESP_LOGV(TAG, "ENCODING %08lX %016" PRIX64 " %08lX (%s - %s)", m_rolling, fixed, pkt_data, PacketCommand::to_string(m_pkt_cmd), buf);
 
         return encode_wireline(m_rolling, fixed, pkt_data, out_pktbuf);
     }

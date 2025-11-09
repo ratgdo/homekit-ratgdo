@@ -894,17 +894,17 @@ void DEV_GarageDoor::loop()
         GDOEvent e;
         xQueueReceive(event_q, &e, 0);
         if (e.c == current)
-            ESP_LOGI(TAG, "Set current door state: %s", DOOR_STATE(e.value.u));
+            ESP_LOGD(TAG, "Set current door state: %s", DOOR_STATE(e.value.u));
         else if (e.c == target)
-            ESP_LOGI(TAG, "Set target door state: %s", DOOR_STATE(e.value.u));
+            ESP_LOGD(TAG, "Set target door state: %s", DOOR_STATE(e.value.u));
         else if (e.c == obstruction)
-            ESP_LOGI(TAG, "Set obstruction: %s", e.value.u ? "Obstructed" : "Clear");
+            ESP_LOGD(TAG, "Set obstruction: %s", e.value.u ? "Obstructed" : "Clear");
         else if (e.c == lockCurrent)
-            ESP_LOGI(TAG, "Set current lock state: %s", LOCK_STATE(e.value.u));
+            ESP_LOGD(TAG, "Set current lock state: %s", LOCK_STATE(e.value.u));
         else if (e.c == lockTarget)
-            ESP_LOGI(TAG, "Set target lock state: %s", LOCK_STATE(e.value.u));
+            ESP_LOGD(TAG, "Set target lock state: %s", LOCK_STATE(e.value.u));
         else
-            ESP_LOGI(TAG, "Set Unknown: %d", e.value.u);
+            ESP_LOGD(TAG, "Set Unknown: %d", e.value.u);
         e.c->setVal(e.value.u);
     }
 }
@@ -954,9 +954,9 @@ void DEV_Light::loop()
         GDOEvent e;
         xQueueReceive(event_q, &e, 0);
         if (this->type == Light_t::GDO_LIGHT)
-            ESP_LOGI(TAG, "Light has turned %s", e.value.b ? "on" : "off");
+            ESP_LOGD(TAG, "Light has turned %s", e.value.b ? "on" : "off");
         else if (this->type == Light_t::ASSIST_LASER)
-            ESP_LOGI(TAG, "Parking assist laster has turned %s", e.value.b ? "on" : "off");
+            ESP_LOGD(TAG, "Parking assist laser has turned %s", e.value.b ? "on" : "off");
         DEV_Light::on->setVal(e.value.b);
     }
 }
@@ -978,7 +978,7 @@ void DEV_Motion::loop()
     {
         GDOEvent e;
         xQueueReceive(event_q, &e, 0);
-        ESP_LOGI(TAG, "%s %s", name, e.value.b ? "detected" : "reset");
+        ESP_LOGD(TAG, "%s %s", name, e.value.b ? "detected" : "reset");
         DEV_Motion::motion->setVal(e.value.b);
     }
 }
@@ -999,7 +999,7 @@ void DEV_Occupancy::loop()
     {
         GDOEvent e;
         xQueueReceive(event_q, &e, 0);
-        ESP_LOGI(TAG, "%s occupancy %s", (this == vehicle) ? "Vehicle" : "Room", e.value.b ? "detected" : "reset");
+        ESP_LOGD(TAG, "%s occupancy %s", (this == vehicle) ? "Vehicle" : "Room", e.value.b ? "detected" : "reset");
         DEV_Occupancy::occupied->setVal(e.value.b);
     }
 }

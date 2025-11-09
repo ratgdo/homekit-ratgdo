@@ -41,6 +41,8 @@ extern void reset_door();
 
 extern uint32_t is_ttc_active();
 
+extern uint32_t id_code;
+extern uint32_t rolling_code;
 extern uint32_t doorControlType;
 extern GarageDoorCurrentState doorState;
 extern bool comms_setup_done;

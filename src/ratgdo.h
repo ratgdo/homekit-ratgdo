@@ -224,6 +224,8 @@ struct __attribute__((aligned(4))) GarageDoor
     uint32_t closeDuration;
     uint32_t ttcActive;
     uint32_t builtInTTC;
+    uint32_t builtInTTCremaining;
+    bool builtInTTChold;
 #ifndef ESP8266
     // Feature not available on ESP8266
     _millis_t room_occupancy_timeout;

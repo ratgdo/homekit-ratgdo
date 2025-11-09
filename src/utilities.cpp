@@ -116,7 +116,7 @@ char *timeString(time_t reqTime, bool syslog)
     static char tBuffer[32];
     time_t tTime = 0;
     tm tmTime;
-    tBuffer[0] = 0;
+    strcpy(tBuffer, "[no time set]");
     tTime = ((reqTime == 0) && clockSet) ? time(NULL) : reqTime;
     if (tTime != 0)
     {

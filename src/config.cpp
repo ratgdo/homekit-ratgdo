@@ -486,14 +486,14 @@ void userSettings::load()
         char *type = strchr(key, ',');
         if (!type)
         {
-            ESP_LOGI(TAG, "Malformed config line, skipping: %s", key);
+            ESP_LOGW(TAG, "Malformed config line, skipping: %s", key);
             continue;
         }
         *type++ = 0;
         char *value = strchr(type, ',');
         if (!value)
         {
-            ESP_LOGI(TAG, "Malformed config line, missing value: %s", key);
+            ESP_LOGW(TAG, "Malformed config line, missing value: %s", key);
             continue;
         }
         *value++ = 0;
@@ -698,7 +698,7 @@ uint32_t read_int_from_file(const char *filename, uint32_t defaultValue)
 void write_int_to_file(const char *filename, uint32_t value)
 {
     File file = LittleFS.open(filename, "w");
-    ESP_LOGI(TAG, "writing %lu to file %s", value, filename);
+    ESP_LOGD(TAG, "writing %lu to file %s", value, filename);
     file.print(value);
     file.close();
 }
@@ -718,7 +718,7 @@ bool read_blob_from_file(const char *filename, void *value, size_t size)
 void write_blob_to_file(const char *filename, const void *value, size_t size)
 {
     File file = LittleFS.open(filename, "w");
-    ESP_LOGI(TAG, "writing blob of size %d to file %s", size, filename);
+    ESP_LOGD(TAG, "writing blob of size %d to file %s", size, filename);
     file.write((uint8_t *)value, size);
     file.close();
 }
