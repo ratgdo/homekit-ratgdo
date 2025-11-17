@@ -13,6 +13,9 @@
  *
  */
 
+// Arduino system includes
+#include <DNSServer.h>
+
 // RATGDO project includes
 #include "ratgdo.h"
 #include "utilities.h"
@@ -27,12 +30,14 @@ static const char *TAG = "ratgdo-softAP";
 static const char softAPhttpPreamble[] PROGMEM = "HTTP/1.1 200 OK\nContent-Type: text/html\nCache-Control: no-cache, no-store\n\n<!DOCTYPE html>\n";
 // TODO enable advanced mode (AP selection), disabled below by setting display = none
 static const char softAPtableHead[] PROGMEM = R"(
-<tr style='display:none;'><td><input id='adv' name='advanced' type='checkbox' onclick='showAdvanced(this.checked)'></td><td colspan='2'>Advanced</td></tr>
-<tr><th></th><th>SSID</th><th>RSSI</th><th>Chan</th><th>Hardware BSSID</th></tr>)";
+<tr style='display:none;'><td></td><td><input id='adv' name='advanced' type='checkbox' onclick='showAdvanced(this.checked)'/><label for='adv'>&nbsp;Advanced</label></td></tr>
+<tr><th></th><th>&nbsp;&nbsp;SSID</th><th>RSSI</th><th>Chan</th><th>Hardware BSSID</th></tr>)";
 static const char softAPtableRow[] PROGMEM = R"(
-<tr %s><td><input type='radio' name='net' value='%d' %s></td><td>%s</td><td>%ddBm</td><td>%d</td><td>&nbsp;&nbsp;%02x:%02x:%02x:%02x:%02x:%02x</td></tr>)";
+<tr %s><td></td><td><input type='radio' id='net%d' name='net' value='%d' %s/><label for='net%d'>&nbsp;%s</label></td><td>%ddBm</td><td>%d</td><td>&nbsp;&nbsp;%02x:%02x:%02x:%02x:%02x:%02x</td></tr>)";
 static const char softAPtableLastRow[] PROGMEM = R"(
-<tr><td><input type='radio' name='net' value='%d'></td><td colspan='2'><input type='text' name='userSSID' placeholder='SSID' value='%s'></td></tr>)";
+<tr><td></td><td><input type='radio' id='net%d' name='net' value='%d'/>&nbsp;<label><input type='text' id='userSSID' name='userSSID' placeholder='SSID' value='%s'/></label></td></tr>)";
+static const char softAPsuccess[] PROGMEM = R"(<html><head><title>Success</title></head><body>Success</body><script type='text/javascript'>window.location.href = '/';</script></html>\n)";
+static const char softAPempty[] PROGMEM = R"(HTTP/1.1 204 No Content\nContent-Length: 0\n\n)";
 
 // forward declare functions
 void handle_softAPweb();
@@ -40,6 +45,8 @@ void handle_wifinets();
 
 #define MAX_ATTEMPTS_WIFI_CONNECTION 30
 #define TXT_BUFFER_SIZE 1024
+
+DNSServer dnsServer;
 
 // support for scaning WiFi networks
 bool wifiNetsCmp(const wifiNet_t &a, const wifiNet_t &b)
@@ -160,9 +167,16 @@ void start_soft_ap()
         ESP_LOGI(TAG, "Error starting AP mode");
     }
 
+    // any dns request will point to us
+    dnsServer.start(53, "*", WiFi.softAPIP());
+
     server.onNotFound(handle_softAPweb);
     server.begin();
     ESP_LOGI(TAG, "Soft AP web server started");
+#ifdef ESP32
+    // used in Android 11+ (but docs suggest it will fall back to http probe)
+    WiFi.AP.enableDhcpCaptivePortal();
+#endif
     softAPinitialized = true;
 }
 
@@ -175,6 +189,10 @@ void soft_ap_loop()
 
     if (!softAPmode)
         return;
+
+#ifdef ESP8266
+    dnsServer.processNextRequest();
+#endif
 
     static _millis_t soft_ap_start = 0;
     static bool soft_ap_timer_started = false;
@@ -193,27 +211,105 @@ void soft_ap_loop()
     }
 }
 
+void doRedirect(const char *location = "/captive")
+{
+    // Redirect to root
+    ESP_LOGD(TAG, "Send redirect to %s", location);
+    server.sendHeader(F("Location"), location, true);
+    server.send_P(302, type_txt, "");
+}
+
 void handle_softAPweb()
 {
+    if ((WiFi.getMode() & WIFI_AP) != WIFI_AP)
+        return;
+
+    // If we are in Soft Access Point mode
     HTTPMethod method = server.method();
     String page = server.uri();
+    static bool cnaHasLoaded = false;
+    static uint32_t requests = 0;
 
-    if ((WiFi.getMode() & WIFI_AP) == WIFI_AP)
+    ESP_LOGD(TAG, "WiFi Soft Access Point mode, requesting: %s", page.c_str());
+
+    // captive portal probes
+    // apple (ios)
+    if (page.equals("/hotspot-detect.html"))
     {
-        // If we are in Soft Access Point mode
-        ESP_LOGI(TAG, "WiFi Soft Access Point mode requesting: %s", page.c_str());
-        if (page.equals("/") || page.equals("/wifiap"))
-            return handle_wifiap();
-        else if (page.equals("/wifinets"))
-            return handle_wifinets();
-        else if (page.equals("/setssid") && method == HTTP_POST)
-            return handle_setssid();
-        else if (page.equals("/reboot") && method == HTTP_POST)
-            return handle_reboot();
-        else if (page.equals("/rescan") && method == HTTP_POST)
-            return handle_rescan();
+        ESP_LOGI(TAG, "Captive-Portal (apple) request");
+        return doRedirect();
+    }
+    // android
+    else if (page.equals("/generate_204"))
+    {
+        ESP_LOGI(TAG, "Captive-Portal (android) request %d", requests);
+        if (!cnaHasLoaded)
+        {
+            doRedirect();
+            requests++;
+        }
         else
-            return handle_notfound();
+        {
+            server.sendContent(softAPempty, strlen(softAPempty));
+            ESP_LOGD(TAG, "Sent 204 No Content (android)");
+            requests = 0;
+            cnaHasLoaded = false;
+        }
+        return;
+    }
+    else if (page.equals("/captive"))
+    {
+        server.sendContent(softAPhttpPreamble, strlen(softAPhttpPreamble));
+        server.sendContent(softAPsuccess, strlen(softAPsuccess));
+        server.sendContent("\n", 1);
+        ESP_LOGD(TAG, "Sent 200 OK (with Success and page load)");
+        return;
+    }
+
+    /*
+    // windows (redirect)
+    else if (page.equals("/redirect"))
+        handle_softAPPortal();
+    // windows 10+
+    else if (page.equals("/connecttest.txt"))
+    {
+        // windows 11 workaround
+        // server.sendHeader("Location", "http://logout.net", true);
+        // server.send_P(302, type_txt, "");
+
+        server.send_P(200, type_txt, "Microsoft Connect Test");
+    }
+    */
+
+    // our pages
+    else if (page.equals("/") || page.equals("/wifiap"))
+    {
+        return handle_wifiap();
+    }
+    else if (page.equals("/wifiap.css"))
+    {
+        return load_page("/wifiap.css");
+    }
+    else if (page.equals("/wifinets"))
+    {
+        cnaHasLoaded = true;
+        return handle_wifinets();
+    }
+    else if (page.equals("/setssid") && method == HTTP_POST)
+    {
+        return handle_setssid();
+    }
+    else if (page.equals("/reboot") && method == HTTP_POST)
+    {
+        return handle_reboot();
+    }
+    else if (page.equals("/rescan") && method == HTTP_POST)
+    {
+        return handle_rescan();
+    }
+    else
+    {
+        return handle_notfound();
     }
 }
 
@@ -259,14 +355,14 @@ void handle_wifinets()
         {
             matchSSID = false;
         }
-        snprintf(txtBuffer, TXT_BUFFER_SIZE, softAPtableRow, (hide) ? "class='adv'" : "", i, (matchSSID) ? "checked='checked'" : "",
+        snprintf(txtBuffer, TXT_BUFFER_SIZE, softAPtableRow, (hide) ? "class='adv'" : "", i, i, (matchSSID) ? "checked='checked'" : "", i,
                  net.ssid.c_str(), net.rssi, net.channel,
                  net.bssid[0], net.bssid[1], net.bssid[2], net.bssid[3], net.bssid[4], net.bssid[5]);
         server.sendContent(txtBuffer, strlen(txtBuffer));
         i++;
     }
     // user entered value
-    snprintf(txtBuffer, TXT_BUFFER_SIZE, softAPtableLastRow, i, (!match) ? previousSSID.c_str() : "");
+    snprintf(txtBuffer, TXT_BUFFER_SIZE, softAPtableLastRow, i, i, (!match) ? previousSSID.c_str() : "");
     server.sendContent(txtBuffer, strlen(txtBuffer));
     server.sendContent("\n", 1);
     server.client().stop();
