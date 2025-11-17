@@ -9,6 +9,8 @@
             'it, then the device will NOT connect to WiFi.';
         const setTxt = 'Set SSID and password, are you sure?';
         function showAdvanced(checked) {
+            document.getElementById('wifinets').style.fontSize = checked ? '0.7em' : '';
+            document.getElementById('userSSID').style.fontSize = checked ? '1em' : '';
             Array.from(document.getElementsByClassName('adv')).forEach((elem) => {
                 elem.style.display = checked ? 'table-row' : 'none';
             });
@@ -72,11 +74,11 @@
         }
 
         async function confirmCancel(event) {
+            event.preventDefault();
             if (location.hostname === "captive.apple.com" ||
                 location.hostname === "connectivitycheck.gstatic.com" ||
                 location.hostname === "192.168.4.1") {
                 // If connected to any of the above then we prompt for confirmation before rebooting
-                event.preventDefault();
                 const action = event.currentTarget.formAction;
                 if (await confirmDialog("Reboot without changes, are you sure?")) {
                     const ssidForm = document.getElementById('ssidForm');
@@ -86,7 +88,6 @@
             }
             else {
                 location.href = "/";
-                return false;
             }
         }
 

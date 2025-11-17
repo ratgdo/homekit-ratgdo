@@ -105,6 +105,9 @@ input.slider::-moz-range-thumb {
     cursor: pointer;
 }
 
+label {
+    cursor: pointer;
+}
 
 select {
     vertical-align: middle;

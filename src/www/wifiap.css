@@ -6,7 +6,6 @@ div {
     font-family: monospace;
     font-size: 3vw;
     scrollbar-width: none;
-    position: fixed;
     margin-left: 1vw;
     margin-right: 4vw;
 }
@@ -37,6 +36,10 @@ input[type="checkbox"] {
     vertical-align: middle;
     accent-color: darkgoldenrod;
     margin: 0px;
+}
+
+label {
+    cursor: pointer;
 }
 
 .adv {
