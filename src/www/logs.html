@@ -35,7 +35,7 @@
       </div>
       <div
         style="float: right; vertical-align: middle; padding-left: 0; padding-right: 0; cursor: pointer; position: absolute; right: 0;">
-        <img id="main-icon" src="garage-car.svg?v=CRC-32" alt="Homepage" onclick="history.back()"
+        <img id="main-icon" src="garage-car.svg?v=CRC-32" alt="Homepage" onclick="if (history.length > 1) history.back(); else window.close();"
           style="width: 1.5em; height: 1.5em;">
       </div>
     </div>
@@ -100,6 +100,7 @@ Loading...
     console.log('Client UUID: ' + clientUUID);
     const loaderElem = document.getElementById("loader");
     document.getElementById("defaultOpen").click();
+    console.log(`History length: ${history.length}`);
 
     const iOSiPadOS = navigator.platform.startsWith("iP") || navigator.platform.startsWith("Mac") && navigator.maxTouchPoints > 4;
     if (iOSiPadOS) {
