@@ -1,0 +1,97 @@
+html,
+body,
+div {
+    background-color: darkgray;
+    overflow-x: hidden;
+    font-family: monospace;
+    font-size: 3vw;
+    scrollbar-width: none;
+    position: fixed;
+    margin-left: 1vw;
+    margin-right: 4vw;
+}
+
+table {
+    margin: 0 auto;
+}
+
+input,
+button {
+    background-color: darkgoldenrod;
+    color: white;
+    border-style: solid;
+    border-color: white;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+    border-bottom-left-radius: 5px;
+    border-width: 1px;
+    font-weight: bold;
+    font-size: 3vw;
+    padding: 5px;
+    cursor: pointer;
+}
+
+input[type="radio"],
+input[type="checkbox"] {
+    vertical-align: middle;
+    accent-color: darkgoldenrod;
+    margin: 0px;
+}
+
+.adv {
+    display: none;
+}
+
+td,
+th {
+    text-align: left;
+}
+
+th:nth-child(1n+4),
+td:nth-child(1n+4) {
+    display: none;
+    text-align: right;
+}
+
+@media (prefers-color-scheme: light) {
+
+    html,
+    div,
+    body,
+    select,
+    input[type="file"],
+    input[type="number"],
+    input[type="text"],
+    input[type="password"] {
+        background-color: #F0F0F0;
+        border-color: #303030;
+        color: black;
+    }
+
+    input[type="checkbox"][disabled]+label {
+        color: rgba(0, 0, 0, 0.5);
+        cursor: not-allowed;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+
+    html,
+    div,
+    body,
+    select,
+    input[type="file"],
+    input[type="number"],
+    input[type="text"],
+    input[type="password"] {
+        background-color: #202020;
+        border-color: #E0E0E0;
+        color: white;
+    }
+
+    input[type="checkbox"][disabled]+label {
+        color: rgba(255, 255, 255, 0.5);
+        cursor: not-allowed;
+    }
+}
