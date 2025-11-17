@@ -2,22 +2,7 @@
 <html>
 
 <head>
-    <style>
-        .adv {
-            display: none;
-        }
-
-        td,
-        th {
-            text-align: left;
-        }
-
-        th:nth-child(1n+4),
-        td:nth-child(1n+4) {
-            display: none;
-            text-align: right;
-        }
-    </style>
+    <link rel="stylesheet" href="wifiap.css?v=CRC-32">
     <script>
         const warnTxt = 'Selecting SSID in advanced mode locks the device to a specific WiFi ' +
             'access point by its unique hardware BSSID. If that access point goes offline, or you replace ' +
@@ -39,9 +24,62 @@
                 return confirm(setTxt);
             }
         }
-        function confirmCancel() {
-            if (location.hostname == "192.168.4.1") {
-                return confirm("Reboot without changes, are you sure?");
+
+        function confirmDialog(message) {
+            return new Promise((resolve, reject) => {
+                const dialog = document.getElementById("confirmDialog");
+                const confirmMessage = document.getElementById('confirmMessage');
+                const confirmOk = document.getElementById('confirmOk');
+                const confirmCancel = document.getElementById('confirmCancel');
+                const handleOk = () => {
+                    dialog.close();
+                    resolve(true);
+                    removeListeners();
+                };
+                const handleCancel = () => {
+                    dialog.close();
+                    resolve(false);
+                    removeListeners();
+                };
+                const removeListeners = () => {
+                    confirmOk.removeEventListener('click', handleOk);
+                    confirmCancel.removeEventListener('click', handleCancel);
+                };
+
+                confirmOk.addEventListener('click', handleOk);
+                confirmCancel.addEventListener('click', handleCancel);
+                confirmMessage.innerHTML = message;
+                dialog.showModal();
+                // Handle closing the dialog via Escape key or clicking outside
+                dialog.addEventListener('close', () => {
+                    // If the dialog is closed without clicking OK or Cancel,
+                    // it's treated as a cancellation.
+                    if (!dialog.returnValue) { // dialog.returnValue is set by form method="dialog"
+                        resolve(false);
+                    }
+                    removeListeners();
+                }, { once: true }); // Ensure this listener is only active once
+            });
+        }
+        async function confirmSubmit(event) {
+            event.preventDefault();
+            const action = event.currentTarget.formAction;
+            if (await confirmDialog(setTxt)) {
+                const ssidForm = document.getElementById('ssidForm');
+                ssidForm.action = action;
+                ssidForm.submit();
+            }
+        }
+
+        async function confirmCancel(event) {
+            if (location.hostname === "192.168.4.1" || location.hostname === "127.0.0.1") {
+                event.preventDefault();
+                const action = event.currentTarget.formAction;
+                if (await confirmDialog("Reboot without changes, are you sure?")) {
+                    const ssidForm = document.getElementById('ssidForm');
+                    ssidForm.action = action;
+                    ssidForm.submit();
+                }
             }
             else {
                 location.href = "/";
@@ -60,21 +98,28 @@
     </script>
 </head>
 
-<body style='font-family: monospace'>
-    <p>Select from available networks, or manually enter SSID:</p>
-    <form action='/setssid' method='post'>
-        <table id="wifinets">
-            <tr>
-                <td colspan='2'>Scanning...</td>
-            </tr>
-        </table>
-        <br><label for='pw'>Network password:&nbsp;</label>
-        <input id='pw' name='pw' type='password' placeholder='password'>
-        <p id='warn'></p>
-        <input type='submit' value='Submit' formaction='/setssid' onclick='return confirmAdvanced();'>&nbsp;
-        <input type='submit' value='Rescan' formaction='/wifiap'>&nbsp;
-        <input type='submit' value='Cancel' formaction='/reboot' onclick='return confirmCancel();'>
-    </form>
+<body>
+    <div>
+        <p>Select from available networks, or manually enter SSID:</p>
+        <form id="ssidForm" action='/setssid' method='post'>
+            <table id="wifinets">
+                <tr>
+                    <td colspan='2'>Scanning...</td>
+                </tr>
+            </table>
+            <br><label for='pw'>Network password:&nbsp;</label>
+            <input id='pw' name='pw' type='password' placeholder='password'>
+            <p id='warn'></p>
+            <input type='submit' value='Submit' formaction='/setssid' onclick='confirmSubmit(event)'>&nbsp;
+            <input type='submit' value='Rescan' formaction='/wifiap'>&nbsp;
+            <input type='submit' value='Cancel' formaction='/reboot' onclick='confirmCancel(event);'>
+        </form>
+        <dialog id="confirmDialog">
+            <p id="confirmMessage">message</p>
+            <button id="confirmOk">OK</button>
+            <button id="confirmCancel">Cancel</button>
+        </dialog>
+    </div>
 </body>
 
 </html>
