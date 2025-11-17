@@ -304,6 +304,20 @@ void web_loop()
     static char *json = loop_json;
     _millis_t upTime = _millis();
     static _millis_t last_request_time = 0;
+
+    // Re-announce mDNS every two minutes
+    static _millis_t lastMDNSannounce = upTime;
+#define MDNS_ANNOUNCE_TIMEOUT (2 * 60 * 1000)
+    if (upTime - lastMDNSannounce > MDNS_ANNOUNCE_TIMEOUT)
+    {
+        lastMDNSannounce = upTime;
+#ifdef ESP8266
+        MDNS.announce();
+#else
+        MDNS.setInstanceName(device_name_rfc952);
+#endif
+    }
+
     TAKE_MUTEX();
     JSON_START(json);
     if (garage_door.active && garage_door.current_state != lastDoorState)

@@ -43,6 +43,7 @@ extern void build_status_json(char *json);
 
 extern const char response400invalid[];
 extern const char type_txt[];
+extern const char type_html[];
 
 extern _millis_t lastDoorUpdateAt;
 extern _millis_t lastDoorOpenAt;
