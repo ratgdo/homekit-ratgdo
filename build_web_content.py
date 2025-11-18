@@ -150,6 +150,7 @@ const char type_jpg[]  PROGMEM = "image/jpeg";
 const char type_png[]  PROGMEM = "image/png";
 const char type_tiff[] PROGMEM = "image/tiff";
 const char type_tif[]  PROGMEM = "image/tiff";
+const char type_ico[]  PROGMEM = "image/x-icon";
 const char type_txt[]  PROGMEM = "text/plain";
 const char type_[]     PROGMEM = "text/plain";
 const char type_htm[]  PROGMEM = "text/html";
@@ -158,8 +159,9 @@ const char type_css[]  PROGMEM = "text/css";
 const char type_js[]   PROGMEM = "text/javascript";
 const char type_mjs[]  PROGMEM = "text/javascript";
 const char type_json[] PROGMEM = "application/json";
+const char type_webmanifest[] PROGMEM = "application/manifest+json";
 // Must be at least one more than max string above...
-#define MAX_MIME_TYPE_LEN 20
+#define MAX_MIME_TYPE_LEN 32
 """
 )
 
