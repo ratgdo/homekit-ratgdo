@@ -9,7 +9,7 @@
 compile_commands.json
 __pycache__
 .DS_Store
+._*
 .vscode
 src/www/build
 .vscode/*
-tests.out
