@@ -136,6 +136,10 @@ static _millis_t comms_status_start = 0;
 static _millis_t tx_minimum_delay = SECPLUS2_TX_MINIMUM_DELAY;
 uint32_t doorControlType = 0;
 
+// Wall panel sends GDO GetOpenings/GetBattery approx every 22hrs 55mins.
+// That seems an awful long time, how about we do it every 55 minutes?
+#define COMMS_CHECK_BATTERY (/*(22 * 60 * 60 * 1000) + */ (55 * 60 * 1000))
+
 static bool is_0x37_panel = false;
 /* Removing this section as testing with 398LM (a 0x37 wall panel) was never successful.
 static bool door_moving = false;
@@ -1781,6 +1785,7 @@ void comms_loop_sec2()
             {
                 ESP_LOGI(TAG, "GDO initialization complete, status received (%lldms)", (uint64_t)(_millis() - comms_status_start));
                 comms_status_done = true;
+                send_get_battery();
             }
             break;
         }
@@ -1945,8 +1950,9 @@ void comms_loop_sec2()
 
         case PacketCommand::GetStatus:
         case PacketCommand::GetOpenings:
+        case PacketCommand::GetBattery:
         {
-            // Silently ignore, because we see lots of these and they have no data, and Packet.h logged them.
+            // Silently ignore.
             break;
         }
 
@@ -2082,10 +2088,10 @@ void comms_loop_sec2()
             case Pair3State::CancelAck:
                 break;
             case Pair3State::WarningStart:
-                //ESP_LOGI(TAG, "Door close warning sequence start");
+                // ESP_LOGI(TAG, "Door close warning sequence start");
                 break;
             case Pair3State::WarningEnd:
-                //ESP_LOGI(TAG, "Door close warning sequence end");
+                // ESP_LOGI(TAG, "Door close warning sequence end");
                 break;
             case Pair3State::ObstBlocked:
                 break;
@@ -2107,7 +2113,7 @@ void comms_loop_sec2()
 
         default:
             // Log if we get a command that we do not recognize.
-            ESP_LOGD(TAG, "Support for %s packet unimplemented. Ignoring.", PacketCommand::to_string(pkt.m_pkt_cmd));
+            ESP_LOGD(TAG, "Support for %s (0x%04X) packet unimplemented. Ignoring.", PacketCommand::to_string(pkt.m_pkt_cmd), pkt.m_pkt_cmd);
             break;
         }
     }
@@ -2123,9 +2129,24 @@ void comms_loop_sec2()
         comms_status_start = 0;
         initialize_gdo_codes(0); // sending a zero will force a new ID code
     }
-    else if (rolling_code >= (last_saved_code + MAX_CODES_WITHOUT_FLASH_WRITE))
+    else
     {
-        save_rolling_code();
+        // communications with GDO is working...
+
+        static _millis_t checkStatus = 0;
+        _millis_t now = _millis();
+        if ((now - checkStatus) > COMMS_CHECK_BATTERY)
+        {
+            // Wall panel sends a GetOpenings and GetBattery request once a day, emulate that behavior.
+            checkStatus = now;
+            send_get_openings();
+            send_get_battery();
+        }
+
+        if (rolling_code >= (last_saved_code + MAX_CODES_WITHOUT_FLASH_WRITE))
+        {
+            save_rolling_code();
+        }
     }
 }
 
@@ -2751,13 +2772,32 @@ void send_get_openings()
         return;
 
     PacketData d;
-    d.type = PacketDataType::NoData;
-    d.value.no_data = NoData();
+    d.type = PacketDataType::Unknown;
+    d.value.unknown = UnknownCommandData();
+    d.value.unknown.flags = 0x01;
     Packet pkt = Packet(PacketCommand::GetOpenings, d, id_code);
     PacketAction pkt_ac = {pkt, true, 0};
     if (!txQueuePush(&pkt_ac))
     {
         ESP_LOGE(TAG, "packet queue full, dropping get openings pkt");
+    }
+}
+
+void send_get_battery()
+{
+    // only used with SECURITY2.0
+    if (doorControlType != 2)
+        return;
+
+    PacketData d;
+    d.type = PacketDataType::Unknown;
+    d.value.unknown = UnknownCommandData();
+    d.value.unknown.flags = 0x05;
+    Packet pkt = Packet(PacketCommand::GetBattery, d, id_code);
+    PacketAction pkt_ac = {pkt, true, 0};
+    if (!txQueuePush(&pkt_ac))
+    {
+        ESP_LOGE(TAG, "packet queue full, dropping get battery pkt");
     }
 }
 
