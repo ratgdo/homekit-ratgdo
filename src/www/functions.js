@@ -1017,6 +1017,12 @@ async function firmwareUpdate(github = true) {
         if (response.status !== 200) {
             rebootMsg = await response.text();
             console.error(`Firmware upload error: ${rebootMsg}`);
+            if (rebootMsg === "Not Enough Space") {
+                alert(`Firmware is too large for the OTA partition. You may be able to install the firmware by USB serial port, see README.md at https://github.com/${gitUser}/${gitRepo}/blob/main/README.md#upgrade-failures`)
+                showRebootMsg = false;
+                location.href = "/";
+                return;
+            }
             if (confirm(`Firmware upload error: ${rebootMsg} Existing firmware not replaced. Proceed to reboot device? NOTE: Reboot is required to re-enable HomeKit services.`)) {
                 rebootRATGDO(false);
             }
