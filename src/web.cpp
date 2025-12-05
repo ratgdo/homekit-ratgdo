@@ -1592,7 +1592,14 @@ void handle_firmware_upload()
         // struct eboot_command ebootCmd;
         // eboot_command_read(&ebootCmd);
         // ESP_LOGI(TAG, "eboot_command: 0x%08X 0x%08X [0x%08X 0x%08X 0x%08X (%d)]", ebootCmd.magic, ebootCmd.action, ebootCmd.args[0], ebootCmd.args[1], ebootCmd.args[2], ebootCmd.args[2]);
-        if (!verify)
+        if (firmwareSize > maxSketchSpace)
+        {
+            ESP_LOGE(TAG, "Firmware size is larger than available OTA upload space");
+            // If we detect this error then we will not shut down all our services, because upload will fail.
+            // Failure is detected on first call to Update.write() where it will set UPDATE_ERROR_SPACE.
+            // This is passed back to the client with a http 400 error and the string "Not Enough Space"
+        }
+        else if (!verify)
         {
             // Close services so we don't have to handle network traffic during update
             // Only if not verifying as either will have been shutdown on immediately prior upload, or we
@@ -1615,6 +1622,7 @@ void handle_firmware_upload()
             vTaskDelete(homeSpan.getAutoPollTask());
 #endif
         }
+
         if (!verify && !Update.begin((firmwareSize > 0) ? firmwareSize : maxSketchSpace, U_FLASH))
         {
             _setUpdaterError();
