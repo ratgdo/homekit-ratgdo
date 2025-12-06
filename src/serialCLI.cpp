@@ -133,6 +133,7 @@ void serialCLI(char cmd)
     {
         send_get_status();
         send_get_openings();
+        send_get_battery();
         break;
     }
 #ifdef TEST_TTC
