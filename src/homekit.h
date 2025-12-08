@@ -62,6 +62,8 @@ extern void enable_service_homekit_vehicle(bool enable);
 extern bool enable_service_homekit_laser(bool enable);
 extern bool enable_service_homekit_room_occupancy(bool enable);
 extern void notify_homekit_room_occupancy(bool occupied);
+extern bool enable_service_homekit_light(bool enable);
+extern bool enable_service_homekit_motion_sensor(bool enable);
 
 extern void homekit_unpair();
 extern bool homekit_is_paired();

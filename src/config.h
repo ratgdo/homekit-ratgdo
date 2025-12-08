@@ -98,6 +98,8 @@ constexpr char cfg_assistDuration[] PROGMEM = "assistDuration";
 constexpr char cfg_occupancyDuration[] PROGMEM = "occupancyDuration";
 constexpr char cfg_enableIPv6[] PROGMEM = "enableIPv6";
 constexpr char cfg_homespanCLI[] PROGMEM = "homespanCLI";
+constexpr char cfg_lightHomeKit[] PROGMEM = "lightHomeKit";
+constexpr char cfg_motionHomeKit[] PROGMEM = "motionHomeKit";
 #endif
 
 constexpr char nvram_id_code[] PROGMEM = "id_code";
@@ -202,6 +204,8 @@ public:
     uint32_t getOccupancyDuration() { return std::get<int>(get(cfg_occupancyDuration)); };
     bool getEnableIPv6() { return std::get<bool>(get(cfg_enableIPv6)); };
     bool getEnableHomeSpanCLI() { return std::get<bool>(get(cfg_homespanCLI)); };
+    bool getLightHomeKit() { return std::get<bool>(get(cfg_lightHomeKit)); };
+    bool getMotionHomeKit() { return std::get<bool>(get(cfg_motionHomeKit)); };
 #endif
 };
 extern userSettings *userConfig;

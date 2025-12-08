@@ -694,6 +694,78 @@ bool enable_service_homekit_room_occupancy(bool enable)
     return false;
 }
 
+bool enable_service_homekit_light(bool enable)
+{
+    // Dry contact (security type 3) cannot control lights
+    if (userConfig->getGDOSecurityType() == 3)
+    {
+        ESP_LOGI(TAG, "Dry contact mode - light control not supported");
+        return false;
+    }
+
+    if (enable)
+    {
+        if (!light)
+        {
+            // Define the Light accessory...
+            ESP_LOGI(TAG, "Creating HomeKit Light Service");
+            new SpanAccessory(HOMEKIT_AID_LIGHT_BULB);
+            new DEV_Info("Light");
+            light = new DEV_Light();
+            homeSpan.updateDatabase();
+            return true;
+        }
+    }
+    else if (light)
+    {
+        // Delete the accessory, if it exists
+        ESP_LOGI(TAG, "Deleting HomeKit Light Service");
+        if (homeSpan.deleteAccessory(HOMEKIT_AID_LIGHT_BULB))
+        {
+            light = nullptr;
+            homeSpan.updateDatabase();
+            return true;
+        }
+    }
+    return false;
+}
+
+bool enable_service_homekit_motion_sensor(bool enable)
+{
+    if (enable)
+    {
+        if (!motion)
+        {
+            // Only create if motion is possible (sensor detected OR triggers configured)
+            if (garage_door.has_motion_sensor || userConfig->getMotionTriggers() != 0)
+            {
+                ESP_LOGI(TAG, "Creating HomeKit Motion Sensor Service");
+                createMotionAccessories();
+                homeSpan.updateDatabase();
+                return true;
+            }
+            else
+            {
+                ESP_LOGI(TAG, "Cannot create motion service - no motion sensor and no triggers configured");
+            }
+        }
+    }
+    else if (motion)
+    {
+        // Delete the accessory, if it exists
+        ESP_LOGI(TAG, "Deleting HomeKit Motion Sensor Service");
+        // First disable room occupancy if it exists (depends on motion)
+        enable_service_homekit_room_occupancy(false);
+        if (homeSpan.deleteAccessory(HOMEKIT_AID_MOTION))
+        {
+            motion = nullptr;
+            homeSpan.updateDatabase();
+            return true;
+        }
+    }
+    return false;
+}
+
 /****************************************************************************
  * Setup HomeKit, HomeSpan version.
  */
@@ -763,21 +835,36 @@ void setup_homekit()
     // Dry contact (security type 3) cannot control lights
     if (userConfig->getGDOSecurityType() != 3)
     {
-        // Define the Light accessory...
-        new SpanAccessory(HOMEKIT_AID_LIGHT_BULB);
-        new DEV_Info("Light");
-        light = new DEV_Light();
+        // Only create Light accessory if enabled in settings (default: true)
+        if (userConfig->getLightHomeKit())
+        {
+            // Define the Light accessory...
+            new SpanAccessory(HOMEKIT_AID_LIGHT_BULB);
+            new DEV_Info("Light");
+            light = new DEV_Light();
+        }
+        else
+        {
+            ESP_LOGI(TAG, "Light HomeKit accessory disabled in settings");
+        }
     }
     else
     {
         ESP_LOGI(TAG, "Dry contact mode. Disabling light switch service");
     }
 
-    // only create motion if we know we have motion sensor(s)
+    // only create motion if we know we have motion sensor(s) AND it's enabled in settings
     garage_door.has_motion_sensor = (bool)read_door_int(nvram_has_motion);
     if (garage_door.has_motion_sensor || userConfig->getMotionTriggers() != 0)
     {
-        createMotionAccessories();
+        if (userConfig->getMotionHomeKit())
+        {
+            createMotionAccessories();
+        }
+        else
+        {
+            ESP_LOGI(TAG, "Motion HomeKit accessory disabled in settings");
+        }
     }
     else
     {
@@ -1210,12 +1297,15 @@ void notify_homekit_light(bool state)
 void enable_service_homekit_motion(bool reboot)
 {
 #ifdef ESP32
-    // only create if not already created
+    // only create if not already created AND motion accessory is enabled in settings
     if (!garage_door.has_motion_sensor)
     {
         write_door_int(nvram_has_motion, 1);
         garage_door.has_motion_sensor = true;
-        createMotionAccessories();
+        if (userConfig->getMotionHomeKit())
+        {
+            createMotionAccessories();
+        }
         if (reboot)
         {
             sync_and_restart();

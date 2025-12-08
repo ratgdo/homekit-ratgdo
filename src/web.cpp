@@ -836,6 +836,8 @@ void build_status_json(char *json)
     JSON_ADD_INT(cfg_assistDuration, userConfig->getAssistDuration());
 #endif
     JSON_ADD_BOOL(cfg_homespanCLI, userConfig->getEnableHomeSpanCLI());
+    JSON_ADD_BOOL(cfg_lightHomeKit, userConfig->getLightHomeKit());
+    JSON_ADD_BOOL(cfg_motionHomeKit, userConfig->getMotionHomeKit());
 #endif
     JSON_ADD_INT("webRequests", request_count);
     JSON_ADD_INT("webMaxResponseTime", max_response_time);

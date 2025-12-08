@@ -381,6 +381,8 @@ function setElementsFromStatus(status) {
                 document.getElementById("obstFromStatusRow").style.display = (value != 3) ? "table-row" : "none";
                 document.getElementById("dcDebounceDurationRow").style.display = (value == 3) ? "table-row" : "none";
                 document.getElementById("motionMotion").disabled = (value == 2) ? false : true;
+                // Hide Light HomeKit checkbox for dry contact mode (no light control)
+                document.getElementById("lightHomeKitSpan").style.display = (value != 3) ? "inline" : "none";
                 break;
             case "pinBasedObst":
                 document.getElementById(key).innerHTML = (value == true) ? "&nbsp;(Pin-based)" : "&nbsp;(Message)";
@@ -470,6 +472,12 @@ function setElementsFromStatus(status) {
             case "homespanCLI":
                 document.getElementById(key).checked = value;
                 document.getElementById("homespanSetting").style.display = "table-row";
+                break;
+            case "lightHomeKit":
+            case "motionHomeKit":
+                document.getElementById(key).checked = value;
+                // Show the HomeKit Accessories row for ESP32 only
+                document.getElementById("homekitAccessoriesRow").style.display = "table-row";
                 break;
             case "laserHomeKit":
             case "vehicleHomeKit":
@@ -1287,6 +1295,8 @@ async function saveSettings() {
     const list = document.getElementById("timeZoneInput");
     const timeZone = list.options[list.selectedIndex].text + ';' + list.options[list.selectedIndex].value;
     const homespanCLI = (document.getElementById("homespanCLI").checked) ? '1' : '0';
+    const lightHomeKit = (document.getElementById("lightHomeKit").checked) ? '1' : '0';
+    const motionHomeKit = (document.getElementById("motionHomeKit").checked) ? '1' : '0';
 
     // check IP addresses valid
     const regexIPv4 = /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/i;
@@ -1332,6 +1342,8 @@ async function saveSettings() {
         "obstFromStatus", obstFromStatus,
         "dcDebounceDuration", dcDebounceDuration,
         "homespanCLI", homespanCLI,
+        "lightHomeKit", lightHomeKit,
+        "motionHomeKit", motionHomeKit,
     );
     if (reboot) {
         countdown(rebootSeconds, "Settings saved, RATGDO device rebooting...&nbsp;");
