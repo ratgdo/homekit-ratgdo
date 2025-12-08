@@ -296,6 +296,24 @@ bool helperHomeSpanCLI(const std::string &key, const char *value, configSetting 
         setup_improv();
     return true;
 }
+
+// Forward declarations for HomeKit accessory enable/disable functions
+extern bool enable_service_homekit_light(bool enable);
+extern bool enable_service_homekit_motion_sensor(bool enable);
+
+bool helperLightHomeKit(const std::string &key, const char *value, configSetting *action)
+{
+    userConfig->set(key, value);
+    enable_service_homekit_light(userConfig->getLightHomeKit());
+    return true;
+}
+
+bool helperMotionHomeKit(const std::string &key, const char *value, configSetting *action)
+{
+    userConfig->set(key, value);
+    enable_service_homekit_motion_sensor(userConfig->getMotionHomeKit());
+    return true;
+}
 #endif // ESP32
 
 /****************************************************************************
@@ -385,6 +403,8 @@ userSettings::userSettings()
         {cfg_occupancyDuration, {false, false, 0, helperOccupancyDuration}}, // call fn to enable/disable HomeKit accessories
         {cfg_enableIPv6, {true, false, false, NULL}},
         {cfg_homespanCLI, {false, false, false, helperHomeSpanCLI}}, // call fn to enable/disable HomeSpan CLI and Improv
+        {cfg_lightHomeKit, {false, false, true, helperLightHomeKit}},   // call fn to enable/disable HomeKit light accessory (default: enabled)
+        {cfg_motionHomeKit, {false, false, true, helperMotionHomeKit}}, // call fn to enable/disable HomeKit motion accessory (default: enabled)
 #endif
     };
     IRAM_END(TAG);
