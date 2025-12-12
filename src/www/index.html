@@ -372,6 +372,14 @@
               <tr>
                 <td colspan="2">&nbsp;</td>
               </tr>
+              <tr id="homekitLightRow" style="display:none;">
+                <td class="label">Light:</td>
+                <td>&nbsp;
+                  <span id="lightHomeKitSpan">
+                    <input type="checkbox" id="lightHomeKit" name="lightHomeKit" value="no" checked>
+                    <label for="lightHomeKit">HomeKit Light Switch</label>
+                  </span>
+                </td>
               <tr>
                 <td class="label">Motion Triggers:</td>
                 <td>&nbsp;
@@ -401,18 +409,13 @@
                   </table>
                 </td>
               </tr>
-              <tr id="homekitAccessoriesRow" style="display:none;">
-                <td class="label">HomeKit Accessories:</td>
+              <tr id="homekitMotionRow" style="display: none">
+                <td></td>
                 <td>&nbsp;
-                  <span id="lightHomeKitSpan">
-                    <input type="checkbox" id="lightHomeKit" name="lightHomeKit" value="no" checked>
-                    <label for="lightHomeKit">Light</label>
-                  </span>
                   <span id="motionHomeKitSpan">
                     <input type="checkbox" id="motionHomeKit" name="motionHomeKit" value="no" checked>
-                    <label for="motionHomeKit">Motion</label>
+                    <label for="motionHomeKit">HomeKit Motion Sensor</label>
                   </span>
-                  <span style="font-size: 0.7em;">&nbsp;(uncheck to hide from Apple Home)</span>
                 </td>
               </tr>
               <tr id="vehicleSettingsSpacer" style="display:none;">

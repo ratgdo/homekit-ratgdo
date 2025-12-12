@@ -474,10 +474,12 @@ function setElementsFromStatus(status) {
                 document.getElementById("homespanSetting").style.display = "table-row";
                 break;
             case "lightHomeKit":
+                document.getElementById(key).checked = value;
+                document.getElementById("homekitLightRow").style.display = "table-row";
+                break;
             case "motionHomeKit":
                 document.getElementById(key).checked = value;
-                // Show the HomeKit Accessories row for ESP32 only
-                document.getElementById("homekitAccessoriesRow").style.display = "table-row";
+                document.getElementById("homekitMotionRow").style.display = "table-row";
                 break;
             case "laserHomeKit":
             case "vehicleHomeKit":
@@ -1018,7 +1020,7 @@ async function firmwareUpdate(github = true) {
             rebootMsg = await response.text();
             console.error(`Firmware upload error: ${rebootMsg}`);
             if (rebootMsg === "Not Enough Space") {
-                alert(`Firmware is too large for the OTA partition. You may be able to install the firmware by USB serial port, see README.md at https://github.com/${gitUser}/${gitRepo}/blob/main/README.md#upgrade-failures`)
+                alert(`Firmware is too large for the OTA partition. You may be able to install the firmware by USB serial port, see README.md at https://github.com/${gitUser}/${gitRepo}/blob/main/README.md#upgrade-failures`);
                 showRebootMsg = false;
                 location.href = "/";
                 return;
