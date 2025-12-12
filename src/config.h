@@ -92,6 +92,9 @@ constexpr char cfg_configFile[] PROGMEM = "user_config";
 #else
 constexpr char cfg_vehicleThreshold[] PROGMEM = "vehicleThreshold";
 constexpr char cfg_vehicleHomeKit[] PROGMEM = "vehicleHomeKit";
+constexpr char cfg_vehicleOccupancyHomeKit[] PROGMEM = "vehicleOccupancyHomeKit";
+constexpr char cfg_vehicleArrivingHomeKit[] PROGMEM = "vehicleArrivingHomeKit";
+constexpr char cfg_vehicleDepartingHomeKit[] PROGMEM = "vehicleDepartingHomeKit";
 constexpr char cfg_laserEnabled[] PROGMEM = "laserEnabled";
 constexpr char cfg_laserHomeKit[] PROGMEM = "laserHomeKit";
 constexpr char cfg_assistDuration[] PROGMEM = "assistDuration";
@@ -197,6 +200,9 @@ public:
     bool getLaserEnabled() { return std::get<bool>(get(cfg_laserEnabled)); };
     bool getLaserHomeKit() { return std::get<bool>(get(cfg_laserHomeKit)); };
     bool getVehicleHomeKit() { return std::get<bool>(get(cfg_vehicleHomeKit)); };
+    bool getVehicleOccupancyHomeKit() { return std::get<bool>(get(cfg_vehicleOccupancyHomeKit)); };
+    bool getVehicleArrivingHomeKit() { return std::get<bool>(get(cfg_vehicleArrivingHomeKit)); };
+    bool getVehicleDepartingHomeKit() { return std::get<bool>(get(cfg_vehicleDepartingHomeKit)); };
     uint32_t getAssistDuration() { return std::get<int>(get(cfg_assistDuration)); };
 #endif
 #ifndef ESP8266

@@ -830,6 +830,9 @@ void build_status_json(char *json)
         JSON_ADD_BOOL("assistLaser", last_reported_assist_laser);
     }
     JSON_ADD_BOOL(cfg_vehicleHomeKit, userConfig->getVehicleHomeKit());
+    JSON_ADD_BOOL(cfg_vehicleOccupancyHomeKit, userConfig->getVehicleOccupancyHomeKit());
+    JSON_ADD_BOOL(cfg_vehicleArrivingHomeKit, userConfig->getVehicleArrivingHomeKit());
+    JSON_ADD_BOOL(cfg_vehicleDepartingHomeKit, userConfig->getVehicleDepartingHomeKit());
     JSON_ADD_INT(cfg_vehicleThreshold, userConfig->getVehicleThreshold());
     JSON_ADD_BOOL(cfg_laserEnabled, userConfig->getLaserEnabled());
     JSON_ADD_BOOL(cfg_laserHomeKit, userConfig->getLaserHomeKit());

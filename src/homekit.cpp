@@ -597,38 +597,62 @@ void createMotionAccessories()
 #ifdef RATGDO32_DISCO
 void enable_service_homekit_vehicle(bool enable)
 {
-    if (enable)
-    {
-        if (!vehicle) // using "vehicle" as proxy for all three motion sensors
+    const bool allowOccupancy = enable && userConfig->getVehicleOccupancyHomeKit();
+    const bool allowArriving = enable && userConfig->getVehicleArrivingHomeKit();
+    const bool allowDeparting = enable && userConfig->getVehicleDepartingHomeKit();
+
+    bool databaseChanged = false;
+
+    auto ensureMotionSensor = [&](DEV_Motion *&sensor, uint16_t aid, const char *name, bool shouldExist) {
+        if (shouldExist)
         {
-            // Define Motion Sensor accessory for vehicle arriving
-            new SpanAccessory(HOMEKIT_AID_ARRIVING);
-            new DEV_Info("Arriving");
-            arriving = new DEV_Motion("Arriving");
-            // Define Motion Sensor accessory for vehicle departing
-            new SpanAccessory(HOMEKIT_AID_DEPARTING);
-            new DEV_Info("Departing");
-            departing = new DEV_Motion("Departing");
-
-            // Define Motion Sensor accessory for vehicle occupancy (parked or away)
-            new SpanAccessory(HOMEKIT_AID_VEHICLE);
-            new DEV_Info("Vehicle");
-            vehicle = new DEV_Occupancy();
-
-            homeSpan.updateDatabase();
+            if (!sensor)
+            {
+                new SpanAccessory(aid);
+                new DEV_Info(name);
+                sensor = new DEV_Motion(name);
+                databaseChanged = true;
+            }
         }
-    }
-    else if (vehicle) // using "vehicle" as proxy for all three motion sensors
-    {
-        // Delete the accessories, if they exists
-        ESP_LOGI(TAG, "Deleting HomeKit Motion and Occupancy Accessories for vehicle presense");
-        homeSpan.deleteAccessory(HOMEKIT_AID_VEHICLE);
-        vehicle = nullptr;
-        homeSpan.deleteAccessory(HOMEKIT_AID_ARRIVING);
-        arriving = nullptr;
-        homeSpan.deleteAccessory(HOMEKIT_AID_DEPARTING);
-        departing = nullptr;
+        else if (sensor)
+        {
+            ESP_LOGI(TAG, "Deleting HomeKit Motion Sensor: %s", name);
+            if (homeSpan.deleteAccessory(aid))
+            {
+                sensor = nullptr;
+                databaseChanged = true;
+            }
+        }
+    };
 
+    auto ensureOccupancySensor = [&](DEV_Occupancy *&sensor, uint16_t aid, const char *name, bool shouldExist) {
+        if (shouldExist)
+        {
+            if (!sensor)
+            {
+                new SpanAccessory(aid);
+                new DEV_Info(name);
+                sensor = new DEV_Occupancy();
+                databaseChanged = true;
+            }
+        }
+        else if (sensor)
+        {
+            ESP_LOGI(TAG, "Deleting HomeKit Occupancy Sensor: %s", name);
+            if (homeSpan.deleteAccessory(aid))
+            {
+                sensor = nullptr;
+                databaseChanged = true;
+            }
+        }
+    };
+
+    ensureMotionSensor(arriving, HOMEKIT_AID_ARRIVING, "Arriving", allowArriving);
+    ensureMotionSensor(departing, HOMEKIT_AID_DEPARTING, "Departing", allowDeparting);
+    ensureOccupancySensor(vehicle, HOMEKIT_AID_VEHICLE, "Vehicle", allowOccupancy);
+
+    if (databaseChanged)
+    {
         homeSpan.updateDatabase();
     }
 
