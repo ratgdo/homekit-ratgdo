@@ -434,8 +434,27 @@
               <tr id="vehicleHomeKitRow" style="display:none;">
                 <td></td>
                 <td>&nbsp;
-                  <input type="checkbox" id="vehicleHomeKit" name="vehicleHomeKit" value="no">
+                  <input type="checkbox" id="vehicleHomeKit" name="vehicleHomeKit" value="no" onchange="handleVehicleHomeKitToggle(this.checked)">
                   <label for="vehicleHomeKit">HomeKit Vehicle Occupancy & Motion</label>
+                </td>
+              </tr>
+              <tr id="vehicleSensorOptions" style="display:none;">
+                <td></td>
+                <td>&nbsp;
+                  <span style="display:inline-flex; flex-wrap:wrap; gap:14px; align-items:center;">
+                    <span>
+                      <input type="checkbox" id="vehicleOccupancyHomeKit" name="vehicleOccupancyHomeKit" value="no">
+                      <label for="vehicleOccupancyHomeKit">Vehicle Occupancy</label>
+                    </span>
+                    <span>
+                      <input type="checkbox" id="vehicleArrivingHomeKit" name="vehicleArrivingHomeKit" value="no">
+                      <label for="vehicleArrivingHomeKit">Arriving Motion</label>
+                    </span>
+                    <span>
+                      <input type="checkbox" id="vehicleDepartingHomeKit" name="vehicleDepartingHomeKit" value="no">
+                      <label for="vehicleDepartingHomeKit">Departing Motion</label>
+                    </span>
+                  </span>
                 </td>
               </tr>
               <tr id="laserSetting" style="display:none;">

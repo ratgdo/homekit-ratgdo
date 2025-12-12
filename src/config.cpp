@@ -261,6 +261,27 @@ bool helperVehicleHomeKit(const std::string &key, const char *value, configSetti
     return true;
 }
 
+bool helperVehicleOccupancyHomeKit(const std::string &key, const char *value, configSetting *action)
+{
+    userConfig->set(key, value);
+    enable_service_homekit_vehicle(userConfig->getVehicleHomeKit());
+    return true;
+}
+
+bool helperVehicleArrivingHomeKit(const std::string &key, const char *value, configSetting *action)
+{
+    userConfig->set(key, value);
+    enable_service_homekit_vehicle(userConfig->getVehicleHomeKit());
+    return true;
+}
+
+bool helperVehicleDepartingHomeKit(const std::string &key, const char *value, configSetting *action)
+{
+    userConfig->set(key, value);
+    enable_service_homekit_vehicle(userConfig->getVehicleHomeKit());
+    return true;
+}
+
 bool helperLaser(const std::string &key, const char *value, configSetting *action)
 {
     userConfig->set(key, value);
@@ -390,6 +411,9 @@ userSettings::userSettings()
 #ifdef RATGDO32_DISCO
         {cfg_vehicleThreshold, {false, false, 100, helperVehicleThreshold}}, // call fn to set globals
         {cfg_vehicleHomeKit, {false, false, false, helperVehicleHomeKit}},   // call fn to enable/disable HomeKit accessories
+    {cfg_vehicleOccupancyHomeKit, {false, false, true, helperVehicleOccupancyHomeKit}}, // granular control for occupancy sensor
+    {cfg_vehicleArrivingHomeKit, {false, false, true, helperVehicleArrivingHomeKit}},   // granular control for arriving motion sensor
+    {cfg_vehicleDepartingHomeKit, {false, false, true, helperVehicleDepartingHomeKit}}, // granular control for departing motion sensor
         {cfg_laserEnabled, {false, false, false, helperLaser}},
         {cfg_laserHomeKit, {false, false, true, helperLaser}}, // call fn to enable/disable HomeKit accessories
         {cfg_assistDuration, {false, false, 60, NULL}},

@@ -451,7 +451,7 @@ function setElementsFromStatus(status) {
                 document.getElementById("vehicleRow").style.display = (value) ? "table-row" : "none";
                 document.getElementById("vehicleSetting").style.display = (value) ? "table-row" : "none";
                 document.getElementById("vehicleSettingsSpacer").style.display = (value) ? "table-row" : "none";
-                document.getElementById("vehicleHomeKitRow").style.display = (value) ? "table-row" : "none";
+                setVehicleConfigVisibility(value);
                 document.getElementById("laserSetting").style.display = (value) ? "table-row" : "none";
                 break;
             case "vehicleThreshold":
@@ -481,11 +481,19 @@ function setElementsFromStatus(status) {
                 document.getElementById(key).checked = value;
                 document.getElementById("homekitMotionRow").style.display = "table-row";
                 break;
-            case "laserHomeKit":
             case "vehicleHomeKit":
+                document.getElementById(key).checked = value;
+                setVehicleSensorOptionState(value);
+                break;
+            case "laserHomeKit":
             case "dcOpenClose":
             case "useSWserial":
             case "obstFromStatus":
+                document.getElementById(key).checked = value;
+                break;
+            case "vehicleOccupancyHomeKit":
+            case "vehicleArrivingHomeKit":
+            case "vehicleDepartingHomeKit":
                 document.getElementById(key).checked = value;
                 break;
             case "TTClight":
@@ -1214,6 +1222,35 @@ function setMotionTriggers(bitset) {
     //document.getElementById("trOccupancyDuration").style.display = (bitset) ? "table-row" : "none";
 };
 
+function setVehicleSensorOptionState(enabled) {
+    ["vehicleOccupancyHomeKit", "vehicleArrivingHomeKit", "vehicleDepartingHomeKit"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.disabled = !enabled;
+        }
+    });
+    const row = document.getElementById("vehicleSensorOptions");
+    if (row) {
+        row.style.opacity = enabled ? "1" : "0.5";
+    }
+}
+
+function setVehicleConfigVisibility(show) {
+    const displayValue = show ? "table-row" : "none";
+    document.getElementById("vehicleHomeKitRow").style.display = displayValue;
+    document.getElementById("vehicleSensorOptions").style.display = displayValue;
+    if (show) {
+        setVehicleSensorOptionState(document.getElementById("vehicleHomeKit").checked);
+    }
+    else {
+        setVehicleSensorOptionState(false);
+    }
+}
+
+function handleVehicleHomeKitToggle(checked) {
+    setVehicleSensorOptionState(checked);
+}
+
 async function saveSettings() {
     let TTCseconds = Math.max(parseInt(document.getElementById("TTCseconds").value), 0);
     if (isNaN(TTCseconds)) TTCseconds = 0;
@@ -1264,6 +1301,9 @@ async function saveSettings() {
     let vehicleThreshold = Math.max(Math.min(parseInt(document.getElementById("vehicleThreshold").value), 300), 5);
     if (isNaN(vehicleThreshold)) vehicleThreshold = 0;
     const vehicleHomeKit = (document.getElementById("vehicleHomeKit").checked) ? '1' : '0';
+    const vehicleOccupancyHomeKit = (document.getElementById("vehicleOccupancyHomeKit").checked) ? '1' : '0';
+    const vehicleArrivingHomeKit = (document.getElementById("vehicleArrivingHomeKit").checked) ? '1' : '0';
+    const vehicleDepartingHomeKit = (document.getElementById("vehicleDepartingHomeKit").checked) ? '1' : '0';
     const laserEnabled = (document.getElementById("laserEnabled").checked) ? '1' : '0';
     const laserHomeKit = (document.getElementById("laserHomeKit").checked) ? '1' : '0';
     const dcOpenClose = (document.getElementById("dcOpenClose").checked) ? '1' : '0';
@@ -1326,6 +1366,9 @@ async function saveSettings() {
         "TTClight", TTClight,
         "vehicleThreshold", vehicleThreshold,
         "vehicleHomeKit", vehicleHomeKit,
+        "vehicleOccupancyHomeKit", vehicleOccupancyHomeKit,
+        "vehicleArrivingHomeKit", vehicleArrivingHomeKit,
+        "vehicleDepartingHomeKit", vehicleDepartingHomeKit,
         "laserEnabled", laserEnabled,
         "laserHomeKit", laserHomeKit,
         "dcOpenClose", dcOpenClose,

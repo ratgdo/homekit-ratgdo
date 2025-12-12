@@ -254,6 +254,9 @@ void load_all_config_settings()
     // Features not available on ESP8266
     ESP_LOGI(TAG, "   vehicleThreshold:    %d", userConfig->getVehicleThreshold());
     ESP_LOGI(TAG, "   vehicleHomeKit:      %s", userConfig->getVehicleHomeKit() ? "true" : "false");
+    ESP_LOGI(TAG, "     vehicleOccupancy:  %s", userConfig->getVehicleOccupancyHomeKit() ? "true" : "false");
+    ESP_LOGI(TAG, "     vehicleArriving:   %s", userConfig->getVehicleArrivingHomeKit() ? "true" : "false");
+    ESP_LOGI(TAG, "     vehicleDeparting:  %s", userConfig->getVehicleDepartingHomeKit() ? "true" : "false");
     ESP_LOGI(TAG, "   laserEnabled:        %s", userConfig->getLaserEnabled() ? "true" : "false");
     ESP_LOGI(TAG, "   laserHomeKit:        %s", userConfig->getLaserHomeKit() ? "true" : "false");
     ESP_LOGI(TAG, "   assistDuration:      %d", userConfig->getAssistDuration());
