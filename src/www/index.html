@@ -51,7 +51,7 @@
       <!-- Main section of page ------------------------------------------------------------------>
       <div id="main-page" style="padding: 0px; padding-bottom: 8px;">
         <div class="serverstatus">
-          <table>
+          <table class="status">
             <tr>
               <td style="width: 30%">Firmware:</td>
               <td><span id="firmwareVersion"></span><br><sup style="font-size: 0.6em;"><span
@@ -215,24 +215,24 @@
             <table class="password">
               <tr>
                 <td class="label">Username:</td>
-                <td>&nbsp;
+                <td>
                   <input id="newUserName" type="text" placeholder="admin" maxlength="30" minlength="1">
                 </td>
                 <td></td>
               </tr>
               <tr>
                 <td class="label">Password:</td>
-                <td>&nbsp;
+                <td>
                   <input id="newPassword" type="password" placeholder="new password" autocomplete="new-password">
                 </td>
                 <td></td>
               </tr>
               <tr>
                 <td class="label">Confirm:</td>
-                <td>&nbsp;
+                <td>
                   <input id="confirmPassword" type="password" placeholder="confirm new password">
                 </td>
-                <td>&nbsp;&nbsp;&nbsp;&nbsp;
+                <td>&nbsp;&nbsp;&nbsp;
                   <input type="button" value="Save User/Password" onclick="changePassword()">
                 </td>
               </tr>
@@ -252,20 +252,20 @@
               </tr>
               <tr>
                 <td class="label">Name:</td>
-                <td>&nbsp;
+                <td>
                   <input id="newDeviceName" type="text" placeholder="" maxlength="30" minlength="1">
                 </td>
               </tr>
               <tr>
                 <td class="label">Require Password:</td>
-                <td>&nbsp;
+                <td>
                   <input type="checkbox" id="pwreq" name="pwreq" value="no">
                   <span style="font-size: 0.8em;">default: admin/password</span>
                 </td>
               </tr>
               <tr>
                 <td class="label">LED activity:</td>
-                <td>&nbsp;
+                <td>
                   <input type="radio" id="LEDidle0" name="LEDidle" value="0">
                   <label for="LEDidle0">Off when idle</label>
                   <input type="radio" id="LEDidle1" name="LEDidle" value="1">
@@ -276,7 +276,7 @@
               </tr>
               <tr>
                 <td class="label">Syslog:</td>
-                <td>&nbsp;
+                <td>
                   <input type="checkbox" id="syslogEn" name="syslogEn" value="no" onchange="toggleSyslog()">
                   <span style="font-size: 0.8em;">Send logs to a syslog server</span>
                 </td>
@@ -287,7 +287,7 @@
                   <table class="settings" id="syslogTable" style="display: none;">
                     <tr>
                       <td class="IPlabel">Server IP/Port:</td>
-                      <td>&nbsp;
+                      <td>
                         <input class="syslogIPinput IPinput" id="syslogIP" type="text" placeholder="0.0.0.0"
                           minlength="7" maxlength="15" size="12">&nbsp;:
                         <input class="syslogIPinput IPinput" id="syslogPort" type="text" placeholder="514" minlength="1"
@@ -296,7 +296,7 @@
                     </tr>
                     <tr>
                       <td class="SyslogPri">Facility:</td>
-                      <td>&nbsp;
+                      <td>
                         <select class="FCinput" id="syslogFacility">
                           <option value="16" selected>Local 0</option>
                           <option value="17">Local 1</option>
@@ -314,7 +314,7 @@
               </tr>
               <tr>
                 <td class="label">Log level:</td>
-                <td style="font-size: 0.65em;">&nbsp;
+                <td style="font-size: 0.65em;">
                   <input type="radio" id="logLevel0" name="logLevel" value="0">
                   <label for="logLevel0">None</label>
                   <input type="radio" id="logLevel1" name="logLevel" value="1">
@@ -331,7 +331,7 @@
               </tr>
               <tr id="homespanSetting" style="display:none;">
                 <td class="label">HomeSpan:</td>
-                <td>&nbsp;
+                <td>
                   <input type="checkbox" id="homespanCLI" name="homespanCLI" value="no">
                   <label for="homespanCLI">Enable HomeSpan CLI on serial port</label>
                 </td>
@@ -341,7 +341,7 @@
               </tr>
               <tr>
                 <td class="label">Door Close Delay:</td>
-                <td>&nbsp;
+                <td>
                   <input type="range" min="0" max="21" value="5" id="TTCseconds" name="TTCseconds" class="slider"
                     style="width:150px;">
                   <span style="vertical-align: middle; font-size: 0.8em"><span id="TTCsecondsValue"></span>&nbsp;<span
@@ -351,7 +351,7 @@
               </tr>
               <tr>
                 <td></td>
-                <td>&nbsp;
+                <td>
                   <input type="checkbox" id="TTClight" name="TTClight" checked>
                   <label for="TTClight">Flash light during time-to-close</label>&nbsp;<a id="TTCwarning2"
                     style="display: none; color: red; font-size: 0.8em"
@@ -360,7 +360,7 @@
               </tr>
               <tr id="builtInTTCrow">
                 <td class="label">Automatic Close:</td>
-                <td>&nbsp;
+                <td>
                   <input type="range" min="0" max="20" value="0" id="builtInTTC" name="builtInTTC" class="slider"
                     style="width:150px;">
                   <span style="vertical-align: middle; font-size: 0.8em"><span id="builtInTTCValue"></span>&nbsp;<span
@@ -374,7 +374,7 @@
               </tr>
               <tr id="homekitLightRow" style="display:none;">
                 <td class="label">Light:</td>
-                <td>&nbsp;
+                <td>
                   <span id="lightHomeKitSpan">
                     <input type="checkbox" id="lightHomeKit" name="lightHomeKit" value="no" checked>
                     <label for="lightHomeKit">HomeKit Light Switch</label>
@@ -382,7 +382,7 @@
                 </td>
               <tr>
                 <td class="label">Motion Triggers:</td>
-                <td>&nbsp;
+                <td>
                   <input type="checkbox" id="motionMotion" name="motionMotion" value="no" disabled>
                   <label for="motionMotion">Motion</label>
                   <input type="checkbox" id="motionObstruction" name="motionObstruction" value="no">
@@ -399,7 +399,7 @@
                   <table class="settings">
                     <tr>
                       <td class="label">Occupancy&nbsp;Duration:</td>
-                      <td>&nbsp;
+                      <td>
                         <input type="range" min="0" max="32" value="0" id="occupancyDuration" name="occupancyDuration"
                           class="slider" style="width:100px;">
                         <span style="vertical-align: middle;"><span id="occupancyValue"></span>&nbsp;<span
@@ -411,7 +411,7 @@
               </tr>
               <tr id="homekitMotionRow" style="display: none">
                 <td></td>
-                <td>&nbsp;
+                <td>
                   <span id="motionHomeKitSpan">
                     <input type="checkbox" id="motionHomeKit" name="motionHomeKit" value="no" checked>
                     <label for="motionHomeKit">HomeKit Motion Sensor</label>
@@ -423,7 +423,7 @@
               </tr>
               <tr id="vehicleSetting" style="display:none;">
                 <td class="label">Vehicle Distance:</td>
-                <td>&nbsp;
+                <td>
                   <input type="range" min="5" max="300" value="180" step="5" id="vehicleThreshold"
                     name="vehicleThreshold" class="slider" style="width:130px;">
                   <span style="vertical-align: middle; font-size: 0.8em">
@@ -433,33 +433,26 @@
               </tr>
               <tr id="vehicleHomeKitRow" style="display:none;">
                 <td></td>
-                <td>&nbsp;
-                  <input type="checkbox" id="vehicleHomeKit" name="vehicleHomeKit" value="no" onchange="handleVehicleHomeKitToggle(this.checked)">
+                <td>
+                  <input type="checkbox" id="vehicleHomeKit" name="vehicleHomeKit" value="no"
+                    onchange="handleVehicleHomeKitToggle(this.checked)">
                   <label for="vehicleHomeKit">HomeKit Vehicle Occupancy & Motion</label>
                 </td>
               </tr>
               <tr id="vehicleSensorOptions" style="display:none;">
                 <td></td>
-                <td>&nbsp;
-                  <span style="display:inline-flex; flex-wrap:wrap; gap:14px; align-items:center;">
-                    <span>
-                      <input type="checkbox" id="vehicleOccupancyHomeKit" name="vehicleOccupancyHomeKit" value="no">
-                      <label for="vehicleOccupancyHomeKit">Vehicle Occupancy</label>
-                    </span>
-                    <span>
-                      <input type="checkbox" id="vehicleArrivingHomeKit" name="vehicleArrivingHomeKit" value="no">
-                      <label for="vehicleArrivingHomeKit">Arriving Motion</label>
-                    </span>
-                    <span>
-                      <input type="checkbox" id="vehicleDepartingHomeKit" name="vehicleDepartingHomeKit" value="no">
-                      <label for="vehicleDepartingHomeKit">Departing Motion</label>
-                    </span>
-                  </span>
+                <td style="font-size: 0.65em;">
+                  <input type="checkbox" id="vehicleOccupancyHomeKit" name="vehicleOccupancyHomeKit" value="no">
+                  <label for="vehicleOccupancyHomeKit">Vehicle&nbsp;Occupancy</label>
+                  <input type="checkbox" id="vehicleArrivingHomeKit" name="vehicleArrivingHomeKit" value="no">
+                  <label for="vehicleArrivingHomeKit">Arriving&nbsp;Motion</label>
+                  <input type="checkbox" id="vehicleDepartingHomeKit" name="vehicleDepartingHomeKit" value="no">
+                  <label for="vehicleDepartingHomeKit">Departing&nbsp;Motion</label>
                 </td>
               </tr>
               <tr id="laserSetting" style="display:none;">
                 <td class="label">Laser:</td>
-                <td>&nbsp;
+                <td>
                   <input type="checkbox" id="laserEnabled" name="laserEnabled" value="no"
                     onchange="enableLaser(this.checked)">
                   <label for="laserEnabled">Enabled</label>
@@ -473,7 +466,7 @@
                   <table class="settings" id="parkAssist" style="display: none;">
                     <tr>
                       <td class="label">Assist&nbsp;Duration:</td>
-                      <td>&nbsp;
+                      <td>
                         <input type="range" min="0" max="300" value="60" step="5" id="assistDuration"
                           name="assistDuration" class="slider" style="width:100px;">
                         <span style="vertical-align: middle;"><span id="assistValue"></span>&nbsp;<span
@@ -489,7 +482,7 @@
               </tr>
               <tr>
                 <td class="label">Door&nbsp;Protocol:</td>
-                <td>&nbsp;
+                <td>
                   <input type="radio" id="gdosec1" name="gdosecuritysetting" value="1"
                     onclick="toggleDCOpenClose(this)">
                   <label for="gdosec1">Sec+</label>
@@ -507,7 +500,7 @@
                   <table class="settings">
                     <tr>
                       <td class="label">Debounce&nbsp;Duration:</td>
-                      <td>&nbsp;
+                      <td>
                         <input type="range" min="50" max="1000" value="50" step="50" id="dcDebounceDuration"
                           name="dcDebounceDuration" class="slider" style="width:100px;">
                         <span style="vertical-align: middle;"><span id="dcDebounceValue"></span>&nbsp;ms</span>
@@ -518,28 +511,28 @@
               </tr>
               <tr id="dcOpenCloseRow" style="display:none;">
                 <td></td>
-                <td>&nbsp;
+                <td>
                   <input type="checkbox" id="dcOpenClose" name="dcOpenClose" value="no">
                   <label for="dcOpenClose">Enable hardwired open/close/light control</label>
                 </td>
               </tr>
               <tr id="useSWserialRow" style="display:none;">
                 <td></td>
-                <td>&nbsp;
+                <td>
                   <input type="checkbox" id="useSWserial" name="useSWserial" value="no">
                   <label for="useSWserial">Use software serial emulation rather than h/w UART</label>
                 </td>
               </tr>
               <tr id="obstFromStatusRow" style="display:none;">
                 <td></td>
-                <td>&nbsp;
+                <td>
                   <input type="checkbox" id="obstFromStatus" name="obstFromStatus" value="no">
                   <label for="obstFromStatus">Get obstruction from GDO status messages</label>
                 </td>
               </tr>
               <tr id="trWifiPhyMode" style="display: none">
                 <td class="label">WiFi Version:</td>
-                <td>&nbsp;
+                <td>
                   <input type="radio" id="wifiPhyMode0" name="wifiPhyMode" value="0">
                   <label for="wifiPhyMode0">Auto</label>
                   <input type="radio" id="wifiPhyMode1" name="wifiPhyMode" value="1">
@@ -552,7 +545,7 @@
               </tr>
               <tr id="trWifiPower" style="display: none">
                 <td class="label">WiFi Tx Power:</td>
-                <td>&nbsp;
+                <td>
                   <input type="range" min="0" max="20" value="20" id="wifiPower" name="wifiPower" class="slider"
                     style="width:100px;">
                   <span style="vertical-align: middle; font-size: 0.8em"><span id="wifiPowerValue"></span> dBm</span>
@@ -560,14 +553,14 @@
               </tr>
               <tr id="trEnableIPv6" style="display: none">
                 <td class="label">Enable IPv6:</td>
-                <td>&nbsp;
+                <td>
                   <input type="checkbox" id="enableIPv6" name="enableIPv6" value="no">
                   <label for="enableIPv6">Acquire IPv6 address from network.</label>
                 </td>
               </tr>
               <tr>
                 <td class="label">Static IPv4:</td>
-                <td>&nbsp;
+                <td>
                   <input type="checkbox" id="staticIP" name="staticIP" value="no" onchange="toggleStaticIP()">
                 </td>
               </tr>
@@ -577,28 +570,28 @@
                   <table class="settings" id="staticIPtable" style="display: none;">
                     <tr>
                       <td class="IPlabel">IP Address:</td>
-                      <td>&nbsp;
+                      <td>
                         <input class="staticIPinput IPinput" id="IPaddress" type="text" placeholder="0.0.0.0"
                           minlength="7" maxlength="15" size="12">
                       </td>
                     </tr>
                     <tr>
                       <td class="IPlabel">Netmask:</td>
-                      <td>&nbsp;
+                      <td>
                         <input class="staticIPinput IPinput" id="IPnetmask" type="text" placeholder="0.0.0.0"
                           minlength="7" maxlength="15" size="12">
                       </td>
                     </tr>
                     <tr>
                       <td class="IPlabel">Gateway:</td>
-                      <td>&nbsp;
+                      <td>
                         <input class="staticIPinput IPinput" id="IPgateway" type="text" placeholder="0.0.0.0"
                           minlength="7" maxlength="15" size="12">
                       </td>
                     </tr>
                     <tr>
                       <td class="IPlabel">DNS Server:</td>
-                      <td>&nbsp;
+                      <td>
                         <input class="staticIPinput IPinput" id="IPnameserver" type="text" placeholder="0.0.0.0"
                           minlength="7" maxlength="15" size="12">
                       </td>
@@ -608,7 +601,7 @@
               </tr>
               <tr>
                 <td class="label">Enable NTP:</td>
-                <td>&nbsp;
+                <td>
                   <input type="checkbox" id="enableNTP" name="enableNTP" value="no" onchange="toggleTimeZone()">
                   <span style="font-size: 0.8em;">Obtain time from NTP server</span>
                 </td>
@@ -619,7 +612,7 @@
                   <table class="settings" id="timeZoneTable" style="display: none;">
                     <tr>
                       <td class="IPlabel">Time Zone:</td>
-                      <td>&nbsp;
+                      <td>
                         <select class="TZinput" id="timeZoneInput">
                         </select>
                       </td>
@@ -636,7 +629,7 @@
               </tr>
               <tr>
                 <td class="label">Reboot Every:</td>
-                <td>&nbsp;
+                <td>
                   <input type="number" id="rebootHours" name="rebootHours" value="0" , min="0" , max="72" , step="1">
                   Hours <span style="font-size: 0.8em;">(never:0, min:1, max:72)</span>
                 </td>
@@ -646,7 +639,7 @@
               </tr>
               <tr>
                 <td></td>
-                <td>&nbsp;
+                <td>
                   <input type="button" value="Save Settings" onclick="saveSettings()">
                 </td>
               </tr>
