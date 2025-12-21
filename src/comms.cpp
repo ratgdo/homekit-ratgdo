@@ -310,6 +310,8 @@ uint32_t rolling_code = 0;
 uint32_t last_saved_code = 0;
 #define MAX_CODES_WITHOUT_FLASH_WRITE 10
 
+static _millis_t stopSentClosePending = 0;
+
 /******************************* SECURITY 1.0 *********************************/
 #ifndef USE_GDOLIB
 // time stamping
@@ -973,7 +975,7 @@ void update_door_state(GarageDoorCurrentState current_state)
                            : GarageDoorTargetState::TGT_OPEN;
         break;
     default:
-        ESP_LOGE(TAG, "Got unknown door state");
+        ESP_LOGE(TAG, "Update to unknown door state: %d", current_state);
         break;
     } // end switch
 
@@ -1733,7 +1735,7 @@ void comms_loop_sec2()
                 current_state = GarageDoorCurrentState::CURR_CLOSING;
                 break;
             default:
-                ESP_LOGE(TAG, "Got unknown door state");
+                ESP_LOGE(TAG, "Got unknown Sec+2.0 door state: %d", pkt.m_data.value.status.door);
                 current_state = (GarageDoorCurrentState)0xFF;
                 break;
             }
@@ -1778,6 +1780,21 @@ void comms_loop_sec2()
                     {
                         notify_homekit_motion(true);
                     }
+                }
+            }
+
+            if (stopSentClosePending)
+            {
+                if (_millis() - stopSentClosePending < 1000)
+                {
+                    // We sent a stop command, and have received a response from the GDO. So now will followup with the close command.
+                    stopSentClosePending = 0;
+                    close_door();
+                }
+                else
+                {
+                    stopSentClosePending = 0;
+                    ESP_LOGI(TAG, "Door did not respond to our stop command in time (1 second), do not send close command");
                 }
             }
 
@@ -2102,10 +2119,14 @@ void comms_loop_sec2()
         case PacketCommand::Unknown:
         {
             // Typically occurs if there is a fail-to-decode packet error.  This could be a regular status update.
-            // If it has been more than 5 minutes since the last status packet then request GDO to resend one.
-            if (_millis() - lastStatusPkt > (5 * 60 * 1000) || lastStatusPkt == 0)
+            // If it has been more than 5 minutes since the last status packet then request GDO to resend one, or
+            // if we are in the middle of an open or close sequence as we might have missed the state change to open or closed.
+            if (_millis() - lastStatusPkt > (5 * 60 * 1000) ||
+                lastStatusPkt == 0 ||
+                garage_door.current_state == GarageDoorCurrentState::CURR_OPENING ||
+                garage_door.current_state == GarageDoorCurrentState::CURR_CLOSING)
             {
-                ESP_LOGD(TAG, "Missed a status packet, requsting GDO to resend");
+                ESP_LOGD(TAG, "Possibly missed a status packet, requesting GDO to resend");
                 send_get_status();
             }
             break;
@@ -2471,10 +2492,21 @@ void door_command_close()
     {
         door_command(DoorAction::Close);
     }
-    else if (garage_door.current_state == GarageDoorCurrentState::CURR_OPEN)
+    else
     {
-        ESP_LOGD(TAG, "No obstruction sensors detected. Close door using TOGGLE");
-        door_command(DoorAction::Toggle);
+        ESP_LOGI(TAG, "Toggle from current state: %s, target state: %s", DOOR_STATE(garage_door.current_state), DOOR_STATE(garage_door.target_state));
+        if (garage_door.current_state == GarageDoorCurrentState::CURR_OPEN)
+        {
+            door_command(DoorAction::Toggle);
+        }
+        else if (garage_door.current_state == GarageDoorCurrentState::CURR_STOPPED)
+        {
+            door_command(DoorAction::Toggle);
+        }
+        else
+        {
+            ESP_LOGI(TAG, "Ignoring close request for current and target state");
+        }
     }
 
     if (doorControlType == 2 && garage_door.closeDuration > 0)
@@ -2705,6 +2737,7 @@ GarageDoorCurrentState close_door()
 #else
         door_command(DoorAction::Stop);
 #endif
+        stopSentClosePending = _millis();
         return GarageDoorCurrentState::CURR_STOPPED;
     }
 
