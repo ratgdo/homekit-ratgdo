@@ -803,9 +803,10 @@ public:
         PingResp = 0x393,
         Pair2 = 0x400,
         Pair2Resp = 0x401,
-        SetTtc = 0x402,    // ttc_in_seconds = (byte1<<8)+byte2
-        CancelTtc = 0x408, // ?
-        UpdateTtc = 0x40a, // Time to close
+        SetTtc = 0x402,     // ttc_in_seconds = (byte1<<8)+byte2
+        CancelTtc = 0x408,  // 0x04 = Hold, 0x05 = Cancel
+        Unknown409 = 0x409, // Sometimes sent by a wall panel when it activates
+        UpdateTtc = 0x40a,  // Time to close
         GetOpenings = 0x48b,
         Openings = 0x48c, // openings = (byte1<<8)+byte2
     };
@@ -870,6 +871,8 @@ public:
             return "GetOpenings";
         case PacketCommandValue::Openings:
             return "Openings";
+        case PacketCommandValue::Unknown409:
+            return "Unknown409";
         }
         return "Invalid PacketCommandValue";
     }
@@ -926,6 +929,8 @@ public:
             return PacketCommandValue::GetOpenings;
         case PacketCommandValue::Openings:
             return PacketCommandValue::Openings;
+        case PacketCommandValue::Unknown409:
+            return PacketCommandValue::Unknown409;
         default:
             return PacketCommandValue::Unknown;
         }
@@ -1087,6 +1092,7 @@ struct Packet
         case PacketCommand::Pair3:
         case PacketCommand::Ping:
         case PacketCommand::PingResp:
+        case PacketCommand::Unknown409:
         {
             // These packets have some data in them (maybe), but details not known
             m_data.type = PacketDataType::Unknown;
@@ -1186,6 +1192,7 @@ struct Packet
         case PacketCommand::Learn1:
         case PacketCommand::Ping:
         case PacketCommand::PingResp:
+        case PacketCommand::Unknown409:
             // no data or unimplemented
             break;
         }
