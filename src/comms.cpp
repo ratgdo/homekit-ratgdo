@@ -2488,7 +2488,7 @@ void door_command_close()
 #ifdef USE_GDOLIB
     gdo_door_close();
 #else
-    if (garage_door.pinModeObstructionSensor)
+    if (garage_door.pinModeObstructionSensor && !userConfig->getUseToggle())
     {
         door_command(DoorAction::Close);
     }

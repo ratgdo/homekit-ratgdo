@@ -788,6 +788,7 @@ void build_status_json(char *json)
         JSON_ADD_INT(cfg_builtInTTC, userConfig->getBuiltInTTC());
         JSON_ADD_INT("builtInTTCremaining", garage_door.builtInTTCremaining);
         JSON_ADD_BOOL("builtInTTChold", garage_door.builtInTTChold);
+        JSON_ADD_BOOL(cfg_useToggle, userConfig->getUseToggle());
     }
     if (garage_door.openDuration)
     {

@@ -146,6 +146,8 @@ function toggleDCOpenClose(radio) {
     }
     document.getElementById("obstFromStatusRow").style.display = (value != 3) ? "table-row" : "none";
     document.getElementById("dcDebounceDurationRow").style.display = (value == 3) ? "table-row" : "none";
+    document.getElementById("useToggleRow").style.display = (value == 2) ? "table-row" : "none";
+    document.getElementById("homekitLightRow").style.display = (value != 3) ? "table-row" : "none";
 }
 
 // enable laser
@@ -380,9 +382,10 @@ function setElementsFromStatus(status) {
                 }
                 document.getElementById("obstFromStatusRow").style.display = (value != 3) ? "table-row" : "none";
                 document.getElementById("dcDebounceDurationRow").style.display = (value == 3) ? "table-row" : "none";
+                document.getElementById("useToggleRow").style.display = (value == 2) ? "table-row" : "none";
                 document.getElementById("motionMotion").disabled = (value == 2) ? false : true;
                 // Hide Light HomeKit checkbox for dry contact mode (no light control)
-                document.getElementById("lightHomeKitSpan").style.display = (value != 3) ? "inline" : "none";
+                document.getElementById("homekitLightRow").style.display = (value != 3) ? "table-row" : "none";
                 break;
             case "pinBasedObst":
                 document.getElementById(key).innerHTML = (value == true) ? "&nbsp;(Pin-based)" : "&nbsp;(Message)";
@@ -487,6 +490,7 @@ function setElementsFromStatus(status) {
                 break;
             case "laserHomeKit":
             case "dcOpenClose":
+            case "useToggle":
             case "useSWserial":
             case "obstFromStatus":
                 document.getElementById(key).checked = value;
@@ -1307,6 +1311,7 @@ async function saveSettings() {
     const laserEnabled = (document.getElementById("laserEnabled").checked) ? '1' : '0';
     const laserHomeKit = (document.getElementById("laserHomeKit").checked) ? '1' : '0';
     const dcOpenClose = (document.getElementById("dcOpenClose").checked) ? '1' : '0';
+    const useToggle = (document.getElementById("useToggle").checked) ? '1' : '0';
     const useSWserial = (document.getElementById("useSWserial").checked) ? '1' : '0';
     const obstFromStatus = (document.getElementById("obstFromStatus").checked) ? '1' : '0';
 
@@ -1372,6 +1377,7 @@ async function saveSettings() {
         "laserEnabled", laserEnabled,
         "laserHomeKit", laserHomeKit,
         "dcOpenClose", dcOpenClose,
+        "useToggle", useToggle,
         "assistDuration", assistDuration,
         "motionTriggers", motionTriggers,
         "occupancyDuration", occupancyDuration,
