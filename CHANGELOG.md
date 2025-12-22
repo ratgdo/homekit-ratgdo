@@ -3,13 +3,14 @@
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
 
-## v2.1.2 (2025-12-xx)
+## v2.1.3 (2026-01-xx)
 
 ### What's Changed
 
-* Feature: Query the state of emergency back up battery on boot and every 55 minutes (Sec+2.0 only).
-* Bugfix: If firmware upload error detected before update begins, do not require a reboot.
-* Other: Average vehicle distance over larger sample size (now 50) to smooth out spurious readings (ratgdo32-disco only).
+* Bugfix: (Sec+2.0 only) door not closing if ratgdo thinks it is still opening (rightly or wrongly). https://github.com/ratgdo/homekit-ratgdo32/issues/131
+* Bugfix: Escape backslash and double quotes inside JSON strings.  https://github.com/ratgdo/homekit-ratgdo32/issues/134
+* Bugfix/feature: (Sec+2.0 only) allow user to select sending TOGGLE command instead of CLOSE. https://github.com/ratgdo/homekit-ratgdo32/issues/131
+* Other: Update settings page visuals to disable/enable options rather than hide/show.
 
 ### Known Issues
 
@@ -17,6 +18,14 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 * Sec+ 1.0 doors with "0x37" digital wall panel (e.g. 398LM) not working. We now detect but will not support them.  Recommend replacing with 889LM panel.
 * When creating automations in Apple Home the garage door may show only lock/unlock and not open/close as triggers. This is a bug in Apple Home. Workaround is to use the Eve App to create the automation, it will show both options.
 * ESP8266 (original ratgdo) only... possible crash when a storm of HomeKit messages arrives... which may be triggered on a upgrade of Apple iOS/tvOS/etc. versions. System recovers.
+
+## v2.1.2 (2025-12-xx)
+
+### What's Changed
+
+* Feature: Query the state of emergency back up battery on boot and every 55 minutes (Sec+2.0 only).
+* Bugfix: If firmware upload error detected before update begins, do not require a reboot.
+* Other: Average vehicle distance over larger sample size (now 50) to smooth out spurious readings (ratgdo32-disco only).
 
 ## v2.1.1 (2025-11-22)
 
