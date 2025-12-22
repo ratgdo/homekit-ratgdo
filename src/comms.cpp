@@ -128,7 +128,7 @@ SoftwareSerial sw_serial;
 #define SECPLUS1_EMULATION_POLL_RATE 250
 #define SECPLUS1_EMULATION_COMMS_TIMEOUT (5 * 1000)
 
-#define SECPLUS2_TX_MINIMUM_DELAY 50
+#define SECPLUS2_TX_MINIMUM_DELAY 150
 
 #define COMMS_STATUS_TIMEOUT (3 * 1000) // Allow 3 seconds to retrieve initial status
 bool comms_status_done = false;
