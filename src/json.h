@@ -18,9 +18,20 @@ inline char *start_json(char *s)
     return stpcpy(s, "{\n");
 }
 
-inline char *end_json(char *s)
+inline char *remove_comma_nl(char *s)
 {
-    s -= 2; // remove the comma newline added by last add_xxxx() function
+    // remove the comma newline added by last add_xxxx() function
+    if (*(s - 1) == '\n')
+        s--;
+    if (*(s - 1) == ',')
+        s--;
+    return s;
+}
+
+inline char *end_json(char *s, bool remove_nl = true)
+{
+    if (remove_nl)
+        s = remove_comma_nl(s);
     return stpcpy(s, "\n}");
 }
 
@@ -80,20 +91,47 @@ inline char *add_int(char *s, const char *k, uint32_t v)
     return s;
 }
 
-inline char *add_str(char *s, const char *k, const char *v, bool raw = false)
+inline char *add_str(char *s, const char *k, const char *v, bool raw = false, bool comma_nl = true)
 {
-    *s++ = '"';
-    s = stpcpy(s, k);
-    *s++ = '"';
-    *s++ = ':';
-    *s++ = ' ';
-    if (!raw) // wrap the value in quotes?
+    if (k) // if key provided add it
+    {
         *s++ = '"';
-    s = stpcpy(s, v);
-    if (!raw)
+        s = stpcpy(s, k);
         *s++ = '"';
-    *s++ = ',';
-    *s++ = '\n';
+        *s++ = ':';
+        *s++ = ' ';
+    }
+    else
+    {
+        s = remove_comma_nl(s);
+    }
+    if (v) // if value provided add it
+    {
+        if (raw)
+        {
+            // Do not wrap the value in quotes
+            s = stpcpy(s, v);
+        }
+        else
+        {
+            // wrap the value in quotes and escape any quotes or backslashes in the value
+            *s++ = '"';
+            while (*v)
+            {
+                if (*v == '"' || *v == '\\')
+                {
+                    *s++ = '\\';
+                }
+                *s++ = *v++;
+            }
+            *s++ = '"';
+        }
+    }
+    if (comma_nl)
+    {
+        *s++ = ',';
+        *s++ = '\n';
+    }
     *s = 0; // null terminate
     return s;
 }
@@ -117,7 +155,12 @@ inline char *add_bool(char *s, const char *k, bool v)
 #define JSON_ADD_INT(k, v) _json_p = add_int(_json_p, k, v)
 #define JSON_ADD_STR(k, v) _json_p = add_str(_json_p, k, v)
 #define JSON_ADD_BOOL(k, v) _json_p = add_bool(_json_p, k, v)
-#define JSON_ADD_RAW(k, v) _json_p = add_str(_json_p, k, v, true) // value added without surrounding quotes
+#define JSON_ADD_RAW(k, v) _json_p = add_str(_json_p, k, v, true)               // value added without surrounding quotes
+#define JSON_INSERT_COMMA_NL() _json_p = add_str(_json_p, nullptr, ",\n", true) // insert a comma newline
+#define JSON_START_OBJ(k) _json_p = add_str(_json_p, k, "{\n", true, false)     // added without surrounding quotes and no comma newline
+#define JSON_END_OBJ() _json_p = add_str(_json_p, nullptr, "\n}", true)         // close curly without quotes and with comma newline
+#define JSON_START_ARRAY(k) _json_p = add_str(_json_p, k, "[\n", true, false)   // added without surrounding quotes and no comma newline
+#define JSON_END_ARRAY() _json_p = add_str(_json_p, nullptr, "\n]", true)       // close array without quotes and with comma newline
 
 #define JSON_ADD_INT_C(k, v, ov) \
     {                            \
