@@ -517,8 +517,15 @@
               <tr id="dcOpenCloseRow">
                 <td></td>
                 <td>
-                  <input type="checkbox" id="dcOpenClose" name="dcOpenClose" value="no">
+                  <input type="checkbox" id="dcOpenClose" name="dcOpenClose" value="no" onclick="toggleHardwiredBypassRow()">
                   <label for="dcOpenClose">Enable hardwired open/close/light control</label>
+                </td>
+              </tr>
+              <tr id="dcBypassTTCRow">
+                <td></td>
+                <td>&nbsp;
+                  <input type="checkbox" id="dcBypassTTC" name="dcBypassTTC" value="no">
+                  <label for="dcBypassTTC">Bypass time-to-close delay for hardwired controls</label>
                 </td>
               </tr>
               <tr id="useSWserialRow" style="display: none;">

@@ -140,16 +140,6 @@ function toggleSyslog() {
 
 function toggleDCOpenClose(radio) {
     let value = radio.value;
-    /*
-    if (serverStatus["useSWserial"] != undefined) {
-        document.getElementById("useSWserialRow").style.display = (value != 3) ? "table-row" : "none";
-    }
-    document.getElementById("dcOpenCloseRow").style.display = (value != 3) ? "table-row" : "none";
-    document.getElementById("obstFromStatusRow").style.display = (value != 3) ? "table-row" : "none";
-    document.getElementById("useToggleRow").style.display = (value == 2) ? "table-row" : "none";
-    document.getElementById("homekitLightRow").style.display = (value != 3) ? "table-row" : "none";
-    document.getElementById("dcDebounceDurationRow").style.display = (value == 3) ? "table-row" : "none";
-    */
     if (serverStatus["useSWserial"] != undefined) {
         document.getElementById("useSWserialRow").style.display = "table-row";
         document.getElementById("useSWserial").disabled = (value == 3);
@@ -161,6 +151,17 @@ function toggleDCOpenClose(radio) {
     document.getElementById("dcDebounceDurationRow").style.opacity = (value == 3) ? 1 : 0.5;
     document.getElementById("dcDebounceDuration").disabled = (value != 3);
     document.getElementById("motionMotion").disabled = (value != 2);
+    toggleHardwiredBypassRow();
+}
+
+function toggleHardwiredBypassRow() {
+    const supportsHardwired = !document.getElementById("gdodrycontact").checked;
+    const hardwiredEnabled = document.getElementById("dcOpenClose").checked;
+    const row = document.getElementById("dcBypassTTCRow");
+    const checkbox = document.getElementById("dcBypassTTC");
+    const enabled = supportsHardwired && hardwiredEnabled;
+    row.style.opacity = enabled ? "1" : "0.5";
+    checkbox.disabled = !enabled;
 }
 
 // enable laser
@@ -391,16 +392,6 @@ function setElementsFromStatus(status) {
                 document.getElementById("doorButton").style.margin = (value != 3) ? "" : "auto"; // auto will center the button
                 document.getElementById("lightButton").style.display = (value != 3) ? "inline-block" : "none";
                 document.getElementById("lockLightRow").style.display = (value != 3) ? "table-row" : "none";
-                /*
-                if (serverStatus["useSWserial"] != undefined) {
-                    document.getElementById("useSWserialRow").style.display = (value != 3) ? "table-row" : "none";
-                }
-                document.getElementById("dcOpenCloseRow").style.display = (value != 3) ? "table-row" : "none";
-                document.getElementById("obstFromStatusRow").style.display = (value != 3) ? "table-row" : "none";
-                document.getElementById("useToggleRow").style.display = (value == 2) ? "table-row" : "none";
-                document.getElementById("homekitLightRow").style.display = (value != 3) ? "table-row" : "none";
-                document.getElementById("dcDebounceDurationRow").style.display = (value == 3) ? "table-row" : "none";
-                */
                 if (serverStatus["useSWserial"] != undefined) {
                     document.getElementById("useSWserialRow").style.display = "table-row";
                     document.getElementById("useSWserial").disabled = (value == 3);
@@ -412,6 +403,7 @@ function setElementsFromStatus(status) {
                 document.getElementById("dcDebounceDurationRow").style.opacity = (value == 3) ? 1 : 0.5;
                 document.getElementById("dcDebounceDuration").disabled = (value != 3);
                 document.getElementById("motionMotion").disabled = (value != 2);
+                toggleHardwiredBypassRow();
                 break;
             case "pinBasedObst":
                 document.getElementById(key).innerHTML = (value == true) ? "&nbsp;(Pin-based)" : "&nbsp;(Message)";
@@ -515,11 +507,18 @@ function setElementsFromStatus(status) {
                 setVehicleSensorOptionState(value);
                 break;
             case "laserHomeKit":
-            case "dcOpenClose":
             case "useToggle":
             case "useSWserial":
             case "obstFromStatus":
                 document.getElementById(key).checked = value;
+                break;
+            case "dcOpenClose":
+                document.getElementById(key).checked = value;
+                toggleHardwiredBypassRow();
+                break;
+            case "dcBypassTTC":
+                document.getElementById(key).checked = value;
+                toggleHardwiredBypassRow();
                 break;
             case "vehicleOccupancyHomeKit":
             case "vehicleArrivingHomeKit":
@@ -1338,6 +1337,7 @@ async function saveSettings() {
     const laserEnabled = (document.getElementById("laserEnabled").checked) ? '1' : '0';
     const laserHomeKit = (document.getElementById("laserHomeKit").checked) ? '1' : '0';
     const dcOpenClose = (document.getElementById("dcOpenClose").checked) ? '1' : '0';
+    const dcBypassTTC = (document.getElementById("dcBypassTTC").checked) ? '1' : '0';
     const useToggle = (document.getElementById("useToggle").checked) ? '1' : '0';
     const useSWserial = (document.getElementById("useSWserial").checked) ? '1' : '0';
     const obstFromStatus = (document.getElementById("obstFromStatus").checked) ? '1' : '0';
@@ -1404,6 +1404,7 @@ async function saveSettings() {
         "laserEnabled", laserEnabled,
         "laserHomeKit", laserHomeKit,
         "dcOpenClose", dcOpenClose,
+        "dcBypassTTC", dcBypassTTC,
         "useToggle", useToggle,
         "assistDuration", assistDuration,
         "motionTriggers", motionTriggers,
