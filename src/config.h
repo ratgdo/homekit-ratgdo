@@ -82,6 +82,7 @@ constexpr char cfg_syslogPort[] PROGMEM = "syslogPort";
 constexpr char cfg_syslogFacility[] PROGMEM = "syslogFacility";
 constexpr char cfg_logLevel[] PROGMEM = "logLevel";
 constexpr char cfg_dcOpenClose[] PROGMEM = "dcOpenClose";
+constexpr char cfg_dcBypassTTC[] PROGMEM = "dcBypassTTC";
 constexpr char cfg_useToggle[] PROGMEM = "useToggle";
 constexpr char cfg_dcDebounceDuration[] PROGMEM = "dcDebounceDuration";
 constexpr char cfg_useSWserial[] PROGMEM = "useSWserial";
@@ -193,6 +194,7 @@ public:
     uint32_t getSyslogFacility() { return std::get<int>(get(cfg_syslogFacility)); };
     uint32_t getLogLevel() { return std::get<int>(get(cfg_logLevel)); };
     bool getDCOpenClose() { return std::get<bool>(get(cfg_dcOpenClose)); };
+    bool getDCBypassTTC() { return std::get<bool>(get(cfg_dcBypassTTC)); };
     bool getUseToggle() { return std::get<bool>(get(cfg_useToggle)); };
     uint32_t getDCDebounceDuration() { return std::get<int>(get(cfg_dcDebounceDuration)); };
     bool getObstFromStatus() { return std::get<bool>(get(cfg_obstFromStatus)); };

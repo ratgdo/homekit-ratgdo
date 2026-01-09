@@ -22,7 +22,10 @@ extern void shutdown_comms();
 extern void comms_loop();
 
 extern GarageDoorCurrentState open_door();
-extern GarageDoorCurrentState close_door();
+extern GarageDoorCurrentState close_door(bool bypass_ttc = false);
+#if defined(ESP8266) || !defined(USE_GDOLIB)
+extern GarageDoorCurrentState toggle_door(bool bypass_ttc = false);
+#endif
 extern void delayFnCall(uint32_t ms, void (*callback)());
 #ifndef USE_GDOLIB
 extern void send_get_status();

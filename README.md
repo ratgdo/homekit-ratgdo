@@ -234,7 +234,9 @@ For Dry Contact door protocol, set the sensor debounce duration. When the door o
 
 ### Enable hardwired open/close control
 
-For Security+ 1.0 and Security +2.0 it is possible to repurpose the sensors used for dry-contact door open / close to buttons that trigger a door open / close action. Select this check box to enable this option.
+For Security+ 1.0 and Security +2.0 it is possible to repurpose the sensors used for dry-contact door open / close to buttons that trigger a door open / close action. Select this check box to enable this option. When both the open and close GPIOs are tied together with a jumper (or wired to the same button), the inputs behave exactly like the factory wall control: a toggle from a fully open/closed door starts travel in the opposite direction, a toggle while moving pauses the door, and a follow-up toggle from that paused state makes the door reverse direction.
+
+When enabled, an additional option appears to **Bypass time-to-close delay for hardwired controls**. Use this when the open/close GPIOs are wired to a physical wall button and you want that button to behave like the native door control panel. When checked, any close or toggle action that comes from the hardwired inputs will ignore the configured Time-To-Close warning delay so the door responds immediately, while HomeKit, automations, or remotes continue to respect the delay.
 
 ### Use software serial emulation rather than h/w UART _(ratgdo32 boards only)_
 

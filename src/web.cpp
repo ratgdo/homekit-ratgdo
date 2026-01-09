@@ -778,6 +778,7 @@ void build_status_json(char *json)
     }
     JSON_ADD_STR(cfg_timeZone, userConfig->getTimeZone());
     JSON_ADD_BOOL(cfg_dcOpenClose, userConfig->getDCOpenClose());
+    JSON_ADD_BOOL(cfg_dcBypassTTC, userConfig->getDCBypassTTC());
     JSON_ADD_BOOL(cfg_obstFromStatus, userConfig->getObstFromStatus());
     JSON_ADD_INT(cfg_dcDebounceDuration, userConfig->getDCDebounceDuration());
     JSON_ADD_STR("qrPayload", qrPayload);

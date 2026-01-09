@@ -112,16 +112,27 @@ void drycontact_loop()
     {
         // Dry contacts are repurposed as optional door open/close when we
         // are using Sec+ 1.0 or Sec+ 2.0 door control type
-        if (dryContactDoorOpen)
+        bool bypassTTC = userConfig->getDCBypassTTC();
+        if (dryContactDoorOpen && dryContactDoorClose)
         {
-            open_door();
+            ESP_LOGI(TAG, "Hardwired toggle requested");
+            toggle_door(bypassTTC);
             dryContactDoorOpen = false;
-        }
-
-        if (dryContactDoorClose)
-        {
-            close_door();
             dryContactDoorClose = false;
+        }
+        else
+        {
+            if (dryContactDoorOpen)
+            {
+                open_door();
+                dryContactDoorOpen = false;
+            }
+
+            if (dryContactDoorClose)
+            {
+                close_door(bypassTTC);
+                dryContactDoorClose = false;
+            }
         }
 
         if (dryContactLightToggle)

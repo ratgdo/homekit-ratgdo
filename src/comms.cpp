@@ -2717,7 +2717,7 @@ void delayFnCall(uint32_t ms, void (*callback)())
                        });
 }
 
-GarageDoorCurrentState close_door()
+GarageDoorCurrentState close_door(bool bypass_ttc)
 {
     if (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSED)
     {
@@ -2741,8 +2741,20 @@ GarageDoorCurrentState close_door()
         return GarageDoorCurrentState::CURR_STOPPED;
     }
 
-    if (userConfig->getTTCseconds() == 0)
+    if (bypass_ttc && TTCtimer.active())
     {
+        ESP_LOGI(TAG, "Canceling TTC delay timer for hardwired control");
+        TTCtimer.detach();
+        set_light(TTCwasLightOn);
+    }
+
+    bool immediateClose = (userConfig->getTTCseconds() == 0) || bypass_ttc;
+    if (immediateClose)
+    {
+        if (bypass_ttc && userConfig->getTTCseconds() != 0)
+        {
+            ESP_LOGI(TAG, "Bypassing time-to-close delay for hardwired control");
+        }
         ESP_LOGI(TAG, "Closing door");
         door_command_close();
     }
@@ -2779,6 +2791,33 @@ GarageDoorCurrentState close_door()
     }
     return GarageDoorCurrentState::CURR_CLOSING;
 }
+
+#if defined(ESP8266) || !defined(USE_GDOLIB)
+GarageDoorCurrentState toggle_door(bool bypass_ttc)
+{
+    ESP_LOGI(TAG, "Toggling door via hardwired control");
+    if (doorControlType == 3)
+    {
+        ESP_LOGW(TAG, "Toggle requested in dry contact mode; ignored");
+        return garage_door.current_state;
+    }
+
+    if (TTCtimer.active())
+    {
+        ESP_LOGI(TAG, "Canceling TTC delay timer prior to toggle");
+        TTCtimer.detach();
+        set_light(TTCwasLightOn);
+    }
+
+    if (bypass_ttc && userConfig->getTTCseconds() != 0)
+    {
+        ESP_LOGI(TAG, "Bypassing time-to-close delay for hardwired toggle");
+    }
+
+    door_command(DoorAction::Toggle);
+    return garage_door.current_state;
+}
+#endif
 
 #ifndef USE_GDOLIB
 void send_get_status()

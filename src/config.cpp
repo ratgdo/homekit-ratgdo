@@ -406,6 +406,7 @@ userSettings::userSettings()
         {cfg_syslogFacility, {false, false, SYSLOG_LOCAL0, helperSyslogFacility}}, // call fn to set global
         {cfg_logLevel, {false, false, ESP_LOG_INFO, helperLogLevel}},              // call fn to set log level
         {cfg_dcOpenClose, {true, false, false, NULL}},
+        {cfg_dcBypassTTC, {false, false, false, NULL}},
         {cfg_useToggle, {false, false, false, NULL}},
         {cfg_dcDebounceDuration, {true, false, 50, NULL}},
         {cfg_obstFromStatus, {true, false, false, NULL}},

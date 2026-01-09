@@ -53,6 +53,7 @@
   "openDuration": 25,
   "closeDuration": 20,
   "dcOpenClose": false,
+  "dcBypassTTC": false,
   "useToggle": true,
   "TTClight": true,
   "obstFromStatus": true,
