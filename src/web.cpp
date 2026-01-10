@@ -82,6 +82,8 @@ char *test_str = NULL;
 void handle_update();
 void handle_firmware_upload();
 void SSEHandler(uint32_t channel);
+void add_static_mdns();
+void add_dynamic_mdns();
 
 // Built in URI handlers
 const char restEvents[] = "/rest/events/";
@@ -206,6 +208,7 @@ static uint32_t max_response_time = 0;
 static SemaphoreHandle_t jsonMutex = NULL;
 #define TAKE_MUTEX() xSemaphoreTake(jsonMutex, portMAX_DELAY)
 #define GIVE_MUTEX() xSemaphoreGive(jsonMutex)
+esp_netif_t *wifi_netif = NULL;
 #endif
 
 // Connection throttling
@@ -305,17 +308,13 @@ void web_loop()
     _millis_t upTime = _millis();
     static _millis_t last_request_time = 0;
 
-    // Re-announce mDNS every two minutes
+    // Re-announce mDNS every 2 minutes
     static _millis_t lastMDNSannounce = upTime;
 #define MDNS_ANNOUNCE_TIMEOUT (2 * 60 * 1000)
     if (upTime - lastMDNSannounce > MDNS_ANNOUNCE_TIMEOUT)
     {
         lastMDNSannounce = upTime;
-#ifdef ESP8266
-        MDNS.announce();
-#else
-        MDNS.setInstanceName(device_name_rfc952);
-#endif
+        add_dynamic_mdns();
     }
 
     TAKE_MUTEX();
@@ -413,9 +412,15 @@ void web_loop()
         JSON_REMOVE_NL(json);
         if (!firmwareUpdateSub) // Only send if we are not in middle of firmware upgrade.
             SSEBroadcastState(json);
+        add_dynamic_mdns();
     }
     GIVE_MUTEX();
-
+    static time_t mdnsDoorUpdateAt = 0;
+    if (lastDoorUpdateAt != mdnsDoorUpdateAt)
+    {
+        mdnsDoorUpdateAt = lastDoorUpdateAt;
+        add_dynamic_mdns();
+    }
     // Rate limiting - minimum interval between requests
     _millis_t current_time = _millis();
     if (current_time - last_request_time < MIN_REQUEST_INTERVAL_MS)
@@ -501,6 +506,14 @@ void setup_web()
 
     IRAM_END(TAG);
 
+#ifndef ESP8266
+    wifi_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (!wifi_netif)
+    {
+        ESP_LOGE(TAG, "Failed to get esp_netif handle for WiFi STA");
+    }
+#endif
+
     if (MDNS.addService("http", "tcp", 80))
     {
         ESP_LOGI(TAG, "Added MDNS service for _http._tcp on port 80");
@@ -508,6 +521,17 @@ void setup_web()
     else
     {
         ESP_LOGE(TAG, "Failed to add MDNS service for _http._tcp on port 80");
+    }
+
+    if (MDNS.addService("ratgdo", "tcp", 80))
+    {
+        ESP_LOGI(TAG, "Added MDNS service for _ratgdo._tcp on port 80");
+        add_static_mdns();
+        add_dynamic_mdns();
+    }
+    else
+    {
+        ESP_LOGE(TAG, "Failed to add MDNS service for _ratgdo._tcp on port 80");
     }
 
     web_setup_done = true;
@@ -848,6 +872,72 @@ void build_status_json(char *json)
     JSON_ADD_INT("webMaxResponseTime", max_response_time);
     JSON_ADD_INT("ttcActive", is_ttc_active());
     JSON_END();
+}
+
+void add_static_mdns()
+{
+    // Values that do not change during runtime
+    ESP_LOGD(TAG, "Adding static mDNS TXT records");
+    MDNS.addServiceTxt("ratgdo", "tcp", "model", MODEL_NAME);
+    MDNS.addServiceTxt("ratgdo", "tcp", "firmwareVersion", AUTO_VERSION);
+    MDNS.addServiceTxt("ratgdo", "tcp", "firmwareDate", __DATE__ " " __TIME__);
+    MDNS.addServiceTxt("ratgdo", "tcp", cfg_deviceName, userConfig->getDeviceName());
+    MDNS.addServiceTxt("ratgdo", "tcp", "gitRepo", gitRepo);
+    MDNS.addServiceTxt("ratgdo", "tcp", "macAddress", WiFi.macAddress().c_str());
+    MDNS.addServiceTxt("ratgdo", "tcp", "wifiSSID", WiFi.SSID().c_str());
+#ifdef RATGDO32_DISCO
+    MDNS.addServiceTxt("ratgdo", "tcp", "distanceSensor", garage_door.has_distance_sensor ? "true" : "false");
+#endif
+}
+
+void add_dynamic_mdns()
+{
+    // Values that may change during runtime
+    ESP_LOGD(TAG, "Updating dynamic mDNS TXT records");
+    _millis_t upTime = _millis();
+    MDNS.addServiceTxt("ratgdo", "tcp", "upTime", std::to_string(upTime).c_str());
+    MDNS.addServiceTxt("ratgdo", "tcp", "wifiRSSI", std::to_string(WiFi.RSSI()).c_str());
+    MDNS.addServiceTxt("ratgdo", "tcp", "wifiChannel", std::to_string(WiFi.channel()).c_str());
+    MDNS.addServiceTxt("ratgdo", "tcp", "wifiBSSID", WiFi.BSSIDstr().c_str());
+    MDNS.addServiceTxt("ratgdo", "tcp", "paired", homekit_is_paired() ? "true" : "false");
+    MDNS.addServiceTxt("ratgdo", "tcp", "garageDoorState", DOOR_STATE(garage_door.current_state));
+    MDNS.addServiceTxt("ratgdo", "tcp", "garageLockState", REMOTES_STATE(garage_door.current_lock));
+    MDNS.addServiceTxt("ratgdo", "tcp", "garageLightOn", garage_door.light ? "true" : "false");
+    MDNS.addServiceTxt("ratgdo", "tcp", "garageMotion", garage_door.motion ? "true" : "false");
+    MDNS.addServiceTxt("ratgdo", "tcp", "garageObstructed", garage_door.obstructed ? "true" : "false");
+    if (doorControlType == 2)
+    {
+        MDNS.addServiceTxt("ratgdo", "tcp", "batteryState", std::to_string(garage_door.batteryState).c_str());
+        MDNS.addServiceTxt("ratgdo", "tcp", "openingsCount", std::to_string(garage_door.openingsCount).c_str());
+        MDNS.addServiceTxt("ratgdo", "tcp", cfg_builtInTTC, std::to_string(userConfig->getBuiltInTTC()).c_str());
+    }
+    MDNS.addServiceTxt("ratgdo", "tcp", cfg_TTCseconds, std::to_string(userConfig->getTTCseconds()).c_str());
+    MDNS.addServiceTxt("ratgdo", "tcp", "openDuration", std::to_string(garage_door.openDuration).c_str());
+    MDNS.addServiceTxt("ratgdo", "tcp", "closeDuration", std::to_string(garage_door.closeDuration).c_str());
+    MDNS.addServiceTxt("ratgdo", "tcp", cfg_passwordRequired, userConfig->getPasswordRequired() ? "true" : "false");
+    // We send milliseconds relative to current time... ie updated X milliseconds ago
+    MDNS.addServiceTxt("ratgdo", "tcp", cfg_doorUpdateAt, std::to_string(upTime - lastDoorUpdateAt).c_str());
+    MDNS.addServiceTxt("ratgdo", "tcp", cfg_doorOpenAt, std::to_string(upTime - lastDoorOpenAt).c_str());
+    MDNS.addServiceTxt("ratgdo", "tcp", cfg_doorCloseAt, std::to_string(upTime - lastDoorCloseAt).c_str());
+#ifdef RATGDO32_DISCO
+    if (garage_door.has_distance_sensor)
+    {
+        MDNS.addServiceTxt("ratgdo", "tcp", "vehicleStatus", (const char *)vehicleStatus);
+        MDNS.addServiceTxt("ratgdo", "tcp", "vehicleDist", std::to_string((uint32_t)vehicleDistance).c_str());
+        //MDNS.addServiceTxt("ratgdo", "tcp", "vehicleChangeAt", std::to_string(upTime - lastVehicleChangeAt).c_str());
+    }
+#endif
+    if (enableNTP && (bool)clockSet)
+    {
+        MDNS.addServiceTxt("ratgdo", "tcp", "serverTime", std::to_string(time(NULL)).c_str());
+        MDNS.addServiceTxt("ratgdo", "tcp", "serverTimeStr", (const char *)timeString());
+        MDNS.addServiceTxt("ratgdo", "tcp", cfg_timeZone, userConfig->getTimeZone());
+    }
+#ifdef ESP8266
+    MDNS.announce();
+#else
+    MDNS.setInstanceName(device_name);
+#endif
 }
 
 void handle_status()
