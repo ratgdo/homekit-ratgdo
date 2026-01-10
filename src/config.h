@@ -164,18 +164,18 @@ public:
 #define ESP8266_SAVE_CONFIG()
 #endif
 
-    char *getDeviceName() { return (std::get<configStr>(get(cfg_deviceName)).str); };
+    const char *getDeviceName() { return (std::get<configStr>(get(cfg_deviceName)).str); };
     bool getWifiChanged() { return std::get<bool>(get(cfg_wifiChanged)); };
     uint32_t getWifiPower() { return std::get<int>(get(cfg_wifiPower)); };
     uint32_t getWifiPhyMode() { return std::get<int>(get(cfg_wifiPhyMode)); };
     bool getStaticIP() { return std::get<bool>(get(cfg_staticIP)); };
-    char *getLocalIP() { return (std::get<configStr>(get(cfg_localIP)).str); };
-    char *getSubnetMask() { return (std::get<configStr>(get(cfg_subnetMask)).str); };
-    char *getGatewayIP() { return (std::get<configStr>(get(cfg_gatewayIP)).str); };
-    char *getNameserverIP() { return (std::get<configStr>(get(cfg_nameserverIP)).str); };
+    const char *getLocalIP() { return (std::get<configStr>(get(cfg_localIP)).str); };
+    const char *getSubnetMask() { return (std::get<configStr>(get(cfg_subnetMask)).str); };
+    const char *getGatewayIP() { return (std::get<configStr>(get(cfg_gatewayIP)).str); };
+    const char *getNameserverIP() { return (std::get<configStr>(get(cfg_nameserverIP)).str); };
     bool getPasswordRequired() { return std::get<bool>(get(cfg_passwordRequired)); };
-    char *getwwwUsername() { return (std::get<configStr>(get(cfg_wwwUsername)).str); };
-    char *getwwwCredentials() { return (std::get<configStr>(get(cfg_wwwCredentials)).str); };
+    const char *getwwwUsername() { return (std::get<configStr>(get(cfg_wwwUsername)).str); };
+    const char *getwwwCredentials() { return (std::get<configStr>(get(cfg_wwwCredentials)).str); };
     uint32_t getGDOSecurityType() { return std::get<int>(get(cfg_GDOSecurityType)); };
     uint32_t getTTCseconds() { return std::get<int>(get(cfg_TTCseconds)); };
     bool getTTClight() { return std::get<bool>(get(cfg_TTClight)); };
@@ -186,10 +186,10 @@ public:
     uint32_t getDoorUpdateAt() { return std::get<int>(get(cfg_doorUpdateAt)); };
     uint32_t getDoorOpenAt() { return std::get<int>(get(cfg_doorOpenAt)); };
     uint32_t getDoorCloseAt() { return std::get<int>(get(cfg_doorCloseAt)); };
-    char *getTimeZone() { return (std::get<configStr>(get(cfg_timeZone)).str); };
+    const char *getTimeZone() { return (std::get<configStr>(get(cfg_timeZone)).str); };
     bool getSoftAPmode() { return std::get<bool>(get(cfg_softAPmode)); };
     bool getSyslogEn() { return std::get<bool>(get(cfg_syslogEn)); };
-    char *getSyslogIP() { return (std::get<configStr>(get(cfg_syslogIP)).str); };
+    const char *getSyslogIP() { return (std::get<configStr>(get(cfg_syslogIP)).str); };
     uint32_t getSyslogPort() { return std::get<int>(get(cfg_syslogPort)); };
     uint32_t getSyslogFacility() { return std::get<int>(get(cfg_syslogFacility)); };
     uint32_t getLogLevel() { return std::get<int>(get(cfg_logLevel)); };
