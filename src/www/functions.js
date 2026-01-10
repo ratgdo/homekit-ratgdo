@@ -157,10 +157,8 @@ function toggleDCOpenClose(radio) {
 function toggleHardwiredBypassRow() {
     const supportsHardwired = !document.getElementById("gdodrycontact").checked;
     const hardwiredEnabled = document.getElementById("dcOpenClose").checked;
-    const row = document.getElementById("dcBypassTTCRow");
     const checkbox = document.getElementById("dcBypassTTC");
     const enabled = supportsHardwired && hardwiredEnabled;
-    row.style.opacity = enabled ? "1" : "0.5";
     checkbox.disabled = !enabled;
 }
 
