@@ -89,6 +89,7 @@ bool setDeviceName(const std::string &key, const char *name, configSetting *acti
     MDNS.setHostname(device_name_rfc952);
 #else
     MDNS.begin(device_name_rfc952);
+    MDNS.setInstanceName(device_name);
 #endif
     return true;
 }
