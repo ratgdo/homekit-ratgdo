@@ -37,6 +37,7 @@
 #include "config.h"
 #include "softAP.h"
 #include "wifi_8266.h"
+#include "web.h"
 
 // Logger tag
 static const char *TAG = "ratgdo-wifi";
@@ -83,6 +84,7 @@ void onGotIP(const WiFiEventStationModeGotIP &evt)
     userConfig->set(cfg_nameserverIP, (WiFi.dnsIP().isSet()) ? WiFi.dnsIP().toString().c_str() : evt.gw.toString().c_str());
     ESP8266_SAVE_CONFIG();
     wifi_got_ip = true;
+    notify_new_ipv4_address();
 }
 
 void onDHCPTimeout()

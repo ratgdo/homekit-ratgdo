@@ -51,6 +51,9 @@ extern _millis_t lastDoorCloseAt;
 
 extern bool web_setup_done;
 
+extern void notify_new_ipv4_address();
+extern void notify_new_ipv6_address();
+
 enum BroadcastType : uint8_t
 {
     RATGDO_STATUS = 1,

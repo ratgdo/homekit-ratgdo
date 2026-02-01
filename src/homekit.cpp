@@ -417,6 +417,7 @@ void connectionCallback(int count)
     userConfig->set(cfg_subnetMask, WiFi.subnetMask().toString().c_str());
 
     // Only update cfg_nameserverIP if it is an IPv4 address. .dnsIP() can return an IPv6 address if we have one from SLAAC
+    // but our user interface only allows for IPv4 DNS server configuration.
     if (WiFi.dnsIP().type() == IPv4)
         userConfig->set(cfg_nameserverIP, WiFi.dnsIP().toString().c_str());
 
@@ -428,6 +429,7 @@ void connectionCallback(int count)
     setup_comms();
 #endif
     wifi_got_ip = true;
+    notify_new_ipv4_address();
 }
 
 void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info)
@@ -456,6 +458,7 @@ void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info)
                 }
                 strlcat(ipv6_addresses, addrStr.c_str(), sizeof(ipv6_addresses));
             }
+            notify_new_ipv6_address();
         }
     }
     else if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP)
@@ -603,7 +606,8 @@ void enable_service_homekit_vehicle(bool enable)
 
     bool databaseChanged = false;
 
-    auto ensureMotionSensor = [&](DEV_Motion *&sensor, uint16_t aid, const char *name, bool shouldExist) {
+    auto ensureMotionSensor = [&](DEV_Motion *&sensor, uint16_t aid, const char *name, bool shouldExist)
+    {
         if (shouldExist)
         {
             if (!sensor)
@@ -625,7 +629,8 @@ void enable_service_homekit_vehicle(bool enable)
         }
     };
 
-    auto ensureOccupancySensor = [&](DEV_Occupancy *&sensor, uint16_t aid, const char *name, bool shouldExist) {
+    auto ensureOccupancySensor = [&](DEV_Occupancy *&sensor, uint16_t aid, const char *name, bool shouldExist)
+    {
         if (shouldExist)
         {
             if (!sensor)

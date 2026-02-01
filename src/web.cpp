@@ -123,6 +123,8 @@ _millis_t lastDoorUpdateAt;
 _millis_t lastDoorOpenAt;
 _millis_t lastDoorCloseAt;
 GarageDoorCurrentState lastDoorState = (GarageDoorCurrentState)0xff;
+static bool new_ipv4_address = false;
+static bool new_ipv6_address = false;
 
 bool web_setup_done = false;
 
@@ -206,8 +208,12 @@ static uint32_t max_response_time = 0;
 #else
 // ESP32 is multi-core, need to serialize access to JSON buffers
 static SemaphoreHandle_t jsonMutex = NULL;
-#define TAKE_MUTEX() xSemaphoreTake(jsonMutex, portMAX_DELAY)
-#define GIVE_MUTEX() xSemaphoreGive(jsonMutex)
+#define TAKE_MUTEX() \
+    if (jsonMutex)   \
+    xSemaphoreTake(jsonMutex, portMAX_DELAY)
+#define GIVE_MUTEX() \
+    if (jsonMutex)   \
+    xSemaphoreGive(jsonMutex)
 #endif
 
 // mDNS update management... re-announcing every 2 minutes.
@@ -304,6 +310,22 @@ void unregisterRequest()
         }
     }
 }
+
+void notify_new_ipv4_address()
+{
+    TAKE_MUTEX();
+    new_ipv4_address = true;
+    GIVE_MUTEX();
+};
+
+#ifndef ESP8266
+void notify_new_ipv6_address()
+{
+    TAKE_MUTEX();
+    new_ipv6_address = true;
+    GIVE_MUTEX();
+};
+#endif
 
 void web_loop()
 {
@@ -411,6 +433,21 @@ void web_loop()
     JSON_ADD_INT_C("openDuration", garage_door.openDuration, last_reported_garage_door.openDuration);
     JSON_ADD_INT_C("closeDuration", garage_door.closeDuration, last_reported_garage_door.closeDuration);
     JSON_ADD_INT_C("ttcActive", is_ttc_active(), last_reported_garage_door.ttcActive);
+    if (new_ipv4_address)
+    {
+        JSON_ADD_STR(cfg_localIP, userConfig->getLocalIP());
+        JSON_ADD_STR(cfg_subnetMask, userConfig->getSubnetMask());
+        JSON_ADD_STR(cfg_gatewayIP, userConfig->getGatewayIP());
+        JSON_ADD_STR(cfg_nameserverIP, userConfig->getNameserverIP());
+        new_ipv4_address = false;
+    }
+#ifndef ESP8266
+    if (new_ipv6_address)
+    {
+        JSON_ADD_STR("ipv6Addresses", ipv6_addresses);
+        new_ipv6_address = false;
+    }
+#endif
     // got any json?
     if (strlen(json) > 2)
     {
@@ -764,6 +801,7 @@ void build_status_json(char *json)
     JSON_ADD_STR(cfg_subnetMask, userConfig->getSubnetMask());
     JSON_ADD_STR(cfg_gatewayIP, userConfig->getGatewayIP());
     JSON_ADD_STR(cfg_nameserverIP, userConfig->getNameserverIP());
+    new_ipv4_address = false;
     JSON_ADD_STR("macAddress", WiFi.macAddress().c_str());
     JSON_ADD_STR("wifiSSID", WiFi.SSID().c_str());
     JSON_ADD_STR("wifiRSSI", (std::to_string(WiFi.RSSI()) + " dBm, Channel " + std::to_string(WiFi.channel())).c_str());
@@ -850,6 +888,7 @@ void build_status_json(char *json)
     JSON_ADD_INT(cfg_occupancyDuration, userConfig->getOccupancyDuration());
     JSON_ADD_BOOL(cfg_enableIPv6, userConfig->getEnableIPv6());
     JSON_ADD_STR("ipv6Addresses", ipv6_addresses);
+    new_ipv6_address = false;
 #ifdef USE_GDOLIB
     JSON_ADD_BOOL(cfg_useSWserial, userConfig->getUseSWserial());
 #endif
