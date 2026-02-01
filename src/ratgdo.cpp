@@ -114,7 +114,6 @@ _millis_t next_heap_check = 0;
 
 // Buffer to hold our status as JSON string
 char *status_json = NULL;
-char *loop_json = NULL;
 
 // Forward declare functions
 bool suspend_service_loop = false;
@@ -229,14 +228,6 @@ void setup()
         return;
     }
     ESP_LOGI(TAG, "Allocated buffer for status JSON, size: %d", STATUS_JSON_BUFFER_SIZE);
-
-    loop_json = static_cast<char *>(malloc(LOOP_JSON_BUFFER_SIZE));
-    if (!loop_json)
-    {
-        ESP_LOGE(TAG, "Failed to allocated buffer for loop JSON, size: %d", LOOP_JSON_BUFFER_SIZE);
-        return;
-    }
-    ESP_LOGI(TAG, "Allocated buffer for loop JSON, size: %d", LOOP_JSON_BUFFER_SIZE);
     IRAM_END(TAG);
 
     if (softAPmode)

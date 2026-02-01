@@ -241,6 +241,4 @@ extern GarageDoor last_reported_garage_door;
 #else
 #define STATUS_JSON_BUFFER_SIZE (256 * 10)
 #endif
-#define LOOP_JSON_BUFFER_SIZE 512
 extern char *status_json;
-extern char *loop_json;

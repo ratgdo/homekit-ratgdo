@@ -332,7 +332,7 @@ void web_loop()
     if (!web_setup_done)
         return;
 
-    static char *json = loop_json;
+    static char *json = status_json;
     _millis_t upTime = _millis();
     static _millis_t last_request_time = 0;
 
@@ -454,7 +454,7 @@ void web_loop()
         // Have we added anything to the JSON string?
         JSON_ADD_INT("upTime", upTime);
         JSON_END();
-        if (strlen(json) > LOOP_JSON_BUFFER_SIZE * 8 / 10)
+        if (strlen(json) > STATUS_JSON_BUFFER_SIZE * 8 / 10)
         {
             ESP_LOGW(TAG, "WARNING web_loop JSON length: %d is over 80%% of available buffer", strlen(json));
         }
@@ -1302,7 +1302,7 @@ void SSEheartbeat(SSESubscription *s)
     if (s->client.connected())
     {
         static int8_t lastRSSI = 0;
-        static char *json = loop_json;
+        static char *json = status_json;
         TAKE_MUTEX();
         JSON_START(json);
         JSON_ADD_INT("upTime", _millis());
@@ -1799,7 +1799,7 @@ void handle_firmware_upload()
                 // Report percentage to browser client if it is listening
                 if (firmwareUpdateSub && firmwareUpdateSub->client.connected())
                 {
-                    static char *json = loop_json;
+                    static char *json = status_json;
                     TAKE_MUTEX();
                     JSON_START(json);
                     JSON_ADD_INT("uploadPercent", uploadPercent);
