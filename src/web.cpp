@@ -1461,7 +1461,7 @@ void handle_subscribe()
     {
         // Need to allocate a new slot
         for (channel = 0; channel < SSE_MAX_CHANNELS; channel++)
-            if (!subscription[channel].clientIP)
+            if (subscription[channel].clientIP == IPAddress(INADDR_NONE))
                 break;
 
         if (channel < SSE_MAX_CHANNELS)
