@@ -3,7 +3,7 @@
  * https://ratcloud.llc
  * https://github.com/PaulWieland/ratgdo
  *
- * Copyright (c) 2023-25 David A Kerr... https://github.com/dkerr64/
+ * Copyright (c) 2023-26 David A Kerr... https://github.com/dkerr64/
  * All Rights Reserved.
  * Licensed under terms of the GPL-3.0 License.
  *
@@ -1399,6 +1399,8 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
             ESP_LOGI(TAG, "Light: %s (%s)", lightState ? "On" : "Off", timeString());
             lastLightState = lightState;
             notify_homekit_light((bool)lightState);
+            // Force update of light state in any listening client
+            last_reported_garage_door.light = !garage_door.light;
             if (motionTriggers.bit.lightKey)
             {
                 notify_homekit_motion(true);
@@ -1425,6 +1427,8 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
             }
             notify_homekit_target_lock(garage_door.target_lock);
             notify_homekit_current_lock(garage_door.current_lock);
+            // Force update of lock state in any listening client
+            last_reported_garage_door.current_lock = (LockCurrentState)0xFF;
             if (motionTriggers.bit.lockKey)
             {
                 notify_homekit_motion(true);
@@ -1764,6 +1768,8 @@ void comms_loop_sec2()
                 ESP_LOGD(TAG, "Remotes lock: %s (%s)", LOCK_STATE(current_lock), timeString());
                 notify_homekit_target_lock(target_lock);
                 notify_homekit_current_lock(current_lock);
+                // Force update of lock state in any listening client
+                last_reported_garage_door.current_lock = (LockCurrentState)0xFF;
             }
 
             // Handle obstruction from status packet if pin-based detection not available
@@ -2595,12 +2601,12 @@ GarageDoorCurrentState open_door()
     }
 
     // safety
-    if (garage_door.current_state == GarageDoorCurrentState::CURR_OPEN)
+    if (garage_door.current_state == GarageDoorCurrentState::CURR_OPEN || garage_door.current_state == GarageDoorCurrentState::CURR_OPENING)
     {
-        ESP_LOGI(TAG, "Door already open; ignored request");
+        ESP_LOGI(TAG, "Door already %s; ignored request", DOOR_STATE(garage_door.current_state));
         // Reset last reported to we will update browser with actual state.
         last_reported_garage_door.current_state = (GarageDoorCurrentState)0xFF;
-        return GarageDoorCurrentState::CURR_OPEN;
+        return garage_door.current_state;
     }
 
     if (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSING)
@@ -2726,12 +2732,12 @@ void delayFnCall(uint32_t ms, void (*callback)())
 
 GarageDoorCurrentState close_door(bool bypass_ttc)
 {
-    if (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSED)
+    if (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSED || garage_door.current_state == GarageDoorCurrentState::CURR_CLOSING)
     {
-        ESP_LOGI(TAG, "Door already closed; ignored request");
+        ESP_LOGI(TAG, "Door already %s; ignored request", DOOR_STATE(garage_door.current_state));
         // Reset last reported to we will update browser with actual state.
         last_reported_garage_door.current_state = (GarageDoorCurrentState)0xFF;
-        return GarageDoorCurrentState::CURR_CLOSED;
+        return garage_door.current_state;
     }
 
     cancel_builtin_TTC_countdown();
