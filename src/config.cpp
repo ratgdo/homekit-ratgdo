@@ -468,6 +468,7 @@ userSettings::userSettings()
         {cfg_useSWserial, {true, false, true, helperUseSWserial}}, // call fn to shut down GDO before switch
 #endif
         {cfg_builtInTTC, {false, false, 0, helperBuiltInTTC}},
+        {cfg_reverseOnStop, {false, false, true, NULL}},
 #ifndef ESP8266
         // These features not available on ESP8266
         {cfg_occupancyDuration, {false, false, 0, helperOccupancyDuration}}, // call fn to enable/disable HomeKit accessories

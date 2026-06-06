@@ -842,6 +842,7 @@ void build_status_json(char *json)
     JSON_ADD_INT(cfg_doorUpdateAt, (upTime - lastDoorUpdateAt));
     JSON_ADD_INT(cfg_doorOpenAt, (upTime - lastDoorOpenAt));
     JSON_ADD_INT(cfg_doorCloseAt, (upTime - lastDoorCloseAt));
+    JSON_ADD_BOOL(cfg_reverseOnStop, userConfig->getReverseOnStop());
     JSON_ADD_BOOL("enableNTP", enableNTP);
     if (enableNTP && (bool)clockSet)
     {
@@ -854,7 +855,8 @@ void build_status_json(char *json)
     JSON_ADD_BOOL(cfg_obstFromStatus, userConfig->getObstFromStatus());
     JSON_ADD_INT(cfg_dcDebounceDuration, userConfig->getDCDebounceDuration());
 #ifndef ESP8266
-    if (doorControlType == 3) {
+    if (doorControlType == 3)
+    {
         JSON_ADD_BOOL(cfg_encoderEnabled, userConfig->getEncoderEnabled());
         JSON_ADD_BOOL(cfg_encoderReversed, userConfig->getEncoderReversed());
         if (userConfig->getEncoderEnabled())

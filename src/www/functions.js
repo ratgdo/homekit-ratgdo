@@ -523,6 +523,7 @@ function setElementsFromStatus(status) {
             case "useToggle":
             case "useSWserial":
             case "obstFromStatus":
+            case "reverseOnStop":
                 document.getElementById(key).checked = value;
                 break;
             case "dcOpenClose":
@@ -1395,6 +1396,7 @@ async function saveSettings() {
     const useToggle = (document.getElementById("useToggle").checked) ? '1' : '0';
     const useSWserial = (document.getElementById("useSWserial").checked) ? '1' : '0';
     const obstFromStatus = (document.getElementById("obstFromStatus").checked) ? '1' : '0';
+    const reverseOnStop = (document.getElementById("reverseOnStop").checked) ? '1' : '0';
     // Encoder settings — only present in dry contact mode on ESP32 firmware
     const encoderEnabledEl = document.getElementById("encoderEnabled");
     const encoderEnabled = encoderEnabledEl ? ((encoderEnabledEl.checked) ? '1' : '0') : null;
@@ -1488,6 +1490,7 @@ async function saveSettings() {
         "logLevel", logLevel,
         "useSWserial", useSWserial,
         "obstFromStatus", obstFromStatus,
+        "reverseOnStop", reverseOnStop,
         "dcDebounceDuration", dcDebounceDuration,
         "homespanCLI", homespanCLI,
         "lightHomeKit", lightHomeKit,

@@ -981,11 +981,10 @@ void update_door_state(GarageDoorCurrentState current_state)
         target_state = GarageDoorTargetState::TGT_CLOSED;
         break;
     case GarageDoorCurrentState::CURR_STOPPED:
-        // If we STOP while CLOSING or OPENING then the next door action will cause direction to reverse.
         if (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSING)
-            target_state = GarageDoorTargetState::TGT_OPEN;
-        else if (garage_door.current_state == GarageDoorCurrentState::CURR_OPENING)
             target_state = GarageDoorTargetState::TGT_CLOSED;
+        else if (garage_door.current_state == GarageDoorCurrentState::CURR_OPENING)
+            target_state = GarageDoorTargetState::TGT_OPEN;
         break;
     default:
         ESP_LOGE(TAG, "Update to unknown door state: %d", current_state);
@@ -1023,7 +1022,7 @@ void update_door_state(GarageDoorCurrentState current_state)
         if (stopSentClosePending || stopSentOpenPending)
         {
             // One or other of these will always be zero...
-            // It can take up to two seconds for us to get stopped state from Sec+1.0 doors. 
+            // It can take up to two seconds for us to get stopped state from Sec+1.0 doors.
             if (_millis() - (stopSentClosePending + stopSentOpenPending) < 2000)
             {
                 // We sent a stop command, and have received a response from the GDO. So now will followup with the close or open command.
@@ -1031,13 +1030,15 @@ void update_door_state(GarageDoorCurrentState current_state)
                 {
                     door_command_open();
                     // Sec+2.0 doors seem to require the command to be sent twice immediately after a stop
-                    if (doorControlType == 2) door_command_open();
+                    if (doorControlType == 2)
+                        door_command_open();
                 }
                 else if (stopSentClosePending)
                 {
                     door_command_close();
                     // Sec+2.0 doors seem to require the command to be sent twice immediately after a stop
-                    if (doorControlType == 2) door_command_close();
+                    if (doorControlType == 2)
+                        door_command_close();
                 }
             }
             else
@@ -2660,8 +2661,15 @@ GarageDoorCurrentState open_door()
         checkDoorCompleted.detach();
         door_command(DoorAction::Stop);
 #endif
-        stopSentClosePending = 0;
-        stopSentOpenPending = _millis();
+        if (userConfig->getReverseOnStop())
+        {
+            stopSentClosePending = 0;
+            stopSentOpenPending = _millis();
+        }
+        else
+        {
+            ESP_LOGI(TAG, "Auto-reverse on stop is disabled, door will remain stopped until next command");
+        }
         return GarageDoorCurrentState::CURR_STOPPED;
     }
 #ifndef ESP8266
@@ -2800,8 +2808,15 @@ GarageDoorCurrentState close_door(bool bypass_ttc)
         checkDoorCompleted.detach();
         door_command(DoorAction::Stop);
 #endif
-        stopSentClosePending = _millis();
-        stopSentOpenPending = 0;
+        if (userConfig->getReverseOnStop())
+        {
+            stopSentClosePending = _millis();
+            stopSentOpenPending = 0;
+        }
+        else
+        {
+            ESP_LOGI(TAG, "Auto-reverse on stop is disabled, door will remain stopped until next command");
+        }
         return GarageDoorCurrentState::CURR_STOPPED;
     }
 
