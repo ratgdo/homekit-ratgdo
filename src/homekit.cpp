@@ -329,6 +329,7 @@ static DEV_Motion *departing;
 static DEV_Occupancy *vehicle;
 static DEV_Light *assistLaser;
 static DEV_Occupancy *roomOccupancy;
+static DEV_Stop *stopDoor;
 
 // Buffer to hold all IPv6 addresses as a single string
 char ipv6_addresses[LWIP_IPV6_NUM_ADDRESSES * IP6ADDR_STRLEN_MAX] = {0};
@@ -795,6 +796,35 @@ bool enable_service_homekit_motion_sensor(bool enable)
     return false;
 }
 
+bool enable_service_homekit_stop(bool enable)
+{
+    if (enable)
+    {
+        if (!stopDoor)
+        {
+            // Define the Stop accessory...
+            ESP_LOGI(TAG, "Creating HomeKit Stop Service");
+            new SpanAccessory(HOMEKIT_AID_STOP);
+            new DEV_Info("Stop");
+            stopDoor = new DEV_Stop();
+            homeSpan.updateDatabase();
+            return true;
+        }
+    }
+    else if (stopDoor)
+    {
+        // Delete the accessory, if it exists
+        ESP_LOGI(TAG, "Deleting HomeKit Stop Service");
+        if (homeSpan.deleteAccessory(HOMEKIT_AID_STOP))
+        {
+            stopDoor = nullptr;
+            homeSpan.updateDatabase();
+            return true;
+        }
+    }
+    return false;
+}
+
 /****************************************************************************
  * Setup HomeKit, HomeSpan version.
  */
@@ -914,6 +944,7 @@ void setup_homekit()
 #endif
     // Create a room occupancy sensor if timer for it is greater than 0
     enable_service_homekit_room_occupancy(userConfig->getOccupancyDuration() > 0);
+    enable_service_homekit_stop(true);
 
     // Auto poll starts up a new FreeRTOS task to do the HomeKit comms
     // so no need to handle in our Arduino loop.
@@ -1117,6 +1148,42 @@ void DEV_Occupancy::loop()
         xQueueReceive(event_q, &e, 0);
         ESP_LOGD(TAG, "%s occupancy %s", (this == vehicle) ? "Vehicle" : "Room", e.value.b ? "detected" : "reset");
         DEV_Occupancy::occupied->setVal(e.value.b);
+    }
+}
+
+/****************************************************************************
+ * Switch Service Handler
+ */
+DEV_Stop::DEV_Stop() : Service::Switch()
+{
+    ESP_LOGI(TAG, "Configuring HomeKit Switch Service for stop door action");
+    event_q = xQueueCreate(10, sizeof(GDOEvent));
+    DEV_Stop::on = new Characteristic::On(DEV_Stop::on->OFF);
+}
+
+boolean DEV_Stop::update()
+{
+    if (on->getNewVal<bool>())
+    {
+        ESP_LOGI(TAG, "Stop door action triggered from HomeKit");
+        stop_door();
+        // Now immediately reset the switch to off, so it can be triggered again for the next stop action.
+        GDOEvent e;
+        e.c = nullptr;
+        e.value.b = false;
+        queueSendHelper(this->event_q, e, "stop switch");
+    }
+    return true;
+}
+
+void DEV_Stop::loop()
+{
+    if (uxQueueMessagesWaiting(event_q) > 0)
+    {
+        GDOEvent e;
+        xQueueReceive(event_q, &e, 0);
+        ESP_LOGD(TAG, "Stop switch has turned %s", e.value.b ? "on" : "off");
+        DEV_Stop::on->setVal(e.value.b);
     }
 }
 

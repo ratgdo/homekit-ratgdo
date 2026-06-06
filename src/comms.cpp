@@ -2680,6 +2680,29 @@ GarageDoorCurrentState open_door()
     return GarageDoorCurrentState::CURR_OPENING;
 }
 
+GarageDoorCurrentState stop_door()
+{
+
+    if (!(garage_door.current_state == GarageDoorCurrentState::CURR_CLOSING || garage_door.current_state == GarageDoorCurrentState::CURR_OPENING))
+    {
+        ESP_LOGI(TAG, "Door is not moving; ignored stop request");
+        // Reset last reported to we will update browser with actual state.
+        last_reported_garage_door.current_state = (GarageDoorCurrentState)0xFF;
+        return garage_door.current_state;
+    }
+
+    ESP_LOGI(TAG, "Door is moving; do stop");
+#ifdef USE_GDOLIB
+    gdo_door_stop();
+#else
+    checkDoorMoving.detach();
+    checkDoorCompleted.detach();
+    door_command(DoorAction::Stop);
+#endif
+
+    return GarageDoorCurrentState::CURR_STOPPED;
+}
+
 void TTCtimerFn(void (*callback)(), bool light, bool sound)
 {
     if (TTCiterations > 0)

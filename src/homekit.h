@@ -47,6 +47,7 @@ void homekit_loop();
 #define HOMEKIT_AID_VEHICLE 7
 #define HOMEKIT_AID_LASER 8
 #define HOMEKIT_AID_ROOM_OCCUPANCY 9
+#define HOMEKIT_AID_STOP 10
 
 enum Light_t : uint8_t
 {
@@ -64,6 +65,7 @@ extern bool enable_service_homekit_room_occupancy(bool enable);
 extern void notify_homekit_room_occupancy(bool occupied);
 extern bool enable_service_homekit_light(bool enable);
 extern bool enable_service_homekit_motion_sensor(bool enable);
+extern bool enable_service_homekit_stop(bool enable);
 
 extern void homekit_unpair();
 extern bool homekit_is_paired();
@@ -131,6 +133,17 @@ struct DEV_Occupancy : Service::OccupancySensor
     QueueHandle_t event_q;
 
     DEV_Occupancy();
+    void loop();
+};
+
+struct DEV_Stop : Service::Switch
+{
+    Characteristic::On *on;
+
+    QueueHandle_t event_q;
+
+    DEV_Stop();
+    boolean update();
     void loop();
 };
 #endif // ESP8266

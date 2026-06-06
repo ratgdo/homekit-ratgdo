@@ -1052,6 +1052,8 @@ bool helperGarageDoorState(const std::string &key, const char *value, configSett
 {
     if (atoi(value) == 1)
         open_door();
+    else if (atoi(value) == 2)
+        stop_door();
     else
         close_door();
     return true;
