@@ -109,6 +109,8 @@ constexpr char cfg_enableIPv6[] PROGMEM = "enableIPv6";
 constexpr char cfg_homespanCLI[] PROGMEM = "homespanCLI";
 constexpr char cfg_lightHomeKit[] PROGMEM = "lightHomeKit";
 constexpr char cfg_motionHomeKit[] PROGMEM = "motionHomeKit";
+constexpr char cfg_encoderEnabled[] PROGMEM = "encoderEnabled";
+constexpr char cfg_encoderReversed[] PROGMEM = "encoderReversed";
 #endif
 
 constexpr char nvram_id_code[] PROGMEM = "id_code";
@@ -225,6 +227,8 @@ public:
     bool getEnableHomeSpanCLI() { return std::get<bool>(get(cfg_homespanCLI)); };
     bool getLightHomeKit() { return std::get<bool>(get(cfg_lightHomeKit)); };
     bool getMotionHomeKit() { return std::get<bool>(get(cfg_motionHomeKit)); };
+    bool getEncoderEnabled() { return std::get<bool>(get(cfg_encoderEnabled)); };
+    bool getEncoderReversed() { return std::get<bool>(get(cfg_encoderReversed)); };
 #endif
 };
 extern userSettings *userConfig;

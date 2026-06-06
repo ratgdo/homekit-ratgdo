@@ -151,6 +151,10 @@ function toggleDCOpenClose(radio) {
     document.getElementById("dcDebounceDurationRow").style.opacity = (value == 3) ? 1 : 0.5;
     document.getElementById("dcDebounceDuration").disabled = (value != 3);
     document.getElementById("motionMotion").disabled = (value != 2);
+    // Show encoder row only for dry contact mode
+    if (document.getElementById("encoderRow")) {
+        document.getElementById("encoderRow").style.display = (value == 3) ? "table-row" : "none";
+    }
     toggleHardwiredBypassRow();
 }
 
@@ -160,6 +164,11 @@ function toggleHardwiredBypassRow() {
     const checkbox = document.getElementById("dcBypassTTC");
     const enabled = supportsHardwired && hardwiredEnabled;
     checkbox.disabled = !enabled;
+}
+
+function toggleEncoderOptions() {
+    const enabled = document.getElementById("encoderEnabled").checked;
+    document.getElementById("encoderOptions").style.display = enabled ? "block" : "none";
 }
 
 // enable laser
@@ -404,6 +413,9 @@ function setElementsFromStatus(status) {
                 document.getElementById("dcDebounceDurationRow").style.opacity = (value == 3) ? 1 : 0.5;
                 document.getElementById("dcDebounceDuration").disabled = (value != 3);
                 document.getElementById("motionMotion").disabled = (value != 2);
+                if (document.getElementById("encoderRow")) {
+                    document.getElementById("encoderRow").style.display = (value == 3) ? "table-row" : "none";
+                }
                 toggleHardwiredBypassRow();
                 break;
             case "pinBasedObst":
@@ -520,6 +532,20 @@ function setElementsFromStatus(status) {
             case "dcBypassTTC":
                 document.getElementById(key).checked = value;
                 toggleHardwiredBypassRow();
+                break;
+            case "encoderEnabled":
+                if (document.getElementById(key)) {
+                    document.getElementById(key).checked = value;
+                    document.getElementById("encoderOptions").style.display = value ? "block" : "none";
+                }
+                break;
+            case "encoderReversed":
+                if (document.getElementById(key))
+                    document.getElementById(key).checked = value;
+                break;
+            case "encSteps":
+                if (document.getElementById(key))
+                    document.getElementById(key).innerHTML = value;
                 break;
             case "vehicleOccupancyHomeKit":
             case "vehicleArrivingHomeKit":
@@ -1369,6 +1395,11 @@ async function saveSettings() {
     const useToggle = (document.getElementById("useToggle").checked) ? '1' : '0';
     const useSWserial = (document.getElementById("useSWserial").checked) ? '1' : '0';
     const obstFromStatus = (document.getElementById("obstFromStatus").checked) ? '1' : '0';
+    // Encoder settings — only present in dry contact mode on ESP32 firmware
+    const encoderEnabledEl = document.getElementById("encoderEnabled");
+    const encoderEnabled = encoderEnabledEl ? ((encoderEnabledEl.checked) ? '1' : '0') : null;
+    const encoderReversedEl = document.getElementById("encoderReversed");
+    const encoderReversed = encoderReversedEl ? ((encoderReversedEl.checked) ? '1' : '0') : null;
 
     let assistDuration = Math.max(Math.min(parseInt(document.getElementById("assistDuration").value), 300), 0);
     if (isNaN(assistDuration)) assistDuration = 0;
@@ -1461,6 +1492,8 @@ async function saveSettings() {
         "homespanCLI", homespanCLI,
         "lightHomeKit", lightHomeKit,
         "motionHomeKit", motionHomeKit,
+        ...(encoderEnabled !== null ? ["encoderEnabled", encoderEnabled] : []),
+        ...(encoderReversed !== null ? ["encoderReversed", encoderReversed] : []),
     );
     if (reboot) {
         countdown(rebootSeconds, "Settings saved, RATGDO device rebooting...&nbsp;");
@@ -1476,6 +1509,14 @@ async function resetDoor() {
     if (confirm('Reset door open/close history, rolling codes and presence of motion sensor. Settings will not change but device will reboot, are you sure?')) {
         await setGDO("resetDoor", true);
         countdown(rebootSeconds, "Door reset, RATGDO device rebooting...&nbsp;");
+    }
+    return;
+}
+
+async function resetEncoderCal() {
+    if (confirm('Clear encoder calibration data? The encoder will re-learn open/close positions on the next full open and close cycle.')) {
+        await setGDO("resetEncoderCal", '1');
+        document.getElementById("encSteps").innerHTML = '0';
     }
     return;
 }

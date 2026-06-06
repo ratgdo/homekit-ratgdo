@@ -475,6 +475,8 @@ userSettings::userSettings()
         {cfg_homespanCLI, {false, false, false, helperHomeSpanCLI}},    // call fn to enable/disable HomeSpan CLI and Improv
         {cfg_lightHomeKit, {false, false, true, helperLightHomeKit}},   // call fn to enable/disable HomeKit light accessory (default: enabled)
         {cfg_motionHomeKit, {false, false, true, helperMotionHomeKit}}, // call fn to enable/disable HomeKit motion accessory (default: enabled)
+        {cfg_encoderEnabled, {true, false, false, NULL}},               // reboot required to set up encoder ISR
+        {cfg_encoderReversed, {true, false, false, NULL}},              // reboot required to reverse encoder direction
 #endif
     };
     IRAM_END(TAG);

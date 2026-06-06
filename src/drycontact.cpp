@@ -18,6 +18,9 @@
 #include "config.h"
 #include "comms.h"
 #include "drycontact.h"
+#ifndef ESP8266
+#include "encoder.h"
+#endif
 
 // Logger tag
 static const char *TAG = "ratgdo-drycontact";
@@ -60,6 +63,17 @@ void setup_drycontact()
     buttonClose.setDebounceMs(userConfig->getDCDebounceDuration());
     buttonLight.setDebounceMs(userConfig->getDCDebounceDuration());
 
+#ifndef ESP8266
+    if (doorControlType == 3 && userConfig->getEncoderEnabled()) {
+        // Encoder takes over open/close pins — only attach the light button
+        buttonLight.attachPress(onLightSwitchPress);
+        buttonLight.attachLongPressStop(onLightSwitchRelease);
+        setup_encoder();
+        drycontact_setup_done = true;
+        return;
+    }
+#endif
+
     // Attach OneButton handlers
     buttonOpen.attachPress(onOpenSwitchPress);
     buttonClose.attachPress(onCloseSwitchPress);
@@ -75,6 +89,19 @@ void drycontact_loop()
 {
     if (!drycontact_setup_done)
         return;
+
+    // Poll OneButton objects (light always polled; open/close polled only when encoder not active)
+#ifndef ESP8266
+    if (doorControlType == 3 && userConfig->getEncoderEnabled()) {
+        buttonLight.tick();
+        encoder_loop();
+        if (dryContactLightToggle) {
+            toggle_light();
+            dryContactLightToggle = false;
+        }
+        return;
+    }
+#endif
 
     // Poll OneButton objects
     buttonOpen.tick();
