@@ -12,6 +12,7 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 * Bugfix: Free-slot scan misses free slots, https://github.com/ratgdo/homekit-ratgdo32/issues/170
 * Bugfix: Debounce light on/off and remote lock on/off when two requests come in rapid succession
 * Bugfix: Allow user to reverse direction of door from HomeKit while it is opening or closing
+* Feature: Add user option for automatic door reversal on stop, https://github.com/ratgdo/homekit-ratgdo/issues/341
 * Feature: RATGDO32-DISCO only, add option to disable beeping on time-to-close, https://github.com/ratgdo/homekit-ratgdo32/issues/165
 * Feature: RATGDO32 only, add support for Paul's ratgdo encoder, https://github.com/ratgdo/homekit-ratgdo32/pull/175
 * Other: ESP32 only, update HomeSpan library to version 2.1.8
