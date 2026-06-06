@@ -361,6 +361,10 @@ enum secplus1Codes : uint8_t
 
     Unknown = 0xFF // (when rx fails parity test)
 };
+static bool pendingLightOn = false;
+static bool pendingLightOff = false;
+static bool pendingLockOn = false;
+static bool pendingLockOff = false;
 
 #define SEC1_CMD(s) (s == secplus1Codes::DoorButtonPress)      ? "door press"    \
                     : (s == secplus1Codes::DoorButtonRelease)  ? "door release"  \
@@ -1062,7 +1066,7 @@ void update_door_state(GarageDoorCurrentState current_state)
             ESP_LOGW(TAG, "Ignoring implausibly short or long close duration: %lums (%s)", (uint32_t)duration, timeString());
         }
     }
-    else if ((current_state == CURR_STOPPED) ||
+    else if ((current_state == CURR_STOPPED && (start_opening > 0 || start_closing > 0)) ||
              (current_state == CURR_OPENING && garage_door.current_state == CURR_CLOSING) ||
              (current_state == CURR_CLOSING && garage_door.current_state == CURR_OPENING))
     {
@@ -1401,6 +1405,10 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
             notify_homekit_light((bool)lightState);
             // Force update of light state in any listening client
             last_reported_garage_door.light = !garage_door.light;
+            // Clear pending light on/off flags as we have now received an update from the door about the light state
+            pendingLightOn = false;
+            pendingLightOff = false;
+            // If user want to trigger motion sensor based on light button, do it now as we know the light state has changed
             if (motionTriggers.bit.lightKey)
             {
                 notify_homekit_motion(true);
@@ -1414,7 +1422,6 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
         {
             ESP_LOGI(TAG, "Remotes lock: %s (%s)", LOCK_STATE(lockState), timeString());
             lastLockState = lockState;
-
             if (lockState)
             {
                 garage_door.current_lock = CURR_LOCKED;
@@ -1429,6 +1436,10 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
             notify_homekit_current_lock(garage_door.current_lock);
             // Force update of lock state in any listening client
             last_reported_garage_door.current_lock = (LockCurrentState)0xFF;
+            // Clear pending lock on/off flags as we have now received an update from the door about the lock state
+            pendingLockOn = false;
+            pendingLockOff = false;
+            // If user want to trigger motion sensor based on lock button, do it now as we know the lock state has changed
             if (motionTriggers.bit.lockKey)
             {
                 notify_homekit_motion(true);
@@ -1770,6 +1781,9 @@ void comms_loop_sec2()
                 notify_homekit_current_lock(current_lock);
                 // Force update of lock state in any listening client
                 last_reported_garage_door.current_lock = (LockCurrentState)0xFF;
+                // Clear pending lock on/off flags as we have now received an update from the door about the lock state
+                pendingLockOn = false;
+                pendingLockOff = false;
             }
 
             // Handle obstruction from status packet if pin-based detection not available
@@ -1869,6 +1883,10 @@ void comms_loop_sec2()
             {
                 ESP_LOGD(TAG, "Lock Cmd %d", lock);
                 notify_homekit_target_lock(lock);
+                // Clear pending lock on/off flags as we have now received an update from the door about the lock state
+                pendingLockOn = false;
+                pendingLockOff = false;
+                // If user want to trigger motion sensor based on lock button, do it now as we know the lock state has changed
                 if (motionTriggers.bit.lockKey)
                 {
                     notify_homekit_motion(true);
@@ -1900,6 +1918,10 @@ void comms_loop_sec2()
             {
                 ESP_LOGD(TAG, "Light Cmd %s", l ? "On" : "Off");
                 notify_homekit_light(l);
+                // Clear pending light on/off flags as we have now received an update from the door about the light state
+                pendingLightOn = false;
+                pendingLightOff = false;
+                // If user want to trigger motion sensor based on light button, do it now as we know the light state has changed
                 if (motionTriggers.bit.lightKey)
                 {
                     notify_homekit_motion(true);
@@ -2949,12 +2971,21 @@ bool set_lock(bool value, bool verify)
 bool set_lock(bool value, bool verify)
 {
     // return value: true = lock state changed, else state unchanged
-    if (verify && (garage_door.current_lock == ((value) ? LockCurrentState::CURR_LOCKED : LockCurrentState::CURR_UNLOCKED)))
+    if (verify)
     {
-        ESP_LOGI(TAG, "Remote locks already %s; ignored request", (value) ? "locked" : "unlocked");
-        // Reset last reported to we will update browser with actual state.
-        last_reported_garage_door.current_lock = (LockCurrentState)0xFF;
-        return false;
+        if (garage_door.current_lock == ((value) ? LockCurrentState::CURR_LOCKED : LockCurrentState::CURR_UNLOCKED))
+        {
+            ESP_LOGI(TAG, "Remote locks already %s; ignored request", (value) ? "locked" : "unlocked");
+            // Reset last reported to we will update browser with actual state.
+            last_reported_garage_door.current_lock = (LockCurrentState)0xFF;
+            return false;
+        }
+        else if ((value && pendingLockOn) || (!value && pendingLockOff))
+        {
+            // We are already in the process of changing the lock state, so ignore duplicate request
+            ESP_LOGI(TAG, "Lock %s command already pending; ignored duplicate request", (value) ? "lock" : "unlock");
+            return false;
+        }
     }
 
     PacketData data;
@@ -2962,6 +2993,9 @@ bool set_lock(bool value, bool verify)
     data.value.lock.lock = (value) ? LockState::On : LockState::Off;
     garage_door.target_lock = (value) ? TGT_LOCKED : TGT_UNLOCKED;
     ESP_LOGI(TAG, "Set Garage Door Remote locks: %s", (value) ? "locked" : "unlocked");
+
+    pendingLockOn = (value == true);
+    pendingLockOff = (value == false);
 
     // SECURITY1.0
     if (doorControlType == 1)
@@ -3064,15 +3098,27 @@ void sec1_light_release(uint8_t howManyReleases, uint32_t delay)
 bool set_light(bool value, bool verify)
 {
     // return value: true = light state changed, else state unchanged
-    if (verify && (garage_door.light == value))
+    if (verify)
     {
-        ESP_LOGI(TAG, "Light already %s; ignored request", (value) ? "on" : "off");
-        // Reset last reported to we will update browser with actual state.
-        last_reported_garage_door.light = !value;
-        return false;
+        if (garage_door.light == value)
+        {
+            ESP_LOGI(TAG, "Light already %s; ignored request", (value) ? "on" : "off");
+            // Reset last reported so we will update browser with actual state.
+            last_reported_garage_door.light = !value;
+            return false;
+        }
+        else if ((value && pendingLightOn) || (!value && pendingLightOff))
+        {
+            // We have already sent a command to change the light, but haven't received confirmation yet.  Don't send another command.
+            ESP_LOGI(TAG, "Light %s command already pending; ignored duplicate request", (value) ? "on" : "off");
+            return false;
+        }
     }
 
     ESP_LOGI(TAG, "Set Garage Door Light: %s", (value) ? "on" : "off");
+
+    pendingLightOn = (value == true);
+    pendingLightOff = (value == false);
 
     // SECURITY+1.0
     if (doorControlType == 1)
