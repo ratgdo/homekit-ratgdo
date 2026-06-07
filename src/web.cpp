@@ -921,13 +921,13 @@ void build_status_json(char *json)
     JSON_ADD_INT(cfg_vehicleThreshold, userConfig->getVehicleThreshold());
     JSON_ADD_BOOL(cfg_laserEnabled, userConfig->getLaserEnabled());
     JSON_ADD_BOOL(cfg_laserHomeKit, userConfig->getLaserHomeKit());
-    JSON_ADD_BOOL(cfg_stopDoorHomeKit, userConfig->getStopDoorHomeKit());
     JSON_ADD_INT(cfg_assistDuration, userConfig->getAssistDuration());
     JSON_ADD_BOOL(cfg_TTCsound, userConfig->getTTCsound());
 #endif
     JSON_ADD_BOOL(cfg_homespanCLI, userConfig->getEnableHomeSpanCLI());
     JSON_ADD_BOOL(cfg_lightHomeKit, userConfig->getLightHomeKit());
     JSON_ADD_BOOL(cfg_motionHomeKit, userConfig->getMotionHomeKit());
+    JSON_ADD_BOOL(cfg_stopDoorHomeKit, userConfig->getStopDoorHomeKit());
 #endif
     JSON_ADD_INT("webRequests", request_count);
     JSON_ADD_INT("webMaxResponseTime", max_response_time);

@@ -328,13 +328,6 @@ bool helperLaser(const std::string &key, const char *value, configSetting *actio
     enable_service_homekit_laser(userConfig->getLaserEnabled() && userConfig->getLaserHomeKit());
     return true;
 }
-
-bool helperStopDoorHomeKit(const std::string &key, const char *value, configSetting *action)
-{
-    userConfig->set(key, value);
-    enable_service_homekit_stop(userConfig->getStopDoorHomeKit());
-    return true;
-}
 #endif
 
 #ifdef USE_GDOLIB
@@ -348,6 +341,13 @@ bool helperUseSWserial(const std::string &key, const char *value, configSetting 
 #endif
 
 #ifdef ESP32
+bool helperStopDoorHomeKit(const std::string &key, const char *value, configSetting *action)
+{
+    userConfig->set(key, value);
+    enable_service_homekit_stop(userConfig->getStopDoorHomeKit());
+    return true;
+}
+
 bool helperOccupancyDuration(const std::string &key, const char *value, configSetting *action)
 {
     userConfig->set(key, value);
@@ -468,7 +468,6 @@ userSettings::userSettings()
         {cfg_vehicleDepartingHomeKit, {false, false, true, helperVehicleDepartingHomeKit}}, // granular control for departing motion sensor
         {cfg_laserEnabled, {false, false, false, helperLaser}},
         {cfg_laserHomeKit, {false, false, true, helperLaser}},               // call fn to enable/disable HomeKit accessories
-        {cfg_stopDoorHomeKit, {false, false, false, helperStopDoorHomeKit}}, // call fn to enable/disable HomeKit stop accessory (default: disabled)
         {cfg_assistDuration, {false, false, 60, NULL}},
         {cfg_TTCsound, {false, false, true, NULL}},
 #endif
@@ -484,6 +483,7 @@ userSettings::userSettings()
         {cfg_homespanCLI, {false, false, false, helperHomeSpanCLI}},    // call fn to enable/disable HomeSpan CLI and Improv
         {cfg_lightHomeKit, {false, false, true, helperLightHomeKit}},   // call fn to enable/disable HomeKit light accessory (default: enabled)
         {cfg_motionHomeKit, {false, false, true, helperMotionHomeKit}}, // call fn to enable/disable HomeKit motion accessory (default: enabled)
+        {cfg_stopDoorHomeKit, {false, false, false, helperStopDoorHomeKit}}, // call fn to enable/disable HomeKit stop accessory (default: disabled)
         {cfg_encoderEnabled, {true, false, false, NULL}},               // reboot required to set up encoder ISR
         {cfg_encoderReversed, {true, false, false, NULL}},              // reboot required to reverse encoder direction
 #endif

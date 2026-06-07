@@ -102,7 +102,6 @@ constexpr char cfg_vehicleArrivingHomeKit[] PROGMEM = "vehicleArrivingHomeKit";
 constexpr char cfg_vehicleDepartingHomeKit[] PROGMEM = "vehicleDepartingHomeKit";
 constexpr char cfg_laserEnabled[] PROGMEM = "laserEnabled";
 constexpr char cfg_laserHomeKit[] PROGMEM = "laserHomeKit";
-constexpr char cfg_stopDoorHomeKit[] PROGMEM = "stopDoorHomeKit";
 constexpr char cfg_assistDuration[] PROGMEM = "assistDuration";
 constexpr char cfg_TTCsound[] PROGMEM = "TTCsound";
 #endif
@@ -121,6 +120,7 @@ constexpr char nvram_has_motion[] PROGMEM = "has_motion";
 constexpr char nvram_open_history[] PROGMEM = "open_history";
 constexpr char nvram_close_history[] PROGMEM = "close_history";
 #ifndef ESP8266
+constexpr char cfg_stopDoorHomeKit[] PROGMEM = "stopDoorHomeKit";
 constexpr char nvram_ratgdo_pw[] PROGMEM = "ratgdo_pw";
 constexpr char nvram_has_distance[] PROGMEM = "has_distance";
 #endif
@@ -216,7 +216,7 @@ public:
     uint32_t getVehicleThreshold() { return std::get<int>(get(cfg_vehicleThreshold)); };
     bool getLaserEnabled() { return std::get<bool>(get(cfg_laserEnabled)); };
     bool getLaserHomeKit() { return std::get<bool>(get(cfg_laserHomeKit)); };
-    bool getStopDoorHomeKit() { return std::get<bool>(get(cfg_stopDoorHomeKit)); };
+    
     bool getVehicleHomeKit() { return std::get<bool>(get(cfg_vehicleHomeKit)); };
     bool getVehicleOccupancyHomeKit() { return std::get<bool>(get(cfg_vehicleOccupancyHomeKit)); };
     bool getVehicleArrivingHomeKit() { return std::get<bool>(get(cfg_vehicleArrivingHomeKit)); };
@@ -225,6 +225,7 @@ public:
     bool getTTCsound() { return std::get<bool>(get(cfg_TTCsound)); };
 #endif
 #ifndef ESP8266
+    bool getStopDoorHomeKit() { return std::get<bool>(get(cfg_stopDoorHomeKit)); };
     bool getUseSWserial() { return std::get<bool>(get(cfg_useSWserial)); };
     uint32_t getOccupancyDuration() { return std::get<int>(get(cfg_occupancyDuration)); };
     bool getEnableIPv6() { return std::get<bool>(get(cfg_enableIPv6)); };
