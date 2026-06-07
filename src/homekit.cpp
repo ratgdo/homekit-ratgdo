@@ -944,7 +944,8 @@ void setup_homekit()
 #endif
     // Create a room occupancy sensor if timer for it is greater than 0
     enable_service_homekit_room_occupancy(userConfig->getOccupancyDuration() > 0);
-    enable_service_homekit_stop(true);
+    // Create a stop service if enabled in settings
+    enable_service_homekit_stop(userConfig->getStopDoorHomeKit());
 
     // Auto poll starts up a new FreeRTOS task to do the HomeKit comms
     // so no need to handle in our Arduino loop.

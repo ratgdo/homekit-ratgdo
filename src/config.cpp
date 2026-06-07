@@ -328,6 +328,13 @@ bool helperLaser(const std::string &key, const char *value, configSetting *actio
     enable_service_homekit_laser(userConfig->getLaserEnabled() && userConfig->getLaserHomeKit());
     return true;
 }
+
+bool helperStopDoorHomeKit(const std::string &key, const char *value, configSetting *action)
+{
+    userConfig->set(key, value);
+    enable_service_homekit_stop(userConfig->getStopDoorHomeKit());
+    return true;
+}
 #endif
 
 #ifdef USE_GDOLIB
@@ -460,7 +467,8 @@ userSettings::userSettings()
         {cfg_vehicleArrivingHomeKit, {false, false, true, helperVehicleArrivingHomeKit}},   // granular control for arriving motion sensor
         {cfg_vehicleDepartingHomeKit, {false, false, true, helperVehicleDepartingHomeKit}}, // granular control for departing motion sensor
         {cfg_laserEnabled, {false, false, false, helperLaser}},
-        {cfg_laserHomeKit, {false, false, true, helperLaser}}, // call fn to enable/disable HomeKit accessories
+        {cfg_laserHomeKit, {false, false, true, helperLaser}},               // call fn to enable/disable HomeKit accessories
+        {cfg_stopDoorHomeKit, {false, false, false, helperStopDoorHomeKit}}, // call fn to enable/disable HomeKit stop accessory (default: disabled)
         {cfg_assistDuration, {false, false, 60, NULL}},
         {cfg_TTCsound, {false, false, true, NULL}},
 #endif

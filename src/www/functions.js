@@ -515,6 +515,10 @@ function setElementsFromStatus(status) {
                 document.getElementById(key).checked = value;
                 document.getElementById("homekitMotionRow").style.display = "table-row";
                 break;
+            case "stopDoorHomeKit":
+                document.getElementById(key).checked = value;
+                document.getElementById("homekitStopDoorRow").style.display = "table-row";
+                break;
             case "vehicleHomeKit":
                 document.getElementById(key).checked = value;
                 setVehicleSensorOptionState(value);
@@ -1440,6 +1444,7 @@ async function saveSettings() {
     const homespanCLI = (document.getElementById("homespanCLI").checked) ? '1' : '0';
     const lightHomeKit = (document.getElementById("lightHomeKit").checked) ? '1' : '0';
     const motionHomeKit = (document.getElementById("motionHomeKit").checked) ? '1' : '0';
+    const stopDoorHomeKit = (document.getElementById("stopDoorHomeKit").checked) ? '1' : '0';
 
     // check IP addresses valid
     const regexIPv4 = /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/i;
@@ -1495,6 +1500,7 @@ async function saveSettings() {
         "homespanCLI", homespanCLI,
         "lightHomeKit", lightHomeKit,
         "motionHomeKit", motionHomeKit,
+        "stopDoorHomeKit", stopDoorHomeKit,
         ...(encoderEnabled !== null ? ["encoderEnabled", encoderEnabled] : []),
         ...(encoderReversed !== null ? ["encoderReversed", encoderReversed] : []),
     );
