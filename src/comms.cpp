@@ -370,6 +370,7 @@ static bool pendingLightOn = false;
 static bool pendingLightOff = false;
 static bool pendingLockOn = false;
 static bool pendingLockOff = false;
+static bool pendingDoorCommand = false;
 
 #define SEC1_CMD(s) (s == secplus1Codes::DoorButtonPress)      ? "door press"    \
                     : (s == secplus1Codes::DoorButtonRelease)  ? "door release"  \
@@ -964,6 +965,7 @@ void update_door_state(GarageDoorCurrentState current_state)
     _millis_t now = _millis();
 
     GarageDoorTargetState target_state = garage_door.target_state;
+    pendingDoorCommand = false;
 
     // Determine target state
     switch (current_state)
@@ -2468,6 +2470,12 @@ bool process_PacketAction(PacketAction &pkt_ac)
 
 void door_command(DoorAction action)
 {
+    if (pendingDoorCommand)
+    {
+        ESP_LOGW(TAG, "Pending door command exists, dropping new command");
+        return;
+    }
+
     if (doorControlType != 3)
     {
         // SECURITY1.0/2.0 commands
@@ -2507,6 +2515,7 @@ void door_command(DoorAction action)
             ESP_LOGE(TAG, "packet queue full, dropping door command release pkt");
             return;
         }
+        pendingDoorCommand = true;
 
         // if sec+1.0, repeat the release
         if (doorControlType == 1)
@@ -2569,6 +2578,7 @@ void door_command_close()
                                        // If this timer fires (was not cancelled when we get notification that door has stopped) then
                                        // we probably missed a status mesage, assume it's closed.
                                        ESP_LOGW(TAG, "Door did not close in expected time, assuming it is closed");
+                                       pendingDoorCommand = false;
                                        notify_homekit_current_door_state_change(GarageDoorCurrentState::CURR_CLOSED);
                                        notify_homekit_target_door_state_change(GarageDoorTargetState::TGT_CLOSED);
                                        send_get_status(); // query in case we're wrong and it's stopped (Sec+2.0)
@@ -2581,6 +2591,7 @@ void door_command_close()
                                 // If this timer fires (was not cancelled when we get notification that door is closing) then
                                 // it is likely that there is an error and door did not move from its open state.
                                 checkDoorCompleted.detach();
+                                pendingDoorCommand = false;
                                 ESP_LOGE(TAG, "Door is supposed to be closing but is not.  Current state: %s", DOOR_STATE(garage_door.current_state));
                                 notify_homekit_current_door_state_change(garage_door.current_state); });
 #endif
@@ -2609,6 +2620,7 @@ void door_command_open()
                                        // If this timer fires (was not cancelled when we get notification that door has stopped) then
                                        // we probably missed a status mesage, assume it's open.
                                        ESP_LOGW(TAG, "Door did not open in expected time, assuming it is open");
+                                       pendingDoorCommand = false;
                                        notify_homekit_current_door_state_change(GarageDoorCurrentState::CURR_OPEN);
                                        notify_homekit_target_door_state_change(GarageDoorTargetState::TGT_OPEN);
                                        send_get_status(); // query in case we're wrong and it's stopped (Sec+2.0)
@@ -2621,6 +2633,7 @@ void door_command_open()
                                 // If this timer fires (was not cancelled when we get notification that door is opening) then
                                 // it is likely that there is an error and door did not move from its closed state.
                                 checkDoorCompleted.detach();
+                                pendingDoorCommand = false;
                                 ESP_LOGE(TAG, "Door is supposed to be opening but is not.  Current state: %s", DOOR_STATE(garage_door.current_state));
                                 notify_homekit_current_door_state_change(garage_door.current_state); });
 #endif
