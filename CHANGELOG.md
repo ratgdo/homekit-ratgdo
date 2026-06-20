@@ -2,11 +2,12 @@
 
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
-## v2.1.6 (2026-06-??)
+## v2.1.6 (2026-06-20)
 
 ### What's Changed
 
 * Bugfix: Debounce door open/close commands https://github.com/ratgdo/homekit-ratgdo32/issues/177
+* Other: Reverted a change in Arduino-Homekit-ESP8266 that may (or may not) be causing no-response issues
 
 ### Known Issues
 
