@@ -223,6 +223,9 @@ static void check_encoder_stopped() {
 
   enc_travel_dir_ = 0;
   enc_reverse_count_ = 0;
+  // Clear stale intent so a subsequent wall-control move in the opposite
+  // direction is never misidentified as wrong-direction and corrected.
+  enc_intended_dir_ = 0;
 
   const GarageDoorCurrentState boundary_state =
       decreasing ? (reversed ? GarageDoorCurrentState::CURR_OPEN
@@ -293,7 +296,6 @@ static void check_encoder_stopped() {
 
   if (save) {
     enc_save_cal();
-    enc_intended_dir_ = 0; // boundary reached — intent fulfilled
   }
 
   // Direction-correction retry: now that door has stopped, send the corrected
