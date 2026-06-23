@@ -19,6 +19,7 @@ var setGDOcmds = {              // setGDO commands that are not sent from server
     resetDoor: false,
     softAPmode: false,
     factoryReset: false,
+    resetEncoderCal: false,
 };
 var gitUser = "ratgdo";         // default git user.
 var gitRepo = "homekit-ratgdo"; // default git repository.
