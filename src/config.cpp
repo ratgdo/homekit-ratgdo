@@ -476,7 +476,10 @@ userSettings::userSettings()
 #endif
         {cfg_builtInTTC, {false, false, 0, helperBuiltInTTC}},
         {cfg_reverseOnStop, {false, false, true, NULL}},
-#ifndef ESP8266
+#ifdef ESP8266
+        // HomeKit services are static on ESP8266, so a reboot is required to add/remove the light.
+        {cfg_lightHomeKit, {true, false, true, NULL}},
+#else
         // These features not available on ESP8266
         {cfg_occupancyDuration, {false, false, 0, helperOccupancyDuration}}, // call fn to enable/disable HomeKit accessories
         {cfg_enableIPv6, {true, false, false, NULL}},
