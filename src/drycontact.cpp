@@ -3,7 +3,7 @@
  * https://ratcloud.llc
  * https://github.com/PaulWieland/ratgdo
  *
- * Copyright (c) 2023-25 David A Kerr... https://github.com/dkerr64/
+ * Copyright (c) 2023-26 David A Kerr... https://github.com/dkerr64/
  * All Rights Reserved.
  * Licensed under terms of the GPL-3.0 License.
  *
@@ -18,9 +18,7 @@
 #include "config.h"
 #include "comms.h"
 #include "drycontact.h"
-#ifndef ESP8266
 #include "encoder.h"
-#endif
 
 // Logger tag
 static const char *TAG = "ratgdo-drycontact";
@@ -63,8 +61,8 @@ void setup_drycontact()
     buttonClose.setDebounceMs(userConfig->getDCDebounceDuration());
     buttonLight.setDebounceMs(userConfig->getDCDebounceDuration());
 
-#ifndef ESP8266
-    if (doorControlType == 3 && userConfig->getEncoderEnabled()) {
+    if (doorControlType == 3 && userConfig->getEncoderEnabled())
+    {
         // Encoder takes over open/close pins — only attach the light button
         buttonLight.attachPress(onLightSwitchPress);
         buttonLight.attachLongPressStop(onLightSwitchRelease);
@@ -72,12 +70,11 @@ void setup_drycontact()
         drycontact_setup_done = true;
         return;
     }
-#endif
 
     // Attach OneButton handlers
     buttonOpen.attachPress(onOpenSwitchPress);
     buttonClose.attachPress(onCloseSwitchPress);
-    buttonLight.attachPress(onLightSwitchPress);;
+    buttonLight.attachPress(onLightSwitchPress);
     buttonOpen.attachLongPressStop(onOpenSwitchRelease);
     buttonClose.attachLongPressStop(onCloseSwitchRelease);
     buttonLight.attachLongPressStop(onLightSwitchRelease);
@@ -91,17 +88,17 @@ void drycontact_loop()
         return;
 
     // Poll OneButton objects (light always polled; open/close polled only when encoder not active)
-#ifndef ESP8266
-    if (doorControlType == 3 && userConfig->getEncoderEnabled()) {
+    if (doorControlType == 3 && userConfig->getEncoderEnabled())
+    {
         buttonLight.tick();
         encoder_loop();
-        if (dryContactLightToggle) {
+        if (dryContactLightToggle)
+        {
             toggle_light();
             dryContactLightToggle = false;
         }
         return;
     }
-#endif
 
     // Poll OneButton objects
     buttonOpen.tick();

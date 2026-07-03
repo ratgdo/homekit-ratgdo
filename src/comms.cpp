@@ -39,9 +39,7 @@
 #include "cQueue.h"
 #endif // ESP8266
 
-#ifndef ESP8266
 #include "encoder.h"
-#endif
 
 static const char *TAG = "ratgdo-comms";
 
@@ -2685,10 +2683,8 @@ GarageDoorCurrentState open_door()
         }
         return GarageDoorCurrentState::CURR_STOPPED;
     }
-#ifndef ESP8266
     if (doorControlType == 3 && userConfig->getEncoderEnabled())
         encoder_set_intended_open();
-#endif
     door_command_open();
     return GarageDoorCurrentState::CURR_OPENING;
 }
@@ -2871,10 +2867,8 @@ GarageDoorCurrentState close_door(bool bypass_ttc)
             ESP_LOGI(TAG, "Bypassing time-to-close delay");
         }
         ESP_LOGI(TAG, "Closing door");
-#ifndef ESP8266
         if (doorControlType == 3 && userConfig->getEncoderEnabled())
             encoder_set_intended_close();
-#endif
         door_command_close();
     }
     else

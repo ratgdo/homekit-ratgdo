@@ -3,7 +3,7 @@
  * https://ratcloud.llc
  * https://github.com/PaulWieland/ratgdo
  *
- * Copyright (c) 2023-25 David A Kerr... https://github.com/dkerr64/
+ * Copyright (c) 2023-26 David A Kerr... https://github.com/dkerr64/
  * All Rights Reserved.
  * Licensed under terms of the GPL-3.0 License.
  *
@@ -467,7 +467,7 @@ userSettings::userSettings()
         {cfg_vehicleArrivingHomeKit, {false, false, true, helperVehicleArrivingHomeKit}},   // granular control for arriving motion sensor
         {cfg_vehicleDepartingHomeKit, {false, false, true, helperVehicleDepartingHomeKit}}, // granular control for departing motion sensor
         {cfg_laserEnabled, {false, false, false, helperLaser}},
-        {cfg_laserHomeKit, {false, false, true, helperLaser}},               // call fn to enable/disable HomeKit accessories
+        {cfg_laserHomeKit, {false, false, true, helperLaser}}, // call fn to enable/disable HomeKit accessories
         {cfg_assistDuration, {false, false, 60, NULL}},
         {cfg_TTCsound, {false, false, true, NULL}},
 #endif
@@ -476,19 +476,19 @@ userSettings::userSettings()
 #endif
         {cfg_builtInTTC, {false, false, 0, helperBuiltInTTC}},
         {cfg_reverseOnStop, {false, false, true, NULL}},
-#ifdef ESP8266
-        // HomeKit services are static on ESP8266, so a reboot is required to add/remove the light.
-        {cfg_lightHomeKit, {true, false, true, NULL}},
-#else
+        {cfg_encoderEnabled, {true, false, false, NULL}},  // reboot required to set up encoder ISR
+        {cfg_encoderReversed, {true, false, false, NULL}}, // reboot required to reverse encoder direction
+#ifndef ESP8266
         // These features not available on ESP8266
         {cfg_occupancyDuration, {false, false, 0, helperOccupancyDuration}}, // call fn to enable/disable HomeKit accessories
         {cfg_enableIPv6, {true, false, false, NULL}},
-        {cfg_homespanCLI, {false, false, false, helperHomeSpanCLI}},    // call fn to enable/disable HomeSpan CLI and Improv
-        {cfg_lightHomeKit, {false, false, true, helperLightHomeKit}},   // call fn to enable/disable HomeKit light accessory (default: enabled)
-        {cfg_motionHomeKit, {false, false, true, helperMotionHomeKit}}, // call fn to enable/disable HomeKit motion accessory (default: enabled)
+        {cfg_homespanCLI, {false, false, false, helperHomeSpanCLI}},         // call fn to enable/disable HomeSpan CLI and Improv
+        {cfg_lightHomeKit, {false, false, true, helperLightHomeKit}},        // call fn to enable/disable HomeKit light accessory (default: enabled)
+        {cfg_motionHomeKit, {false, false, true, helperMotionHomeKit}},      // call fn to enable/disable HomeKit motion accessory (default: enabled)
         {cfg_stopDoorHomeKit, {false, false, false, helperStopDoorHomeKit}}, // call fn to enable/disable HomeKit stop accessory (default: disabled)
-        {cfg_encoderEnabled, {true, false, false, NULL}},               // reboot required to set up encoder ISR
-        {cfg_encoderReversed, {true, false, false, NULL}},              // reboot required to reverse encoder direction
+#else
+        // HomeKit services are static on ESP8266, so a reboot is required to add/remove the light.
+        {cfg_lightHomeKit, {true, false, true, NULL}},
 #endif
     };
     IRAM_END(TAG);

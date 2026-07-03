@@ -3,7 +3,7 @@
  * https://ratcloud.llc
  * https://github.com/PaulWieland/ratgdo
  *
- * Copyright (c) 2023-25 David A Kerr... https://github.com/dkerr64/
+ * Copyright (c) 2023-26 David A Kerr... https://github.com/dkerr64/
  * All Rights Reserved.
  * Licensed under terms of the GPL-3.0 License.
  *
@@ -91,6 +91,8 @@ constexpr char cfg_obstFromStatus[] PROGMEM = "obstFromStatus";
 constexpr char cfg_builtInTTC[] PROGMEM = "builtInTTC";
 constexpr char cfg_reverseOnStop[] PROGMEM = "reverseOnStop";
 constexpr char cfg_lightHomeKit[] PROGMEM = "lightHomeKit";
+constexpr char cfg_encoderEnabled[] PROGMEM = "encoderEnabled";
+constexpr char cfg_encoderReversed[] PROGMEM = "encoderReversed";
 #ifdef ESP8266
 // On ESP8266 we save user config to a file in LittleFS
 constexpr char cfg_configFile[] PROGMEM = "user_config";
@@ -110,8 +112,6 @@ constexpr char cfg_occupancyDuration[] PROGMEM = "occupancyDuration";
 constexpr char cfg_enableIPv6[] PROGMEM = "enableIPv6";
 constexpr char cfg_homespanCLI[] PROGMEM = "homespanCLI";
 constexpr char cfg_motionHomeKit[] PROGMEM = "motionHomeKit";
-constexpr char cfg_encoderEnabled[] PROGMEM = "encoderEnabled";
-constexpr char cfg_encoderReversed[] PROGMEM = "encoderReversed";
 #endif
 
 constexpr char nvram_id_code[] PROGMEM = "id_code";
@@ -213,11 +213,12 @@ public:
     uint32_t getBuiltInTTC() { return std::get<int>(get(cfg_builtInTTC)); };
     bool getReverseOnStop() { return std::get<bool>(get(cfg_reverseOnStop)); };
     bool getLightHomeKit() { return std::get<bool>(get(cfg_lightHomeKit)); };
+    bool getEncoderEnabled() { return std::get<bool>(get(cfg_encoderEnabled)); };
+    bool getEncoderReversed() { return std::get<bool>(get(cfg_encoderReversed)); };
 #ifdef RATGDO32_DISCO
     uint32_t getVehicleThreshold() { return std::get<int>(get(cfg_vehicleThreshold)); };
     bool getLaserEnabled() { return std::get<bool>(get(cfg_laserEnabled)); };
     bool getLaserHomeKit() { return std::get<bool>(get(cfg_laserHomeKit)); };
-    
     bool getVehicleHomeKit() { return std::get<bool>(get(cfg_vehicleHomeKit)); };
     bool getVehicleOccupancyHomeKit() { return std::get<bool>(get(cfg_vehicleOccupancyHomeKit)); };
     bool getVehicleArrivingHomeKit() { return std::get<bool>(get(cfg_vehicleArrivingHomeKit)); };
@@ -232,8 +233,6 @@ public:
     bool getEnableIPv6() { return std::get<bool>(get(cfg_enableIPv6)); };
     bool getEnableHomeSpanCLI() { return std::get<bool>(get(cfg_homespanCLI)); };
     bool getMotionHomeKit() { return std::get<bool>(get(cfg_motionHomeKit)); };
-    bool getEncoderEnabled() { return std::get<bool>(get(cfg_encoderEnabled)); };
-    bool getEncoderReversed() { return std::get<bool>(get(cfg_encoderReversed)); };
 #endif
 };
 extern userSettings *userConfig;

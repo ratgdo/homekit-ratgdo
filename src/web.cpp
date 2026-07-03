@@ -3,7 +3,7 @@
  * https://ratcloud.llc
  * https://github.com/PaulWieland/ratgdo
  *
- * Copyright (c) 2023-25 David A Kerr... https://github.com/dkerr64/
+ * Copyright (c) 2023-26 David A Kerr... https://github.com/dkerr64/
  * All Rights Reserved.
  * Licensed under terms of the GPL-3.0 License.
  *
@@ -51,9 +51,8 @@
 #ifdef RATGDO32_DISCO
 #include "vehicle.h"
 #endif
-#ifndef ESP8266
 #include "encoder.h"
-#endif
+
 // built by "build_web_content.py"
 #include "webcontent.h"
 
@@ -855,7 +854,6 @@ void build_status_json(char *json)
     JSON_ADD_BOOL(cfg_dcBypassTTC, userConfig->getDCBypassTTC());
     JSON_ADD_BOOL(cfg_obstFromStatus, userConfig->getObstFromStatus());
     JSON_ADD_INT(cfg_dcDebounceDuration, userConfig->getDCDebounceDuration());
-#ifndef ESP8266
     if (doorControlType == 3)
     {
         JSON_ADD_BOOL(cfg_encoderEnabled, userConfig->getEncoderEnabled());
@@ -863,7 +861,6 @@ void build_status_json(char *json)
         if (userConfig->getEncoderEnabled())
             JSON_ADD_INT("encSteps", (int32_t)encoder_last_step());
     }
-#endif
     JSON_ADD_STR("qrPayload", qrPayload);
     if (doorControlType == 2)
     {
@@ -1173,13 +1170,11 @@ bool helperAssistLaser(const std::string &key, const char *value, configSetting 
 }
 #endif
 
-#ifndef ESP8266
 bool helperResetEncoderCal(const std::string &key, const char *value, configSetting *action)
 {
     reset_encoder_cal();
     return true;
 }
-#endif
 
 void handle_setgdo()
 {
@@ -1196,9 +1191,7 @@ void handle_setgdo()
 #ifdef RATGDO32_DISCO
         {PSTR("assistLaser"), {false, false, 0, helperAssistLaser}},
 #endif
-#ifndef ESP8266
         {PSTR("resetEncoderCal"), {false, false, 0, helperResetEncoderCal}},
-#endif
     };
     bool reboot = false;
     bool error = false;
