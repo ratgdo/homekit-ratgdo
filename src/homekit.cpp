@@ -214,16 +214,39 @@ void setup_homekit()
     config.on_event = homekit_event;
 
     garage_door.has_motion_sensor = (bool)read_door_int(nvram_has_motion);
-    if (!garage_door.has_motion_sensor && (userConfig->getMotionTriggers() == 0))
+    bool show_motion = garage_door.has_motion_sensor || (userConfig->getMotionTriggers() != 0);
+    if (!show_motion)
     {
         ESP_LOGI(TAG, "Motion Sensor not detected.  Disabling Service");
-        config.accessories[0]->services[3] = NULL;
     }
+
+    bool show_light = true;
     if (userConfig->getGDOSecurityType() == 3)
     {
         ESP_LOGI(TAG, "Dry contact does not support light control.  Disabling Service");
-        config.accessories[0]->services[2] = NULL;
+        show_light = false;
     }
+    else if (!userConfig->getLightHomeKit())
+    {
+        ESP_LOGI(TAG, "Light HomeKit accessory disabled in settings.  Disabling Service");
+        show_light = false;
+    }
+
+    // Rebuild the null-terminated service list in-place so that disabling one service does
+    // not truncate the list and accidentally hide any enabled services that follow it.
+    homekit_service_t **services = config.accessories[0]->services;
+    homekit_service_t *light_service = services[2];
+    homekit_service_t *motion_service = services[3];
+    int index = 2; // services[0] (Accessory Information) and services[1] (Garage Door) are always present
+    if (show_light)
+    {
+        services[index++] = light_service;
+    }
+    if (show_motion)
+    {
+        services[index++] = motion_service;
+    }
+    services[index] = NULL;
 
     arduino_homekit_setup(&config);
     homekit_setup_done = true;

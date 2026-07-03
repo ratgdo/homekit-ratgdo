@@ -90,6 +90,7 @@ constexpr char cfg_useSWserial[] PROGMEM = "useSWserial";
 constexpr char cfg_obstFromStatus[] PROGMEM = "obstFromStatus";
 constexpr char cfg_builtInTTC[] PROGMEM = "builtInTTC";
 constexpr char cfg_reverseOnStop[] PROGMEM = "reverseOnStop";
+constexpr char cfg_lightHomeKit[] PROGMEM = "lightHomeKit";
 #ifdef ESP8266
 // On ESP8266 we save user config to a file in LittleFS
 constexpr char cfg_configFile[] PROGMEM = "user_config";
@@ -108,7 +109,6 @@ constexpr char cfg_TTCsound[] PROGMEM = "TTCsound";
 constexpr char cfg_occupancyDuration[] PROGMEM = "occupancyDuration";
 constexpr char cfg_enableIPv6[] PROGMEM = "enableIPv6";
 constexpr char cfg_homespanCLI[] PROGMEM = "homespanCLI";
-constexpr char cfg_lightHomeKit[] PROGMEM = "lightHomeKit";
 constexpr char cfg_motionHomeKit[] PROGMEM = "motionHomeKit";
 constexpr char cfg_encoderEnabled[] PROGMEM = "encoderEnabled";
 constexpr char cfg_encoderReversed[] PROGMEM = "encoderReversed";
@@ -212,6 +212,7 @@ public:
     bool getObstFromStatus() { return std::get<bool>(get(cfg_obstFromStatus)); };
     uint32_t getBuiltInTTC() { return std::get<int>(get(cfg_builtInTTC)); };
     bool getReverseOnStop() { return std::get<bool>(get(cfg_reverseOnStop)); };
+    bool getLightHomeKit() { return std::get<bool>(get(cfg_lightHomeKit)); };
 #ifdef RATGDO32_DISCO
     uint32_t getVehicleThreshold() { return std::get<int>(get(cfg_vehicleThreshold)); };
     bool getLaserEnabled() { return std::get<bool>(get(cfg_laserEnabled)); };
@@ -230,7 +231,6 @@ public:
     uint32_t getOccupancyDuration() { return std::get<int>(get(cfg_occupancyDuration)); };
     bool getEnableIPv6() { return std::get<bool>(get(cfg_enableIPv6)); };
     bool getEnableHomeSpanCLI() { return std::get<bool>(get(cfg_homespanCLI)); };
-    bool getLightHomeKit() { return std::get<bool>(get(cfg_lightHomeKit)); };
     bool getMotionHomeKit() { return std::get<bool>(get(cfg_motionHomeKit)); };
     bool getEncoderEnabled() { return std::get<bool>(get(cfg_encoderEnabled)); };
     bool getEncoderReversed() { return std::get<bool>(get(cfg_encoderReversed)); };
