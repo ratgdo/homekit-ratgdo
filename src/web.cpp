@@ -854,6 +854,7 @@ void build_status_json(char *json)
     JSON_ADD_BOOL(cfg_dcBypassTTC, userConfig->getDCBypassTTC());
     JSON_ADD_BOOL(cfg_obstFromStatus, userConfig->getObstFromStatus());
     JSON_ADD_INT(cfg_dcDebounceDuration, userConfig->getDCDebounceDuration());
+#ifdef RATGDO_ENCODER
     if (doorControlType == 3)
     {
         JSON_ADD_BOOL(cfg_encoderEnabled, userConfig->getEncoderEnabled());
@@ -861,6 +862,7 @@ void build_status_json(char *json)
         if (userConfig->getEncoderEnabled())
             JSON_ADD_INT("encSteps", (int32_t)encoder_last_step());
     }
+#endif
     JSON_ADD_STR("qrPayload", qrPayload);
     if (doorControlType == 2)
     {
@@ -1170,11 +1172,13 @@ bool helperAssistLaser(const std::string &key, const char *value, configSetting 
 }
 #endif
 
+#ifdef RATGDO_ENCODER
 bool helperResetEncoderCal(const std::string &key, const char *value, configSetting *action)
 {
     reset_encoder_cal();
     return true;
 }
+#endif
 
 void handle_setgdo()
 {
@@ -1191,7 +1195,9 @@ void handle_setgdo()
 #ifdef RATGDO32_DISCO
         {PSTR("assistLaser"), {false, false, 0, helperAssistLaser}},
 #endif
+#ifdef RATGDO_ENCODER
         {PSTR("resetEncoderCal"), {false, false, 0, helperResetEncoderCal}},
+#endif
     };
     bool reboot = false;
     bool error = false;

@@ -91,8 +91,10 @@ constexpr char cfg_obstFromStatus[] PROGMEM = "obstFromStatus";
 constexpr char cfg_builtInTTC[] PROGMEM = "builtInTTC";
 constexpr char cfg_reverseOnStop[] PROGMEM = "reverseOnStop";
 constexpr char cfg_lightHomeKit[] PROGMEM = "lightHomeKit";
+#ifdef RATGDO_ENCODER
 constexpr char cfg_encoderEnabled[] PROGMEM = "encoderEnabled";
 constexpr char cfg_encoderReversed[] PROGMEM = "encoderReversed";
+#endif
 #ifdef ESP8266
 // On ESP8266 we save user config to a file in LittleFS
 constexpr char cfg_configFile[] PROGMEM = "user_config";
@@ -213,8 +215,10 @@ public:
     uint32_t getBuiltInTTC() { return std::get<int>(get(cfg_builtInTTC)); };
     bool getReverseOnStop() { return std::get<bool>(get(cfg_reverseOnStop)); };
     bool getLightHomeKit() { return std::get<bool>(get(cfg_lightHomeKit)); };
+#ifdef RATGDO_ENCODER
     bool getEncoderEnabled() { return std::get<bool>(get(cfg_encoderEnabled)); };
     bool getEncoderReversed() { return std::get<bool>(get(cfg_encoderReversed)); };
+#endif
 #ifdef RATGDO32_DISCO
     uint32_t getVehicleThreshold() { return std::get<int>(get(cfg_vehicleThreshold)); };
     bool getLaserEnabled() { return std::get<bool>(get(cfg_laserEnabled)); };

@@ -61,6 +61,7 @@ void setup_drycontact()
     buttonClose.setDebounceMs(userConfig->getDCDebounceDuration());
     buttonLight.setDebounceMs(userConfig->getDCDebounceDuration());
 
+#ifdef RATGDO_ENCODER
     if (doorControlType == 3 && userConfig->getEncoderEnabled())
     {
         // Encoder takes over open/close pins — only attach the light button
@@ -70,7 +71,7 @@ void setup_drycontact()
         drycontact_setup_done = true;
         return;
     }
-
+#endif
     // Attach OneButton handlers
     buttonOpen.attachPress(onOpenSwitchPress);
     buttonClose.attachPress(onCloseSwitchPress);
@@ -88,6 +89,7 @@ void drycontact_loop()
         return;
 
     // Poll OneButton objects (light always polled; open/close polled only when encoder not active)
+#ifdef RATGDO_ENCODER
     if (doorControlType == 3 && userConfig->getEncoderEnabled())
     {
         buttonLight.tick();
@@ -99,7 +101,7 @@ void drycontact_loop()
         }
         return;
     }
-
+#endif
     // Poll OneButton objects
     buttonOpen.tick();
     buttonClose.tick();

@@ -11,10 +11,11 @@
  * those two pins is skipped and replaced by this ISR-based encoder.
  */
 #pragma once
-
+#ifdef RATGDO_ENCODER
 void setup_encoder();
 void encoder_loop();           // call from drycontact_loop() every main-loop tick
 void reset_encoder_cal();      // called by web handler "resetEncoderCal"
 void encoder_set_intended_open();
 void encoder_set_intended_close();
 int16_t encoder_last_step();   // current raw step value (for status JSON)
+#endif // RATGDO_ENCODER

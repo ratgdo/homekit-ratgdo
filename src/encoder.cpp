@@ -11,7 +11,7 @@
  * Encoder A = DRY_CONTACT_OPEN_PIN
  * Encoder B = DRY_CONTACT_CLOSE_PIN
  */
-
+#ifdef RATGDO_ENCODER
 #include "ratgdo.h"
 #include "config.h"
 #include "comms.h"
@@ -408,3 +408,4 @@ void encoder_set_intended_open() { enc_intended_dir_ = 1; }
 void encoder_set_intended_close() { enc_intended_dir_ = -1; }
 
 int16_t encoder_last_step() { return enc_last_; }
+#endif // RATGDO_ENCODER

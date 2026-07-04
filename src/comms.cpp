@@ -2683,8 +2683,10 @@ GarageDoorCurrentState open_door()
         }
         return GarageDoorCurrentState::CURR_STOPPED;
     }
+#ifdef RATGDO_ENCODER
     if (doorControlType == 3 && userConfig->getEncoderEnabled())
         encoder_set_intended_open();
+#endif
     door_command_open();
     return GarageDoorCurrentState::CURR_OPENING;
 }
@@ -2867,8 +2869,10 @@ GarageDoorCurrentState close_door(bool bypass_ttc)
             ESP_LOGI(TAG, "Bypassing time-to-close delay");
         }
         ESP_LOGI(TAG, "Closing door");
+#ifdef RATGDO_ENCODER
         if (doorControlType == 3 && userConfig->getEncoderEnabled())
             encoder_set_intended_close();
+#endif
         door_command_close();
     }
     else

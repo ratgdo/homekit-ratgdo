@@ -476,8 +476,10 @@ userSettings::userSettings()
 #endif
         {cfg_builtInTTC, {false, false, 0, helperBuiltInTTC}},
         {cfg_reverseOnStop, {false, false, true, NULL}},
+#ifdef RATGDO_ENCODER
         {cfg_encoderEnabled, {true, false, false, NULL}},  // reboot required to set up encoder ISR
         {cfg_encoderReversed, {true, false, false, NULL}}, // reboot required to reverse encoder direction
+#endif
 #ifndef ESP8266
         // These features not available on ESP8266
         {cfg_occupancyDuration, {false, false, 0, helperOccupancyDuration}}, // call fn to enable/disable HomeKit accessories
