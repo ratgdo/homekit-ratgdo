@@ -1,6 +1,10 @@
 > [!IMPORTANT]
 > This firmware is for the orginal ESP8266-based RATGDO v2.5-series devices. It does not work with the ESP32-based ratgdo32 or ratgdo32 disco. HomeKit firmware for ratgdo32 & ratgdo32 disco can be found [here](https://github.com/ratgdo/homekit-ratgdo32).
 
+> [!IMPORTANT]
+> HomeKit firmware for ESP8266-based RATGDO v2.5-series devices is **deprecated** no further enhancements are planned.
+> HomeKit support on ESP8266 has always been fragile... the CPU performance and especially the limited memory size makes it challenging to support the HomeKit protocol.  While we have tried to maintain feature parity with the [ESP32-based firmware](https://github.com/ratgdo/homekit-ratgdo32), it is no longer possible to do so.  We have reached the limit of what will fit in the available memory and CPU.
+
 # What is HomeKit-RATGDO?
 
 HomeKit-ratgdo is alternative firmware for the ratgdo-series WiFi control boards that works
