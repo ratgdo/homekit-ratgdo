@@ -57,6 +57,123 @@ nvRamClass *nvRamClass::instancePtr = new nvRamClass();
 nvRamClass *nvRam = nvRamClass::getInstance();
 #endif
 
+// Forward declarations of helper functions for config settings
+bool setDeviceName(const std::string &key, const char *name, configSetting *action);
+bool helperWiFiPower(const std::string &key, const char *value, configSetting *action);
+bool helperWiFiPhyMode(const std::string &key, const char *value, configSetting *action);
+bool helperGDOSecurityType(const std::string &key, const char *value, configSetting *action);
+bool helperLEDidle(const std::string &key, const char *value, configSetting *action);
+bool helperMotionTriggers(const std::string &key, const char *value, configSetting *action);
+bool helperNTPServer(const std::string &key, const char *value, configSetting *action);
+bool helperTimeZone(const std::string &key, const char *value, configSetting *action);
+bool helperSyslogEn(const std::string &key, const char *value, configSetting *action);
+bool helperSyslogPort(const std::string &key, const char *value, configSetting *action);
+bool helperSyslogFacility(const std::string &key, const char *value, configSetting *action);
+bool helperLogLevel(const std::string &key, const char *value, configSetting *action);
+bool helperBuiltInTTC(const std::string &key, const char *value, configSetting *action);
+#ifdef RATGDO32_DISCO
+bool helperVehicleThreshold(const std::string &key, const char *value, configSetting *action);
+bool helperVehicleHomeKit(const std::string &key, const char *value, configSetting *action);
+bool helperVehicleOccupancyHomeKit(const std::string &key, const char *value, configSetting *action);
+bool helperVehicleArrivingHomeKit(const std::string &key, const char *value, configSetting *action);
+bool helperVehicleDepartingHomeKit(const std::string &key, const char *value, configSetting *action);
+bool helperLaser(const std::string &key, const char *value, configSetting *action);
+#endif
+#ifndef ESP8266
+bool helperOccupancyDuration(const std::string &key, const char *value, configSetting *action);
+bool helperHomeSpanCLI(const std::string &key, const char *value, configSetting *action);
+bool helperLightHomeKit(const std::string &key, const char *value, configSetting *action);
+bool helperMotionHomeKit(const std::string &key, const char *value, configSetting *action);
+bool helperStopDoorHomeKit(const std::string &key, const char *value, configSetting *action);
+#endif
+
+static char localIPBuf[IP4ADDR_STRLEN_MAX] = "0.0.0.0";
+static char subnetMaskBuf[IP4ADDR_STRLEN_MAX] = "0.0.0.0";
+static char gatewayIPBuf[IP4ADDR_STRLEN_MAX] = "0.0.0.0";
+static char nameserverIPBuf[IP4ADDR_STRLEN_MAX] = "0.0.0.0";
+static char syslogIPBuf[IP4ADDR_STRLEN_MAX] = "0.0.0.0";
+static char timezoneBuf[64] = "";
+static char ntpServerBuf[64] = "pool.ntp.org";
+static char usernameBuf[32] = "admin";
+static char credentialsBuf[36] = "10d3c00fa1e09696601ef113b99f8a87"; // MD5 hash of "admin:ratgdo:password"
+
+//  key, reboot, wifiChanged, value, fn_to_call
+static configSetting settings_defaults[] PROGMEM = {
+    {cfg_deviceName, false, false, (configStr){DEVICE_NAME_SIZE, default_device_name}, setDeviceName}, // call fn to set global
+    {cfg_wifiChanged, true, true, false, NULL},
+    {cfg_wifiPower, true, true, WIFI_POWER_MAX, helperWiFiPower}, // call fn to set reboot only if setting changed
+    {cfg_wifiPhyMode, true, true, 0, helperWiFiPhyMode},          // call fn to set reboot only if setting changed
+    {cfg_staticIP, true, true, false, NULL},
+    {cfg_localIP, true, true, (configStr){sizeof(localIPBuf), localIPBuf}, NULL},
+    {cfg_subnetMask, true, true, (configStr){sizeof(subnetMaskBuf), subnetMaskBuf}, NULL},
+    {cfg_gatewayIP, true, true, (configStr){sizeof(gatewayIPBuf), gatewayIPBuf}, NULL},
+    {cfg_nameserverIP, true, true, (configStr){sizeof(nameserverIPBuf), nameserverIPBuf}, NULL},
+    {cfg_passwordRequired, false, false, false, NULL},
+    {cfg_wwwUsername, false, false, (configStr){sizeof(usernameBuf), usernameBuf}, NULL},
+    //  Credentials are MD5 Hash... server.credentialHash(username, realm, "password");
+    {cfg_wwwCredentials, false, false, (configStr){sizeof(credentialsBuf), credentialsBuf}, NULL},
+    {cfg_GDOSecurityType, true, false, 2, helperGDOSecurityType}, // call fn to reset door
+    {cfg_TTCseconds, false, false, 5, NULL},
+    {cfg_TTClight, false, false, true, NULL},
+    {cfg_rebootSeconds, true, true, 0, NULL},
+    {cfg_LEDidle, false, false, 0, helperLEDidle},               // call fn to set LED object
+    {cfg_motionTriggers, false, false, 0, helperMotionTriggers}, // call fn to enable HomeSpan service
+    {cfg_enableNTP, true, false, false, NULL},
+    {cfg_ntpServer, false, false, (configStr){sizeof(ntpServerBuf), ntpServerBuf}, helperNTPServer}, // call fn to re-sync time with new NTP server
+    {cfg_doorUpdateAt, false, false, 0, NULL},
+    {cfg_doorOpenAt, false, false, 0, NULL},
+    {cfg_doorCloseAt, false, false, 0, NULL},
+    // Will contain string of region/city and POSIX code separated by semicolon...
+    // For example... "America/New_York;EST5EDT,M3.2.0,M11.1.0"
+    // Current maximum string length is known to be 60 chars (+ null terminator), see JavaScript console log.
+    {cfg_timeZone, false, false, (configStr){sizeof(timezoneBuf), timezoneBuf}, helperTimeZone}, // call fn to set system time zone
+    {cfg_softAPmode, true, false, false, NULL},
+    {cfg_syslogEn, false, false, false, helperSyslogEn}, // call fn to set globals
+    {cfg_syslogIP, false, false, (configStr){sizeof(syslogIPBuf), syslogIPBuf}, NULL},
+    {cfg_syslogPort, false, false, 514, helperSyslogPort},                   // call fn to set global
+    {cfg_syslogFacility, false, false, SYSLOG_LOCAL0, helperSyslogFacility}, // call fn to set global
+    {cfg_logLevel, false, false, ESP_LOG_INFO, helperLogLevel},              // call fn to set log level
+    {cfg_dcOpenClose, true, false, false, NULL},
+    {cfg_dcBypassTTC, false, false, false, NULL},
+    {cfg_useToggle, false, false, false, NULL},
+    {cfg_dcDebounceDuration, true, false, 50, NULL},
+    {cfg_obstFromStatus, true, false, false, NULL},
+#ifdef RATGDO32_DISCO
+    {cfg_vehicleThreshold, false, false, 100, helperVehicleThreshold},                // call fn to set globals
+    {cfg_vehicleHomeKit, false, false, false, helperVehicleHomeKit},                  // call fn to enable/disable HomeKit accessories
+    {cfg_vehicleOccupancyHomeKit, false, false, true, helperVehicleOccupancyHomeKit}, // granular control for occupancy sensor
+    {cfg_vehicleArrivingHomeKit, false, false, true, helperVehicleArrivingHomeKit},   // granular control for arriving motion sensor
+    {cfg_vehicleDepartingHomeKit, false, false, true, helperVehicleDepartingHomeKit}, // granular control for departing motion sensor
+    {cfg_laserEnabled, false, false, false, helperLaser},
+    {cfg_laserHomeKit, false, false, true, helperLaser}, // call fn to enable/disable HomeKit accessories
+    {cfg_assistDuration, false, false, 60, NULL},
+    {cfg_TTCsound, false, false, true, NULL},
+#endif
+#ifdef USE_GDOLIB
+    {cfg_useSWserial, true, false, true, helperUseSWserial}, // call fn to shut down GDO before switch
+#endif
+    {cfg_builtInTTC, false, false, 0, helperBuiltInTTC},
+    {cfg_reverseOnStop, false, false, true, NULL},
+#ifdef RATGDO_ENCODER
+    {cfg_encoderEnabled, true, false, false, NULL},  // reboot required to set up encoder ISR
+    {cfg_encoderReversed, true, false, false, NULL}, // reboot required to reverse encoder direction
+#endif
+#ifndef ESP8266
+    // These features not available on ESP8266
+    {cfg_occupancyDuration, false, false, 0, helperOccupancyDuration}, // call fn to enable/disable HomeKit accessories
+    {cfg_enableIPv6, true, false, false, NULL},
+    {cfg_homespanCLI, false, false, false, helperHomeSpanCLI},         // call fn to enable/disable HomeSpan CLI and Improv
+    {cfg_lightHomeKit, false, false, true, helperLightHomeKit},        // call fn to enable/disable HomeKit light accessory (default: enabled)
+    {cfg_motionHomeKit, false, false, true, helperMotionHomeKit},      // call fn to enable/disable HomeKit motion accessory (default: enabled)
+    {cfg_stopDoorHomeKit, false, false, false, helperStopDoorHomeKit}, // call fn to enable/disable HomeKit stop accessory (default: disabled)
+#else
+    // HomeKit services are static on ESP8266, so a reboot is required to add/remove the light.
+    {cfg_lightHomeKit, true, false, true, NULL},
+#endif
+};
+// Number of settings, calculated at compile time
+static const size_t nSettings = sizeof(settings_defaults) / sizeof(settings_defaults[0]);
+
 #ifdef ESP8266
 // ESP8266 is single core / single threaded, no mutex's.
 #define TAKE_MUTEX()
@@ -401,150 +518,77 @@ userSettings::userSettings()
     strlcpy(device_name, default_device_name, sizeof(device_name));
     make_rfc952(device_name_rfc952, default_device_name, sizeof(device_name_rfc952));
     IRAM_START(TAG);
-    char *localIPBuf = static_cast<char *>(malloc(IP4ADDR_STRLEN_MAX));
-    strlcpy(localIPBuf, "0.0.0.0", 16);
-    char *subnetMaskBuf = static_cast<char *>(malloc(IP4ADDR_STRLEN_MAX));
-    strlcpy(subnetMaskBuf, "0.0.0.0", 16);
-    char *gatewayIPBuf = static_cast<char *>(malloc(IP4ADDR_STRLEN_MAX));
-    strlcpy(gatewayIPBuf, "0.0.0.0", 16);
-    char *nameserverIPBuf = static_cast<char *>(malloc(IP4ADDR_STRLEN_MAX));
-    strlcpy(nameserverIPBuf, "0.0.0.0", 16);
-    char *syslogIPBuf = static_cast<char *>(malloc(IP4ADDR_STRLEN_MAX));
-    strlcpy(syslogIPBuf, "0.0.0.0", 16);
-    char *timezoneBuf = static_cast<char *>(malloc(64));
-    *timezoneBuf = (char)0;
-    char *ntpServerBuf = static_cast<char *>(malloc(64));
-    strlcpy(ntpServerBuf, "pool.ntp.org", 64);
-    char *usernameBuf = static_cast<char *>(malloc(32));
-    strlcpy(usernameBuf, "admin", 32);
-    char *credentialsBuf = static_cast<char *>(malloc(36));
-    strlcpy(credentialsBuf, "10d3c00fa1e09696601ef113b99f8a87", 36);
-    //  key, {reboot, wifiChanged, value, fn to call}
-    settings = {
-        {cfg_deviceName, {false, false, (configStr){DEVICE_NAME_SIZE, default_device_name}, setDeviceName}}, // call fn to set global
-        {cfg_wifiChanged, {true, true, false, NULL}},
-        {cfg_wifiPower, {true, true, WIFI_POWER_MAX, helperWiFiPower}}, // call fn to set reboot only if setting changed
-        {cfg_wifiPhyMode, {true, true, 0, helperWiFiPhyMode}},          // call fn to set reboot only if setting changed
-        {cfg_staticIP, {true, true, false, NULL}},
-        {cfg_localIP, {true, true, (configStr){IP4ADDR_STRLEN_MAX, localIPBuf}, NULL}},
-        {cfg_subnetMask, {true, true, (configStr){IP4ADDR_STRLEN_MAX, subnetMaskBuf}, NULL}},
-        {cfg_gatewayIP, {true, true, (configStr){IP4ADDR_STRLEN_MAX, gatewayIPBuf}, NULL}},
-        {cfg_nameserverIP, {true, true, (configStr){IP4ADDR_STRLEN_MAX, nameserverIPBuf}, NULL}},
-        {cfg_passwordRequired, {false, false, false, NULL}},
-        {cfg_wwwUsername, {false, false, (configStr){32, usernameBuf}, NULL}},
-        //  Credentials are MD5 Hash... server.credentialHash(username, realm, "password");
-        {cfg_wwwCredentials, {false, false, (configStr){36, credentialsBuf}, NULL}},
-        {cfg_GDOSecurityType, {true, false, 2, helperGDOSecurityType}}, // call fn to reset door
-        {cfg_TTCseconds, {false, false, 5, NULL}},
-        {cfg_TTClight, {false, false, true, NULL}},
-        {cfg_rebootSeconds, {true, true, 0, NULL}},
-        {cfg_LEDidle, {false, false, 0, helperLEDidle}},               // call fn to set LED object
-        {cfg_motionTriggers, {false, false, 0, helperMotionTriggers}}, // call fn to enable HomeSpan service
-        {cfg_enableNTP, {true, false, false, NULL}},
-        {cfg_ntpServer, {false, false, (configStr){64, ntpServerBuf}, helperNTPServer}}, // call fn to re-sync time with new NTP server
-        {cfg_doorUpdateAt, {false, false, 0, NULL}},
-        {cfg_doorOpenAt, {false, false, 0, NULL}},
-        {cfg_doorCloseAt, {false, false, 0, NULL}},
-        // Will contain string of region/city and POSIX code separated by semicolon...
-        // For example... "America/New_York;EST5EDT,M3.2.0,M11.1.0"
-        // Current maximum string length is known to be 60 chars (+ null terminator), see JavaScript console log.
-        {cfg_timeZone, {false, false, (configStr){64, timezoneBuf}, helperTimeZone}}, // call fn to set system time zone
-        {cfg_softAPmode, {true, false, false, NULL}},
-        {cfg_syslogEn, {false, false, false, helperSyslogEn}}, // call fn to set globals
-        {cfg_syslogIP, {false, false, (configStr){IP4ADDR_STRLEN_MAX, syslogIPBuf}, NULL}},
-        {cfg_syslogPort, {false, false, 514, helperSyslogPort}},                   // call fn to set global
-        {cfg_syslogFacility, {false, false, SYSLOG_LOCAL0, helperSyslogFacility}}, // call fn to set global
-        {cfg_logLevel, {false, false, ESP_LOG_INFO, helperLogLevel}},              // call fn to set log level
-        {cfg_dcOpenClose, {true, false, false, NULL}},
-        {cfg_dcBypassTTC, {false, false, false, NULL}},
-        {cfg_useToggle, {false, false, false, NULL}},
-        {cfg_dcDebounceDuration, {true, false, 50, NULL}},
-        {cfg_obstFromStatus, {true, false, false, NULL}},
-#ifdef RATGDO32_DISCO
-        {cfg_vehicleThreshold, {false, false, 100, helperVehicleThreshold}},                // call fn to set globals
-        {cfg_vehicleHomeKit, {false, false, false, helperVehicleHomeKit}},                  // call fn to enable/disable HomeKit accessories
-        {cfg_vehicleOccupancyHomeKit, {false, false, true, helperVehicleOccupancyHomeKit}}, // granular control for occupancy sensor
-        {cfg_vehicleArrivingHomeKit, {false, false, true, helperVehicleArrivingHomeKit}},   // granular control for arriving motion sensor
-        {cfg_vehicleDepartingHomeKit, {false, false, true, helperVehicleDepartingHomeKit}}, // granular control for departing motion sensor
-        {cfg_laserEnabled, {false, false, false, helperLaser}},
-        {cfg_laserHomeKit, {false, false, true, helperLaser}}, // call fn to enable/disable HomeKit accessories
-        {cfg_assistDuration, {false, false, 60, NULL}},
-        {cfg_TTCsound, {false, false, true, NULL}},
-#endif
-#ifdef USE_GDOLIB
-        {cfg_useSWserial, {true, false, true, helperUseSWserial}}, // call fn to shut down GDO before switch
-#endif
-        {cfg_builtInTTC, {false, false, 0, helperBuiltInTTC}},
-        {cfg_reverseOnStop, {false, false, true, NULL}},
-#ifdef RATGDO_ENCODER
-        {cfg_encoderEnabled, {true, false, false, NULL}},  // reboot required to set up encoder ISR
-        {cfg_encoderReversed, {true, false, false, NULL}}, // reboot required to reverse encoder direction
-#endif
-#ifndef ESP8266
-        // These features not available on ESP8266
-        {cfg_occupancyDuration, {false, false, 0, helperOccupancyDuration}}, // call fn to enable/disable HomeKit accessories
-        {cfg_enableIPv6, {true, false, false, NULL}},
-        {cfg_homespanCLI, {false, false, false, helperHomeSpanCLI}},         // call fn to enable/disable HomeSpan CLI and Improv
-        {cfg_lightHomeKit, {false, false, true, helperLightHomeKit}},        // call fn to enable/disable HomeKit light accessory (default: enabled)
-        {cfg_motionHomeKit, {false, false, true, helperMotionHomeKit}},      // call fn to enable/disable HomeKit motion accessory (default: enabled)
-        {cfg_stopDoorHomeKit, {false, false, false, helperStopDoorHomeKit}}, // call fn to enable/disable HomeKit stop accessory (default: disabled)
+#ifdef ESP8266
+    // on ESP8266 we need to copy the array to IRAM_HEAP at runtime, because PROGMEM is read-only.
+    settings = (configSetting *)malloc(sizeof(settings_defaults));
+    // Do not use memcpy() because settings structs contain std::variant which is not trivially copyable, so we must copy each element individually.
+    for (size_t i = 0; i < nSettings; ++i)
+    {
+        settings[i] = settings_defaults[i];
+    }
 #else
-        // HomeKit services are static on ESP8266, so a reboot is required to add/remove the light.
-        {cfg_lightHomeKit, {true, false, true, NULL}},
+    // on ESP32 we can use the array directly, no need to copy to IRAM_HEAP, because PROGMEM is a no-op.
+    settings = settings_defaults;
 #endif
-    };
     IRAM_END(TAG);
 }
 
 void userSettings::toStdOut()
 {
-    for (const auto &it : settings)
+    configSetting *p = settings;
+    for (size_t i = 0; i < nSettings; ++i, ++p)
     {
-        if (std::holds_alternative<configStr>(it.second.value))
+        if (std::holds_alternative<configStr>(p->value))
         {
-            Serial.printf_P(PSTR("%s:\t%s\n"), it.first.c_str(), std::get<configStr>(it.second.value).str);
+            Serial.printf_P(PSTR("%s:\t%s\n"), p->key, std::get<configStr>(p->value).str);
         }
-        else if (std::holds_alternative<int>(it.second.value))
+        else if (std::holds_alternative<int>(p->value))
         {
-            Serial.printf_P(PSTR("%s:\t%d\n"), it.first.c_str(), std::get<int>(it.second.value));
+            Serial.printf_P(PSTR("%s:\t%d\n"), p->key, std::get<int>(p->value));
         }
         else
         {
-            Serial.printf_P(PSTR("%s:\t%d\n"), it.first.c_str(), std::get<bool>(it.second.value));
+            Serial.printf_P(PSTR("%s:\t%d\n"), p->key, std::get<bool>(p->value));
         }
     }
 }
 
 void userSettings::toFile(Print &file)
 {
-    for (const auto &it : settings)
+    configSetting *p = settings;
+    for (size_t i = 0; i < nSettings; ++i, ++p)
     {
-        if (std::holds_alternative<configStr>(it.second.value))
+        if (std::holds_alternative<configStr>(p->value))
         {
-            file.printf_P(PSTR("%s,,%s\n"), it.first.c_str(), std::get<configStr>(it.second.value).str);
+            file.printf_P(PSTR("%s,,%s\n"), p->key, std::get<configStr>(p->value).str);
         }
-        else if (std::holds_alternative<int>(it.second.value))
+        else if (std::holds_alternative<int>(p->value))
         {
-            file.printf_P(PSTR("%s,,%d\n"), it.first.c_str(), std::get<int>(it.second.value));
+            file.printf_P(PSTR("%s,,%d\n"), p->key, std::get<int>(p->value));
 #ifdef ESP8266
+            /* === remove legacy support as has been over a year
             // Also save selected values under their old (v1.9.x and older) keynames
             // Just-in-case user uploads back-level firmware.
-            if (it.first == cfg_GDOSecurityType)
-                file.printf_P(PSTR("gdoSecurityType,,%d\n"), std::get<int>(it.second.value));
-            else if (it.first == cfg_TTCseconds)
-                file.printf_P(PSTR("TTCdelay,,%d\n"), std::get<int>(it.second.value));
-            else if (it.first == cfg_LEDidle)
-                file.printf_P(PSTR("ledIdleState,,%d\n"), std::get<int>(it.second.value));
+            if (strcmp_P(p->key, cfg_GDOSecurityType) == 0)
+                file.printf_P(PSTR("gdoSecurityType,,%d\n"), std::get<int>(p->value));
+            else if (strcmp_P(p->key, cfg_TTCseconds) == 0)
+                file.printf_P(PSTR("TTCdelay,,%d\n"), std::get<int>(p->value));
+            else if (strcmp_P(p->key, cfg_LEDidle) == 0)
+                file.printf_P(PSTR("ledIdleState,,%d\n"), std::get<int>(p->value));
+            */
 #endif
         }
         else
         {
-            file.printf_P(PSTR("%s,,%d\n"), it.first.c_str(), std::get<bool>(it.second.value));
+            file.printf_P(PSTR("%s,,%d\n"), p->key, std::get<bool>(p->value));
+
 #ifdef ESP8266
+            /* === remove legacy support as has been over a year
             // Also save selected values under their old (v1.9.x and older) keynames
             // Just-in-case user uploads back-level firmware.
-            if (it.first == cfg_passwordRequired)
-                file.printf_P(PSTR("wwwPWrequired,,%d\n"), std::get<bool>(it.second.value));
+            if (strcmp_P(p->key, cfg_passwordRequired) == 0)
+                file.printf_P(PSTR("wwwPWrequired,,%d\n"), std::get<bool>(p->value));
+            */
 #endif
         }
     }
@@ -603,6 +647,7 @@ void userSettings::load()
             continue;
         }
         *value++ = 0;
+        /* === remove legacy support as has been over a year
         // one-time conversion of legacy (v1.9.x and older) into current keynames.
         if (!strcmp(key, "wifiSettingsChanged"))
             set(cfg_wifiChanged, value);
@@ -623,7 +668,8 @@ void userSettings::load()
         else if (!strcmp(key, "ledIdleState"))
             set(cfg_LEDidle, value);
         else
-            set(key, value);
+        */
+        set(key, value);
     }
     file.close();
     return;
@@ -642,19 +688,20 @@ void userSettings::erase()
 void userSettings::save()
 {
     ESP_LOGI(TAG, "Writing user configuration to NVRAM");
-    for (const auto &it : settings)
+    configSetting *p = settings;
+    for (size_t i = 0; i < nSettings; ++i, ++p)
     {
-        if (std::holds_alternative<configStr>(it.second.value))
+        if (std::holds_alternative<configStr>(p->value))
         {
-            nvRam->write(it.first, std::get<configStr>(it.second.value).str);
+            nvRam->write(p->key, std::get<configStr>(p->value).str);
         }
-        else if (std::holds_alternative<int>(it.second.value))
+        else if (std::holds_alternative<int>(p->value))
         {
-            nvRam->write(it.first, std::get<int>(it.second.value));
+            nvRam->write(p->key, std::get<int>(p->value));
         }
         else
         {
-            nvRam->write(it.first, std::get<bool>(it.second.value) ? 1 : 0);
+            nvRam->write(p->key, std::get<bool>(p->value) ? 1 : 0);
         }
     }
 }
@@ -666,55 +713,71 @@ void userSettings::load()
     ESP_LOGI(TAG, "NVRAM Used Entries: (%lu), Free Entries: (%lu), Total Entries: (%lu), Namespace Count: (%lu)",
              nvs_stats.used_entries, nvs_stats.free_entries, nvs_stats.total_entries, nvs_stats.namespace_count);
     ESP_LOGI(TAG, "Read user configuration from NVRAM");
-    for (auto &it : settings)
+    configSetting *p = settings;
+    for (size_t i = 0; i < nSettings; ++i, ++p)
     {
-        if (std::holds_alternative<configStr>(it.second.value))
+        if (std::holds_alternative<configStr>(p->value))
         {
-            char *p = std::get<configStr>(it.second.value).str;
-            size_t max = std::get<configStr>(it.second.value).max;
-            strlcpy(p, nvRam->read(it.first, p).c_str(), max);
+            char *str = std::get<configStr>(p->value).str;
+            size_t max = std::get<configStr>(p->value).max;
+            strlcpy(str, nvRam->read(p->key, str).c_str(), max);
         }
-        else if (std::holds_alternative<int>(it.second.value))
+        else if (std::holds_alternative<int>(p->value))
         {
-            it.second.value = (int)nvRam->read(it.first, std::get<int>(it.second.value));
+            p->value = (int)nvRam->read(p->key, std::get<int>(p->value));
         }
         else
         {
-            it.second.value = (bool)(nvRam->read(it.first, std::get<bool>(it.second.value) ? 1 : 0) != 0);
+            p->value = (bool)(nvRam->read(p->key, std::get<bool>(p->value) ? 1 : 0) != 0);
         }
     }
 }
 #endif
 
-bool userSettings::contains(const std::string &key)
-{
-    return (settings.count(key) > 0);
-}
-
 std::variant<bool, int, configStr> userSettings::get(const std::string &key)
 {
-    return settings[key].value;
+    configSetting *setting = getDetail(key);
+    if (!setting)
+    {
+        ESP_LOGW(TAG, "Attempt to get value for unknown key ignored: %s", key.c_str());
+        return false; // Return a default value (false) for unknown keys
+    }
+    return setting->value;
 }
 
-configSetting userSettings::getDetail(const std::string &key)
+configSetting *userSettings::getDetail(const std::string &key)
 {
-    return settings[key];
+    // Keeping things simple with a linear search, since the number of settings is small and
+    // the array cannot be assumed to be sorted. We are avoiding C++ std::map to reduce memory use.
+    configSetting *p = settings;
+    for (size_t i = 0; i < nSettings; ++i, ++p)
+    {
+        if (strcmp_P(key.c_str(), p->key) == 0)
+            return p;
+    }
+    ESP_LOGW(TAG, "Attempt to get details for unknown key ignored: %s", key.c_str());
+    return nullptr; // Return nullptr for unknown keys
 }
 
 bool userSettings::set(const std::string &key, const bool value)
 {
     bool rc = false;
     TAKE_MUTEX();
-    if (settings.count(key))
+    configSetting *setting = getDetail(key);
+    if (setting)
     {
-        if (std::holds_alternative<bool>(settings[key].value))
+        if (std::holds_alternative<bool>(setting->value))
         {
-            settings[key].value = value;
+            setting->value = value;
 #ifndef ESP8266
             nvRam->write(key, value ? 1 : 0);
 #endif
             rc = true;
         }
+    }
+    else
+    {
+        ESP_LOGW(TAG, "Attempt to set boolean for unknown key ignored: %s = %s", key.c_str(), value ? "true" : "false");
     }
     GIVE_MUTEX();
     return rc;
@@ -724,24 +787,29 @@ bool userSettings::set(const std::string &key, const int value)
 {
     bool rc = false;
     TAKE_MUTEX();
-    if (settings.count(key))
+    configSetting *setting = getDetail(key);
+    if (setting)
     {
-        if (std::holds_alternative<int>(settings[key].value))
+        if (std::holds_alternative<int>(setting->value))
         {
-            settings[key].value = value;
+            setting->value = value;
 #ifndef ESP8266
             nvRam->write(key, value);
 #endif
             rc = true;
         }
-        else if (std::holds_alternative<bool>(settings[key].value))
+        else if (std::holds_alternative<bool>(setting->value))
         {
-            settings[key].value = (value != 0);
+            setting->value = (value != 0);
 #ifndef ESP8266
             nvRam->write(key, value ? 1 : 0);
 #endif
             rc = true;
         }
+    }
+    else
+    {
+        ESP_LOGW(TAG, "Attempt to set integer for unknown key ignored: %s = %d", key.c_str(), value);
     }
     GIVE_MUTEX();
     return rc;
@@ -751,34 +819,42 @@ bool userSettings::set(const std::string &key, const char *value)
 {
     bool rc = false;
     TAKE_MUTEX();
-    if (settings.count(key))
+    configSetting *setting = getDetail(key);
+    if (setting)
     {
-        if (std::holds_alternative<configStr>(settings[key].value))
+        if (std::holds_alternative<configStr>(setting->value))
         {
-            char *p = std::get<configStr>(settings[key].value).str;
-            size_t max = std::get<configStr>(settings[key].value).max;
+            char *p = std::get<configStr>(setting->value).str;
+            size_t max = std::get<configStr>(setting->value).max;
+            // ESP_LOGD(TAG, "Set: %20s = %s", key.c_str(), value);
             strlcpy(p, value, max);
 #ifndef ESP8266
             nvRam->write(key, value);
 #endif
             rc = true;
         }
-        else if (std::holds_alternative<bool>(settings[key].value))
+        else if (std::holds_alternative<bool>(setting->value))
         {
-            settings[key].value = (!strcmp(value, "true")) || (atoi(value) != 0);
+            setting->value = (!strcmp(value, "true")) || (atoi(value) != 0);
+            // ESP_LOGD(TAG, "Set: %20s = %s", key.c_str(), std::get<bool>(setting->value) ? "true" : "false");
 #ifndef ESP8266
-            nvRam->write(key, std::get<bool>(settings[key].value) ? 1 : 0);
+            nvRam->write(key, std::get<bool>(setting->value) ? 1 : 0);
 #endif
             rc = true;
         }
-        else if (std::holds_alternative<int>(settings[key].value))
+        else if (std::holds_alternative<int>(setting->value))
         {
-            settings[key].value = atoi(value);
+            setting->value = atoi(value);
+            // ESP_LOGD(TAG, "Set: %20s = %d", key.c_str(), std::get<int>(setting->value));
 #ifndef ESP8266
             nvRam->write(key, atoi(value));
 #endif
             rc = true;
         }
+    }
+    else
+    {
+        ESP_LOGW(TAG, "Attempt to set string for unknown key ignored: %s = %s", key.c_str(), value);
     }
     GIVE_MUTEX();
     return rc;
