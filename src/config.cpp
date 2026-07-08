@@ -87,15 +87,22 @@ bool helperMotionHomeKit(const std::string &key, const char *value, configSettin
 bool helperStopDoorHomeKit(const std::string &key, const char *value, configSetting *action);
 #endif
 
-static char localIPBuf[IP4ADDR_STRLEN_MAX] = "0.0.0.0";
-static char subnetMaskBuf[IP4ADDR_STRLEN_MAX] = "0.0.0.0";
-static char gatewayIPBuf[IP4ADDR_STRLEN_MAX] = "0.0.0.0";
-static char nameserverIPBuf[IP4ADDR_STRLEN_MAX] = "0.0.0.0";
-static char syslogIPBuf[IP4ADDR_STRLEN_MAX] = "0.0.0.0";
-static char timezoneBuf[64] = "";
-static char ntpServerBuf[64] = "pool.ntp.org";
-static char usernameBuf[32] = "admin";
-static char credentialsBuf[36] = "10d3c00fa1e09696601ef113b99f8a87"; // MD5 hash of "admin:ratgdo:password"
+#ifdef ESP8266
+static inline bool isPROGMEM(const void *ptr)
+{
+    // PROGMEM addresses are in the 0x40200000 range
+    return ((uint32_t)ptr >= 0x40200000 && (uint32_t)ptr < 0x40300000);
+}
+#endif
+static char localIPBuf[IP4ADDR_STRLEN_MAX] PROGMEM = "0.0.0.0";
+static char subnetMaskBuf[IP4ADDR_STRLEN_MAX] PROGMEM = "0.0.0.0";
+static char gatewayIPBuf[IP4ADDR_STRLEN_MAX] PROGMEM = "0.0.0.0";
+static char nameserverIPBuf[IP4ADDR_STRLEN_MAX] PROGMEM = "0.0.0.0";
+static char syslogIPBuf[IP4ADDR_STRLEN_MAX] PROGMEM = "0.0.0.0";
+static char timezoneBuf[64] PROGMEM = "";
+static char ntpServerBuf[64] PROGMEM = "pool.ntp.org";
+static char usernameBuf[32] PROGMEM = "admin";
+static char credentialsBuf[36] PROGMEM = "10d3c00fa1e09696601ef113b99f8a87"; // MD5 hash of "admin:ratgdo:password"
 
 //  key, reboot, wifiChanged, value, fn_to_call
 static configSetting settings_defaults[] PROGMEM = {
@@ -519,12 +526,24 @@ userSettings::userSettings()
     make_rfc952(device_name_rfc952, default_device_name, sizeof(device_name_rfc952));
     IRAM_START(TAG);
 #ifdef ESP8266
-    // on ESP8266 we need to copy the array to IRAM_HEAP at runtime, because PROGMEM is read-only.
+    // On ESP8266 we have defined the default settings in PROGMEM.  This saves a significant amount of RAM,
+    // but it is read-only.  Therefore we need to copy the settings to RAM at runtime.  But, we will use
+    // IRAM_HEAP instead of normal RAM so that we maximize the amount of normal RAM available for other tasks.
+    // This is important because the ESP8266 has very limited RAM.
     settings = (configSetting *)malloc(sizeof(settings_defaults));
-    // Do not use memcpy() because settings structs contain std::variant which is not trivially copyable, so we must copy each element individually.
-    for (size_t i = 0; i < nSettings; ++i)
+    configSetting *p = settings;
+    for (size_t i = 0; i < nSettings; ++i, ++p)
     {
-        settings[i] = settings_defaults[i];
+        *p = settings_defaults[i];
+        configStr *strVal = std::get_if<configStr>(&p->value);
+        if (strVal && isPROGMEM(strVal->str))
+        {
+            // Copy string from PROGMEM to RAM buffer
+            char *buf = (char *)malloc(strVal->max);
+            memcpy_P(buf, strVal->str, strVal->max);
+            // Update the pointer in the configStr to point to the IRAM buffer
+            strVal->str = buf;
+        }
     }
 #else
     // on ESP32 we can use the array directly, no need to copy to IRAM_HEAP, because PROGMEM is a no-op.
