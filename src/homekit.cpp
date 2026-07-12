@@ -214,39 +214,16 @@ void setup_homekit()
     config.on_event = homekit_event;
 
     garage_door.has_motion_sensor = (bool)read_door_int(nvram_has_motion);
-    bool show_motion = garage_door.has_motion_sensor || (userConfig->getMotionTriggers() != 0);
-    if (!show_motion)
+    if (!garage_door.has_motion_sensor && (userConfig->getMotionTriggers() == 0))
     {
         ESP_LOGI(TAG, "Motion Sensor not detected.  Disabling Service");
+        config.accessories[0]->services[3] = NULL;
     }
-
-    bool show_light = true;
     if (userConfig->getGDOSecurityType() == 3)
     {
         ESP_LOGI(TAG, "Dry contact does not support light control.  Disabling Service");
-        show_light = false;
+        config.accessories[0]->services[2] = NULL;
     }
-    else if (!userConfig->getLightHomeKit())
-    {
-        ESP_LOGI(TAG, "Light HomeKit accessory disabled in settings.  Disabling Service");
-        show_light = false;
-    }
-
-    // Rebuild the null-terminated service list in-place so that disabling one service does
-    // not truncate the list and accidentally hide any enabled services that follow it.
-    homekit_service_t **services = config.accessories[0]->services;
-    homekit_service_t *light_service = services[2];
-    homekit_service_t *motion_service = services[3];
-    int index = 2; // services[0] (Accessory Information) and services[1] (Garage Door) are always present
-    if (show_light)
-    {
-        services[index++] = light_service;
-    }
-    if (show_motion)
-    {
-        services[index++] = motion_service;
-    }
-    services[index] = NULL;
 
     arduino_homekit_setup(&config);
     homekit_setup_done = true;
@@ -1045,7 +1022,7 @@ DEV_GarageDoor::DEV_GarageDoor() : Service::GarageDoorOpener()
 
 boolean DEV_GarageDoor::update()
 {
-    ESP_LOGI(TAG, "Garage Door Characteristics Update, door target: %s", DOOR_STATE(target->getNewVal()));
+    ESP_LOGD(TAG, "Garage Door Characteristics Update, door target: %s", DOOR_STATE(target->getNewVal()));
     GarageDoorCurrentState state = (target->getNewVal() == target->OPEN) ? open_door() : close_door();
     obstruction->setVal(false);
     current->setVal(state);
@@ -1189,7 +1166,7 @@ boolean DEV_Stop::update()
 {
     if (on->getNewVal<bool>())
     {
-        ESP_LOGI(TAG, "Stop door action triggered from HomeKit");
+        ESP_LOGD(TAG, "Stop door action triggered from HomeKit");
         stop_door();
         // Now immediately reset the switch to off, so it can be triggered again for the next stop action.
         GDOEvent e;
@@ -1443,8 +1420,8 @@ void enable_service_homekit_motion(bool reboot)
 void notify_homekit_motion(bool state)
 {
     garage_door.motion = state;
-#ifdef ESP32
     garage_door.motion_timer = (!state) ? 0 : _millis() + MOTION_TIMER_DURATION;
+#ifdef ESP32
     if (!isPaired || !motion)
         return;
 
@@ -1453,7 +1430,6 @@ void notify_homekit_motion(bool state)
     e.value.b = garage_door.motion;
     queueSendHelper(motion->event_q, e, "motion");
 #else
-    garage_door.motion_timer = (!state) ? 0 : _millis() + MOTION_TIMER_DURATION;
     if (!arduino_homekit_get_running_server())
         return;
 

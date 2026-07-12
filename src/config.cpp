@@ -617,7 +617,7 @@ void userSettings::toFile(Print &file)
 // On ESP8266 we save settings to a file on LittleFS.
 void userSettings::save()
 {
-    ESP_LOGI(TAG, "Writing user configuration to file: %s", cfg_configFile);
+    ESP_LOGD(TAG, "Writing user configuration to file: %s", cfg_configFile);
     // Atomic write: write to temp file first, then rename
     String tempFile = cfg_configFile + String(".tmp");
     File file = LittleFS.open(tempFile, "w");

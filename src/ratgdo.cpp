@@ -365,7 +365,7 @@ void loop()
 void service_timer_loop()
 {
     _millis_t current_millis = _millis();
-    static time_t lastSNTP = 0;
+    static time_t lastTimeLogged = 0;
     static _millis_t lastLEDblink = 0;
 
     if (current_millis - lastLEDblink >= LED_BLINK_INTERVAL)
@@ -388,15 +388,15 @@ void service_timer_loop()
 
     if (enableNTP && clockSet)
     {
-        if (clockSet != lastSNTP)
+        time_t timeNow = time(NULL);
+        if (timeNow - lastTimeLogged > 60 * 60 * 3) // log time every 3 hours
         {
-            lastSNTP = clockSet;
+            lastTimeLogged = timeNow;
             ESP_LOGI(TAG, "Current System time: %s", timeString());
         }
 
         if (lastRebootAt == 0)
         {
-            time_t timeNow = time(NULL);
             lastRebootAt = timeNow - (current_millis / 1000);
             ESP_LOGI(TAG, "System boot time:    %s", timeString(lastRebootAt));
             // Need to also set when last door open/close was

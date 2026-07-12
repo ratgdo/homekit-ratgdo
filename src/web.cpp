@@ -1024,7 +1024,7 @@ void handle_status()
     }
     else
     {
-        ESP_LOGI(TAG, "JSON status: %d (%d%%), build time %lums, response time: %lums", strlen(json), strlen(json) * 100 / STATUS_JSON_BUFFER_SIZE, build_time, response_time);
+        ESP_LOGD(TAG, "JSON status: %d (%d%%), build time %lums, response time: %lums", strlen(json), strlen(json) * 100 / STATUS_JSON_BUFFER_SIZE, build_time, response_time);
     }
     GIVE_MUTEX();
     return;

@@ -1217,7 +1217,7 @@ struct Packet
     {
         char buf[128];
         m_data.to_string(buf, sizeof(buf));
-        ESP_LOGI(TAG, "PACKET(0x%03X from 0x%lX @ 0x%lX) %s - %s", m_pkt_cmd == PacketCommand::Unknown ? m_unknown_cmd : m_pkt_cmd, m_remote_id, m_rolling,
+        ESP_LOGD(TAG, "PACKET(0x%03X from 0x%lX @ 0x%lX) %s - %s", m_pkt_cmd == PacketCommand::Unknown ? m_unknown_cmd : m_pkt_cmd, m_remote_id, m_rolling,
                  PacketCommand::to_string(m_pkt_cmd), buf);
     };
 
