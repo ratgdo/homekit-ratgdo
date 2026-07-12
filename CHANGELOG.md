@@ -2,7 +2,7 @@
 
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
-## v2.2.0 (2026-07-??)
+## v2.2.0 (2026-07-12)
 
 > [!IMPORTANT]
 > HomeKit firmware for ESP8266-based RATGDO v2.5-series devices is **deprecated**. See [README.md](https://github.com/ratgdo/homekit-ratgdo/blob/main/README.md)
@@ -13,6 +13,7 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 * Feature: Added support for the [ratgdo encoder](https://ratcloud.llc/products/ratgdo-encoder)
 * Bugfix: ratgdo calibration not working from web page, https://github.com/ratgdo/homekit-ratgdo32/issues/180
 * Other: Remove use of std::map for configuration settings, replace with array of structs, to lower memory use.
+* Other: Move some Info-level log messages to Debug-level so that once in stable run mode, Info-level only logs actual activity.
 
 ### Known Issues
 
