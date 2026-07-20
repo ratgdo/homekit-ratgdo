@@ -52,11 +52,11 @@ static bool enc_dir_corr_pending_ = false;
 static int8_t enc_dir_corr_intended_ = 0;
 
 // Watchdog: ms with no pulse before door is declared stopped
-static constexpr uint32_t ENC_STOPPED_MS = 3000;
+static constexpr _millis_t ENC_STOPPED_MS = 3000;
 // Consecutive opposite-direction pulses before travel direction reversal is confirmed
 static constexpr int8_t ENC_DIR_CHANGE_THRESHOLD = 3;
 
-static uint32_t enc_last_pulse_ms_ = 0;
+static _millis_t enc_last_pulse_ms_ = 0;
 static bool enc_watchdog_armed_ = false;
 
 // ─── NVS persistence ─────────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ static void on_encoder_update(int16_t raw) {
   }
 
   // (Re-)arm stopped watchdog
-  enc_last_pulse_ms_ = millis();
+  enc_last_pulse_ms_ = _millis();
   enc_watchdog_armed_ = true;
 }
 
@@ -361,7 +361,7 @@ void setup_encoder() {
 void encoder_loop() {
   // Drain ISR delta every ~100 ms
   static uint32_t last_drain_ms = 0;
-  uint32_t now = millis();
+  _millis_t now = _millis();
 
   if (now - last_drain_ms >= 100) {
     last_drain_ms = now;
@@ -375,12 +375,11 @@ void encoder_loop() {
   }
 
   // Stopped watchdog
-  // Re-read millis() here rather than reusing the stale `now` captured at the
+  // Re-read _millis() here rather than reusing the stale `now` captured at the
   // top of this function, since on_encoder_update() above may have taken
   // long enough (e.g. Debug-level logging) that enc_last_pulse_ms_ ends up
   // greater than the stale `now`, underflowing this unsigned subtraction.
-  uint32_t watchdog_now = millis();
-  if (enc_watchdog_armed_ && (watchdog_now - enc_last_pulse_ms_ >= ENC_STOPPED_MS)) {
+  if (enc_watchdog_armed_ && (_millis() - enc_last_pulse_ms_ >= ENC_STOPPED_MS)) {
     enc_watchdog_armed_ = false;
     check_encoder_stopped();
   }
