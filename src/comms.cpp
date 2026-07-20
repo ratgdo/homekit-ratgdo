@@ -2256,7 +2256,7 @@ void comms_loop()
     if (garage_door.motion && garage_door.motion_timer > 0 && (int32_t)(current_millis - garage_door.motion_timer) >= 0)
     {
         notify_homekit_motion(false);
-        ESP_LOGI(TAG, "Motion cleared (%d seconds no activity)", MOTION_TIMER_DURATION / 1000);
+        ESP_LOGD(TAG, "Motion cleared (%d seconds no activity)", MOTION_TIMER_DURATION / 1000);
     }
 
 #ifndef USE_GDOLIB
@@ -2553,12 +2553,12 @@ void door_command_close()
 #else
     if (garage_door.pinModeObstructionSensor && !userConfig->getUseToggle())
     {
-        ESP_LOGI(TAG, "Closing door");
+        ESP_LOGD(TAG, "Closing door");
         door_command(DoorAction::Close);
     }
     else
     {
-        ESP_LOGI(TAG, "Toggle from current state: %s, target state: %s", DOOR_STATE(garage_door.current_state), DOOR_STATE(garage_door.target_state));
+        ESP_LOGD(TAG, "Toggle from current state: %s, target state: %s", DOOR_STATE(garage_door.current_state), DOOR_STATE(garage_door.target_state));
         if (garage_door.current_state == GarageDoorCurrentState::CURR_OPEN)
         {
             door_command(DoorAction::Toggle);
@@ -2864,7 +2864,7 @@ GarageDoorCurrentState close_door(bool bypass_ttc)
 
     if (bypass_ttc && TTCtimer.active())
     {
-        ESP_LOGI(TAG, "Canceling running TTC delay timer");
+        ESP_LOGD(TAG, "Canceling running TTC delay timer");
         TTCtimer.detach();
         set_light(TTCwasLightOn);
     }
@@ -2874,9 +2874,9 @@ GarageDoorCurrentState close_door(bool bypass_ttc)
     {
         if (bypass_ttc && userConfig->getTTCseconds() != 0)
         {
-            ESP_LOGI(TAG, "Bypassing time-to-close delay");
+            ESP_LOGD(TAG, "Bypassing time-to-close delay");
         }
-        ESP_LOGI(TAG, "Closing door");
+        ESP_LOGD(TAG, "Closing door");
 #ifdef RATGDO_ENCODER
         if (doorControlType == 3 && userConfig->getEncoderEnabled())
             encoder_set_intended_close();
@@ -2888,7 +2888,7 @@ GarageDoorCurrentState close_door(bool bypass_ttc)
         if (TTCtimer.active())
         {
             // We are in a time-to-close delay timeout, cancel the timeout
-            ESP_LOGI(TAG, "Door in time-to-close delay, request to close ignored, TTC will continue");
+            ESP_LOGD(TAG, "Door in time-to-close delay, request to close ignored, TTC will continue");
             /* two closes in-a-row shoud not cancel TTC? Require an open request to cancel TTC
             ESP_LOGI(TAG, "Close: Canceling TTC delay timer");
             TTCtimer.detach();
@@ -3043,7 +3043,7 @@ bool set_lock(bool value, bool verify)
     // return value: true = lock state changed, else state unchanged
     if (verify && (garage_door.current_lock == ((value) ? LockCurrentState::CURR_LOCKED : LockCurrentState::CURR_UNLOCKED)))
     {
-        ESP_LOGI(TAG, "Remote locks already %s; ignored request", (value) ? "locked" : "unlocked");
+        ESP_LOGD(TAG, "Remote locks already %s; ignored request", (value) ? "locked" : "unlocked");
         // Reset last reported to we will update browser with actual state.
         last_reported_garage_door.current_lock = (LockCurrentState)0xFF;
         return false;
@@ -3065,7 +3065,7 @@ bool set_lock(bool value, bool verify)
     {
         if (garage_door.current_lock == ((value) ? LockCurrentState::CURR_LOCKED : LockCurrentState::CURR_UNLOCKED))
         {
-            ESP_LOGI(TAG, "Remote locks already %s; ignored request", (value) ? "locked" : "unlocked");
+            ESP_LOGD(TAG, "Remote locks already %s; ignored request", (value) ? "locked" : "unlocked");
             // Reset last reported to we will update browser with actual state.
             last_reported_garage_door.current_lock = (LockCurrentState)0xFF;
             return false;
@@ -3073,7 +3073,7 @@ bool set_lock(bool value, bool verify)
         else if ((value && pendingLockOn) || (!value && pendingLockOff))
         {
             // We are already in the process of changing the lock state, so ignore duplicate request
-            ESP_LOGI(TAG, "Lock %s command already pending; ignored duplicate request", (value) ? "lock" : "unlock");
+            ESP_LOGD(TAG, "Lock %s command already pending; ignored duplicate request", (value) ? "lock" : "unlock");
             return false;
         }
     }
@@ -3192,7 +3192,7 @@ bool set_light(bool value, bool verify)
     {
         if (garage_door.light == value)
         {
-            ESP_LOGI(TAG, "Light already %s; ignored request", (value) ? "on" : "off");
+            ESP_LOGD(TAG, "Light already %s; ignored request", (value) ? "on" : "off");
             // Reset last reported so we will update browser with actual state.
             last_reported_garage_door.light = !value;
             return false;
@@ -3200,7 +3200,7 @@ bool set_light(bool value, bool verify)
         else if ((value && pendingLightOn) || (!value && pendingLightOff))
         {
             // We have already sent a command to change the light, but haven't received confirmation yet.  Don't send another command.
-            ESP_LOGI(TAG, "Light %s command already pending; ignored duplicate request", (value) ? "on" : "off");
+            ESP_LOGD(TAG, "Light %s command already pending; ignored duplicate request", (value) ? "on" : "off");
             return false;
         }
     }
