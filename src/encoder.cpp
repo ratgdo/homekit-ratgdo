@@ -375,7 +375,12 @@ void encoder_loop() {
   }
 
   // Stopped watchdog
-  if (enc_watchdog_armed_ && (now - enc_last_pulse_ms_ >= ENC_STOPPED_MS)) {
+  // Re-read millis() here rather than reusing the stale `now` captured at the
+  // top of this function, since on_encoder_update() above may have taken
+  // long enough (e.g. Debug-level logging) that enc_last_pulse_ms_ ends up
+  // greater than the stale `now`, underflowing this unsigned subtraction.
+  uint32_t watchdog_now = millis();
+  if (enc_watchdog_armed_ && (watchdog_now - enc_last_pulse_ms_ >= ENC_STOPPED_MS)) {
     enc_watchdog_armed_ = false;
     check_encoder_stopped();
   }
