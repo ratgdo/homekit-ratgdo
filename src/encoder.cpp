@@ -268,14 +268,18 @@ static void check_encoder_stopped() {
     bool beyond_closed = decreasing && (enc_last_ < enc_min_);
 
     if (d_closed <= 1 && d_closed <= d_open && decreasing) {
-      enc_min_ = enc_last_;
-      save = true;
-      ESP_LOGI(TAG, "Encoder: CLOSED snapped to %d", enc_last_);
+      if (enc_last_ <= enc_min_) {
+        enc_min_ = enc_last_;
+        save = true;
+        ESP_LOGI(TAG, "Encoder: CLOSED snapped to %d", enc_last_);
+      }
       notify_state(GarageDoorCurrentState::CURR_CLOSED);
     } else if (d_open <= 1 && d_open < d_closed && !decreasing) {
-      enc_max_ = enc_last_;
-      save = true;
-      ESP_LOGI(TAG, "Encoder: OPEN snapped to %d", enc_last_);
+      if (enc_last_ >= enc_max_) {
+        enc_max_ = enc_last_;
+        save = true;
+        ESP_LOGI(TAG, "Encoder: OPEN snapped to %d", enc_last_);
+      }
       notify_state(GarageDoorCurrentState::CURR_OPEN);
     } else if (beyond_open) {
       enc_max_ = enc_last_;
