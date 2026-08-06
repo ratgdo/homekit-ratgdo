@@ -21,6 +21,7 @@
 // RATGDO project includes
 #include "ratgdo.h"
 #include "homekit.h"
+#include "encoder.h"
 #include "config.h"
 #include "comms.h"
 #include "led.h"
@@ -438,7 +439,12 @@ static void gdo_event_handler(const gdo_status_t *status, gdo_cb_event_t event, 
         garage_door.active = true;
         if ((garage_door.current_state != gdo_to_homekit_door_current_state[status->door]) && (status->door != GDO_DOOR_STATE_UNKNOWN))
         {
+#ifdef RATGDO_ENCODER
+            protocol_received_state(gdo_to_homekit_door_current_state[status->door]);
+#else
             notify_homekit_current_door_state_change(gdo_to_homekit_door_current_state[status->door]);
+            garage_door.current_state = gdo_to_homekit_door_current_state[status->door];
+#endif
             notify_homekit_target_door_state_change(gdo_to_homekit_door_target_state[status->door]);
 
             // If we are using Sec+2.0 built-in time-to-close then reset the TTC to zero when door is closed
@@ -1120,17 +1126,29 @@ void update_door_state(GarageDoorCurrentState current_state)
         send_get_openings();
     }
 
-    // Inform HomeKit if there is a change in door state.
-    if ((target_state != garage_door.target_state) ||
-        (current_state != garage_door.current_state))
+    // Inform HomeKit if there is a change in door target state.
+    if (target_state != garage_door.target_state)
     {
-        ESP_LOGI(TAG, "Door state changing from %s to %s (target %s) (%s)", DOOR_STATE(garage_door.current_state), DOOR_STATE(current_state), DOOR_STATE(target_state), timeString());
-        notify_homekit_current_door_state_change(current_state);
+        ESP_LOGI(TAG, "Door target state changing from %s to %s (%s)", DOOR_STATE(garage_door.target_state), DOOR_STATE(target_state), timeString());
         notify_homekit_target_door_state_change(target_state);
     }
 
+#ifdef RATGDO_ENCODER
+    if (current_state != garage_door.protocol_door_state) {
+        ESP_LOGI(TAG, "Protocol door state changing from %s to %s (%s)", DOOR_STATE(garage_door.protocol_door_state), DOOR_STATE(current_state), timeString());
+    }
+    protocol_received_state(current_state);
+#else
+    // Inform HomeKit if there is a change in door state.
+    if (current_state != garage_door.current_state)
+    {
+        ESP_LOGI(TAG, "Door state changing from %s to %s (%s)", DOOR_STATE(garage_door.current_state), DOOR_STATE(current_state), timeString());
+        notify_homekit_current_door_state_change(current_state);
+        garage_door.current_state = current_state;
+    }
     // Update the global
     doorState = current_state;
+#endif
 }
 
 void sec1_process_message(uint8_t key, uint8_t value = 0xFF)

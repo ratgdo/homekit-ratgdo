@@ -713,6 +713,11 @@ function setElementsFromStatus(status) {
             case "garageMotion":
                 document.getElementById(key).innerHTML = capitalizeFirstLetter(value);
                 break;
+            case "manuallyOperated":
+                document.getElementById("manuallyOperatedRow").style.display = "";
+                document.getElementById("manuallyOperatedState").innerHTML = value ? "Yes" : "No";
+                document.getElementById("manuallyOperatedState").style.color = value ? "red" : "";
+                break;
             case "ttcActive":
                 if (value) {
                     document.getElementById("garageDoorState").innerHTML = "Closing";

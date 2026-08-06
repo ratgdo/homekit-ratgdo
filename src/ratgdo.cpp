@@ -76,6 +76,15 @@ GarageDoor garage_door = {
     .builtInTTC = 0,
     .builtInTTCremaining = 0,
     .builtInTTChold = false,
+#ifndef ESP8266
+    .room_occupancy_timeout = 0,
+    .room_occupied = false,
+#endif
+#ifdef RATGDO_ENCODER
+    .manuallyOperated = false,
+    .protocol_door_state = (GarageDoorCurrentState)0xFF,
+    .encoder_door_state = (GarageDoorCurrentState)0xFF,
+#endif
 };
 
 // Some initialization is postponed until after we have an IP address

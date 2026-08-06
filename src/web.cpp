@@ -853,6 +853,9 @@ void build_status_json(char *json)
     JSON_ADD_STR("garageLockState", REMOTES_STATE(garage_door.current_lock));
     JSON_ADD_BOOL("garageLightOn", garage_door.light);
     JSON_ADD_BOOL("garageMotion", garage_door.motion);
+#ifdef RATGDO_ENCODER
+    JSON_ADD_BOOL("manuallyOperated", garage_door.manuallyOperated);
+#endif
     JSON_ADD_BOOL("garageObstructed", garage_door.obstructed);
     JSON_ADD_BOOL("pinBasedObst", garage_door.pinModeObstructionSensor);
     JSON_ADD_BOOL(cfg_passwordRequired, userConfig->getPasswordRequired());

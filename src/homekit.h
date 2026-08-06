@@ -48,6 +48,7 @@ void homekit_loop();
 #define HOMEKIT_AID_LASER 8
 #define HOMEKIT_AID_ROOM_OCCUPANCY 9
 #define HOMEKIT_AID_STOP 10
+#define HOMEKIT_AID_MANUALLY_OPERATED 11
 
 enum Light_t : uint8_t
 {
@@ -66,6 +67,10 @@ extern void notify_homekit_room_occupancy(bool occupied);
 extern bool enable_service_homekit_light(bool enable);
 extern bool enable_service_homekit_motion_sensor(bool enable);
 extern bool enable_service_homekit_stop(bool enable);
+#ifdef RATGDO_ENCODER
+extern bool enable_service_homekit_manually_operated(bool enable);
+extern void notify_homekit_manually_operated(bool state);
+#endif
 
 extern void homekit_unpair();
 extern bool homekit_is_paired();
@@ -146,4 +151,16 @@ struct DEV_Stop : Service::Switch
     boolean update();
     void loop();
 };
+
+#ifdef RATGDO_ENCODER
+struct DEV_ManuallyOperated : Service::ContactSensor
+{
+    Characteristic::ContactSensorState *state;
+
+    QueueHandle_t event_q;
+
+    DEV_ManuallyOperated();
+    void loop();
+};
+#endif
 #endif // ESP8266

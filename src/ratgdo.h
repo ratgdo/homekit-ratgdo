@@ -231,6 +231,11 @@ struct __attribute__((aligned(4))) GarageDoor
     _millis_t room_occupancy_timeout;
     bool room_occupied;
 #endif
+#ifdef RATGDO_ENCODER
+    bool manuallyOperated;
+    GarageDoorCurrentState protocol_door_state;
+    GarageDoorCurrentState encoder_door_state;
+#endif
 };
 extern GarageDoor garage_door;
 extern GarageDoor last_reported_garage_door;
