@@ -210,15 +210,20 @@ static void encoder_received(GarageDoorCurrentState door_state)
 
 void protocol_received_state(GarageDoorCurrentState door_state)
 {
-  garage_door.protocol_door_state = door_state;
+
+  if (door_state != garage_door.protocol_door_state)
+  {
+    ESP_LOGI(TAG, "Protocol door state changing from %s to %s (%s)", DOOR_STATE(garage_door.protocol_door_state), DOOR_STATE(door_state), timeString());
+    garage_door.protocol_door_state = door_state;
+  }
 
   if (garage_door.manuallyOperated)
   {
+    // If we thought the door was manually operated, but the protocol reports a state change, then check if we can reset the manually operated state.
     if (door_state == GarageDoorCurrentState::CURR_OPENING || door_state == GarageDoorCurrentState::CURR_CLOSING)
     {
       garage_door.manuallyOperated = false;
       notify_homekit_manually_operated(false);
-      set_resolved_door_state(door_state);
     }
     else
     {
@@ -230,13 +235,8 @@ void protocol_received_state(GarageDoorCurrentState door_state)
       {
         garage_door.manuallyOperated = false;
         notify_homekit_manually_operated(false);
-        set_resolved_door_state(door_state);
       }
     }
-  }
-  else
-  {
-    set_resolved_door_state(door_state);
   }
 }
 

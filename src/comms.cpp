@@ -1126,29 +1126,19 @@ void update_door_state(GarageDoorCurrentState current_state)
         send_get_openings();
     }
 
-    // Inform HomeKit if there is a change in door target state.
-    if (target_state != garage_door.target_state)
+    // Inform HomeKit if there is a change in door state.
+    if ((target_state != garage_door.target_state) || (current_state != garage_door.current_state))
     {
-        ESP_LOGI(TAG, "Door target state changing from %s to %s (%s)", DOOR_STATE(garage_door.target_state), DOOR_STATE(target_state), timeString());
+        ESP_LOGI(TAG, "Door state changing from %s to %s (target %s) (%s)", DOOR_STATE(garage_door.current_state), DOOR_STATE(current_state), DOOR_STATE(target_state), timeString());
+        notify_homekit_current_door_state_change(current_state);
         notify_homekit_target_door_state_change(target_state);
     }
-
 #ifdef RATGDO_ENCODER
-    if (current_state != garage_door.protocol_door_state) {
-        ESP_LOGI(TAG, "Protocol door state changing from %s to %s (%s)", DOOR_STATE(garage_door.protocol_door_state), DOOR_STATE(current_state), timeString());
-    }
+    // Inform the encoder of current state, so it knows that state is being received from comms protocol.
     protocol_received_state(current_state);
-#else
-    // Inform HomeKit if there is a change in door state.
-    if (current_state != garage_door.current_state)
-    {
-        ESP_LOGI(TAG, "Door state changing from %s to %s (%s)", DOOR_STATE(garage_door.current_state), DOOR_STATE(current_state), timeString());
-        notify_homekit_current_door_state_change(current_state);
-        garage_door.current_state = current_state;
-    }
+#endif
     // Update the global
     doorState = current_state;
-#endif
 }
 
 void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
