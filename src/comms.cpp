@@ -962,7 +962,7 @@ void wallPlate_Emulation()
     }
 }
 
-void update_door_state(GarageDoorCurrentState current_state)
+void update_door_state(GarageDoorCurrentState current_state, bool fromEncoder)
 {
     static _millis_t start_opening = 0;
     static _millis_t start_closing = 0;
@@ -1135,7 +1135,10 @@ void update_door_state(GarageDoorCurrentState current_state)
     }
 #ifdef RATGDO_ENCODER
     // Inform the encoder of current state, so it knows that state is being received from comms protocol.
-    protocol_received_state(current_state);
+    if (fromEncoder == false)
+    {
+        protocol_received_state(current_state);
+    }
 #endif
     // Update the global
     doorState = current_state;

@@ -150,22 +150,6 @@ static void IRAM_ATTR isr_encoder()
 }
 
 // ─── Notify helpers ──────────────────────────────────────────────────────────
-
-static void set_resolved_door_state(GarageDoorCurrentState s)
-{
-  doorState = s; // update the main-loop source of truth (web UI + comms loop reads this)
-  notify_homekit_current_door_state_change(s);
-  if (s == GarageDoorCurrentState::CURR_OPEN ||
-      s == GarageDoorCurrentState::CURR_CLOSED)
-  {
-    GarageDoorTargetState tgt = (s == GarageDoorCurrentState::CURR_OPEN)
-                                    ? GarageDoorTargetState::TGT_OPEN
-                                    : GarageDoorTargetState::TGT_CLOSED;
-    notify_homekit_target_door_state_change(tgt);
-  }
-  garage_door.current_state = s;
-}
-
 static void encoder_received(GarageDoorCurrentState door_state)
 {
   garage_door.encoder_door_state = door_state;
@@ -174,7 +158,7 @@ static void encoder_received(GarageDoorCurrentState door_state)
 
   if (proto_state == (GarageDoorCurrentState)0xFF)
   {
-    set_resolved_door_state(door_state);
+    update_door_state(door_state, true);
     return;
   }
 
@@ -192,7 +176,7 @@ static void encoder_received(GarageDoorCurrentState door_state)
         garage_door.manuallyOperated = true;
         notify_homekit_manually_operated(true);
       }
-      set_resolved_door_state(door_state);
+      update_door_state(door_state, true);
     }
   }
   else
@@ -202,7 +186,7 @@ static void encoder_received(GarageDoorCurrentState door_state)
     {
       if (garage_door.manuallyOperated)
       {
-        set_resolved_door_state(door_state);
+        update_door_state(door_state, true);
       }
     }
   }
