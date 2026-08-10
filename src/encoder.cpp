@@ -68,7 +68,8 @@ static bool enc_watchdog_armed_ = false;
 
 static constexpr char nvram_enc_cal[] = "enc_cal";
 
-struct EncCalBlob {
+struct EncCalBlob
+{
   int16_t min;
   int16_t max;
   int16_t last;
@@ -76,14 +77,17 @@ struct EncCalBlob {
   bool max_cal;
 };
 
-static void enc_save_cal() {
+static void enc_save_cal()
+{
   EncCalBlob b = {enc_min_, enc_max_, enc_last_, enc_min_cal_, enc_max_cal_};
   write_door_data(nvram_enc_cal, &b, sizeof(b));
 }
 
-static void enc_load_cal() {
+static void enc_load_cal()
+{
   EncCalBlob b = {};
-  if (read_door_data(nvram_enc_cal, &b, sizeof(b))) {
+  if (read_door_data(nvram_enc_cal, &b, sizeof(b)))
+  {
     enc_min_ = b.min;
     enc_max_ = b.max;
     enc_last_ = b.last;
@@ -92,20 +96,35 @@ static void enc_load_cal() {
     ESP_LOGI(TAG,
              "Encoder cal loaded: min=%d max=%d last=%d min_cal=%d max_cal=%d",
              enc_min_, enc_max_, enc_last_, enc_min_cal_, enc_max_cal_);
-  } else {
+  }
+  else
+  {
     ESP_LOGI(TAG, "Encoder: no saved calibration");
   }
 }
 
 // ─── ISR ─────────────────────────────────────────────────────────────────────
 
-static void IRAM_ATTR isr_encoder() {
+static void IRAM_ATTR isr_encoder()
+{
   // Quadrature lookup table: index = (prev<<2)|curr, value = step (+1/0/-1)
   static const int8_t ENC_TABLE[16] = {
-      0,  -1, +1, 0,  // prev=00 → {00,01,10,11}
-      +1, 0,  0,  -1, // prev=01
-      -1, 0,  0,  +1, // prev=10
-      0,  +1, -1, 0,  // prev=11
+      0,
+      -1,
+      +1,
+      0, // prev=00 → {00,01,10,11}
+      +1,
+      0,
+      0,
+      -1, // prev=01
+      -1,
+      0,
+      0,
+      +1, // prev=10
+      0,
+      +1,
+      -1,
+      0, // prev=11
   };
   bool a = digitalRead(DRY_CONTACT_OPEN_PIN);
   bool b = digitalRead(DRY_CONTACT_CLOSE_PIN);
@@ -118,10 +137,13 @@ static void IRAM_ATTR isr_encoder() {
 
   // Net accumulator: emit a verified step at ±4 to filter noise
   enc_cycle_count += step;
-  if (enc_cycle_count >= 4) {
+  if (enc_cycle_count >= 4)
+  {
     enc_delta++;
     enc_cycle_count = 0;
-  } else if (enc_cycle_count <= -4) {
+  }
+  else if (enc_cycle_count <= -4)
+  {
     enc_delta--;
     enc_cycle_count = 0;
   }
@@ -129,11 +151,13 @@ static void IRAM_ATTR isr_encoder() {
 
 // ─── Notify helpers ──────────────────────────────────────────────────────────
 
-static void set_resolved_door_state(GarageDoorCurrentState s) {
+static void set_resolved_door_state(GarageDoorCurrentState s)
+{
   doorState = s; // update the main-loop source of truth (web UI + comms loop reads this)
   notify_homekit_current_door_state_change(s);
   if (s == GarageDoorCurrentState::CURR_OPEN ||
-      s == GarageDoorCurrentState::CURR_CLOSED) {
+      s == GarageDoorCurrentState::CURR_CLOSED)
+  {
     GarageDoorTargetState tgt = (s == GarageDoorCurrentState::CURR_OPEN)
                                     ? GarageDoorTargetState::TGT_OPEN
                                     : GarageDoorTargetState::TGT_CLOSED;
@@ -142,62 +166,84 @@ static void set_resolved_door_state(GarageDoorCurrentState s) {
   garage_door.current_state = s;
 }
 
-static void encoder_received(GarageDoorCurrentState door_state) {
+static void encoder_received(GarageDoorCurrentState door_state)
+{
   garage_door.encoder_door_state = door_state;
 
   GarageDoorCurrentState proto_state = garage_door.protocol_door_state;
 
-  if (proto_state == (GarageDoorCurrentState)0xFF) {
+  if (proto_state == (GarageDoorCurrentState)0xFF)
+  {
     set_resolved_door_state(door_state);
     return;
   }
 
   if ((door_state == GarageDoorCurrentState::CURR_OPENING || door_state == GarageDoorCurrentState::CURR_CLOSING) &&
-      (proto_state == GarageDoorCurrentState::CURR_OPEN || proto_state == GarageDoorCurrentState::CURR_CLOSED || proto_state == GarageDoorCurrentState::CURR_STOPPED)) {
-    if (encoder_motion_onset_ms_ == 0) {
+      (proto_state == GarageDoorCurrentState::CURR_OPEN || proto_state == GarageDoorCurrentState::CURR_CLOSED || proto_state == GarageDoorCurrentState::CURR_STOPPED))
+  {
+    if (encoder_motion_onset_ms_ == 0)
+    {
       encoder_motion_onset_ms_ = _millis();
-    } else if (_millis() - encoder_motion_onset_ms_ > PROTOCOL_STALE_MS) {
-      if (!garage_door.manuallyOperated) {
+    }
+    else if (_millis() - encoder_motion_onset_ms_ > PROTOCOL_STALE_MS)
+    {
+      if (!garage_door.manuallyOperated)
+      {
         garage_door.manuallyOperated = true;
         notify_homekit_manually_operated(true);
       }
       set_resolved_door_state(door_state);
     }
-  } else {
+  }
+  else
+  {
     encoder_motion_onset_ms_ = 0;
-    if (door_state == GarageDoorCurrentState::CURR_STOPPED || door_state == GarageDoorCurrentState::CURR_OPEN || door_state == GarageDoorCurrentState::CURR_CLOSED) {
-      if (garage_door.manuallyOperated) {
+    if (door_state == GarageDoorCurrentState::CURR_STOPPED || door_state == GarageDoorCurrentState::CURR_OPEN || door_state == GarageDoorCurrentState::CURR_CLOSED)
+    {
+      if (garage_door.manuallyOperated)
+      {
         set_resolved_door_state(door_state);
       }
     }
   }
 }
 
-void protocol_received_state(GarageDoorCurrentState door_state) {
+void protocol_received_state(GarageDoorCurrentState door_state)
+{
   garage_door.protocol_door_state = door_state;
 
-  if (garage_door.manuallyOperated) {
-    if (door_state == GarageDoorCurrentState::CURR_OPENING || door_state == GarageDoorCurrentState::CURR_CLOSING) {
+  if (garage_door.manuallyOperated)
+  {
+    if (door_state == GarageDoorCurrentState::CURR_OPENING || door_state == GarageDoorCurrentState::CURR_CLOSING)
+    {
       garage_door.manuallyOperated = false;
       notify_homekit_manually_operated(false);
       set_resolved_door_state(door_state);
-    } else {
-      if (door_state != garage_door.encoder_door_state) {
+    }
+    else
+    {
+      if (door_state != garage_door.encoder_door_state)
+      {
         // Drop update, rely on encoder until we see motion from protocol
-      } else {
+      }
+      else
+      {
         garage_door.manuallyOperated = false;
         notify_homekit_manually_operated(false);
         set_resolved_door_state(door_state);
       }
     }
-  } else {
+  }
+  else
+  {
     set_resolved_door_state(door_state);
   }
 }
 
 // ─── on_encoder_update ───────────────────────────────────────────────────────
 
-static void on_encoder_update(int16_t raw) {
+static void on_encoder_update(int16_t raw)
+{
   int16_t delta = (int16_t)(raw - enc_last_);
   enc_last_ = raw;
   if (delta == 0)
@@ -207,15 +253,21 @@ static void on_encoder_update(int16_t raw) {
 
   // Latch dominant travel direction; require ENC_DIR_CHANGE_THRESHOLD
   // consecutive opposite ticks before updating it.
-  if (enc_travel_dir_ == 0) {
+  if (enc_travel_dir_ == 0)
+  {
     enc_travel_dir_ = enc_last_dir_;
     enc_reverse_count_ = 0;
-  } else if (enc_last_dir_ != enc_travel_dir_) {
-    if (++enc_reverse_count_ >= ENC_DIR_CHANGE_THRESHOLD) {
+  }
+  else if (enc_last_dir_ != enc_travel_dir_)
+  {
+    if (++enc_reverse_count_ >= ENC_DIR_CHANGE_THRESHOLD)
+    {
       enc_travel_dir_ = enc_last_dir_;
       enc_reverse_count_ = 0;
     }
-  } else {
+  }
+  else
+  {
     enc_reverse_count_ = 0;
   }
 
@@ -223,7 +275,8 @@ static void on_encoder_update(int16_t raw) {
 
   bool reversed = userConfig->getEncoderReversed();
 
-  if (enc_min_cal_ && enc_max_cal_ && enc_max_ != enc_min_) {
+  if (enc_min_cal_ && enc_max_cal_ && enc_max_ != enc_min_)
+  {
     float pos = (float)(raw - enc_min_) / (float)(enc_max_ - enc_min_);
     if (reversed)
       pos = 1.0f - pos;
@@ -241,12 +294,15 @@ static void on_encoder_update(int16_t raw) {
                             : (reversed ? GarageDoorCurrentState::CURR_OPENING
                                         : GarageDoorCurrentState::CURR_CLOSING);
 
-    if (garage_door.current_state != in_motion) {
+    if (garage_door.current_state != in_motion)
+    {
       // Wrong-direction detection
-      if (enc_intended_dir_ != 0) {
+      if (enc_intended_dir_ != 0)
+      {
         bool correct = (in_motion == GarageDoorCurrentState::CURR_OPENING) ==
                        (enc_intended_dir_ > 0);
-        if (!correct) {
+        if (!correct)
+        {
           int8_t intended = enc_intended_dir_;
           enc_intended_dir_ = 0;
           ESP_LOGW(
@@ -270,7 +326,8 @@ static void on_encoder_update(int16_t raw) {
 
 // ─── check_encoder_stopped ───────────────────────────────────────────────────
 
-static void check_encoder_stopped() {
+static void check_encoder_stopped()
+{
   ESP_LOGI(TAG, "Encoder stopped: step=%d min=%d max=%d dir=%d", enc_last_,
            enc_min_, enc_max_, enc_travel_dir_);
 
@@ -291,12 +348,16 @@ static void check_encoder_stopped() {
 
   bool save = false;
 
-  if ((!enc_min_cal_ && decreasing) || (!enc_max_cal_ && !decreasing)) {
+  if ((!enc_min_cal_ && decreasing) || (!enc_max_cal_ && !decreasing))
+  {
     // First time seeing this boundary — calibrate
-    if (decreasing) {
+    if (decreasing)
+    {
       enc_min_ = enc_last_;
       enc_min_cal_ = true;
-    } else {
+    }
+    else
+    {
       enc_max_ = enc_last_;
       enc_max_cal_ = true;
     }
@@ -304,18 +365,25 @@ static void check_encoder_stopped() {
     encoder_received(boundary_state);
     ESP_LOGI(TAG, "Encoder: initial %s boundary set to %d",
              decreasing ? "min" : "max", enc_last_);
-  } else if (!enc_min_cal_ || !enc_max_cal_) {
+  }
+  else if (!enc_min_cal_ || !enc_max_cal_)
+  {
     // Saw same direction again before hitting the other end
-    if (decreasing) {
+    if (decreasing)
+    {
       enc_min_ = enc_last_;
       enc_min_cal_ = true;
-    } else {
+    }
+    else
+    {
       enc_max_ = enc_last_;
       enc_max_cal_ = true;
     }
     save = true;
     encoder_received(boundary_state);
-  } else {
+  }
+  else
+  {
     // Both boundaries calibrated — snap/extend logic
     int16_t target_closed = reversed ? enc_max_ : enc_min_;
     int16_t target_open = reversed ? enc_min_ : enc_max_;
@@ -325,42 +393,55 @@ static void check_encoder_stopped() {
     bool beyond_open = !decreasing && (enc_last_ > enc_max_);
     bool beyond_closed = decreasing && (enc_last_ < enc_min_);
 
-    if (d_closed <= 1 && d_closed <= d_open && decreasing) {
-      if (enc_last_ <= enc_min_) {
+    if (d_closed <= 1 && d_closed <= d_open && decreasing)
+    {
+      if (enc_last_ <= enc_min_)
+      {
         enc_min_ = enc_last_;
         save = true;
         ESP_LOGI(TAG, "Encoder: CLOSED snapped to %d", enc_last_);
       }
       encoder_received(GarageDoorCurrentState::CURR_CLOSED);
-    } else if (d_open <= 1 && d_open < d_closed && !decreasing) {
-      if (enc_last_ >= enc_max_) {
+    }
+    else if (d_open <= 1 && d_open < d_closed && !decreasing)
+    {
+      if (enc_last_ >= enc_max_)
+      {
         enc_max_ = enc_last_;
         save = true;
         ESP_LOGI(TAG, "Encoder: OPEN snapped to %d", enc_last_);
       }
       encoder_received(GarageDoorCurrentState::CURR_OPEN);
-    } else if (beyond_open) {
+    }
+    else if (beyond_open)
+    {
       enc_max_ = enc_last_;
       save = true;
       ESP_LOGI(TAG, "Encoder: OPEN boundary extended to %d", enc_last_);
       encoder_received(GarageDoorCurrentState::CURR_OPEN);
-    } else if (beyond_closed) {
+    }
+    else if (beyond_closed)
+    {
       enc_min_ = enc_last_;
       save = true;
       ESP_LOGI(TAG, "Encoder: CLOSED boundary extended to %d", enc_last_);
       encoder_received(GarageDoorCurrentState::CURR_CLOSED);
-    } else {
+    }
+    else
+    {
       encoder_received(GarageDoorCurrentState::CURR_STOPPED);
     }
   }
 
-  if (save) {
+  if (save)
+  {
     enc_save_cal();
   }
 
   // Direction-correction retry: now that door has stopped, send the corrected
   // command
-  if (enc_dir_corr_pending_) {
+  if (enc_dir_corr_pending_)
+  {
     enc_dir_corr_pending_ = false;
     int8_t intended = enc_dir_corr_intended_;
     enc_dir_corr_intended_ = 0;
@@ -375,7 +456,8 @@ static void check_encoder_stopped() {
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
-void setup_encoder() {
+void setup_encoder()
+{
   enc_load_cal();
 
   // Initialise prev_state from actual pin levels to avoid a spurious first tick
@@ -392,7 +474,8 @@ void setup_encoder() {
                   CHANGE);
 
   // Derive initial door state from saved calibration if available
-  if (enc_min_cal_ && enc_max_cal_ && enc_max_ != enc_min_) {
+  if (enc_min_cal_ && enc_max_cal_ && enc_max_ != enc_min_)
+  {
     bool reversed = userConfig->getEncoderReversed();
     int16_t target_closed = reversed ? enc_max_ : enc_min_;
     int16_t target_open = reversed ? enc_min_ : enc_max_;
@@ -410,7 +493,9 @@ void setup_encoder() {
     doorState = startup_state;
     garage_door.current_state = startup_state;
     ESP_LOGI(TAG, "Encoder startup state: %s", DOOR_STATE(startup_state));
-  } else {
+  }
+  else
+  {
     ESP_LOGI(TAG, "Encoder: not yet calibrated; door state unknown");
   }
 
@@ -420,12 +505,14 @@ void setup_encoder() {
            userConfig->getEncoderReversed());
 }
 
-void encoder_loop() {
+void encoder_loop()
+{
   // Drain ISR delta every ~100 ms
   static uint32_t last_drain_ms = 0;
   _millis_t now = _millis();
 
-  if (now - last_drain_ms >= 100) {
+  if (now - last_drain_ms >= 100)
+  {
     last_drain_ms = now;
     int16_t delta;
     noInterrupts();
@@ -441,13 +528,15 @@ void encoder_loop() {
   // top of this function, since on_encoder_update() above may have taken
   // long enough (e.g. Debug-level logging) that enc_last_pulse_ms_ ends up
   // greater than the stale `now`, underflowing this unsigned subtraction.
-  if (enc_watchdog_armed_ && (_millis() - enc_last_pulse_ms_ >= ENC_STOPPED_MS)) {
+  if (enc_watchdog_armed_ && (_millis() - enc_last_pulse_ms_ >= ENC_STOPPED_MS))
+  {
     enc_watchdog_armed_ = false;
     check_encoder_stopped();
   }
 }
 
-void reset_encoder_cal() {
+void reset_encoder_cal()
+{
   noInterrupts();
   enc_delta = 0;
   enc_cycle_count = 0;
