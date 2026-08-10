@@ -443,6 +443,10 @@ void web_loop()
         JSON_ADD_STR(cfg_nameserverIP, userConfig->getNameserverIP());
         new_ipv4_address = false;
     }
+#ifdef RATGDO_ENCODER
+    JSON_ADD_BOOL_C("manuallyOperated", garage_door.manuallyOperated, last_reported_garage_door.manuallyOperated);
+#endif
+
 #ifndef ESP8266
     if (new_ipv6_address)
     {
@@ -889,9 +893,9 @@ void build_status_json(char *json)
     JSON_ADD_INT(cfg_dcDebounceDuration, userConfig->getDCDebounceDuration());
 #ifdef RATGDO_ENCODER
     JSON_ADD_BOOL("manuallyOperated", garage_door.manuallyOperated);
-    JSON_ADD_BOOL(cfg_encoderEnabled, userConfig->getEncoderEnabled());
+    JSON_ADD_BOOL(cfg_encoderEnabled, encoder_enabled);
     JSON_ADD_BOOL(cfg_encoderReversed, userConfig->getEncoderReversed());
-    if (userConfig->getEncoderEnabled())
+    if (encoder_enabled)
         JSON_ADD_INT("encSteps", (int32_t)encoder_last_step());
 #endif
     JSON_ADD_STR("qrPayload", qrPayload);

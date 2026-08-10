@@ -43,7 +43,7 @@ extern void sec1_light_release(uint8_t howManyReleases = 2, uint32_t delay = 0);
 
 extern void save_rolling_code();
 extern void reset_door();
-extern void update_door_state(GarageDoorCurrentState current_state, bool fromEncoder = false);
+extern void update_door_state(GarageDoorCurrentState current_state);
 
 extern uint32_t is_ttc_active();
 

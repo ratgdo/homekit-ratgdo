@@ -20,4 +20,7 @@ void encoder_set_intended_open();
 void encoder_set_intended_close();
 int16_t encoder_last_step(); // current raw step value (for status JSON)
 void protocol_received_state(GarageDoorCurrentState door_state);
+
+extern bool encoder_enabled; // true if encoder is enabled in userConfig
+
 #endif // RATGDO_ENCODER
