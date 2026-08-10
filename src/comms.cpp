@@ -2703,7 +2703,7 @@ GarageDoorCurrentState open_door()
         return GarageDoorCurrentState::CURR_STOPPED;
     }
 #ifdef RATGDO_ENCODER
-    if (doorControlType == 3 && userConfig->getEncoderEnabled())
+    if (userConfig->getEncoderEnabled())
         encoder_set_intended_open();
 #endif
     door_command_open();
@@ -2889,7 +2889,7 @@ GarageDoorCurrentState close_door(bool bypass_ttc)
         }
         ESP_LOGD(TAG, "Closing door");
 #ifdef RATGDO_ENCODER
-        if (doorControlType == 3 && userConfig->getEncoderEnabled())
+        if (userConfig->getEncoderEnabled())
             encoder_set_intended_close();
 #endif
         door_command_close();

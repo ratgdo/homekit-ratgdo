@@ -853,9 +853,6 @@ void build_status_json(char *json)
     JSON_ADD_STR("garageLockState", REMOTES_STATE(garage_door.current_lock));
     JSON_ADD_BOOL("garageLightOn", garage_door.light);
     JSON_ADD_BOOL("garageMotion", garage_door.motion);
-#ifdef RATGDO_ENCODER
-    JSON_ADD_BOOL("manuallyOperated", garage_door.manuallyOperated);
-#endif
     JSON_ADD_BOOL("garageObstructed", garage_door.obstructed);
     JSON_ADD_BOOL("pinBasedObst", garage_door.pinModeObstructionSensor);
     JSON_ADD_BOOL(cfg_passwordRequired, userConfig->getPasswordRequired());
@@ -891,13 +888,11 @@ void build_status_json(char *json)
     JSON_ADD_BOOL(cfg_obstFromStatus, userConfig->getObstFromStatus());
     JSON_ADD_INT(cfg_dcDebounceDuration, userConfig->getDCDebounceDuration());
 #ifdef RATGDO_ENCODER
-    if (doorControlType == 3)
-    {
-        JSON_ADD_BOOL(cfg_encoderEnabled, userConfig->getEncoderEnabled());
-        JSON_ADD_BOOL(cfg_encoderReversed, userConfig->getEncoderReversed());
-        if (userConfig->getEncoderEnabled())
-            JSON_ADD_INT("encSteps", (int32_t)encoder_last_step());
-    }
+    JSON_ADD_BOOL("manuallyOperated", garage_door.manuallyOperated);
+    JSON_ADD_BOOL(cfg_encoderEnabled, userConfig->getEncoderEnabled());
+    JSON_ADD_BOOL(cfg_encoderReversed, userConfig->getEncoderReversed());
+    if (userConfig->getEncoderEnabled())
+        JSON_ADD_INT("encSteps", (int32_t)encoder_last_step());
 #endif
     JSON_ADD_STR("qrPayload", qrPayload);
     if (doorControlType == 2)

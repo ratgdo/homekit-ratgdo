@@ -20,6 +20,8 @@
 
 static const char *TAG = "ratgdo-encoder";
 
+static bool encoder_setup_done = false;
+
 // ─── ISR storage (IRAM) ──────────────────────────────────────────────────────
 // Keep these as simple integers — no C++ objects in IRAM section on ESP32.
 
@@ -442,6 +444,15 @@ static void check_encoder_stopped()
 
 void setup_encoder()
 {
+  if (encoder_setup_done)
+    return;
+
+  if (!userConfig->getEncoderEnabled())
+  {
+    enable_service_homekit_manually_operated(false);
+    return;
+  }
+
   enc_load_cal();
 
   // Initialise prev_state from actual pin levels to avoid a spurious first tick
@@ -450,7 +461,8 @@ void setup_encoder()
   enc_prev_state = (uint8_t)(((uint8_t)pa << 1) | (uint8_t)pb);
   enc_delta = 0;
 
-  // pinMode(input and pullup) is done in setup_drycontact() before we get here
+  pinMode(DRY_CONTACT_OPEN_PIN, INPUT_PULLUP);
+  pinMode(DRY_CONTACT_CLOSE_PIN, INPUT_PULLUP);
 
   attachInterrupt(digitalPinToInterrupt(DRY_CONTACT_OPEN_PIN), isr_encoder,
                   CHANGE);
@@ -487,10 +499,16 @@ void setup_encoder()
   ESP_LOGI(TAG, "Encoder ISR attached: A=GPIO%d B=GPIO%d reversed=%d",
            DRY_CONTACT_OPEN_PIN, DRY_CONTACT_CLOSE_PIN,
            userConfig->getEncoderReversed());
+
+  enable_service_homekit_manually_operated(true);
+  encoder_setup_done = true;
 }
 
 void encoder_loop()
 {
+  if (!encoder_setup_done)
+    return;
+
   // Drain ISR delta every ~100 ms
   static uint32_t last_drain_ms = 0;
   _millis_t now = _millis();

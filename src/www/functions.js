@@ -152,10 +152,8 @@ function toggleDCOpenClose(radio) {
     document.getElementById("dcDebounceDurationRow").style.opacity = (value == 3) ? 1 : 0.5;
     document.getElementById("dcDebounceDuration").disabled = (value != 3);
     document.getElementById("motionMotion").disabled = (value != 2);
-    // Show encoder row only for dry contact mode
-    if (document.getElementById("encoderRow")) {
-        document.getElementById("encoderRow").style.display = (value == 3) ? "table-row" : "none";
-    }
+    // document.getElementById("encoderEnabled").disabled = (value != 3);
+    toggleEncoderOptions();
     toggleHardwiredBypassRow();
 }
 
@@ -169,7 +167,10 @@ function toggleHardwiredBypassRow() {
 
 function toggleEncoderOptions() {
     const enabled = document.getElementById("encoderEnabled").checked;
-    document.getElementById("encoderOptions").style.display = enabled ? "block" : "none";
+    const uiDisabled = document.getElementById("encoderEnabled").disabled;
+    document.getElementById("encoderReversed").disabled = uiDisabled || !enabled;
+    document.getElementById("resetEncoderCalBtn").disabled = uiDisabled || !enabled;
+    document.getElementById("encStepsRow").style.opacity = uiDisabled || !enabled ? 0.5 : 1;
 }
 
 // enable laser
@@ -414,9 +415,8 @@ function setElementsFromStatus(status) {
                 document.getElementById("dcDebounceDurationRow").style.opacity = (value == 3) ? 1 : 0.5;
                 document.getElementById("dcDebounceDuration").disabled = (value != 3);
                 document.getElementById("motionMotion").disabled = (value != 2);
-                if (document.getElementById("encoderRow")) {
-                    document.getElementById("encoderRow").style.display = (value == 3) ? "table-row" : "none";
-                }
+                //document.getElementById("encoderEnabled").disabled = (value != 3);
+                toggleEncoderOptions();
                 toggleHardwiredBypassRow();
                 break;
             case "pinBasedObst":
@@ -540,18 +540,17 @@ function setElementsFromStatus(status) {
                 toggleHardwiredBypassRow();
                 break;
             case "encoderEnabled":
-                if (document.getElementById(key)) {
-                    document.getElementById(key).checked = value;
-                    document.getElementById("encoderOptions").style.display = value ? "block" : "none";
-                }
+                document.getElementById(key).checked = value;
+                document.getElementById("encoderRow").style.display = "table-row";
+                document.getElementById("encoderReversedRow").style.display = "table-row";
+                document.getElementById("encStepsRow").style.display = "table-row";
+                toggleEncoderOptions();
                 break;
             case "encoderReversed":
-                if (document.getElementById(key))
-                    document.getElementById(key).checked = value;
+                document.getElementById(key).checked = value;
                 break;
             case "encSteps":
-                if (document.getElementById(key))
-                    document.getElementById(key).innerHTML = value;
+                document.getElementById(key).innerHTML = value;
                 break;
             case "vehicleOccupancyHomeKit":
             case "vehicleArrivingHomeKit":
@@ -1406,10 +1405,8 @@ async function saveSettings() {
     const obstFromStatus = (document.getElementById("obstFromStatus").checked) ? '1' : '0';
     const reverseOnStop = (document.getElementById("reverseOnStop").checked) ? '1' : '0';
     // Encoder settings — only present in dry contact mode on ESP32 firmware
-    const encoderEnabledEl = document.getElementById("encoderEnabled");
-    const encoderEnabled = encoderEnabledEl ? ((encoderEnabledEl.checked) ? '1' : '0') : null;
-    const encoderReversedEl = document.getElementById("encoderReversed");
-    const encoderReversed = encoderReversedEl ? ((encoderReversedEl.checked) ? '1' : '0') : null;
+    const encoderEnabled = (document.getElementById("encoderEnabled").checked) ? '1' : '0';
+    const encoderReversed = (document.getElementById("encoderReversed").checked) ? '1' : '0';
 
     let assistDuration = Math.max(Math.min(parseInt(document.getElementById("assistDuration").value), 300), 0);
     if (isNaN(assistDuration)) assistDuration = 0;
@@ -1505,8 +1502,8 @@ async function saveSettings() {
         "lightHomeKit", lightHomeKit,
         "motionHomeKit", motionHomeKit,
         "stopDoorHomeKit", stopDoorHomeKit,
-        ...(encoderEnabled !== null ? ["encoderEnabled", encoderEnabled] : []),
-        ...(encoderReversed !== null ? ["encoderReversed", encoderReversed] : []),
+        "encoderEnabled", encoderEnabled,
+        "encoderReversed", encoderReversed,
     );
     if (reboot) {
         countdown(rebootSeconds, "Settings saved, RATGDO device rebooting...&nbsp;");

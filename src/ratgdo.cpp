@@ -45,6 +45,9 @@
 #ifndef USE_GDOLIB
 #include "drycontact.h"
 #endif
+#ifdef RATGDO_ENCODER
+#include "encoder.h"
+#endif
 
 // Logger tag
 static const char *TAG = "ratgdo-main";
@@ -276,6 +279,9 @@ void setup()
 #ifndef USE_GDOLIB
     setup_drycontact();
 #endif
+#ifdef RATGDO_ENCODER
+    setup_encoder();
+#endif
 
     // Finally initialize WiFi and HomeKit
 #ifdef ESP8266
@@ -353,6 +359,9 @@ void loop()
     comms_loop();
 #ifndef USE_GDOLIB
     drycontact_loop();
+#endif
+#ifdef RATGDO_ENCODER
+    encoder_loop();
 #endif
 #ifdef ESP8266
     // On ESP8266 we handle WiFi and HomeKit ourselves

@@ -567,22 +567,35 @@
                   <label for="obstFromStatus">Get obstruction from GDO status messages</label>
                 </td>
               </tr>
-              <tr id="encoderRow" style="display:none;">
+              <tr id="encoderRow" style="display: none;">
                 <td></td>
                 <td>
                   <input type="checkbox" id="encoderEnabled" name="encoderEnabled" onclick="toggleEncoderOptions()">
-                  <label for="encoderEnabled">Enable rotary encoder (replaces limit switches)</label>
-                  <div id="encoderOptions" style="display:none; margin-top:4px; margin-left:20px;">
-                    <input type="checkbox" id="encoderReversed" name="encoderReversed">
-                    <label for="encoderReversed">Reverse encoder direction</label>
-                    &nbsp;&nbsp;
-                    <span style="font-size:0.9em;">Steps:&nbsp;<span id="encSteps">--</span></span>
-                    &nbsp;&nbsp;
-                    <input type="button" id="resetEncoderCalBtn" value="Reset Calibration" onclick="resetEncoderCal()">
-                  </div>
+                  <label for="encoderEnabled">Enable rotary encoder</label>
                 </td>
               </tr>
-
+              <tr id="encoderReversedRow" style="display: none;">
+                <td></td>
+                <td>&nbsp;
+                  <input type="checkbox" id="encoderReversed" name="encoderReversed">
+                  <label for="encoderReversed">Reverse encoder direction</label>
+                </td>
+              </tr>
+              <tr id="encStepsRow" style="display: none;">
+                <td></td>
+                <td>
+                  <table class="settings">
+                    <tr>
+                      <td class="IPlabel">&nbsp;Steps:</td>
+                      <td>
+                        <span id="encSteps">--</span>
+                        <input type="button" id="resetEncoderCalBtn" value="Reset Calibration"
+                          onclick="resetEncoderCal()">
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
               <tr id="trWifiPhyMode" style="display: none">
                 <td class="label">WiFi Version:</td>
                 <td>
