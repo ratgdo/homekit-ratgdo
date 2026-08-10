@@ -882,7 +882,6 @@ bool enable_service_homekit_manually_operated(bool enable)
 }
 #endif
 
-
 /****************************************************************************
  * Setup HomeKit, HomeSpan version.
  */
@@ -1259,7 +1258,7 @@ DEV_ManuallyOperated::DEV_ManuallyOperated() : Service::ContactSensor()
 {
     ESP_LOGI(TAG, "Configuring HomeKit Contact Sensor Service for manually operated state");
     event_q = xQueueCreate(10, sizeof(GDOEvent));
-    DEV_ManuallyOperated::state = new Characteristic::ContactSensorState(state->CONTACT_DETECTED);
+    DEV_ManuallyOperated::state = new Characteristic::ContactSensorState(state->DETECTED);
 }
 
 void DEV_ManuallyOperated::loop()
@@ -1268,12 +1267,11 @@ void DEV_ManuallyOperated::loop()
     {
         GDOEvent e;
         xQueueReceive(event_q, &e, 0);
-        ESP_LOGD(TAG, "Manually Operated contact sensor has turned %s", e.value.b ? "open (detected)" : "closed (reset)");
-        DEV_ManuallyOperated::state->setVal(e.value.b ? state->CONTACT_NOT_DETECTED : state->CONTACT_DETECTED);
+        ESP_LOGD(TAG, "Manually Operated contact sensor has turned %s", e.value.b ? "open" : "closed");
+        DEV_ManuallyOperated::state->setVal(e.value.b ? state->NOT_DETECTED : state->DETECTED);
     }
 }
 #endif
-
 
 /****************************************************************************
  * HomeKit notification functions only for ESP32

@@ -129,7 +129,7 @@ static void IRAM_ATTR isr_encoder() {
 
 // ─── Notify helpers ──────────────────────────────────────────────────────────
 
-void set_resolved_door_state(GarageDoorCurrentState s) {
+static void set_resolved_door_state(GarageDoorCurrentState s) {
   doorState = s; // update the main-loop source of truth (web UI + comms loop reads this)
   notify_homekit_current_door_state_change(s);
   if (s == GarageDoorCurrentState::CURR_OPEN ||
@@ -145,7 +145,7 @@ void set_resolved_door_state(GarageDoorCurrentState s) {
 static void encoder_received(GarageDoorCurrentState door_state) {
   garage_door.encoder_door_state = door_state;
 
-  auto proto_state = garage_door.protocol_door_state;
+  GarageDoorCurrentState proto_state = garage_door.protocol_door_state;
 
   if (proto_state == (GarageDoorCurrentState)0xFF) {
     set_resolved_door_state(door_state);
