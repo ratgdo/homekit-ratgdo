@@ -1045,12 +1045,17 @@ DEV_GarageDoor::DEV_GarageDoor() : Service::GarageDoorOpener()
 
 boolean DEV_GarageDoor::update()
 {
-    ESP_LOGD(TAG, "Garage Door Characteristics Update, door target: %s", DOOR_STATE(target->getNewVal()));
-    GarageDoorCurrentState state = (target->getNewVal() == target->OPEN) ? open_door() : close_door();
-    obstruction->setVal(false);
-    current->setVal(state);
+    // HomeSpan calls update() when any characteristic in this service changes.
+    // Only act on the characteristic(s) that were actually written.
+    if (target->updated())
+    {
+        ESP_LOGD(TAG, "Garage Door Characteristics Update, door target: %s", DOOR_STATE(target->getNewVal()));
+        GarageDoorCurrentState state = (target->getNewVal() == target->OPEN) ? open_door() : close_door();
+        obstruction->setVal(false);
+        current->setVal(state);
+    }
 
-    if (userConfig->getGDOSecurityType() != 3)
+    if (userConfig->getGDOSecurityType() != 3 && lockTarget && lockTarget->updated())
     {
         // Dry contact cannot control lock
         set_lock(lockTarget->getNewVal() == lockTarget->LOCK);
