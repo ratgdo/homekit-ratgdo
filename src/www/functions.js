@@ -426,11 +426,11 @@ function setElementsFromStatus(status) {
                 document.getElementById("sec1emulation").style.display = (value == true) ? "" : "none";
                 break;
             case "deviceName":
-                document.getElementById(key).innerHTML = value;
+                document.getElementById(key).textContent = value;
                 document.title = value;
                 document.getElementById("newDeviceName").placeholder = value;
                 let mdnsName = makeRfc952(value) + ".local";
-                document.getElementById("mdnsName").innerHTML = mdnsName;
+                document.getElementById("mdnsName").textContent = mdnsName;
                 break;
             case "userName":
                 document.getElementById("newUserName").placeholder = value;
