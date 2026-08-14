@@ -590,11 +590,7 @@ void handle_notfound()
     return;
 }
 
-#ifdef ESP8266
-#define AUTHENTICATE()                                                                                                                  \
-    if (userConfig->getPasswordRequired() && !server.authenticateDigest(userConfig->getwwwUsername(), userConfig->getwwwCredentials())) \
-        return server.requestAuthentication(DIGEST_AUTH, www_realm);
-#else
+#ifndef ESP8266
 String *ratgdoAuthenticate(HTTPAuthMethod mode, String enteredUsernameOrReq, String extraParams[])
 {
     // ESP_LOGI(TAG, "Auth method: %d", mode);                // DIGEST_AUTH
@@ -604,22 +600,39 @@ String *ratgdoAuthenticate(HTTPAuthMethod mode, String enteredUsernameOrReq, Str
     String *pw = new String(read_door_str(nvram_ratgdo_pw, "password").c_str());
     return pw;
 }
-
-#define AUTHENTICATE()                                                                 \
-    if (userConfig->getPasswordRequired() && !server.authenticate(ratgdoAuthenticate)) \
-        return server.requestAuthentication(DIGEST_AUTH, www_realm);
 #endif
+
+// Returns false if a 401 challenge was sent.
+static bool requestAuthenticated()
+{
+#ifdef ESP8266
+    if (userConfig->getPasswordRequired() && !server.authenticateDigest(userConfig->getwwwUsername(), userConfig->getwwwCredentials()))
+    {
+        server.requestAuthentication(DIGEST_AUTH, www_realm);
+        return false;
+    }
+#else
+    if (userConfig->getPasswordRequired() && !server.authenticate(ratgdoAuthenticate))
+    {
+        server.requestAuthentication(DIGEST_AUTH, www_realm);
+        return false;
+    }
+#endif
+    return true;
+}
 
 void handle_auth()
 {
-    AUTHENTICATE();
+    if (!requestAuthenticated())
+        return;
     server.send_P(200, type_txt, PSTR("Authenticated"));
     return;
 }
 
 void handle_reset()
 {
-    AUTHENTICATE();
+    if (!requestAuthenticated())
+        return;
     ESP_LOGI(TAG, "... reset requested");
 #ifdef ESP8266
     homekit_storage_reset();
@@ -743,6 +756,18 @@ void handle_everything()
         ESP_LOGD(TAG, "Client %s requesting: %s (method: %s)", server.client().remoteIP().toString().c_str(), uri, http_methods[method]);
         if (method == builtInUri.at(uri).first)
         {
+            // WiFi provisioning is unauthenticated in Soft AP mode, but must
+            // require credentials once the device is on the LAN.
+            if (!softAPmode &&
+                (!strcmp(uri, "/setssid") || !strcmp(uri, "/wifinets") ||
+                 !strcmp(uri, "/rescan") || !strcmp(uri, "/wifiap")))
+            {
+                if (!requestAuthenticated())
+                {
+                    unregisterRequest();
+                    return;
+                }
+            }
             builtInUri.at(uri).second();
         }
         else
@@ -771,6 +796,14 @@ void handle_everything()
     else if (method == HTTP_GET || method == HTTP_HEAD)
     {
         // HTTP_GET that does not match a built-in handler
+        if (!softAPmode && page.equals("/wifiap.html"))
+        {
+            if (!requestAuthenticated())
+            {
+                unregisterRequest();
+                return;
+            }
+        }
         if (page.equals("/"))
         {
             load_page("/index.html");
@@ -1239,7 +1272,8 @@ void handle_setgdo()
     if (!((server.args() == 1) && (server.argName(0) == cfg_timeZone)))
     {
         // We will allow setting of time zone without authentication
-        AUTHENTICATE();
+        if (!requestAuthenticated())
+            return;
     }
 
     // Loop over all the GDO settings passed in...
@@ -1602,7 +1636,8 @@ void handle_showrebootlog()
 
 void handle_clearcrashlog()
 {
-    AUTHENTICATE();
+    if (!requestAuthenticated())
+        return;
     ESP_LOGI(TAG, "Clear saved crash log");
     ratgdoLogger->clearCrashLog();
     server.send_P(200, type_txt, PSTR("Crash log cleared\n"));
@@ -1713,7 +1748,8 @@ void handle_update()
 
     server.sendHeader(F("Access-Control-Allow-Headers"), "*");
     server.sendHeader(F("Access-Control-Allow-Origin"), "*");
-    AUTHENTICATE();
+    if (!requestAuthenticated())
+        return;
 
     server.client().setNoDelay(true);
     if (!verify && Update.hasError())
