@@ -14,6 +14,7 @@
  */
 
 // Arduino system includes
+#include <cstring>
 #include <DNSServer.h>
 
 // RATGDO project includes
@@ -324,6 +325,56 @@ void handle_wifiap()
     return load_page("/wifiap.html");
 }
 
+// Escape untrusted SSID text before embedding it in HTML.
+static void htmlEscape(const char *in, char *out, size_t outLen)
+{
+    if (!out || outLen == 0)
+        return;
+    size_t o = 0;
+    if (!in)
+    {
+        out[0] = 0;
+        return;
+    }
+    for (; *in && o + 1 < outLen; ++in)
+    {
+        const char *rep = NULL;
+        switch (*in)
+        {
+        case '&':
+            rep = "&amp;";
+            break;
+        case '<':
+            rep = "&lt;";
+            break;
+        case '>':
+            rep = "&gt;";
+            break;
+        case '"':
+            rep = "&quot;";
+            break;
+        case '\'':
+            rep = "&#39;";
+            break;
+        default:
+            break;
+        }
+        if (rep)
+        {
+            size_t n = strlen(rep);
+            if (o + n >= outLen)
+                break;
+            memcpy(out + o, rep, n);
+            o += n;
+        }
+        else
+        {
+            out[o++] = *in;
+        }
+    }
+    out[o] = 0;
+}
+
 void handle_wifinets()
 {
     bool connected = WiFi.isConnected();
@@ -340,6 +391,7 @@ void handle_wifinets()
     server.sendContent(softAPtableHead, strlen(softAPtableHead));
     int i = 0;
     char *txtBuffer = static_cast<char *>(malloc(TXT_BUFFER_SIZE));
+    char *escapedSSID = static_cast<char *>(malloc(192));
     for (wifiNet_t net : wifiNets)
     {
         bool hide = true;
@@ -355,17 +407,20 @@ void handle_wifinets()
         {
             matchSSID = false;
         }
+        htmlEscape(net.ssid.c_str(), escapedSSID, sizeof(escapedSSID));
         snprintf(txtBuffer, TXT_BUFFER_SIZE, softAPtableRow, (hide) ? "class='adv'" : "", i, i, (matchSSID) ? "checked='checked'" : "", i,
-                 net.ssid.c_str(), net.rssi, net.channel,
+                 escapedSSID, net.rssi, net.channel,
                  net.bssid[0], net.bssid[1], net.bssid[2], net.bssid[3], net.bssid[4], net.bssid[5]);
         server.sendContent(txtBuffer, strlen(txtBuffer));
         i++;
     }
     // user entered value
-    snprintf(txtBuffer, TXT_BUFFER_SIZE, softAPtableLastRow, i, i, (!match) ? previousSSID.c_str() : "");
+    htmlEscape((!match) ? previousSSID.c_str() : "", escapedSSID, sizeof(escapedSSID));
+    snprintf(txtBuffer, TXT_BUFFER_SIZE, softAPtableLastRow, i, i, escapedSSID);
     server.sendContent(txtBuffer, strlen(txtBuffer));
     server.sendContent("\n", 1);
     server.client().stop();
+    free(escapedSSID);
     free(txtBuffer);
     return;
 }
@@ -446,7 +501,7 @@ bool set_new_ssid(const char *ssid, const char *password, const uint8_t *bssid)
         homeSpan.setWifiCredentials(ssid, password);
 #endif
         // We should reset WiFi if changing networks or were not currently connected.
-        if (!connected || previousBSSID != ssid)
+        if (!connected || previousSSID != ssid)
         {
             userConfig->set(cfg_staticIP, false);
             userConfig->set(cfg_wifiPower, WIFI_POWER_MAX);
