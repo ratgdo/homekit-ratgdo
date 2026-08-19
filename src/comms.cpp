@@ -2193,10 +2193,12 @@ void comms_loop_sec2()
             // Typically occurs if there is a fail-to-decode packet error.  This could be a regular status update.
             // If it has been more than 5 minutes since the last status packet then request GDO to resend one, or
             // if we are in the middle of an open or close sequence as we might have missed the state change to open or closed.
+            // Similarly if we are waiting for a light or lock state change to be reflected in a status packet, we may have missed it.
             if (_millis() - lastStatusPkt > (5 * 60 * 1000) ||
                 lastStatusPkt == 0 ||
                 garage_door.current_state == GarageDoorCurrentState::CURR_OPENING ||
-                garage_door.current_state == GarageDoorCurrentState::CURR_CLOSING)
+                garage_door.current_state == GarageDoorCurrentState::CURR_CLOSING ||
+                pendingDoorCommand || pendingLightOn || pendingLightOff || pendingLockOn || pendingLockOff)
             {
                 ESP_LOGD(TAG, "Possibly missed a status packet, requesting GDO to resend");
                 send_get_status();
