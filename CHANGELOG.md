@@ -2,16 +2,23 @@
 
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
-## v2.2.1 (2026-07-22)
+## v2.2.2 (2026-08-21)
 
 > [!IMPORTANT]
 > HomeKit firmware for ESP8266-based RATGDO v2.5-series devices is **deprecated** since version 2.2.0. See [README.md](https://github.com/ratgdo/homekit-ratgdo/blob/main/README.md). Future updates are not guaranteed.
 
 ### What's Changed
 
-* Bugfix: Fix false encoder-stopped watchdog trigger from stale timestamp in encoder.cpp, https://github.com/ratgdo/homekit-ratgdo32/pull/184 
-* Bugfix: Fix regression that accidentally removed option to remove light switch from HomeKit, https://github.com/ratgdo/homekit-ratgdo/pull/350
-* Other: Move more Info-level log messages to Debug-level so that once in stable run mode, Info-level only logs actual activity.
+* Feature: RATGDO32 and RATDDO32-DISCO only, add support for rotary encoder for Sec+ doors, https://github.com/ratgdo/homekit-ratgdo32/pull/189
+* Bugfix: GDO light not always responding to command from HomeKit / webpage. Should fix https://github.com/ratgdo/homekit-ratgdo32/issues/191
+* Other: Add additional conditions to when we send a request for status to Sec+2.0 doors on receipt of an unknown (packet decode errors)
+* Other: Disable ratgdo encoder on ESP8266-based boards, will only support on ESP32-based boards
+* Other: Changed vehicle distance log messages from Debug to Verbose level
+* Other: Updates to json.h to check that we do not overwrite buffer, suggested by @abud86 in https://github.com/ratgdo/homekit-ratgdo32/pull/190
+* Other: Only update target lock state if HomeKit requested an update, as suggested by @adub86 in https://github.com/ratgdo/homekit-ratgdo32/pull/190
+* Other: Update authentication as suggested by @adub86 in https://github.com/ratgdo/homekit-ratgdo32/pull/190
+* Other: Replace special chars with HTML for SSID softAP.cpp, suggested by @abud86 in https://github.com/ratgdo/homekit-ratgdo32/pull/190
+* Other: Don't parse HTML when setting device name in web page, suggested by @abud86 in https://github.com/ratgdo/homekit-ratgdo32/pull/190
 
 ### Known Issues
 
@@ -19,6 +26,14 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 * Sec+ 1.0 doors with "0x37" digital wall panel (e.g. 398LM) not working. We now detect but will not support them.  Recommend replacing with 889LM panel.
 * When creating automations in Apple Home, the garage door may show only lock/unlock and not open/close as triggers. This is a bug in Apple Home. Workaround is to use the Eve App to create the automation, it will show both options.
 * ESP8266 (original ratgdo) only... possible crash when a storm of HomeKit messages arrives... which may be triggered on a upgrade of Apple iOS/tvOS/etc. versions. System recovers.
+
+## v2.2.1 (2026-07-22)
+
+### What's Changed
+
+* Bugfix: Fix false encoder-stopped watchdog trigger from stale timestamp in encoder.cpp, https://github.com/ratgdo/homekit-ratgdo32/pull/184 
+* Bugfix: Fix regression that accidentally removed option to remove light switch from HomeKit, https://github.com/ratgdo/homekit-ratgdo/pull/350
+* Other: Move more Info-level log messages to Debug-level so that once in stable run mode, Info-level only logs actual activity.
 
 ## v2.2.0 (2026-07-12)
 

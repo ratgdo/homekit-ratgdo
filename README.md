@@ -68,6 +68,7 @@ When you first add the device to HomeKit a number of accessories are added:
 - Vehicle departing _motion_ sensor. Only on ratgdo32-disco boards, triggers motion if it detects departure of a vehicle.
 - Vehicle presence _occupancy_ sensor. Only on ratgdo32-disco boards, set if the distance sensor detects presence of a vehicle.
 - Parking assist laser _light switch_. Only on ratgdo32-disco boards.
+- _contact_ sensor. Only when rotary encoder enable on ratgdo32 boards, triggers open condition when door manually operated
 
 Vehicle arrival and departing sensors are only triggered if vehicle motion is detected within 5 minutes of door opening or closing. The parking assist laser is activated when vehicle arrival is detected.
 
@@ -103,6 +104,8 @@ This section also displays the current firmware version, with a statement on whe
 Status of the garage door along with action buttons are shown in this section. The status values are updated in real time whether triggered by one of the action buttons or an external action (motion in the garage, someone using a door remote).
 
 If you have a Security+ 1.0 door then you may see the word _(emulation)_ next to the door protocol. This indicates that you do not have a digital wall panel and the ratgdo is emulating this.
+
+Next to the door status you may see the word _(manual)_ next to the status.  This will appear only if you have the ratgdo encoder installed and enabled, and indicates that the door has been manually operated.
 
 Next to the obstruction status you will see the word _(Pin-based)_ or _(Message)_ that indicates how ratgdo is detecting whether there is an obstruction that may prevent the door from closing. By default, ratgdo will attempt to use the pin-based method and only fall back to using the garage door status messages if no signal is detected on the obstruction sensor wire.  You can force ratgdo to use status messages, see below.
 
@@ -180,7 +183,7 @@ On ratgdo32 boards we use an external library, [HomeSpan](https://github.com/Hom
 
 You can select up-to 60 second delay before door starts closing. During the delay period the garage door lights will flash and you may hear the relay clicking. On ratgdo32-disco boards you will also hear audible beeping. Default time-to-close delay is 5 seconds. See WARNING below.
 
-### Flash light during time-to-close
+#### Flash light during time-to-close
 
 You can disable the garage door opener light from flashing during the delay period. This has the benefit of reducing traffic on the serial communications to the door opener. However note the WARNING below.
 
@@ -213,7 +216,7 @@ This allows you to select what causes the HomeKit motion sensor accessory to tri
 
 Motion can also be triggered by the obstruction sensor or by a user pressing the door, light or lock buttons on the wall panel. This is disabled by default but may be selected on the web page.
 
-### Occupancy Duration _(not supported on ratgdo v2.5 boards)_
+#### Occupancy Duration _(not supported on ratgdo v2.5 boards)_
 
 For ratgdo32 boards, a HomeKit occupancy sensor may be set active when motion is detected. It will remain active for a user set duration between zero and 120 minutes after the last motion detected. HomeKit accessory is disabled if set to zero. Disabled by default.
 
@@ -229,10 +232,9 @@ for this when setting the value.
 > to point towards the vehicle roof. If you get unreliable results, you should also remove the yellow sticker that may be on the sensor to protect
 > it from dust during manufacture and shipping.
 
-### Laser _(ratgdo32-disco boards only)_
+#### Laser _(ratgdo32-disco boards only)_
 
-For ratgdo32-disco boards, if you have the parking assist laser accessory installed, select this option to enable support and optionally add HomeKit light switch accessory
-to allow for manual or HomeKit automation control.
+For ratgdo32-disco boards, if you have the parking assist [laser accessory](https://ratcloud.llc/products/parking-assistance-laser) installed, select this option to enable support and optionally add HomeKit light switch accessory to allow for manual or HomeKit automation control.
 
 When enabled, you can configure how long the laser remains on during parking assist by selecting a value from zero to 300 seconds (5 minutes). Selecting
 zero disables parking assist laser. Parking assist is triggered if an arriving vehicle is detected with 5 minutes of the door opening or closing.
@@ -241,26 +243,35 @@ zero disables parking assist laser. Parking assist is triggered if an arriving v
 
 Set the protocol for your model of garage door opener. This defaults to Security+ 2.0 and you should only change this if necessary. Note that the changing the door protocol also resets the door opener rolling codes and whether there is a motion sensor (this will be automatically detected after reset).
 
-### Debounce duration
+#### Debounce duration
 
 For Dry Contact door protocol, set the sensor debounce duration. When the door opens or closes it can take time for the sensor switch to settle into its correct state. You can set this between 50 and 1000 milliseconds. You can observe the log messages when door reaches closed or open state to get an idea of what the correct setting should be for your door.
 
-### Enable hardwired open/close control
+#### Enable hardwired open/close/light control
 
 For Security+ 1.0 and Security +2.0 it is possible to repurpose the sensors used for dry-contact door open / close to buttons that trigger a door open / close action. Select this check box to enable this option. When both the open and close GPIOs are tied together with a jumper (or wired to the same button), the inputs behave exactly like the factory wall control: a toggle from a fully open/closed door starts travel in the opposite direction, a toggle while moving pauses the door, and a follow-up toggle from that paused state makes the door reverse direction.
 
 When enabled, an additional option appears to **Bypass time-to-close delay for hardwired controls**. Use this when the open/close GPIOs are wired to a physical wall button and you want that button to behave like the native door control panel. When checked, any close or toggle action that comes from the hardwired inputs will ignore the configured Time-To-Close warning delay so the door responds immediately, while HomeKit, automations, or remotes continue to respect the delay.
 
-### Use software serial emulation rather than h/w UART _(ratgdo32 boards only)_
+#### Use software serial emulation rather than h/w UART _(ratgdo32 boards only)_
 
 For Security+ 1.0 and Security+ 2.0, communications with the garage door uses a serial port. This can be either the ESP32's built-in hardware UART or a software emulation of a UART. Software emulation is required for Security+ 2.0 to allow for automatic sensing and changing of the baud rate... without this, the ratgdo cannot detect button presses at the garage door wall panel controller. For Security+ 1.0, software emulation is optional. If you experience communication errors you can try changing to use hardware UART.
 
 > [!NOTE]
 > This selection will only be available if the ratgdo firmware was built with the external GDOLIB library.
 
-### Get obstruction from GDO status messages
+#### Get obstruction from GDO status messages
 
 By default ratgdo obtains obstruction state by monitoring signals on the sensor wire. The door also reports status in messages sent by the GDO and ratgdo will fall back to use status messages if no signal is detected on the wire. Selecting this option will force the ratgdo to always use status messages. Note that the messages method can be slow to report a change in obstruction state.
+
+#### Enable rotary encoder _(ratgdo32 boards only)_
+
+The [rotary encoder](https://ratcloud.llc/products/ratgdo-encoder) is an optional accessory for ratgdo32 boards that provided additional function or security.  Once calibrated it can ensure that ragtdo knows correct door status even if Sec+2.0 status messages are missed/corrupted.  It can also alert you to a door being manually operated (when the release handle is pulled and door is opened without using the door opener).  A HomeKit contact sensor will open allowing you to trigger an automation or alert.
+
+Test that the door opening/closing status is correctly reported and select _Reverse encoder direction_ if necessary.
+
+> [!NOTE]
+> When this option is selected, you cannot use hardwired open/close controls as described above, because the same GPIO connections are used.
 
 ### WiFi Version _(not supported on ratgdo32 boards)_
 
@@ -295,7 +306,7 @@ The ratgdo device will obtain current time from an NTP (Network Time Protocol) s
 
 When enabled, the _lastDoorChange_ date and time (reported at the bottom of the web page) is saved across reboots and the actual time of log data is reported when viewed in the browser system logs page.
 
-### Time Zone
+#### Time Zone
 
 You can select time zone for your location. On fist boot, or after changing the WiFi network SSID, the ratgdo will reset to GMT/UTC and then attempt to obtain your time zone by geo-locating the external IP address of the network that ratgdo is connected to. The discovered time zone will take effect immediately after you view the ratgdo web page.
 
