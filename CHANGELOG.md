@@ -9,7 +9,7 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 
 ### What's Changed
 
-* Feature: RATGDO32 and RATDDO32-DISCO only, add support for rotary encoder for Sec+ doors, https://github.com/ratgdo/homekit-ratgdo32/pull/189
+* Feature: RATGDO32 and RATGDO32-DISCO only, add support for rotary encoder for Sec+ doors, https://github.com/ratgdo/homekit-ratgdo32/pull/189
 * Bugfix: GDO light not always responding to command from HomeKit / webpage. Should fix https://github.com/ratgdo/homekit-ratgdo32/issues/191
 * Other: Add additional conditions to when we send a request for status to Sec+2.0 doors on receipt of an unknown (packet decode errors)
 * Other: Disable ratgdo encoder on ESP8266-based boards, will only support on ESP32-based boards
