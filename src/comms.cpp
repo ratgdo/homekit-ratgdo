@@ -1810,6 +1810,8 @@ void comms_loop_sec2()
             if (pkt.m_data.value.status.light != garage_door.light)
             {
                 ESP_LOGI(TAG, "Light: %s (%s)", pkt.m_data.value.status.light ? "On" : "Off", timeString());
+                pendingLightOn = false;
+                pendingLightOff = false;
                 notify_homekit_light(pkt.m_data.value.status.light);
             }
 
