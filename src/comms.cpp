@@ -970,7 +970,8 @@ inline void handle_protocol_door_state(GarageDoorCurrentState state)
 #ifdef RATGDO_ENCODER
     if (encoder_enabled)
     {
-        protocol_received_state(state);
+        if (doorControlType != DOOR_CONTROL_DRY_CONTACT)
+            protocol_received_state(state);
         return;
     }
 #endif
