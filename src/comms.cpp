@@ -603,6 +603,9 @@ void setup_comms()
         gpio_reset_pin(UART_TX_PIN);
         gpio_reset_pin(UART_RX_PIN);
         Sec1Serial.begin(1200, SERIAL_8E1, UART_RX_PIN, UART_TX_PIN, true);
+        // Make sure the RX pin is pulled up and not pulled down, otherwise we will get a lot of receive errors.
+        gpio_pulldown_dis(UART_RX_PIN);
+        gpio_pullup_en(UART_RX_PIN);
         Sec1Serial.onReceiveError(receiveErrorHandler);
         Sec1Serial.setTimeout(10); // 10 ms used for Sec1Serial.readBytes() in transmitSec1()
 #else
