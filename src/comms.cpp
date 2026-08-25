@@ -137,7 +137,7 @@ SoftwareSerial sw_serial;
 bool comms_status_done = false;
 static _millis_t comms_status_start = 0;
 static _millis_t tx_minimum_delay = SECPLUS2_TX_MINIMUM_DELAY;
-uint32_t doorControlType = 0;
+door_control_type_t doorControlType = DOOR_CONTROL_UNKNOWN;
 
 // Wall panel sends GDO GetOpenings/GetBattery approx every 22hrs 55mins.
 // That seems an awful long time, how about we do it every 55 minutes?
@@ -448,7 +448,7 @@ static void gdo_event_handler(const gdo_status_t *status, gdo_cb_event_t event, 
             notify_homekit_target_door_state_change(gdo_to_homekit_door_target_state[status->door]);
 
             // If we are using Sec+2.0 built-in time-to-close then reset the TTC to zero when door is closed
-            if (status->door == GDO_DOOR_STATE_CLOSED && doorControlType == 2 && userConfig->getBuiltInTTC())
+            if (status->door == GDO_DOOR_STATE_CLOSED && doorControlType == DOOR_CONTROL_SEC_PLUS_V2 && userConfig->getBuiltInTTC())
                 gdo_set_time_to_close(0);
         }
         break;
@@ -501,7 +501,7 @@ static void gdo_event_handler(const gdo_status_t *status, gdo_cb_event_t event, 
         break;
     case GDO_CB_EVENT_CANCEL_TTC:
         ESP_LOGI(TAG, "GDO event: cancel TTC");
-        if (doorControlType == 2 && userConfig->getBuiltInTTC())
+        if (doorControlType == DOOR_CONTROL_SEC_PLUS_V2 && userConfig->getBuiltInTTC())
             gdo_set_time_to_close(0);
         break;
     case GDO_CB_EVENT_PAIRED_DEVICES:
@@ -539,7 +539,7 @@ static void gdo_event_handler(const gdo_status_t *status, gdo_cb_event_t event, 
 
 void initialize_gdo_codes(uint32_t id)
 {
-    if (doorControlType != 2)
+    if (doorControlType != DOOR_CONTROL_SEC_PLUS_V2)
         return;
 
     if (id)
@@ -572,8 +572,8 @@ void setup_comms()
     if (comms_setup_done)
         return;
 
-    if (doorControlType == 0)
-        doorControlType = userConfig->getGDOSecurityType();
+    if (doorControlType == DOOR_CONTROL_UNKNOWN)
+        doorControlType = static_cast<door_control_type_t>(userConfig->getGDOSecurityType());
 
 #if defined(ESP8266) || !defined(USE_GDOLIB)
     IRAM_START(TAG);
@@ -586,7 +586,7 @@ void setup_comms()
     // set to output (not currently used (prob not ported over) using now for new disconnect of wall panel)
     pinMode(STATUS_DOOR_PIN, OUTPUT);
 
-    if (doorControlType == 1)
+    if (doorControlType == DOOR_CONTROL_SEC_PLUS_V1)
     {
         ESP_LOGI(TAG, "=== Setting up comms for SECURITY+1.0 protocol");
 
@@ -617,7 +617,7 @@ void setup_comms()
         wallPanelBooting = false;
         doorState = (GarageDoorCurrentState)0xFF;
     }
-    else if (doorControlType == 2)
+    else if (doorControlType == DOOR_CONTROL_SEC_PLUS_V2)
     {
         ESP_LOGI(TAG, "=== Setting up comms for SECURITY+2.0 protocol");
 
@@ -639,7 +639,7 @@ void setup_comms()
 #else // !USE_GDOLIB
     esp_err_t err = ESP_OK;
 
-    if ((doorControlType == 1) || (doorControlType == 2))
+    if ((doorControlType == DOOR_CONTROL_SEC_PLUS_V1) || (doorControlType == DOOR_CONTROL_SEC_PLUS_V2))
     {
         gdo_config_t gdo_conf = {
             .uart_num = UART_NUM_1,
@@ -681,7 +681,7 @@ void setup_comms()
         // always be ahead of what the GDO thinks it should be, and save it.
         rolling_code = (rolling_code != 0) ? rolling_code + MAX_CODES_WITHOUT_FLASH_WRITE : 0;
         ESP_LOGI(TAG, "rolling code %lu (0x%02X)", rolling_code, rolling_code);
-        if (doorControlType == 2)
+        if (doorControlType == DOOR_CONTROL_SEC_PLUS_V2)
         {
             if ((err = gdo_set_protocol(GDO_PROTOCOL_SEC_PLUS_V2)) != ESP_OK)
             {
@@ -806,7 +806,7 @@ void shutdown_comms()
     // Shutdown GDO comms
     gdo_deinit();
 #else
-    if (doorControlType == 1)
+    if (doorControlType == DOOR_CONTROL_SEC_PLUS_V1)
     {
         Sec1Serial.end();
     }
@@ -826,7 +826,7 @@ void shutdown_comms()
  */
 void save_rolling_code()
 {
-    if (doorControlType != 2)
+    if (doorControlType != DOOR_CONTROL_SEC_PLUS_V2)
         return;
 
 #ifdef USE_GDOLIB
@@ -1051,14 +1051,14 @@ void update_door_state(GarageDoorCurrentState current_state)
                 {
                     door_command_open();
                     // Sec+2.0 doors seem to require the command to be sent twice immediately after a stop
-                    if (doorControlType == 2)
+                    if (doorControlType == DOOR_CONTROL_SEC_PLUS_V2)
                         door_command_open();
                 }
                 else if (stopSentClosePending)
                 {
                     door_command_close();
                     // Sec+2.0 doors seem to require the command to be sent twice immediately after a stop
-                    if (doorControlType == 2)
+                    if (doorControlType == DOOR_CONTROL_SEC_PLUS_V2)
                         door_command_close();
                 }
             }
@@ -1567,7 +1567,7 @@ bool process_send_queue()
         {
             if (retryCount++ < MAX_COMMS_RETRY)
             {
-                if (doorControlType == 1)
+                if (doorControlType == DOOR_CONTROL_SEC_PLUS_V1)
                     ESP_LOGD(TAG, "SEC1 TX send [0x%02X] failed, will retry. retryCount at %d", pkt_ac.pkt.m_data.value.cmd, retryCount);
                 else
                     ESP_LOGD(TAG, "SEC2 TX send failed, will retry. retryCount at %d", retryCount);
@@ -2486,7 +2486,7 @@ bool transmitSec2(PacketAction &pkt_ac)
 
 bool process_PacketAction(PacketAction &pkt_ac)
 {
-    if (doorControlType == 2)
+    if (doorControlType == DOOR_CONTROL_SEC_PLUS_V2)
     {
         return transmitSec2(pkt_ac);
     }
@@ -2505,14 +2505,14 @@ void door_command(DoorAction action)
         return;
     }
 
-    if (doorControlType != 3)
+    if (doorControlType != DOOR_CONTROL_DRY_CONTACT)
     {
         // SECURITY1.0/2.0 commands
         PacketData data;
         data.type = PacketDataType::DoorAction;
         data.value.door_action.action = action;
         data.value.door_action.pressed = true;
-        if (doorControlType == 1)
+        if (doorControlType == DOOR_CONTROL_SEC_PLUS_V1)
             data.value.cmd = secplus1Codes::DoorButtonPress;
         data.value.door_action.id = 1;
 
@@ -2536,7 +2536,7 @@ void door_command(DoorAction action)
 
         // do button release
         pkt_ac.pkt.m_data.value.door_action.pressed = false;
-        if (doorControlType == 1)
+        if (doorControlType == DOOR_CONTROL_SEC_PLUS_V1)
             pkt_ac.pkt.m_data.value.cmd = secplus1Codes::DoorButtonRelease;
         pkt_ac.inc_counter = true;
         if (!txQueuePush(&pkt_ac))
@@ -2547,7 +2547,7 @@ void door_command(DoorAction action)
         pendingDoorCommand = true;
 
         // if sec+1.0, repeat the release
-        if (doorControlType == 1)
+        if (doorControlType == DOOR_CONTROL_SEC_PLUS_V1)
         {
             if (!txQueuePush(&pkt_ac))
             {
@@ -2596,7 +2596,7 @@ void door_command_close()
         }
     }
 
-    if (doorControlType == 2 && garage_door.closeDuration > 0)
+    if (doorControlType == DOOR_CONTROL_SEC_PLUS_V2 && garage_door.closeDuration > 0)
     {
         // Sec+2.0 doors send us notifications as events happen, and an update every 5 minutes.
         // We may miss a notification which is why we have this test.
@@ -2631,14 +2631,14 @@ void door_command_open()
 {
     ESP_LOGI(TAG, "Opening door");
 #ifdef USE_GDOLIB
-    if (doorControlType == 2 && userConfig->getBuiltInTTC())
+    if (doorControlType == DOOR_CONTROL_SEC_PLUS_V2 && userConfig->getBuiltInTTC())
         gdo_set_time_to_close(0);
 
     gdo_door_open();
 #else
     door_command(DoorAction::Open);
 
-    if (doorControlType == 2 && garage_door.openDuration > 0)
+    if (doorControlType == DOOR_CONTROL_SEC_PLUS_V2 && garage_door.openDuration > 0)
     {
         // Sec+2.0 doors send us notifications as events happen, and an update every 5 minutes.
         // We may miss a notification which is why we have this test.
@@ -2750,13 +2750,13 @@ void TTCtimerFn(void (*callback)(), bool light, bool sound)
     if (TTCiterations > 0)
     {
         // dry contact cannot control lights
-        if (doorControlType != 3)
+        if (doorControlType != DOOR_CONTROL_DRY_CONTACT)
         {
             if (light && (TTCiterations % 2 == 0))
             {
 #ifndef USE_GDOLIB
                 // only SEC+1,0
-                if (doorControlType == 1)
+                if (doorControlType == DOOR_CONTROL_SEC_PLUS_V1)
                 {
                     // just do a press
                     sec1_light_press();
@@ -2783,7 +2783,7 @@ void TTCtimerFn(void (*callback)(), bool light, bool sound)
         ESP_LOGI(TAG, "End of function delay timer");
 #ifndef USE_GDOLIB
         // only SEC+1,0
-        if (doorControlType == 1)
+        if (doorControlType == DOOR_CONTROL_SEC_PLUS_V1)
         {
             // sec1_light_release(2, 250);
             sec1_light_release(4);
@@ -2924,7 +2924,7 @@ GarageDoorCurrentState close_door(bool bypass_ttc)
         {
             ESP_LOGI(TAG, "Delay door close by %d seconds", userConfig->getTTCseconds());
 #ifdef USE_GDOLIB
-            if (doorControlType == 2 && userConfig->getBuiltInTTC())
+            if (doorControlType == DOOR_CONTROL_SEC_PLUS_V2 && userConfig->getBuiltInTTC())
             {
                 gdo_set_time_to_close(userConfig->getTTCseconds());
             }
@@ -2944,7 +2944,7 @@ GarageDoorCurrentState close_door(bool bypass_ttc)
 GarageDoorCurrentState toggle_door(bool bypass_ttc)
 {
     ESP_LOGI(TAG, "Toggling door via hardwired control");
-    if (doorControlType == 3)
+    if (doorControlType == DOOR_CONTROL_DRY_CONTACT)
     {
         ESP_LOGW(TAG, "Toggle requested in dry contact mode; ignored");
         return garage_door.current_state;
@@ -2971,7 +2971,7 @@ GarageDoorCurrentState toggle_door(bool bypass_ttc)
 void send_get_status()
 {
     // only used with SECURITY2.0
-    if (doorControlType != 2)
+    if (doorControlType != DOOR_CONTROL_SEC_PLUS_V2)
         return;
 
     PacketData d;
@@ -2988,7 +2988,7 @@ void send_get_status()
 void send_get_openings()
 {
     // only used with SECURITY2.0
-    if (doorControlType != 2)
+    if (doorControlType != DOOR_CONTROL_SEC_PLUS_V2)
         return;
 
     PacketData d;
@@ -3006,7 +3006,7 @@ void send_get_openings()
 void send_get_battery()
 {
     // only used with SECURITY2.0
-    if (doorControlType != 2)
+    if (doorControlType != DOOR_CONTROL_SEC_PLUS_V2)
         return;
 
     PacketData d;
@@ -3024,7 +3024,7 @@ void send_get_battery()
 void send_cancel_ttc()
 {
     // only used with SECURITY2.0
-    if (doorControlType != 2)
+    if (doorControlType != DOOR_CONTROL_SEC_PLUS_V2)
         return;
 
     cancel_builtin_TTC_countdown();
@@ -3044,7 +3044,7 @@ void send_cancel_ttc()
 void send_set_ttc(uint16_t seconds)
 {
     // only used with SECURITY2.0
-    if (doorControlType != 2)
+    if (doorControlType != DOOR_CONTROL_SEC_PLUS_V2)
         return;
 
     PacketData d;
@@ -3111,7 +3111,7 @@ bool set_lock(bool value, bool verify)
     pendingLockOff = (value == false);
 
     // SECURITY1.0
-    if (doorControlType == 1)
+    if (doorControlType == DOOR_CONTROL_SEC_PLUS_V1)
     {
         data.value.lock.pressed = true;
         data.value.cmd = secplus1Codes::LockButtonPress;
@@ -3234,7 +3234,7 @@ bool set_light(bool value, bool verify)
     pendingLightOff = (value == false);
 
     // SECURITY+1.0
-    if (doorControlType == 1)
+    if (doorControlType == DOOR_CONTROL_SEC_PLUS_V1)
     {
         // only can toggle the light
         sec1_light_press();

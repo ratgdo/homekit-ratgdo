@@ -47,9 +47,18 @@ extern void update_door_state(GarageDoorCurrentState current_state);
 
 extern uint32_t is_ttc_active();
 
+typedef enum
+{
+    DOOR_CONTROL_UNKNOWN = 0,
+    DOOR_CONTROL_SEC_PLUS_V1 = 1,
+    DOOR_CONTROL_SEC_PLUS_V2 = 2,
+    DOOR_CONTROL_DRY_CONTACT = 3,
+    DOOR_CONTROL_MAX,
+} door_control_type_t;
+
 extern uint32_t id_code;
 extern uint32_t rolling_code;
-extern uint32_t doorControlType;
+extern door_control_type_t doorControlType;
 extern GarageDoorCurrentState doorState;
 extern bool comms_setup_done;
 extern bool comms_status_done;

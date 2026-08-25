@@ -50,8 +50,8 @@ void setup_drycontact()
 
     ESP_LOGI(TAG, "=== Setting up dry contact protocol");
 
-    if (doorControlType == 0)
-        doorControlType = userConfig->getGDOSecurityType();
+    if (doorControlType == DOOR_CONTROL_UNKNOWN)
+        doorControlType = static_cast<door_control_type_t>(userConfig->getGDOSecurityType());
 
     pinMode(DRY_CONTACT_OPEN_PIN, INPUT_PULLUP);
     pinMode(DRY_CONTACT_CLOSE_PIN, INPUT_PULLUP);
@@ -106,7 +106,7 @@ void drycontact_loop()
     buttonClose.tick();
     buttonLight.tick();
 
-    if (doorControlType == 3)
+    if (doorControlType == DOOR_CONTROL_DRY_CONTACT)
     {
         if (dryContactDoorOpen)
         {
