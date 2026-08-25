@@ -1085,7 +1085,18 @@ bool helperGarageLightOn(const std::string &key, const char *value, configSettin
 
 bool helperGarageDoorState(const std::string &key, const char *value, configSetting *action)
 {
-    if (atoi(value) == 1)
+    // starts with "p"? (for partial open)
+    if (!strncmp(value, "p", 1))
+    {
+        int openTimePercent = 0;
+        // got a value
+        if (strlen(value) > 1)
+        {
+            openTimePercent = atoi(++value);
+        }
+        open_door_partial(openTimePercent);
+    }
+    else if (atoi(value) == 1)
         open_door();
     else if (atoi(value) == 2)
         stop_door();

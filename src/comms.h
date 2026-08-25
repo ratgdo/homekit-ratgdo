@@ -23,6 +23,7 @@ extern void comms_loop();
 
 extern GarageDoorCurrentState open_door();
 extern GarageDoorCurrentState stop_door();
+extern GarageDoorCurrentState open_door_partial(int timePercentage);
 extern GarageDoorCurrentState close_door(bool bypass_ttc = false);
 #if defined(ESP8266) || !defined(USE_GDOLIB)
 extern GarageDoorCurrentState toggle_door(bool bypass_ttc = false);
