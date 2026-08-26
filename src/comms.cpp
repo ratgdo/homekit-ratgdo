@@ -2168,14 +2168,27 @@ void comms_loop_sec2()
 
         case PacketCommand::Pair2Resp:
         {
-            // Received in confirmation of a SetTtc, whether set by us or someone else.
-            uint16_t secs = pkt.m_data.value.pair2resp.seconds;
-            if (secs > 60 && secs != userConfig->getBuiltInTTC())
+            switch ((Pair2Flags)pkt.m_data.value.pair2resp.flags)
             {
-                ESP_LOGI(TAG, "Update built-in automatic time-to-close to %d seconds", secs);
-                garage_door.builtInTTC = secs;
-                userConfig->set(cfg_builtInTTC, secs);
-                ESP8266_SAVE_CONFIG();
+            case Pair2Flags::LightTimerAck:
+                ESP_LOGI(TAG, "Received LightTimerAck, light timer is %d seconds", pkt.m_data.value.pair2resp.seconds);
+                break;
+            case Pair2Flags::SetTtcAck:
+            {
+                // Received in confirmation of a SetTtc, whether set by us or someone else.
+                uint16_t secs = pkt.m_data.value.pair2resp.seconds;
+                if (secs > 60 && secs != userConfig->getBuiltInTTC())
+                {
+                    ESP_LOGI(TAG, "Update built-in automatic time-to-close to %d seconds", secs);
+                    garage_door.builtInTTC = secs;
+                    userConfig->set(cfg_builtInTTC, secs);
+                    ESP8266_SAVE_CONFIG();
+                }
+                break;
+            }
+            default:
+                ESP_LOGI(TAG, "Unknown Pair2Resp flags: 0x%0X", pkt.m_data.value.pair2resp.flags);
+                break;
             }
             break;
         }

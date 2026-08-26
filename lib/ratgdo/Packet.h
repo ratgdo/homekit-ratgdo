@@ -591,6 +591,11 @@ struct UpdateTtcCommandData
     };
 };
 
+enum class Pair2Flags : uint8_t
+{
+    SetTtcAck = 0x01,     // Response to a set time-to-close, value is time in seconds
+    LightTimerAck = 0x05, // Response to a set light timer, value is time in seconds
+};
 struct Pair2RespCommandData
 {
     uint16_t seconds;
