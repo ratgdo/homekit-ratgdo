@@ -403,6 +403,9 @@ Replace _<serial_device>_ with the identifier of the USB serial port. On Apple M
 
 It is possible to query status, monitor and reboot/reset the ratgdo device from a command line. The following have been tested on Ubuntu Linux and Apple macOS.
 
+> [!NOTE]
+> Many of the CLI commands require authentication if you have it enabled.  You must pass in the userid and password with the `--user` or `-u` flag with CURL as shown in some of the examples below.
+
 ### Retrieve ratgdo status
 
 ```
@@ -414,7 +417,8 @@ Status is returned as JSON formatted text.
 ### Set a ratgdo setting value
 
 ```
-curl -X POST http://<ip-address>/setgdo \
+curl -u admin:password \
+   -X POST http://<ip-address>/setgdo \
    -H "Content-Type: application/x-www-form-urlencoded" \
    -d "<setting>=<value>&<setting2>=<value2>"
 ```
@@ -432,21 +436,21 @@ Allow 30 seconds for the device to reboot before attempting to reconnect.
 ### Reset ratgdo device
 
 ```
-curl -s -X POST http://<ip-address>/reset
+curl -u admin:password -s -X POST http://<ip-address>/reset
 ```
 
 Resets and reboots the device. This will delete HomeKit pairing.
 
-> [!NOTE]
-> Will not work if device set to require authentication
-
 ### Show last crash log
 
 ```
-curl -s http://<ip-address>/crashlog
+curl -u admin -s http://<ip-address>/crashlog
 ```
 
 Returns details of the last crash including stack trace and the message log leading up to the crash.
+
+> [!NOTE]
+> If you omit the password on the command line, CURL will prompt for it.
 
 ### Clear crash log
 
@@ -459,7 +463,7 @@ Erase contents of the crash log.
 ### Show message log
 
 ```
-curl -s http://<ip-address>/showlog
+curl -u admin:password -s http://<ip-address>/showlog
 ```
 
 Returns recent history of message logs.
@@ -467,7 +471,7 @@ Returns recent history of message logs.
 ### Show last reboot log
 
 ```
-curl -s http://<ip-address>/showrebootlog
+curl -u admin:password -s http://<ip-address>/showrebootlog
 ```
 
 Returns log of messages that immediately preceded the last clean reboot (e.g. not a crash or power failure).
@@ -480,10 +484,12 @@ Returns log of messages that immediately preceded the last clean reboot (e.g. no
 The following script is available in this repository as `viewlog.sh`
 
 ```
+#!/usr/bin/env sh
 UUID=$(uuidgen)
-URL=$(curl -s "http://${1}/rest/events/subscribe?id=${UUID}&log")
-curl -s "http://${1}/showlog"
-curl -s -N "http://${1}${URL}?id=${UUID}" | sed -u -n '/event: logger/{n;p;}' | cut -c 7-
+URL=$(curl -u admin:password -s "http://${1}/rest/events/subscribe?id=${UUID}&log=1&heartbeat=0")
+curl -u admin:password -s "http://${1}/showlog"
+curl -s -N "http://${1}${URL}?id=${UUID}" | sed -n -u '/^event: logger$/{n;s/^data: //p;}'
+exit 0
 ```
 
 Run this script as `<path>/viewlog.sh <ip-address>`
