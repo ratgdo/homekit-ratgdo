@@ -235,6 +235,7 @@ struct __attribute__((aligned(4))) GarageDoor
     bool manuallyOperated;
     GarageDoorCurrentState protocol_door_state;
     GarageDoorCurrentState encoder_door_state;
+    uint32_t encoder_door_position; // 0 = closed, 100 = fully open, anything else implies unknown.
 #endif
 };
 extern GarageDoor garage_door;

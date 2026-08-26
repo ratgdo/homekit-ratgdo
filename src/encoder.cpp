@@ -168,6 +168,13 @@ static void encoder_received(GarageDoorCurrentState door_state)
 
   GarageDoorCurrentState proto_state = garage_door.protocol_door_state;
 
+  // Update encoder_door_position based on the received door_state if it is fully open or fully closed.
+  if (door_state == GarageDoorCurrentState::CURR_CLOSED)
+    garage_door.encoder_door_position = 0;
+  else if (door_state == GarageDoorCurrentState::CURR_OPEN)
+    garage_door.encoder_door_position = 100;
+  // else will be OPENING, CLOSING or STOPPED, we do not update encoder_door_position here.
+
   if (proto_state == (GarageDoorCurrentState)0xFF)
   {
     update_door_state(door_state);
@@ -211,6 +218,10 @@ void protocol_received_state(GarageDoorCurrentState door_state)
   {
     ESP_LOGI(TAG, "Protocol door state changing from %s to %s (%s)", DOOR_STATE(garage_door.protocol_door_state), DOOR_STATE(door_state), timeString());
     garage_door.protocol_door_state = door_state;
+
+    // If fully closed update the position, do not update for any other state as we do not know the position.
+    if (door_state == GarageDoorCurrentState::CURR_CLOSED)
+      garage_door.encoder_door_position = 0;
   }
 
   if (garage_door.manuallyOperated)
@@ -295,7 +306,8 @@ static void on_encoder_update(int16_t raw)
         pos = 1.0f - pos;
     }
     // (position not exposed to HomeKit — only OPEN/CLOSED/OPENING/CLOSING/STOPPED)
-    ESP_LOGD(TAG, "Position: %.2f (dist_closed=%d dist_open=%d)", std::clamp(pos, 0.0f, 1.0f), dist_closed, dist_open);
+    garage_door.encoder_door_position = static_cast<uint32_t>(std::round(std::clamp(pos, 0.0f, 1.0f) * 100.0f));
+    ESP_LOGD(TAG, "Position: %d%% (dist_closed=%d dist_open=%d)", garage_door.encoder_door_position, dist_closed, dist_open);
 
     // Derive in_motion from enc_travel_dir_ (the confirmed dominant direction)
     // rather than enc_last_dir_ so that oscillation noise does not flip the
@@ -523,11 +535,20 @@ void setup_encoder()
     int16_t d_open = (int16_t)abs(enc_last_ - target_open);
     GarageDoorCurrentState startup_state;
     if (d_closed <= 1 && d_closed <= d_open)
+    {
       startup_state = GarageDoorCurrentState::CURR_CLOSED;
+      garage_door.encoder_door_position = 0;
+    }
     else if (d_open <= 1 && d_open < d_closed)
+    {
       startup_state = GarageDoorCurrentState::CURR_OPEN;
+      garage_door.encoder_door_position = 100;
+    }
     else
+    {
       startup_state = GarageDoorCurrentState::CURR_STOPPED;
+      garage_door.encoder_door_position = 0xFF; // unknown
+    }
     // Set both variables: doorState is the comms-loop source of truth;
     // garage_door.current_state is read by the web UI JSON builder.
     doorState = startup_state;

@@ -445,6 +445,10 @@ void web_loop()
     }
 #ifdef RATGDO_ENCODER
     JSON_ADD_BOOL_C("manuallyOperated", garage_door.manuallyOperated, last_reported_garage_door.manuallyOperated);
+    if (encoder_enabled)
+    {
+        JSON_ADD_INT_C("encDoorPosition", garage_door.encoder_door_position, last_reported_garage_door.encoder_door_position);
+    }
 #endif
 
 #ifndef ESP8266
@@ -896,7 +900,10 @@ void build_status_json(char *json)
     JSON_ADD_BOOL(cfg_encoderEnabled, encoder_enabled);
     JSON_ADD_BOOL(cfg_encoderReversed, userConfig->getEncoderReversed());
     if (encoder_enabled)
+    {
         JSON_ADD_INT("encSteps", (int32_t)encoder_last_step());
+        JSON_ADD_INT("encDoorPosition", (int32_t)garage_door.encoder_door_position);
+    }
 #endif
     JSON_ADD_STR("qrPayload", qrPayload);
     if (doorControlType == DOOR_CONTROL_SEC_PLUS_V2)
@@ -983,6 +990,10 @@ void add_static_mdns()
 #ifdef RATGDO32_DISCO
     MDNS.addServiceTxt("ratgdo", "tcp", "distanceSensor", garage_door.has_distance_sensor ? "true" : "false");
 #endif
+#ifdef RATGDO_ENCODER
+    MDNS.addServiceTxt("ratgdo", "tcp", cfg_encoderEnabled, userConfig->getEncoderEnabled() ? "true" : "false");
+    MDNS.addServiceTxt("ratgdo", "tcp", cfg_encoderReversed, userConfig->getEncoderReversed() ? "true" : "false");
+#endif
 }
 
 void add_dynamic_mdns()
@@ -1027,6 +1038,14 @@ void add_dynamic_mdns()
         MDNS.addServiceTxt("ratgdo", "tcp", "serverTimeStr", (const char *)timeString());
         MDNS.addServiceTxt("ratgdo", "tcp", cfg_timeZone, userConfig->getTimeZone());
     }
+#ifdef RATGDO_ENCODER
+    if (encoder_enabled)
+    {
+        MDNS.addServiceTxt("ratgdo", "tcp", "manuallyOperated", garage_door.manuallyOperated ? "true" : "false");
+        MDNS.addServiceTxt("ratgdo", "tcp", "encSteps", std::to_string(encoder_last_step()).c_str());
+        MDNS.addServiceTxt("ratgdo", "tcp", "encDoorPosition", std::to_string(garage_door.encoder_door_position).c_str());
+    }
+#endif
 #ifdef ESP8266
     MDNS.announce();
 #else

@@ -87,6 +87,7 @@ GarageDoor garage_door = {
     .manuallyOperated = false,
     .protocol_door_state = (GarageDoorCurrentState)0xFF,
     .encoder_door_state = (GarageDoorCurrentState)0xFF,
+    .encoder_door_position = 0xFF, // unknown
 #endif
 };
 

@@ -694,6 +694,14 @@ function setElementsFromStatus(status) {
                 document.getElementById(key).innerHTML = capitalizeFirstLetter(value);
                 document.getElementById("lightButton").value = (value == false) ? "Light On" : "Light Off";
                 break;
+            case "encDoorPosition":
+                if (value > 0 && value < 100) {
+                    document.getElementById("ttcActive").innerHTML = `&nbsp;${value}%`;
+                    document.getElementById("ttcActive").style.display = "";
+                } else {
+                    document.getElementById("ttcActive").style.display = "none";
+                }
+                break;
             case "garageDoorState":
                 document.getElementById(key).innerHTML = capitalizeFirstLetter(value);
                 // We have to use global serverStatus rather than local status, as local one only contains values
