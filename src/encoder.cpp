@@ -43,18 +43,25 @@ static int16_t enc_max_ = 0;  // step at OPEN boundary
 static bool enc_min_cal_ = false;
 static bool enc_max_cal_ = false;
 
+enum direction_t
+{
+  DIR_CLOSING = -1,
+  DIR_NONE = 0,
+  DIR_OPENING = 1
+};
+
 // Direction tracking (for stopped-watchdog and reverse detection)
-static bool reverse_encoder = false; // userConfig->getEncoderReversed()
-static int8_t enc_travel_dir_ = 0;   // dominant direction this move (+1/-1)
+static bool reverse_encoder = false;           // userConfig->getEncoderReversed()
+static direction_t enc_travel_dir_ = DIR_NONE; // dominant direction this move (+1/-1)
 static int8_t enc_reverse_count_ = 0;
-static int8_t enc_last_dir_ = 0;
+static direction_t enc_last_dir_ = DIR_NONE;
 
 // Wrong-direction detection
-static int8_t enc_intended_dir_ = 0; // +1 = open commanded, -1 = close commanded
+static direction_t enc_intended_dir_ = DIR_NONE; // +1 = open commanded, -1 = close commanded
 
 // Direction-correction retry state
 static bool enc_dir_correction_pending_ = false;
-static int8_t enc_dir_correction_intended_ = 0;
+static direction_t enc_dir_correction_intended_ = DIR_NONE;
 
 static constexpr uint32_t ENC_STOPPED_WATCHDOG_MS = 2000; // Maximum expected gap between encoder pulses during door travel,
                                                           // plus a safety margin. If no pulse arrives within this window the
@@ -260,13 +267,13 @@ static void on_encoder_update(int16_t raw)
     return;
 
   // Track direction so check_encoder_stopped knows which boundary we hit.
-  enc_last_dir_ = (delta > 0) ? 1 : -1;
+  enc_last_dir_ = (delta > 0) ? DIR_OPENING : DIR_CLOSING;
 
   // Latch the travel direction from the first step of each move.
   // Subsequent steps opposite to the dominant direction are counted; only after
   // ENC_DIRECTION_CHANGE_THRESHOLD consecutive opposite steps is enc_travel_dir_
   // updated, filtering oscillations
-  if (enc_travel_dir_ == 0)
+  if (enc_travel_dir_ == DIR_NONE)
   {
     enc_travel_dir_ = enc_last_dir_; // first step of a new move
     enc_reverse_count_ = 0;
@@ -315,10 +322,10 @@ static void on_encoder_update(int16_t raw)
     // enc_travel_dir_ only changes after ENC_DIRECTION_CHANGE_THRESHOLD
     // consecutive opposite steps.
     // int8_t effective_dir = (enc_travel_dir_ != 0) ? enc_travel_dir_ : enc_last_dir_;
-    GarageDoorCurrentState in_motion = (enc_last_dir_ > 0) ? (reverse_encoder ? GarageDoorCurrentState::CURR_CLOSING
-                                                                              : GarageDoorCurrentState::CURR_OPENING)
-                                                           : (reverse_encoder ? GarageDoorCurrentState::CURR_OPENING
-                                                                              : GarageDoorCurrentState::CURR_CLOSING);
+    GarageDoorCurrentState in_motion = (enc_last_dir_ == DIR_OPENING) ? (reverse_encoder ? GarageDoorCurrentState::CURR_CLOSING
+                                                                                         : GarageDoorCurrentState::CURR_OPENING)
+                                                                      : (reverse_encoder ? GarageDoorCurrentState::CURR_OPENING
+                                                                                         : GarageDoorCurrentState::CURR_CLOSING);
 
     // Check if the door moved in the opposite direction from what was commanded.
     if (enc_intended_dir_ != 0)
@@ -330,8 +337,8 @@ static void on_encoder_update(int16_t raw)
       if (!correct && ++wrong_dir_count > 1)
       {
         wrong_dir_count = 0; // reset the counter after handling the correction
-        int8_t intended = enc_intended_dir_;
-        enc_intended_dir_ = 0; // clear — correction is firing
+        direction_t intended = enc_intended_dir_;
+        enc_intended_dir_ = DIR_NONE; // clear — correction is firing
         ESP_LOGD(TAG, "Wrong direction detected (wanted %s, got %s); stopping door to correct", intended > 0 ? "Opening" : "Closing", DOOR_STATE(in_motion));
 
         directionChange.detach(); // just in case!
@@ -375,7 +382,7 @@ static void check_encoder_stopped()
   {
     enc_dir_correction_pending_ = false;
     int8_t intended = enc_dir_correction_intended_;
-    enc_dir_correction_intended_ = 0;
+    enc_dir_correction_intended_ = DIR_NONE;
     ESP_LOGI(TAG, "Direction correction retry: sending %s", intended > 0 ? "Open" : "Close");
     if (intended > 0)
       open_door();
@@ -388,14 +395,14 @@ static void check_encoder_stopped()
 
   // Use the latched travel direction rather than enc_last_dir_ so that
   // magnet-hover oscillations at a limit do not corrupt boundary classification.
-  const bool decreasing = (enc_travel_dir_ < 0);
+  const bool decreasing = (enc_travel_dir_ == DIR_CLOSING);
 
   // Clear enc_travel_dir_ now so the next move starts with a fresh latch.
-  enc_travel_dir_ = 0;
+  enc_travel_dir_ = DIR_NONE;
   enc_reverse_count_ = 0;
   // Clear enc_intended_dir_ so a stale intent from a previous ratgdo command
   // cannot trigger the wrong-direction correction on a subsequent wall-control command
-  enc_intended_dir_ = 0;
+  enc_intended_dir_ = DIR_NONE;
 
   const GarageDoorCurrentState boundary_state = decreasing ? (reverse_encoder ? GarageDoorCurrentState::CURR_OPEN
                                                                               : GarageDoorCurrentState::CURR_CLOSED)
@@ -627,9 +634,9 @@ void reset_encoder_cal()
   enc_max_ = 0;
   enc_min_cal_ = false;
   enc_max_cal_ = false;
-  enc_travel_dir_ = 0;
+  enc_travel_dir_ = DIR_NONE;
   enc_reverse_count_ = 0;
-  enc_intended_dir_ = 0;
+  enc_intended_dir_ = DIR_NONE;
   enc_dir_correction_pending_ = false;
   enc_watchdog_armed_ = false;
 
@@ -638,8 +645,8 @@ void reset_encoder_cal()
   ESP_LOGI(TAG, "Calibration cleared; will re-learn on next full open/close cycle");
 }
 
-void encoder_set_intended_open() { enc_intended_dir_ = 1; }
-void encoder_set_intended_close() { enc_intended_dir_ = -1; }
+void encoder_set_intended_open() { enc_intended_dir_ = DIR_OPENING; }
+void encoder_set_intended_close() { enc_intended_dir_ = DIR_CLOSING; }
 
 int16_t encoder_last_step() { return enc_last_; }
 #endif // RATGDO_ENCODER
