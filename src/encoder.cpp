@@ -357,6 +357,23 @@ static void check_encoder_stopped()
   ESP_LOGD(TAG, "STOPPED: step=%d min=%d max=%d dir=%d", enc_last_, enc_min_, enc_max_, enc_travel_dir_);
   bool update_pref = false;
 
+  // If a wrong-direction correction was pending, retry the intended action now that
+  // the encoder has confirmed the door has actually stopped.
+  if (enc_dir_correction_pending_)
+  {
+    enc_dir_correction_pending_ = false;
+    int8_t intended = enc_dir_correction_intended_;
+    enc_dir_correction_intended_ = 0;
+    ESP_LOGI(TAG, "Direction correction retry: sending %s", intended > 0 ? "Open" : "Close");
+    if (intended > 0)
+      open_door();
+    else
+      close_door(true); // ignore TTC for direction-correction retry
+
+    // bail out now... do not do any calibration or boundary snapping until the door has actually moved in the intended direction.
+    return;
+  }
+
   // Use the latched travel direction rather than enc_last_dir_ so that
   // magnet-hover oscillations at a limit do not corrupt boundary classification.
   const bool decreasing = (enc_travel_dir_ < 0);
@@ -478,20 +495,6 @@ static void check_encoder_stopped()
   if (update_pref)
   {
     enc_save_cal();
-  }
-
-  // If a wrong-direction correction was pending, retry the intended action now that
-  // the encoder has confirmed the door has actually stopped.  if (enc_dir_correction_pending_)
-  if (enc_dir_correction_pending_)
-  {
-    enc_dir_correction_pending_ = false;
-    int8_t intended = enc_dir_correction_intended_;
-    enc_dir_correction_intended_ = 0;
-    ESP_LOGI(TAG, "Direction correction retry: sending %s", intended > 0 ? "Open" : "Close");
-    if (intended > 0)
-      open_door();
-    else
-      close_door(true); // ignore TTC for direction-correction retry
   }
 }
 
