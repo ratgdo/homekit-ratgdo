@@ -50,6 +50,9 @@ enum direction_t
   DIR_OPENING = 1
 };
 
+#define DIRECTION_STR(s) (s == direction_t::DIR_CLOSING) ? "Closing" : (s == direction_t::DIR_OPENING) ? "Opening" \
+                                                                                                       : "None"
+
 // Direction tracking (for stopped-watchdog and reverse detection)
 static bool reverse_encoder = false;           // userConfig->getEncoderReversed()
 static direction_t enc_travel_dir_ = DIR_NONE; // dominant direction this move (+1/-1)
@@ -316,30 +319,39 @@ static void on_encoder_update(int16_t raw)
     garage_door.encoder_door_position = static_cast<uint32_t>(std::round(std::clamp(pos, 0.0f, 1.0f) * 100.0f));
     ESP_LOGD(TAG, "Position: %d%% (dist_closed=%d dist_open=%d)", garage_door.encoder_door_position, dist_closed, dist_open);
 
-    // Derive in_motion from enc_travel_dir_ (the confirmed dominant direction)
+    // Derive stable_motion from enc_travel_dir_ (the confirmed dominant direction)
     // rather than enc_last_dir_ so that oscillation noise does not flip the
     // reported door state or cancel the move-to-position timer.
     // enc_travel_dir_ only changes after ENC_DIRECTION_CHANGE_THRESHOLD
     // consecutive opposite steps.
-    // int8_t effective_dir = (enc_travel_dir_ != 0) ? enc_travel_dir_ : enc_last_dir_;
-    GarageDoorCurrentState in_motion = (enc_last_dir_ == DIR_OPENING) ? (reverse_encoder ? GarageDoorCurrentState::CURR_CLOSING
-                                                                                         : GarageDoorCurrentState::CURR_OPENING)
-                                                                      : (reverse_encoder ? GarageDoorCurrentState::CURR_OPENING
-                                                                                         : GarageDoorCurrentState::CURR_CLOSING);
+    direction_t effective_dir = (enc_travel_dir_ != DIR_NONE) ? enc_travel_dir_ : enc_last_dir_;
+    GarageDoorCurrentState stable_motion = (effective_dir == DIR_OPENING) ? (reverse_encoder ? GarageDoorCurrentState::CURR_CLOSING
+                                                                                             : GarageDoorCurrentState::CURR_OPENING)
+                                                                          : (reverse_encoder ? GarageDoorCurrentState::CURR_OPENING
+                                                                                             : GarageDoorCurrentState::CURR_CLOSING);
+
+    GarageDoorCurrentState instant_motion = (enc_last_dir_ == DIR_OPENING) ? (reverse_encoder ? GarageDoorCurrentState::CURR_CLOSING
+                                                                                              : GarageDoorCurrentState::CURR_OPENING)
+                                                                           : (reverse_encoder ? GarageDoorCurrentState::CURR_OPENING
+                                                                                              : GarageDoorCurrentState::CURR_CLOSING);
 
     // Check if the door moved in the opposite direction from what was commanded.
-    if (enc_intended_dir_ != 0)
+    if (enc_intended_dir_ != DIR_NONE)
     {
       static uint16_t wrong_dir_count = 0;
-      bool correct = (in_motion == GarageDoorCurrentState::CURR_OPENING) == (enc_intended_dir_ > 0);
-      if (!enc_watchdog_armed_)
+      bool correct = (instant_motion == GarageDoorCurrentState::CURR_OPENING) == (enc_intended_dir_ == DIR_OPENING);
+      if (!enc_watchdog_armed_ && wrong_dir_count != 0)
+      {
         wrong_dir_count = 0; // reset if we are staring out from a stopped state
+        ESP_LOGD(TAG, "Reset wrong direction detection counter");
+      }
+
       if (!correct && ++wrong_dir_count > 1)
       {
         wrong_dir_count = 0; // reset the counter after handling the correction
         direction_t intended = enc_intended_dir_;
         enc_intended_dir_ = DIR_NONE; // clear — correction is firing
-        ESP_LOGD(TAG, "Wrong direction detected (wanted %s, got %s); stopping door to correct", intended > 0 ? "Opening" : "Closing", DOOR_STATE(in_motion));
+        ESP_LOGD(TAG, "Wrong direction detected (wanted %s, got %s); stopping door to correct", DIRECTION_STR(intended), DOOR_STATE(instant_motion));
 
         directionChange.detach(); // just in case!
         directionChange.once_ms(500, []()
@@ -351,6 +363,7 @@ static void on_encoder_update(int16_t raw)
       else if (correct)
       {
         wrong_dir_count = 0;
+        encoder_received(stable_motion);
         // If correct direction: do NOT clear enc_intended_dir_ here.
         // It stays set so a mid-travel reversal (confirmed after
         // ENC_DIRECTION_CHANGE_THRESHOLD opposite ticks) can still trigger
@@ -358,10 +371,13 @@ static void on_encoder_update(int16_t raw)
       }
       else
       {
-        ESP_LOGD(TAG, "Wrong direction detected (wanted %s, got %s); waiting for second pulse to confirm", enc_intended_dir_ > 0 ? "Opening" : "Closing", DOOR_STATE(in_motion));
+        ESP_LOGD(TAG, "Wrong direction detected (wanted %s, got %s); waiting for second pulse to confirm", DIRECTION_STR(enc_intended_dir_), DOOR_STATE(instant_motion));
       }
     }
-    encoder_received(in_motion);
+    else
+    {
+      encoder_received(stable_motion);
+    }
   }
 
   // (Re-)arm stopped watchdog
@@ -381,13 +397,20 @@ static void check_encoder_stopped()
   if (enc_dir_correction_pending_)
   {
     enc_dir_correction_pending_ = false;
-    int8_t intended = enc_dir_correction_intended_;
+    direction_t intended = enc_dir_correction_intended_;
     enc_dir_correction_intended_ = DIR_NONE;
-    ESP_LOGI(TAG, "Direction correction retry: sending %s", intended > 0 ? "Open" : "Close");
-    if (intended > 0)
+    if (intended == DIR_OPENING)
+    {
+      ESP_LOGI(TAG, "Direction correction retry: send open");
       open_door();
-    else
+    }
+    else if (intended == DIR_CLOSING)
+    {
+      ESP_LOGI(TAG, "Direction correction retry: send close");
       close_door(true); // ignore TTC for direction-correction retry
+    }
+    else
+      ESP_LOGE(TAG, "Bad value for direction correction");
 
     // bail out now... do not do any calibration or boundary snapping until the door has actually moved in the intended direction.
     return;
