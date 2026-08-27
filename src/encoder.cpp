@@ -314,8 +314,8 @@ static void on_encoder_update(int16_t raw)
     // reported door state or cancel the move-to-position timer.
     // enc_travel_dir_ only changes after ENC_DIRECTION_CHANGE_THRESHOLD
     // consecutive opposite steps.
-    int8_t effective_dir = (enc_travel_dir_ != 0) ? enc_travel_dir_ : enc_last_dir_;
-    GarageDoorCurrentState in_motion = (effective_dir > 0) ? (reverse_encoder ? GarageDoorCurrentState::CURR_CLOSING
+    // int8_t effective_dir = (enc_travel_dir_ != 0) ? enc_travel_dir_ : enc_last_dir_;
+    GarageDoorCurrentState in_motion = (enc_last_dir_ > 0) ? (reverse_encoder ? GarageDoorCurrentState::CURR_CLOSING
                                                                               : GarageDoorCurrentState::CURR_OPENING)
                                                            : (reverse_encoder ? GarageDoorCurrentState::CURR_OPENING
                                                                               : GarageDoorCurrentState::CURR_CLOSING);
@@ -323,12 +323,16 @@ static void on_encoder_update(int16_t raw)
     // Check if the door moved in the opposite direction from what was commanded.
     if (enc_intended_dir_ != 0)
     {
+      static uint16_t wrong_dir_count = 0;
       bool correct = (in_motion == GarageDoorCurrentState::CURR_OPENING) == (enc_intended_dir_ > 0);
-      if (!correct)
+      if (!enc_watchdog_armed_)
+        wrong_dir_count = 0; // reset if we are staring out from a stopped state
+      if (!correct && ++wrong_dir_count > 1)
       {
+        wrong_dir_count = 0; // reset the counter after handling the correction
         int8_t intended = enc_intended_dir_;
         enc_intended_dir_ = 0; // clear — correction is firing
-        ESP_LOGD(TAG, "Wrong direction detected (wanted %s, got %s); stopping to correct", intended > 0 ? "Opening" : "Closing", DOOR_STATE(in_motion));
+        ESP_LOGD(TAG, "Wrong direction detected (wanted %s, got %s); stopping door to correct", intended > 0 ? "Opening" : "Closing", DOOR_STATE(in_motion));
 
         directionChange.detach(); // just in case!
         directionChange.once_ms(500, []()
@@ -337,10 +341,18 @@ static void on_encoder_update(int16_t raw)
         enc_dir_correction_pending_ = true;
         enc_dir_correction_intended_ = intended;
       }
-      // If correct direction: do NOT clear enc_intended_dir_ here.
-      // It stays set so a mid-travel reversal (confirmed after
-      // ENC_DIRECTION_CHANGE_THRESHOLD opposite ticks) can still trigger
-      // the correction. check_encoder_stopped() clears it when the move ends.
+      else if (correct)
+      {
+        wrong_dir_count = 0;
+        // If correct direction: do NOT clear enc_intended_dir_ here.
+        // It stays set so a mid-travel reversal (confirmed after
+        // ENC_DIRECTION_CHANGE_THRESHOLD opposite ticks) can still trigger
+        // the correction. check_encoder_stopped() clears it when the move ends.
+      }
+      else
+      {
+        ESP_LOGD(TAG, "Wrong direction detected (wanted %s, got %s); waiting for second pulse to confirm", enc_intended_dir_ > 0 ? "Opening" : "Closing", DOOR_STATE(in_motion));
+      }
     }
     encoder_received(in_motion);
   }
