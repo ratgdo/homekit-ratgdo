@@ -319,6 +319,7 @@ __attribute__((always_inline)) inline bool isRxPending()
 SecPlus2Reader reader;
 uint32_t id_code = 0;
 uint32_t rolling_code = 0;
+char gdoFirmwareVersion[] = "000.000";
 #endif // USE_GDOLIB
 
 uint32_t last_saved_code = 0;
@@ -576,6 +577,7 @@ void initialize_gdo_codes(uint32_t id)
     send_get_status();
     send_get_openings();
     send_get_status();
+    send_get_version();
 }
 
 void setup_comms()
@@ -1799,6 +1801,13 @@ void comms_loop_sec2()
 
         switch (pkt.m_pkt_cmd)
         {
+        case PacketCommand::FirmwareVersion:
+        {
+            snprintf(gdoFirmwareVersion, sizeof(gdoFirmwareVersion), "%u.%u", pkt.m_data.value.firmware.vMajor, pkt.m_data.value.firmware.vMinor);
+            ESP_LOGI(TAG, "GDO Sec+2.0 firmware version: %s", gdoFirmwareVersion);
+            break;
+        }
+
         case PacketCommand::Status:
         {
             lastStatusPkt = _millis();
@@ -2200,8 +2209,9 @@ void comms_loop_sec2()
             // 0x01: (has different id_code... from wall panel) when door finished opening (after the Pair3resp 0x02, Pair3 and UpdateTtc)
             // 0x02: when door finished opening and there is a TTC active (after a Pair3 and UpdateTtc)
             // 0x09: in response to a CancelTtc command AND ALSO when obstruction sensor changes from blocked to clear
+            // 0x0A: in resposse to a hold TTC request
             // 0x0B: when TTC expires and door starts warning sequence (and after an UpdateTtc of zero seconds)
-            // 0x0C: at end of warning sequence and door is about to start closing (6-8 seconds after 0x0B received)
+            // 0x0C: at end of warning sequence and door is about to start closing (6-8 seconds after 0x0B received), or release of TTC hold
             // 0x0E: when obstruction sensor changes clear to blocked
             switch ((Pair3State)pkt.m_data.value.pair3resp.byte1)
             {
@@ -2213,6 +2223,8 @@ void comms_loop_sec2()
                 break;
             case Pair3State::WarningStart:
                 // ESP_LOGI(TAG, "Door close warning sequence start");
+                break;
+            case Pair3State::HoldTTC:
                 break;
             case Pair3State::WarningEnd:
                 // ESP_LOGI(TAG, "Door close warning sequence end");
@@ -3082,6 +3094,22 @@ GarageDoorCurrentState toggle_door(bool bypass_ttc)
 #endif
 
 #ifndef USE_GDOLIB
+void send_get_version()
+{
+    // only used with SECURITY2.0
+    if (doorControlType != DOOR_CONTROL_SEC_PLUS_V2)
+        return;
+    PacketData d;
+    d.type = PacketDataType::NoData;
+    d.value.no_data = NoData();
+    Packet pkt = Packet(PacketCommand::Unknown, d, id_code);
+    PacketAction pkt_ac = {pkt, true, 0};
+    if (!txQueuePush(&pkt_ac))
+    {
+        ESP_LOGE(TAG, "packet queue full, dropping get status pkt");
+    }
+}
+
 void send_get_status()
 {
     // only used with SECURITY2.0

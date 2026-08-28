@@ -30,6 +30,7 @@ extern GarageDoorCurrentState toggle_door(bool bypass_ttc = false);
 #endif
 extern void delayFnCall(uint32_t ms, void (*callback)());
 #ifndef USE_GDOLIB
+extern void send_get_version();
 extern void send_get_status();
 extern void send_get_openings();
 extern void send_get_battery();
@@ -63,6 +64,7 @@ extern door_control_type_t doorControlType;
 extern GarageDoorCurrentState doorState;
 extern bool comms_setup_done;
 extern bool comms_status_done;
+extern char gdoFirmwareVersion[];
 
 struct __attribute__((aligned(4))) ForceRecover
 {

@@ -28,6 +28,7 @@
 #include "config.h"
 #include "utilities.h"
 #include "web.h"
+#include "comms.h"
 
 // Logger tag
 static const char *TAG = "ratgdo-logger";
@@ -459,6 +460,11 @@ void LOG::printMessageLog(Print &outputDev, bool slow)
     outputDev.println("Firmware version: " AUTO_VERSION);
     outputDev.printf_P(PSTR("Free heap: %d\n"), free_heap);
     outputDev.printf_P(PSTR("Minimum heap: %d\n"), min_heap);
+    if (doorControlType == DOOR_CONTROL_SEC_PLUS_V2)
+    {
+        outputDev.printf_P(PSTR("GDO Firmware version: %s\n"), gdoFirmwareVersion);
+    }
+    outputDev.printf_P(PSTR("\n"));
     outputDev.flush();
 
     if (msgBuffer)

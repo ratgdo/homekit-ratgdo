@@ -58,5 +58,6 @@
   "useToggle": true,
   "TTClight": true,
   "obstFromStatus": true,
-  "garageSec1Emulated": false
+  "garageSec1Emulated": false,
+  "gdoFirmware": "0.00"
 }

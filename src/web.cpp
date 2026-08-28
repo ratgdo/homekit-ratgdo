@@ -914,6 +914,7 @@ void build_status_json(char *json)
         JSON_ADD_INT("builtInTTCremaining", garage_door.builtInTTCremaining);
         JSON_ADD_BOOL("builtInTTChold", garage_door.builtInTTChold);
         JSON_ADD_BOOL(cfg_useToggle, userConfig->getUseToggle());
+        JSON_ADD_STR("gdoFirmware", gdoFirmwareVersion);
     }
     if (garage_door.openDuration)
     {
@@ -1016,6 +1017,7 @@ void add_dynamic_mdns()
         MDNS.addServiceTxt("ratgdo", "tcp", "batteryState", std::to_string(garage_door.batteryState).c_str());
         MDNS.addServiceTxt("ratgdo", "tcp", "openingsCount", std::to_string(garage_door.openingsCount).c_str());
         MDNS.addServiceTxt("ratgdo", "tcp", cfg_builtInTTC, std::to_string(userConfig->getBuiltInTTC()).c_str());
+        MDNS.addServiceTxt("ratgdo", "tcp", "gdoFirmware", (const char *)gdoFirmwareVersion);
     }
     MDNS.addServiceTxt("ratgdo", "tcp", cfg_TTCseconds, std::to_string(userConfig->getTTCseconds()).c_str());
     MDNS.addServiceTxt("ratgdo", "tcp", "openDuration", std::to_string(garage_door.openDuration).c_str());

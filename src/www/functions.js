@@ -416,6 +416,7 @@ function setElementsFromStatus(status) {
                 document.getElementById("dcDebounceDuration").disabled = (value != 3);
                 document.getElementById("motionMotion").disabled = (value != 2);
                 //document.getElementById("encoderEnabled").disabled = (value != 3);
+                document.getElementById("gdoFirmwareRow").style.display = (value == 2) ? "table-row" : "none";
                 toggleEncoderOptions();
                 toggleHardwiredBypassRow();
                 break;
