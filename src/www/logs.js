@@ -25,6 +25,24 @@ function msToTime(duration) {
     return days + " days " + hours + " hrs " + minutes + " mins " + seconds + " secs";
 }
 
+async function checkAuth(loader = true) {
+    auth = false;
+    if (loader) loaderElem.style.visibility = "visible";
+    var response = await fetch("auth", {
+        method: "GET",
+    });
+    if (loader) loaderElem.style.visibility = "hidden";
+    // Give browser a moment to actually hide the spinner...
+    await new Promise(r => setTimeout(r, 50));
+    if (response.status == 200) {
+        auth = true;
+    }
+    else if (response.status == 401) {
+        console.warn("Not Authenticated");
+    }
+    return auth;
+}
+
 function openTab(evt, tabName) {
     var i, tabcontent, tablinks;
     // Get all elements with class="tabcontent" and hide them
@@ -76,6 +94,11 @@ async function loadLogs() {
     tmpLogMsgs.length = 0;
     // Load all the logs in parallel, showing progress indicator while we do...
     loaderElem.style.visibility = "visible";
+    console.log("checkAuth");
+    // check if authenticated, before loading logs
+    if (!await checkAuth(false)) {
+        return false;
+    }
     console.log("Subscribe to Server Sent Events");
     fetch("rest/events/subscribe?id=" + clientUUID + "&log=1&heartbeat=0")
         .then((response) => {

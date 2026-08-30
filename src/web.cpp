@@ -616,12 +616,14 @@ static bool requestAuthenticated()
 #ifdef ESP8266
     if (userConfig->getPasswordRequired() && !server.authenticateDigest(userConfig->getwwwUsername(), userConfig->getwwwCredentials()))
     {
+        ESP_LOGW(TAG, "Authentication request failed");
         server.requestAuthentication(DIGEST_AUTH, www_realm);
         return false;
     }
 #else
     if (userConfig->getPasswordRequired() && !server.authenticate(ratgdoAuthenticate))
     {
+        ESP_LOGW(TAG, "Authentication request failed");
         server.requestAuthentication(DIGEST_AUTH, www_realm);
         return false;
     }
@@ -1605,6 +1607,14 @@ void handle_subscribe()
         return;
     }
 
+    if (logViewer)
+    {
+        ESP_LOGD(TAG, "Require authentication when subscribing to log messages");
+        if (!requestAuthenticated())
+            return;
+    }
+
+
     // validate optional heartbeat interval
     uint32_t heartbeatInterval = 1; // default
     if (heartbeatIntervalArgIdx >= 0)
@@ -1646,18 +1656,24 @@ void handle_subscribe()
 
 void handle_crashlog()
 {
+    if (!requestAuthenticated())
+        return;
     server.client().print(response200);
     ratgdoLogger->printCrashLog(server.client());
 }
 
 void handle_showlog()
 {
+    if (!requestAuthenticated())
+        return;
     server.client().print(response200);
     ratgdoLogger->printMessageLog(server.client());
 }
 
 void handle_showrebootlog()
 {
+    if (!requestAuthenticated())
+        return;
     server.client().print(response200);
 #ifdef ESP8266
     File file = LittleFS.open(REBOOT_LOG_MSG_FILE, "r");

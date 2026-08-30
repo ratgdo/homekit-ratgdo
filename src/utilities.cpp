@@ -233,7 +233,8 @@ void load_all_config_settings()
     ESP_LOGI(TAG, "   nameserverIP:        %s", userConfig->getNameserverIP());
     ESP_LOGI(TAG, "   wwwPWrequired:       %s", userConfig->getPasswordRequired() ? "true" : "false");
     ESP_LOGI(TAG, "   wwwUsername:         %s", userConfig->getwwwUsername());
-    ESP_LOGI(TAG, "   wwwCredentials:      %s", userConfig->getwwwCredentials());
+    // Do not log credentials as it is a security exposure
+    // ESP_LOGI(TAG, "   wwwCredentials:      %s", userConfig->getwwwCredentials());
     ESP_LOGI(TAG, "   GDOSecurityType:     %d", userConfig->getGDOSecurityType());
     ESP_LOGI(TAG, "   TTCseconds:          %d", userConfig->getTTCseconds());
     ESP_LOGI(TAG, "   rebootSeconds:       %d", userConfig->getRebootSeconds());
