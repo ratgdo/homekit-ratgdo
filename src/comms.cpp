@@ -983,8 +983,7 @@ inline void handle_protocol_door_state(GarageDoorCurrentState state)
 #ifdef RATGDO_ENCODER
     if (encoder_enabled)
     {
-        if (doorControlType != DOOR_CONTROL_DRY_CONTACT)
-            protocol_received_state(state);
+        protocol_received_state(state);
         return;
     }
 #endif
@@ -1160,8 +1159,6 @@ void update_door_state(GarageDoorCurrentState current_state)
         notify_homekit_current_door_state_change(current_state);
         notify_homekit_target_door_state_change(target_state);
     }
-    // Update the global
-    doorState = current_state;
 }
 
 void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
@@ -1188,7 +1185,7 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
         // but also on release of door button
         ESP_LOGD(TAG, "SEC1 RX 0x31 (door release)");
         // Possible power up of 889LM
-        if (doorState == (GarageDoorCurrentState)0xFF)
+        if (garage_door.current_state == (GarageDoorCurrentState)0xFF)
         {
             wallPanelBooting = true;
         }
