@@ -324,16 +324,20 @@ static void on_encoder_update(int16_t raw)
     // reported door state or cancel the move-to-position timer.
     // enc_travel_dir_ only changes after ENC_DIRECTION_CHANGE_THRESHOLD
     // consecutive opposite steps.
-    direction_t effective_dir = (enc_travel_dir_ != DIR_NONE) ? enc_travel_dir_ : enc_last_dir_;
-    GarageDoorCurrentState stable_motion = (effective_dir == DIR_OPENING) ? (reverse_encoder ? GarageDoorCurrentState::CURR_CLOSING
-                                                                                             : GarageDoorCurrentState::CURR_OPENING)
-                                                                          : (reverse_encoder ? GarageDoorCurrentState::CURR_OPENING
-                                                                                             : GarageDoorCurrentState::CURR_CLOSING);
+    const direction_t effective_dir = (enc_travel_dir_ != DIR_NONE) ? enc_travel_dir_ : enc_last_dir_;
+    const GarageDoorCurrentState stable_motion = (effective_dir == DIR_OPENING) ? (reverse_encoder ? GarageDoorCurrentState::CURR_CLOSING
+                                                                                                   : GarageDoorCurrentState::CURR_OPENING)
+                                                                                : (reverse_encoder ? GarageDoorCurrentState::CURR_OPENING
+                                                                                                   : GarageDoorCurrentState::CURR_CLOSING);
 
-    GarageDoorCurrentState instant_motion = (enc_last_dir_ == DIR_OPENING) ? (reverse_encoder ? GarageDoorCurrentState::CURR_CLOSING
-                                                                                              : GarageDoorCurrentState::CURR_OPENING)
-                                                                           : (reverse_encoder ? GarageDoorCurrentState::CURR_OPENING
-                                                                                              : GarageDoorCurrentState::CURR_CLOSING);
+    // const GarageDoorCurrentState instant_motion = (enc_last_dir_ == DIR_OPENING) ? (reverse_encoder ? GarageDoorCurrentState::CURR_CLOSING
+    //                                                                                           : GarageDoorCurrentState::CURR_OPENING)
+    //                                                                        : (reverse_encoder ? GarageDoorCurrentState::CURR_OPENING
+    //                                                                                           : GarageDoorCurrentState::CURR_CLOSING);
+    const GarageDoorCurrentState instant_motion = stable_motion;
+    // See discussion in https://github.com/ratgdo/homekit-ratgdo32/issues/195
+    // rather than remove the separate instant_motion value, I just set it to the same as stable_motion.
+    // Doing this just in case we ever need to put it back.
 
     // Check if the door moved in the opposite direction from what was commanded.
     if (enc_intended_dir_ != DIR_NONE)
@@ -346,7 +350,11 @@ static void on_encoder_update(int16_t raw)
         ESP_LOGD(TAG, "Reset wrong direction detection counter");
       }
 
-      if (!correct && ++wrong_dir_count > 1)
+      // if (!correct && ++wrong_dir_count > 1)
+      if (!correct && ++wrong_dir_count > 0)
+      // See discussion in https://github.com/ratgdo/homekit-ratgdo32/issues/195
+      // I changed the wrong_dir_count from >1 to >0 which effectively results in always resolving to true (++ increment takes place before the compare)
+      // I did this rather than remove all the wrong_dir_count code just in case we ever need to put it back.
       {
         wrong_dir_count = 0; // reset the counter after handling the correction
         direction_t intended = enc_intended_dir_;
