@@ -2,7 +2,7 @@
 
 All notable changes to `homekit-ratgdo` will be documented in this file. This project tries to adhere to [Semantic Versioning](http://semver.org/).
 
-## v2.2.3 (2026-08-??)
+## v2.2.3 (2026-09-02)
 
 > [!IMPORTANT]
 > HomeKit firmware for ESP8266-based RATGDO v2.5-series devices is **deprecated** since version 2.2.0. See [README.md](https://github.com/ratgdo/homekit-ratgdo/blob/main/README.md). Future updates are not guaranteed.
@@ -12,6 +12,7 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 * Bugfix: Make sure that the UART RX pin pullup is set correctly, https://github.com/ratgdo/homekit-ratgdo32/issues/192
 * Bugfix: Protocol door state should never update when encoder enabled and protocol is dry contact, https://github.com/ratgdo/homekit-ratgdo32/pull/193
 * Bugfix: Added additional security precautions around userid and password and require authentication to view logs if authentication enabled
+* Bugfix: SSID's getting truncated to 3 characters, fixes https://github.com/ratgdo/homekit-ratgdo32/issues/198
 * Other: For Sec+2.0 doors only, query GDO's firmware version and show it at bottom of ratgdo web page
 * Other: If rotary encoder enabled report door position to web page and mDNS records
 
