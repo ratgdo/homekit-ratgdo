@@ -1421,7 +1421,7 @@ void sec1_process_message(uint8_t key, uint8_t value = 0xFF)
                     // Obstruction state changed
                     ESP_LOGD(TAG, "Obstruction: %s (Status packet) (%s)", status_obstructed ? "Obstructed" : "Clear", timeString());
                     notify_homekit_obstruction(status_obstructed);
-                    digitalWrite(STATUS_OBST_PIN, !status_obstructed);
+                    digitalWrite(STATUS_OBST_PIN, status_obstructed);
                 }
                 if (motionTriggers.bit.obstruction && status_motion)
                 {
@@ -1874,7 +1874,7 @@ void comms_loop_sec2()
                 {
                     ESP_LOGD(TAG, "Obstruction: %s (Status packet) (%s)", status_obstructed ? "Obstructed" : "Clear", timeString());
                     notify_homekit_obstruction(status_obstructed);
-                    digitalWrite(STATUS_OBST_PIN, !status_obstructed);
+                    digitalWrite(STATUS_OBST_PIN, status_obstructed);
                     if (status_obstructed && motionTriggers.bit.obstruction)
                     {
                         notify_homekit_motion(true);
@@ -3488,7 +3488,7 @@ void obstruction_timer()
             {
                 ESP_LOGD(TAG, "Obstruction: Clear (ISR) (%s)", timeString());
                 notify_homekit_obstruction(false);
-                digitalWrite(STATUS_OBST_PIN, HIGH);
+                digitalWrite(STATUS_OBST_PIN, LOW);
             }
         }
         else if (pulse_count == 0)
@@ -3522,7 +3522,7 @@ void obstruction_timer()
                     {
                         ESP_LOGD(TAG, "Obstruction: Detected (ISR) (%s)", timeString());
                         notify_homekit_obstruction(true);
-                        digitalWrite(STATUS_OBST_PIN, LOW);
+                        digitalWrite(STATUS_OBST_PIN, HIGH);
                         if (motionTriggers.bit.obstruction)
                         {
                             notify_homekit_motion(true);
