@@ -91,6 +91,7 @@ constexpr char cfg_obstFromStatus[] PROGMEM = "obstFromStatus";
 constexpr char cfg_builtInTTC[] PROGMEM = "builtInTTC";
 constexpr char cfg_reverseOnStop[] PROGMEM = "reverseOnStop";
 constexpr char cfg_lightHomeKit[] PROGMEM = "lightHomeKit";
+constexpr char cfg_wallPanelControl[] PROGMEM = "wallPanelControl";
 #ifdef RATGDO_ENCODER
 constexpr char cfg_encoderEnabled[] PROGMEM = "encoderEnabled";
 constexpr char cfg_encoderReversed[] PROGMEM = "encoderReversed";
@@ -215,6 +216,7 @@ public:
     uint32_t getBuiltInTTC() { return std::get<int>(get(cfg_builtInTTC)); };
     bool getReverseOnStop() { return std::get<bool>(get(cfg_reverseOnStop)); };
     bool getLightHomeKit() { return std::get<bool>(get(cfg_lightHomeKit)); };
+    bool getWallPanelControl() { return std::get<bool>(get(cfg_wallPanelControl)); };
 #ifdef RATGDO_ENCODER
     bool getEncoderEnabled() { return std::get<bool>(get(cfg_encoderEnabled)); };
     bool getEncoderReversed() { return std::get<bool>(get(cfg_encoderReversed)); };

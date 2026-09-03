@@ -340,7 +340,7 @@ bool wallPanelBooting = false;
 bool wallPanelDetected = false;
 #define WP_CONNECTED LOW
 #define WP_DISCONNECTED HIGH
-uint8_t wallPanelConnected;
+bool wallPanelControl = false;
 // states
 GarageDoorCurrentState doorState = (GarageDoorCurrentState)0xFF;
 
@@ -456,6 +456,7 @@ static void gdo_event_handler(const gdo_status_t *status, gdo_cb_event_t event, 
 #else
             notify_homekit_current_door_state_change(gdo_to_homekit_door_current_state[status->door]);
             garage_door.current_state = gdo_to_homekit_door_current_state[status->door];
+            digitalWrite(STATUS_DOOR_PIN, garage_door.current_state == GarageDoorCurrentState::CURR_CLOSED ? LOW : HIGH);
 #endif
             notify_homekit_target_door_state_change(gdo_to_homekit_door_target_state[status->door]);
 
@@ -596,18 +597,17 @@ void setup_comms()
     // need to make more space available for initialization.
     txQueueCreate();
 
-    // set to output (not currently used (prob not ported over) using now for new disconnect of wall panel)
     pinMode(STATUS_DOOR_PIN, OUTPUT);
+    digitalWrite(STATUS_DOOR_PIN, LOW); // initial state, LOW == door closed or wall panel connected
 
     if (doorControlType == DOOR_CONTROL_SEC_PLUS_V1)
     {
         ESP_LOGI(TAG, "=== Setting up comms for SECURITY+1.0 protocol");
 
+        wallPanelControl = userConfig->getWallPanelControl();
+        ESP_LOGD(TAG, "Sec+ 1.0 digital wall panel control %s", wallPanelControl ? "enabled through DOOR_STATUS gpio pin" : "disabled");
         // ESP32:GPIO_NUM_26 - ESP8266:GPIO_NUM16(D0)
         // ⁡⁢⁣⁢NC RELAY (AQY412)⁡
-        // enable wall panel
-        wallPanelConnected = WP_CONNECTED;
-        digitalWrite(STATUS_DOOR_PIN, wallPanelConnected);
 
         // set minimum delay between tx bytes
         tx_minimum_delay = SECPLUS1_TX_MINIMUM_DELAY;
@@ -1157,6 +1157,7 @@ void update_door_state(GarageDoorCurrentState current_state)
     {
         ESP_LOGI(TAG, "Door state changing from %s to %s (target %s) (%s)", DOOR_STATE(garage_door.current_state), DOOR_STATE(current_state), DOOR_STATE(target_state), timeString());
         notify_homekit_current_door_state_change(current_state);
+        digitalWrite(STATUS_DOOR_PIN, current_state == GarageDoorCurrentState::CURR_CLOSED ? LOW : HIGH);
         notify_homekit_target_door_state_change(target_state);
     }
 }
@@ -2391,11 +2392,10 @@ bool transmitSec1(byte toSend)
         // disable RX
         // sw_serial.enableRx(false);
 
-        if (!garage_door.wallPanelEmulated)
+        if (!garage_door.wallPanelEmulated && wallPanelControl)
         {
             // will reconnect in after tx complete + 5ms
-            wallPanelConnected = WP_DISCONNECTED;
-            digitalWrite(STATUS_DOOR_PIN, wallPanelConnected);
+            digitalWrite(STATUS_DOOR_PIN, WP_DISCONNECTED);
             // ESP_LOGD(TAG, "WP-");
             delay(2);
         }
@@ -2456,12 +2456,11 @@ bool transmitSec1(byte toSend)
         // TODO enable RX if disabled above
         // sw_serial.enableRx(true);
 
-        if (!garage_door.wallPanelEmulated)
+        if (!garage_door.wallPanelEmulated && wallPanelControl)
         {
             // reconnect after tx complete
             delay(2);
-            wallPanelConnected = WP_CONNECTED;
-            digitalWrite(STATUS_DOOR_PIN, wallPanelConnected);
+            digitalWrite(STATUS_DOOR_PIN, WP_CONNECTED);
             // ESP_LOGD(TAG, "WP+");
             // settle
             delay(2);
@@ -2651,6 +2650,8 @@ void door_command_close()
                                        ESP_LOGW(TAG, "Door did not close in expected time, assuming it is closed");
                                        pendingDoorCommand = false;
                                        notify_homekit_current_door_state_change(GarageDoorCurrentState::CURR_CLOSED);
+                                       if (!wallPanelControl)
+                                           digitalWrite(STATUS_DOOR_PIN, LOW);
                                        notify_homekit_target_door_state_change(GarageDoorTargetState::TGT_CLOSED);
                                        send_get_status(); // query in case we're wrong and it's stopped (Sec+2.0)
                                    });
@@ -2664,7 +2665,9 @@ void door_command_close()
                                 checkDoorCompleted.detach();
                                 pendingDoorCommand = false;
                                 ESP_LOGE(TAG, "Door is supposed to be closing but is not.  Current state: %s", DOOR_STATE(garage_door.current_state));
-                                notify_homekit_current_door_state_change(garage_door.current_state); });
+                                notify_homekit_current_door_state_change(garage_door.current_state);
+                                if (!wallPanelControl)
+                                    digitalWrite(STATUS_DOOR_PIN, garage_door.current_state == GarageDoorCurrentState::CURR_CLOSED ? LOW : HIGH); });
 #endif
     return;
 }
@@ -2696,6 +2699,8 @@ void door_command_open()
                                        ESP_LOGW(TAG, "Door did not open in expected time, assuming it is open");
                                        pendingDoorCommand = false;
                                        notify_homekit_current_door_state_change(GarageDoorCurrentState::CURR_OPEN);
+                                       if (!wallPanelControl)
+                                           digitalWrite(STATUS_DOOR_PIN, HIGH);
                                        notify_homekit_target_door_state_change(GarageDoorTargetState::TGT_OPEN);
                                        send_get_status(); // query in case we're wrong and it's stopped (Sec+2.0)
                                    });
@@ -2709,7 +2714,9 @@ void door_command_open()
                                 checkDoorCompleted.detach();
                                 pendingDoorCommand = false;
                                 ESP_LOGE(TAG, "Door is supposed to be opening but is not.  Current state: %s", DOOR_STATE(garage_door.current_state));
-                                notify_homekit_current_door_state_change(garage_door.current_state); });
+                                notify_homekit_current_door_state_change(garage_door.current_state);
+                                if (!wallPanelControl)
+                                    digitalWrite(STATUS_DOOR_PIN, garage_door.current_state == GarageDoorCurrentState::CURR_CLOSED ? LOW : HIGH); });
 #endif
     return;
 }
