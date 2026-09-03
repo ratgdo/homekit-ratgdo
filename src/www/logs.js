@@ -97,7 +97,12 @@ async function loadLogs() {
     console.log("checkAuth");
     // check if authenticated, before loading logs
     if (!await checkAuth(false)) {
+        loaderElem.style.visibility = "hidden";
+        console.warn("Authentication failed in loadLogs");
         return false;
+    }
+    else {
+        console.log("Authentication successful in loadLogs");
     }
     console.log("Subscribe to Server Sent Events");
     fetch("rest/events/subscribe?id=" + clientUUID + "&log=1&heartbeat=0")

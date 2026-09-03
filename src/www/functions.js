@@ -1202,6 +1202,8 @@ async function setGDO(...args) {
         // check if authenticated, before post to setgdo, prevents timeout of dialog due to AbortSignal
         loaderElem.style.visibility = "visible";
         if (!await checkAuth(false)) {
+            loaderElem.style.visibility = "hidden";
+            console.warn("Authentication failed in setGDO");
             return false;
         }
         const formData = new FormData();
