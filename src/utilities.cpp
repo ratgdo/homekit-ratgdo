@@ -241,6 +241,7 @@ void load_all_config_settings()
     ESP_LOGI(TAG, "   LEDidle:             %d", userConfig->getLEDidle());
     ESP_LOGI(TAG, "   motionTriggers:      %d", userConfig->getMotionTriggers());
     ESP_LOGI(TAG, "   obstFromStatus:      %s", userConfig->getObstFromStatus() ? "true" : "false");
+    ESP_LOGI(TAG, "   wallPanelControl:    %s", userConfig->getWallPanelControl() ? "true" : "false");
     ESP_LOGI(TAG, "   enableNTP:           %s", userConfig->getEnableNTP() ? "true" : "false");
     ESP_LOGI(TAG, "   doorUpdateAt:        %d (%s)", userConfig->getDoorUpdateAt(), timeString(userConfig->getDoorUpdateAt()));
     ESP_LOGI(TAG, "   doorOpenAt:          %d (%s)", userConfig->getDoorOpenAt(), timeString(userConfig->getDoorOpenAt()));
