@@ -13,6 +13,7 @@ import shutil
 import base64
 import zlib
 import gzip
+import subprocess
 
 #platformio
 Import("env")
@@ -35,6 +36,8 @@ env.Append(BUILD_FLAGS=[f"-I {cIncludePath}"])
 
 filenames = next(os.walk(sourcepath), (None, None, []))[2]
 print("Compressing and converting files from " + sourcepath + " into " + targetpath)
+date = subprocess.run(['git', 'log', '-1', '--format="%ci"', sourcepath], capture_output=True, text=True)
+print("Last commit date: " + date.stdout.strip())
 
 # Start by deleting the target directory, then creating empty one.
 try:
@@ -63,6 +66,10 @@ for file in filenames:
     with open(sourcepath + "/" + file, "rb") as f:
         # read contents of the file
         data = f.read()
+        # For HTML files we will append the last date that any file in the source directory was changed in git (e.g. git commit).
+        # Kind of brute force, but this ensures that the CRC for any HTML file will change if any referenced file within it has changed.
+        if (file.endswith(".html") or file.endswith(".htm")):
+            data = data + date.stdout.strip().encode('utf-8')
         crc32 = (
             base64.urlsafe_b64encode(zlib.crc32(data).to_bytes(4, byteorder="big"))
             .decode()
