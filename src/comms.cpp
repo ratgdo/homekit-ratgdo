@@ -605,7 +605,7 @@ void setup_comms()
         ESP_LOGI(TAG, "=== Setting up comms for SECURITY+1.0 protocol");
 
         wallPanelControl = userConfig->getWallPanelControl();
-        ESP_LOGD(TAG, "Sec+ 1.0 digital wall panel control %s", wallPanelControl ? "enabled through DOOR_STATUS gpio pin" : "disabled");
+        ESP_LOGD(TAG, "Sec+ 1.0 digital wall panel disconnect on tx %s", wallPanelControl ? "enabled through DOOR_STATUS gpio pin" : "disabled");
         // ESP32:GPIO_NUM_26 - ESP8266:GPIO_NUM16(D0)
         // ⁡⁢⁣⁢NC RELAY (AQY412)⁡
 
