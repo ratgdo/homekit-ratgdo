@@ -1157,7 +1157,8 @@ void update_door_state(GarageDoorCurrentState current_state)
     {
         ESP_LOGI(TAG, "Door state changing from %s to %s (target %s) (%s)", DOOR_STATE(garage_door.current_state), DOOR_STATE(current_state), DOOR_STATE(target_state), timeString());
         notify_homekit_current_door_state_change(current_state);
-        digitalWrite(STATUS_DOOR_PIN, current_state == GarageDoorCurrentState::CURR_CLOSED ? LOW : HIGH);
+        if (!wallPanelControl)
+            digitalWrite(STATUS_DOOR_PIN, current_state == GarageDoorCurrentState::CURR_CLOSED ? LOW : HIGH);
         notify_homekit_target_door_state_change(target_state);
     }
 }
