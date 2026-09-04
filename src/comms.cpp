@@ -340,7 +340,7 @@ bool wallPanelBooting = false;
 bool wallPanelDetected = false;
 #define WP_CONNECTED LOW
 #define WP_DISCONNECTED HIGH
-bool wallPanelControl = false;
+bool wpDisconnectOnTx = false;
 // states
 GarageDoorCurrentState doorState = (GarageDoorCurrentState)0xFF;
 
@@ -604,8 +604,8 @@ void setup_comms()
     {
         ESP_LOGI(TAG, "=== Setting up comms for SECURITY+1.0 protocol");
 
-        wallPanelControl = userConfig->getWallPanelControl();
-        ESP_LOGD(TAG, "Sec+ 1.0 digital wall panel disconnect on tx %s", wallPanelControl ? "enabled through DOOR_STATUS gpio pin" : "disabled");
+        wpDisconnectOnTx = userConfig->getWpDisconnectOnTx();
+        ESP_LOGD(TAG, "Sec+ 1.0 digital wall panel disconnect on tx %s", wpDisconnectOnTx ? "enabled through DOOR_STATUS gpio pin" : "disabled");
         // ESP32:GPIO_NUM_26 - ESP8266:GPIO_NUM16(D0)
         // ⁡⁢⁣⁢NC RELAY (AQY412)⁡
 
@@ -1157,7 +1157,7 @@ void update_door_state(GarageDoorCurrentState current_state)
     {
         ESP_LOGI(TAG, "Door state changing from %s to %s (target %s) (%s)", DOOR_STATE(garage_door.current_state), DOOR_STATE(current_state), DOOR_STATE(target_state), timeString());
         notify_homekit_current_door_state_change(current_state);
-        if (!wallPanelControl)
+        if (!wpDisconnectOnTx)
             digitalWrite(STATUS_DOOR_PIN, current_state == GarageDoorCurrentState::CURR_CLOSED ? LOW : HIGH);
         notify_homekit_target_door_state_change(target_state);
     }
@@ -2393,7 +2393,7 @@ bool transmitSec1(byte toSend)
         // disable RX
         // sw_serial.enableRx(false);
 
-        if (!garage_door.wallPanelEmulated && wallPanelControl)
+        if (!garage_door.wallPanelEmulated && wpDisconnectOnTx)
         {
             // will reconnect in after tx complete + 5ms
             digitalWrite(STATUS_DOOR_PIN, WP_DISCONNECTED);
@@ -2457,7 +2457,7 @@ bool transmitSec1(byte toSend)
         // TODO enable RX if disabled above
         // sw_serial.enableRx(true);
 
-        if (!garage_door.wallPanelEmulated && wallPanelControl)
+        if (!garage_door.wallPanelEmulated && wpDisconnectOnTx)
         {
             // reconnect after tx complete
             delay(2);
@@ -2651,7 +2651,7 @@ void door_command_close()
                                        ESP_LOGW(TAG, "Door did not close in expected time, assuming it is closed");
                                        pendingDoorCommand = false;
                                        notify_homekit_current_door_state_change(GarageDoorCurrentState::CURR_CLOSED);
-                                       if (!wallPanelControl)
+                                       if (!wpDisconnectOnTx)
                                            digitalWrite(STATUS_DOOR_PIN, LOW);
                                        notify_homekit_target_door_state_change(GarageDoorTargetState::TGT_CLOSED);
                                        send_get_status(); // query in case we're wrong and it's stopped (Sec+2.0)
@@ -2667,7 +2667,7 @@ void door_command_close()
                                 pendingDoorCommand = false;
                                 ESP_LOGE(TAG, "Door is supposed to be closing but is not.  Current state: %s", DOOR_STATE(garage_door.current_state));
                                 notify_homekit_current_door_state_change(garage_door.current_state);
-                                if (!wallPanelControl)
+                                if (!wpDisconnectOnTx)
                                     digitalWrite(STATUS_DOOR_PIN, garage_door.current_state == GarageDoorCurrentState::CURR_CLOSED ? LOW : HIGH); });
 #endif
     return;
@@ -2700,7 +2700,7 @@ void door_command_open()
                                        ESP_LOGW(TAG, "Door did not open in expected time, assuming it is open");
                                        pendingDoorCommand = false;
                                        notify_homekit_current_door_state_change(GarageDoorCurrentState::CURR_OPEN);
-                                       if (!wallPanelControl)
+                                       if (!wpDisconnectOnTx)
                                            digitalWrite(STATUS_DOOR_PIN, HIGH);
                                        notify_homekit_target_door_state_change(GarageDoorTargetState::TGT_OPEN);
                                        send_get_status(); // query in case we're wrong and it's stopped (Sec+2.0)
@@ -2716,7 +2716,7 @@ void door_command_open()
                                 pendingDoorCommand = false;
                                 ESP_LOGE(TAG, "Door is supposed to be opening but is not.  Current state: %s", DOOR_STATE(garage_door.current_state));
                                 notify_homekit_current_door_state_change(garage_door.current_state);
-                                if (!wallPanelControl)
+                                if (!wpDisconnectOnTx)
                                     digitalWrite(STATUS_DOOR_PIN, garage_door.current_state == GarageDoorCurrentState::CURR_CLOSED ? LOW : HIGH); });
 #endif
     return;

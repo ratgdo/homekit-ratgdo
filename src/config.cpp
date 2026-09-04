@@ -146,9 +146,9 @@ static configSetting settings_defaults[] PROGMEM = {
     {cfg_dcDebounceDuration, true, false, 50, NULL},
     {cfg_obstFromStatus, true, false, false, NULL},
 #ifdef WALLPANEL_DISCONNECT_ON_TX    
-    {cfg_wallPanelControl, true, false, true, NULL},
+    {cfg_wpDisconnectOnTx, true, false, true, NULL},
 #else
-    {cfg_wallPanelControl, true, false, false, NULL},
+    {cfg_wpDisconnectOnTx, true, false, false, NULL},
 #endif
 #ifdef RATGDO32_DISCO
     {cfg_vehicleThreshold, false, false, 100, helperVehicleThreshold},                // call fn to set globals

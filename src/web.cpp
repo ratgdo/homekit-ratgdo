@@ -897,7 +897,7 @@ void build_status_json(char *json)
     JSON_ADD_BOOL(cfg_dcBypassTTC, userConfig->getDCBypassTTC());
     JSON_ADD_BOOL(cfg_obstFromStatus, userConfig->getObstFromStatus());
     JSON_ADD_INT(cfg_dcDebounceDuration, userConfig->getDCDebounceDuration());
-    JSON_ADD_BOOL(cfg_wallPanelControl, userConfig->getWallPanelControl());
+    JSON_ADD_BOOL(cfg_wpDisconnectOnTx, userConfig->getWpDisconnectOnTx());
 #ifdef RATGDO_ENCODER
     JSON_ADD_BOOL("manuallyOperated", garage_door.manuallyOperated);
     JSON_ADD_BOOL(cfg_encoderEnabled, encoder_enabled);
