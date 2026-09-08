@@ -24,6 +24,9 @@ var setGDOcmds = {              // setGDO commands that are not sent from server
 var gitUser = "ratgdo";         // default git user.
 var gitRepo = "homekit-ratgdo"; // default git repository.
 
+var passwordHash = undefined;
+const www_realm = "RATGDO Login Required";
+
 // See... https://github.com/nayarsystems/posix_tz_db
 // This is CSV form of the data, available at this web page.
 const timeZonesURL = "https://raw.githubusercontent.com/nayarsystems/posix_tz_db/refs/heads/master/zones.csv";
@@ -1176,7 +1179,7 @@ async function unpairRATGDO() {
     }
     loaderElem.style.visibility = "visible";
     var response = await fetch("reset", {
-        method: "POST",
+        method: "POST", headers: { 'X-API-Key': passwordHash }
     });
     loaderElem.style.visibility = "hidden";
     if (response.status !== 200) {
@@ -1186,20 +1189,40 @@ async function unpairRATGDO() {
     countdown(rebootSeconds, "RATGO un-pairing and rebooting...&nbsp;");
 }
 
+function promptPassword() {
+    if (serverStatus?.passwordRequired && passwordHash === undefined) {
+        let password = prompt("Please enter the password:");
+        if (password === null) {
+            console.warn("User cancelled password prompt");
+            return false;
+        }
+        // MD5() function expects a Uint8Array typed ArrayBuffer...
+        passwordHash = MD5((new TextEncoder).encode(serverStatus.userName + ":" + www_realm + ":" + password));
+    }
+    return true;
+}
+
 async function checkAuth(loader = true) {
     auth = false;
-    if (loader) loaderElem.style.visibility = "visible";
-    var response = await fetch("auth", {
-        method: "GET",
-    });
-    if (loader) loaderElem.style.visibility = "hidden";
-    // Give browser a moment to actually hide the spinner...
-    await new Promise(r => setTimeout(r, 50));
-    if (response.status == 200) {
-        auth = true;
-    }
-    else if (response.status == 401) {
-        console.warn("Not Authenticated");
+    if (promptPassword()) {
+        if (loader) loaderElem.style.visibility = "visible";
+        let response = await fetch("auth", { method: "GET", headers: { 'X-API-Key': passwordHash } });
+        if (loader) loaderElem.style.visibility = "hidden";
+        // Give browser a moment to actually hide the spinner...
+        await new Promise(r => setTimeout(r, 50));
+        if (response.status == 200) {
+            auth = true;
+        }
+        else if (response.status == 401) {
+            console.warn("401 Not Authenticated");
+        }
+        else if (response.status == 403) {
+            console.warn("403 Forbidden, authentication failed");
+            passwordHash = undefined;
+        }
+        else {
+            console.warn(`Unexpected response from server: ${response.status}`);
+        }
     }
     return auth;
 }
@@ -1233,6 +1256,7 @@ async function setGDO(...args) {
                 method: "POST",
                 body: formData,
                 signal: AbortSignal.timeout(2000),
+                headers: { 'X-API-Key': passwordHash }
             });
             if (response.status !== 200) {
                 console.warn("Error setting RATGDO state");
@@ -1282,10 +1306,9 @@ async function changePassword() {
     }
     let www_username = document.getElementById("newUserName").value.substring(0, 30);
     if (www_username.length == 0) www_username = serverStatus.userName ?? "admin";
-    const www_realm = "RATGDO Login Required";
     // MD5() function expects a Uint8Array typed ArrayBuffer...
-    const passwordHash = MD5((new TextEncoder).encode(www_username + ":" + www_realm + ":" + newPW.value));
-    console.log("Set new credentials to: " + passwordHash);
+    passwordHash = MD5((new TextEncoder).encode(www_username + ":" + www_realm + ":" + newPW.value));
+    console.log("Set new credentials");
     await setGDO("credentials", JSON.stringify({
         username: www_username,
         credentials: passwordHash,

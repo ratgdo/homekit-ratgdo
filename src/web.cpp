@@ -545,7 +545,7 @@ void setup_web()
     server.on("/update", HTTP_POST, handle_update, handle_firmware_upload);
     server.onNotFound(handle_everything);
     // here the list of headers to be recorded
-    const char *headerkeys[] = {"If-None-Match"};
+    const char *headerkeys[] = {"If-None-Match", "X-API-Key"};
     size_t headerkeyssize = sizeof(headerkeys) / sizeof(char *);
     // ask server to track these headers
     server.collectHeaders(headerkeys, headerkeyssize);
@@ -621,11 +621,24 @@ static bool requestAuthenticated()
         return false;
     }
 #else
-    if (userConfig->getPasswordRequired() && !server.authenticate(ratgdoAuthenticate))
+    if (userConfig->getPasswordRequired())
     {
-        ESP_LOGW(TAG, "Authentication request failed");
-        server.requestAuthentication(DIGEST_AUTH, www_realm);
-        return false;
+        if (server.hasHeader("X-API-Key"))
+        {
+            // This X-API-Key method is workaround for Safari web browser not supporting Digest Authentication properly.
+            if (strcmp(server.header("X-API-Key").c_str(), userConfig->getwwwCredentials()) != 0)
+            {
+                ESP_LOGW(TAG, "X-API-Key authentication request failed");
+                server.send(403, "text/plain", "Unauthorized API Key");
+                return false;
+            }
+        }
+        else if (!server.authenticate(ratgdoAuthenticate))
+        {
+            ESP_LOGW(TAG, "Authentication request failed");
+            server.requestAuthentication(DIGEST_AUTH, www_realm);
+            return false;
+        }
     }
 #endif
     return true;
@@ -1614,7 +1627,6 @@ void handle_subscribe()
         if (!requestAuthenticated())
             return;
     }
-
 
     // validate optional heartbeat interval
     uint32_t heartbeatInterval = 1; // default
