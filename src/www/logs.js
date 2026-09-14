@@ -28,22 +28,58 @@ function msToTime(duration) {
     return days + " days " + hours + " hrs " + minutes + " mins " + seconds + " secs";
 }
 
-function promptPassword() {
+async function promptPassword() {
     if (serverStatus?.passwordRequired && passwordHash === undefined) {
-        let password = prompt("Please enter the password:");
+        const password = await new Promise((resolve) => {
+            const modal = document.getElementById("passwordModal");
+            const form = document.getElementById("passwordForm");
+            const username = document.getElementById("authUsername");
+            const input = document.getElementById("authPassword");
+            const cancel = document.getElementById("passwordCancel");
+            const finish = (value) => {
+                form.removeEventListener("submit", submit);
+                username.removeEventListener("keydown", submitOnEnter);
+                input.removeEventListener("keydown", submitOnEnter);
+                cancel.removeEventListener("click", cancelPassword);
+                modal.style.display = "none";
+                username.value = "";
+                input.value = "";
+                resolve(value);
+            };
+            const submit = (event) => {
+                event.preventDefault();
+                finish({ username: username.value, password: input.value });
+            };
+            const submitOnEnter = (event) => {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    submit(event);
+                }
+            };
+            const cancelPassword = () => finish(null);
+
+            form.addEventListener("submit", submit);
+            username.addEventListener("keydown", submitOnEnter);
+            input.addEventListener("keydown", submitOnEnter);
+            cancel.addEventListener("click", cancelPassword);
+            username.value = serverStatus.userName || "admin";
+            modal.style.display = "block";
+            input.focus();
+        });
         if (password === null) {
-            console.warn("User cancelled password prompt");
+            console.warn("User cancelled password dialog");
             return false;
         }
         // MD5() function expects a Uint8Array typed ArrayBuffer...
-        passwordHash = MD5((new TextEncoder).encode(serverStatus.userName + ":" + www_realm + ":" + password));
+        passwordHash = MD5((new TextEncoder).encode(password.username + ":" + www_realm + ":" + password.password));
     }
     return true;
 }
 
 async function checkAuth(loader = true) {
-    auth = false;
-    if (promptPassword()) {
+    let auth = false;
+    let prompt = (serverStatus?.passwordRequired && passwordHash === undefined);
+    if (await promptPassword()) {
         if (loader) loaderElem.style.visibility = "visible";
         let response = await fetch("auth", { method: "GET", headers: { 'X-API-Key': passwordHash } });
         if (loader) loaderElem.style.visibility = "hidden";
@@ -58,6 +94,7 @@ async function checkAuth(loader = true) {
         else if (response.status == 403) {
             console.warn("403 Forbidden, authentication failed");
             passwordHash = undefined;
+            if (prompt) alert("Authentication failed, please try again.");
         }
         else {
             console.warn(`Unexpected response from server: ${response.status}`);

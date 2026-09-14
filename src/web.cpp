@@ -613,14 +613,6 @@ String *ratgdoAuthenticate(HTTPAuthMethod mode, String enteredUsernameOrReq, Str
 // Returns false if a 401 challenge was sent.
 static bool requestAuthenticated()
 {
-#ifdef ESP8266
-    if (userConfig->getPasswordRequired() && !server.authenticateDigest(userConfig->getwwwUsername(), userConfig->getwwwCredentials()))
-    {
-        ESP_LOGW(TAG, "Authentication request failed");
-        server.requestAuthentication(DIGEST_AUTH, www_realm);
-        return false;
-    }
-#else
     if (userConfig->getPasswordRequired())
     {
         if (server.hasHeader("X-API-Key"))
@@ -633,14 +625,17 @@ static bool requestAuthenticated()
                 return false;
             }
         }
+#ifdef ESP8266
+        else if (!server.authenticateDigest(userConfig->getwwwUsername(), userConfig->getwwwCredentials()))
+#else
         else if (!server.authenticate(ratgdoAuthenticate))
+#endif
         {
             ESP_LOGW(TAG, "Authentication request failed");
             server.requestAuthentication(DIGEST_AUTH, www_realm);
             return false;
         }
     }
-#endif
     return true;
 }
 
@@ -1860,12 +1855,7 @@ void handle_firmware_upload()
     if (upload.status == UPLOAD_FILE_START)
     {
         _updaterError.clear();
-
-#ifdef ESP8266
-        _authenticatedUpdate = !userConfig->getPasswordRequired() || server.authenticateDigest(userConfig->getwwwUsername(), userConfig->getwwwCredentials());
-#else
-        _authenticatedUpdate = !userConfig->getPasswordRequired() || server.authenticate(ratgdoAuthenticate);
-#endif
+        _authenticatedUpdate = !userConfig->getPasswordRequired() || requestAuthenticated();
         if (!_authenticatedUpdate)
         {
             ESP_LOGE(TAG, "Unauthenticated Update");

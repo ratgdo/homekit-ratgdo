@@ -100,6 +100,29 @@ Loading...
     </div>
   </div>
 
+  <div id="passwordModal" class="modal">
+    <div class="modal-content" style="width: fit-content;">
+      <form id="passwordForm">
+        <h3>Authentication required</h3>
+        <table style="width: 100%;">
+          <tr>
+            <td style="text-align: right; font-size: 0.8em;"><label for="authUsername">Username:</label></td>
+            <td style="text-align: left; font-size: 0.8em;"><input id="authUsername" type="text" required></td>
+          </tr>
+          <tr>
+            <td style="text-align: right; font-size: 0.8em;"><label for="authPassword">Password:</label></td>
+            <td style="text-align: left; font-size: 0.8em;"><input id="authPassword" type="password" required></td>
+          </tr>
+        </table>
+        <br>
+        <span style="display: block; text-align: center;">
+          <input id="passwordCancel" type="button" value="Cancel">
+          <input type="submit" value="Sign in">
+        </span>
+      </form>
+    </div>
+  </div>
+
   <!-- Initialization scripts ------------------------------------------------------------------>
   <script>
     console.log('Client UUID: ' + clientUUID);
