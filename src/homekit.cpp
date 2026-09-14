@@ -702,6 +702,9 @@ bool enable_service_homekit_laser(bool enable)
             new SpanAccessory(HOMEKIT_AID_LASER);
             new DEV_Info("Laser");
             assistLaser = new DEV_Light(Light_t::ASSIST_LASER);
+            // Keep HomeKit in sync with the physical laser regardless of what
+            // triggers a state change (web UI, vehicle presence, flash() auto-off).
+            laser.onChange(notify_homekit_laser);
             homeSpan.updateDatabase();
             return true;
         }

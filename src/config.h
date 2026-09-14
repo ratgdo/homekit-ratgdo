@@ -108,6 +108,7 @@ constexpr char cfg_vehicleArrivingHomeKit[] PROGMEM = "vehicleArrivingHomeKit";
 constexpr char cfg_vehicleDepartingHomeKit[] PROGMEM = "vehicleDepartingHomeKit";
 constexpr char cfg_laserEnabled[] PROGMEM = "laserEnabled";
 constexpr char cfg_laserHomeKit[] PROGMEM = "laserHomeKit";
+constexpr char cfg_laserOnDoorOpen[] PROGMEM = "laserOnDoorOpen";
 constexpr char cfg_assistDuration[] PROGMEM = "assistDuration";
 constexpr char cfg_TTCsound[] PROGMEM = "TTCsound";
 #endif
@@ -225,6 +226,7 @@ public:
     uint32_t getVehicleThreshold() { return std::get<int>(get(cfg_vehicleThreshold)); };
     bool getLaserEnabled() { return std::get<bool>(get(cfg_laserEnabled)); };
     bool getLaserHomeKit() { return std::get<bool>(get(cfg_laserHomeKit)); };
+    bool getLaserOnDoorOpen() { return std::get<bool>(get(cfg_laserOnDoorOpen)); };
     bool getVehicleHomeKit() { return std::get<bool>(get(cfg_vehicleHomeKit)); };
     bool getVehicleOccupancyHomeKit() { return std::get<bool>(get(cfg_vehicleOccupancyHomeKit)); };
     bool getVehicleArrivingHomeKit() { return std::get<bool>(get(cfg_vehicleArrivingHomeKit)); };

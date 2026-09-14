@@ -261,6 +261,7 @@ void load_all_config_settings()
     ESP_LOGI(TAG, "     vehicleDeparting:  %s", userConfig->getVehicleDepartingHomeKit() ? "true" : "false");
     ESP_LOGI(TAG, "   laserEnabled:        %s", userConfig->getLaserEnabled() ? "true" : "false");
     ESP_LOGI(TAG, "   laserHomeKit:        %s", userConfig->getLaserHomeKit() ? "true" : "false");
+    ESP_LOGI(TAG, "   laserOnDoorOpen:     %s", userConfig->getLaserOnDoorOpen() ? "true" : "false");
     ESP_LOGI(TAG, "   assistDuration:      %d", userConfig->getAssistDuration());
 #endif
 #ifndef ESP8266

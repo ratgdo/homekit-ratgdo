@@ -38,18 +38,24 @@ void LED::on()
 {
     digitalWrite(pin, onState);
     currentState = onState;
+    if (stateChangeCallback)
+        stateChangeCallback(state());
 }
 
 void LED::off()
 {
     digitalWrite(pin, offState);
     currentState = offState;
+    if (stateChangeCallback)
+        stateChangeCallback(state());
 }
 
 void LED::idle()
 {
     digitalWrite(pin, idleState);
     currentState = idleState;
+    if (stateChangeCallback)
+        stateChangeCallback(state());
 }
 
 void LED::setIdleState(uint8_t state)
@@ -77,6 +83,8 @@ void LED::flash(uint64_t ms)
     {
         digitalWrite(pin, activeState);
         currentState = activeState;
+        if (stateChangeCallback)
+            stateChangeCallback(state());
         LEDtimer.once_ms(ms, [this]()
                          { this->idle(); });
     }

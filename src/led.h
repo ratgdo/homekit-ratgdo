@@ -29,6 +29,7 @@ private:
     uint8_t idleState = 0; // opposite of active
     uint8_t currentState = 0;
     Ticker LEDtimer;
+    void (*stateChangeCallback)(bool) = nullptr;
 
 public:
     explicit LED(uint8_t gpio_num, uint8_t state = 1);
@@ -39,6 +40,9 @@ public:
     void flash(uint64_t ms = FLASH_MS);
     void setIdleState(uint8_t state);
     uint8_t getIdleState() { return idleState; };
+    // Register a callback fired with the new on/off state whenever it changes,
+    // regardless of what triggered the change (manual call or flash() auto-off).
+    void onChange(void (*cb)(bool)) { stateChangeCallback = cb; };
 };
 
 extern LED led;

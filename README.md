@@ -237,6 +237,8 @@ For ratgdo32-disco boards, if you have the parking assist [laser accessory](http
 When enabled, you can configure how long the laser remains on during parking assist by selecting a value from zero to 300 seconds (5 minutes). Selecting
 zero disables parking assist laser. Parking assist is triggered if an arriving vehicle is detected with 5 minutes of the door opening or closing.
 
+Check **Trigger on Door Open** to also fire the laser immediately when the door starts opening, instead of waiting for vehicle-arrival detection. This is useful if vehicle presence sensing is slow or unreliable on your install. It's off by default and independent of the vehicle-arrival trigger above - either or both can be enabled at the same time.
+
 ### Door Protocol
 
 Set the protocol for your model of garage door opener. This defaults to Security+ 2.0 and you should only change this if necessary. Note that the changing the door protocol also resets the door opener rolling codes and whether there is a motion sensor (this will be automatically detected after reset).
