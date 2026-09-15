@@ -642,11 +642,9 @@ void userSettings::save()
     toFile(file);
     file.close();
 
-    // Atomic operation: rename temp file to final file
-    if (LittleFS.exists(cfg_configFile))
-    {
-        LittleFS.remove(cfg_configFile);
-    }
+    // Atomic operation: rename temp file to final file. LittleFS rename replaces an existing
+    // file atomically, so do not remove it first. A power loss between a remove and the
+    // rename would leave no config file at all.
     if (!LittleFS.rename(tempFile, cfg_configFile))
     {
         ESP_LOGE(TAG, "Failed to rename temp config file to final: %s -> %s", tempFile.c_str(), cfg_configFile);
