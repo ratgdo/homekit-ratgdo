@@ -623,6 +623,13 @@ void userSettings::toFile(Print &file)
 // On ESP8266 we save settings to a file on LittleFS.
 void userSettings::save()
 {
+    // Avoid unnecessary flash writes, only save if a setting has changed since the
+    // last load() or save(), or if the config file does not exist yet.
+    if (!dirty && LittleFS.exists(cfg_configFile))
+    {
+        ESP_LOGD(TAG, "User configuration unchanged, not writing to file: %s", cfg_configFile);
+        return;
+    }
     ESP_LOGD(TAG, "Writing user configuration to file: %s", cfg_configFile);
     // Atomic write: write to temp file first, then rename
     String tempFile = cfg_configFile + String(".tmp");
@@ -635,17 +642,16 @@ void userSettings::save()
     toFile(file);
     file.close();
 
-    // Atomic operation: rename temp file to final file
-    if (LittleFS.exists(cfg_configFile))
-    {
-        LittleFS.remove(cfg_configFile);
-    }
+    // Atomic operation: rename temp file to final file. LittleFS rename replaces an existing
+    // file atomically, so do not remove it first. A power loss between a remove and the
+    // rename would leave no config file at all.
     if (!LittleFS.rename(tempFile, cfg_configFile))
     {
         ESP_LOGE(TAG, "Failed to rename temp config file to final: %s -> %s", tempFile.c_str(), cfg_configFile);
         LittleFS.remove(tempFile); // Clean up temp file
         return;
     }
+    dirty = false;
 }
 
 void userSettings::load()
@@ -697,6 +703,8 @@ void userSettings::load()
         set(key, value);
     }
     file.close();
+    // Settings now match what is in the file, nothing to save.
+    dirty = false;
     return;
 }
 
@@ -793,6 +801,7 @@ bool userSettings::set(const std::string &key, const bool value)
     {
         if (std::holds_alternative<bool>(setting->value))
         {
+            dirty = dirty || (std::get<bool>(setting->value) != value);
             setting->value = value;
 #ifndef ESP8266
             nvRam->write(key, value ? 1 : 0);
@@ -817,6 +826,7 @@ bool userSettings::set(const std::string &key, const int value)
     {
         if (std::holds_alternative<int>(setting->value))
         {
+            dirty = dirty || (std::get<int>(setting->value) != value);
             setting->value = value;
 #ifndef ESP8266
             nvRam->write(key, value);
@@ -825,6 +835,7 @@ bool userSettings::set(const std::string &key, const int value)
         }
         else if (std::holds_alternative<bool>(setting->value))
         {
+            dirty = dirty || (std::get<bool>(setting->value) != (value != 0));
             setting->value = (value != 0);
 #ifndef ESP8266
             nvRam->write(key, value ? 1 : 0);
@@ -852,6 +863,8 @@ bool userSettings::set(const std::string &key, const char *value)
             char *p = std::get<configStr>(setting->value).str;
             size_t max = std::get<configStr>(setting->value).max;
             // ESP_LOGD(TAG, "Set: %20s = %s", key.c_str(), value);
+            // Compare only what fits in the buffer, strlcpy() truncates to max - 1 characters.
+            dirty = dirty || (strncmp(p, value, max - 1) != 0);
             strlcpy(p, value, max);
 #ifndef ESP8266
             nvRam->write(key, value);
@@ -860,7 +873,9 @@ bool userSettings::set(const std::string &key, const char *value)
         }
         else if (std::holds_alternative<bool>(setting->value))
         {
-            setting->value = (!strcmp(value, "true")) || (atoi(value) != 0);
+            bool newValue = (!strcmp(value, "true")) || (atoi(value) != 0);
+            dirty = dirty || (std::get<bool>(setting->value) != newValue);
+            setting->value = newValue;
             // ESP_LOGD(TAG, "Set: %20s = %s", key.c_str(), std::get<bool>(setting->value) ? "true" : "false");
 #ifndef ESP8266
             nvRam->write(key, std::get<bool>(setting->value) ? 1 : 0);
@@ -869,7 +884,9 @@ bool userSettings::set(const std::string &key, const char *value)
         }
         else if (std::holds_alternative<int>(setting->value))
         {
-            setting->value = atoi(value);
+            int newValue = atoi(value);
+            dirty = dirty || (std::get<int>(setting->value) != newValue);
+            setting->value = newValue;
             // ESP_LOGD(TAG, "Set: %20s = %d", key.c_str(), std::get<int>(setting->value));
 #ifndef ESP8266
             nvRam->write(key, atoi(value));

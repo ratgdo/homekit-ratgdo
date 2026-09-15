@@ -152,6 +152,7 @@ class userSettings
 private:
     static userSettings *instancePtr;
     configSetting *settings;
+    bool dirty = false; // true if a setting has changed since the last load() or save()
     userSettings();
     void toFile(Print &file);
 #ifndef ESP8266
