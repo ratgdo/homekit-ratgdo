@@ -5,11 +5,17 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 > [!IMPORTANT]
 > HomeKit firmware for ESP8266-based RATGDO v2.5-series devices has been in maintenance mode since version 2.2.0: updates continue on a best-effort basis, but feature parity with ESP32 is no longer guaranteed. See [README.md](https://github.com/ratgdo/homekit-ratgdo/blob/main/README.md)
 
-## v2.2.5 (2026-09-21)
+## v2.2.6 (2026-10-xx)
+
+**NOTE** If updating from version 2.3.5 you must disable password required setting (if set).  You can re-enable it after update completes.
 
 ### What's Changed
 
-* Feature: Implement our own authentication as workaround for Safari not handling Digest Authentication properly. See https://github.com/ratgdo/homekit-ratgdo32/issues/200
+* Bugfix: Add the autocomplete tags to html that are required for password managers to trigger autofill. https://github.com/ratgdo/homekit-ratgdo32/issues/200
+* Bugfix: Firmware OTA update failing when password required, fixed by add X-API-Key HTML header. https://github.com/ratgdo/homekit-ratgdo32/issues/200
+* Bugfix: Discrete Open/Close status pins not implemented correctly. https://github.com/ratgdo/homekit-ratgdo32/issues/206
+* Bugfix: Parking assist laser not triggered if door has been open longer than 5 minutes. https://github.com/ratgdo/homekit-ratgdo32/issues/203
+* Other: Pull in Arduino-HomeKit-ESP8266 v1.5.3 that includes some CVE fixes
 
 ### Known Issues
 
@@ -17,6 +23,12 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 * Sec+ 1.0 doors with "0x37" digital wall panel (e.g. 398LM) not working. We now detect but will not support them.  Recommend replacing with 889LM panel.
 * When creating automations in Apple Home, the garage door may show only lock/unlock and not open/close as triggers. This is a bug in Apple Home. Workaround is to use the Eve App to create the automation, it will show both options.
 * ESP8266 (original ratgdo) only... possible crash when a storm of HomeKit messages arrives... which may be triggered on a upgrade of Apple iOS/tvOS/etc. versions. System recovers.
+
+## v2.2.5 (2026-09-21)
+
+### What's Changed
+
+* Feature: Implement our own authentication as workaround for Safari not handling Digest Authentication properly. See https://github.com/ratgdo/homekit-ratgdo32/issues/200
   
 ## v2.2.4 (2026-09-08)
 
