@@ -1121,6 +1121,7 @@ async function firmwareUpdate(github = true) {
         var response = await fetch(`update?action=update&size=${bin.byteLength}&md5=${binMD5}`, {
             method: "POST",
             body: formData,
+            headers: { 'X-API-Key': passwordHash }
         });
         showRebootMsg = true;
         if (response.status !== 200) {
