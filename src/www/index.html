@@ -217,7 +217,7 @@
               <tr>
                 <td class="label">Username:</td>
                 <td>
-                  <input id="newUserName" type="text" placeholder="admin" maxlength="30" minlength="1">
+                  <input id="newUserName" type="text" placeholder="admin" autocomplete="username" maxlength="30" minlength="1">
                 </td>
                 <td></td>
               </tr>
@@ -231,7 +231,7 @@
               <tr>
                 <td class="label">Confirm:</td>
                 <td>
-                  <input id="confirmPassword" type="password" placeholder="confirm new password">
+                  <input id="confirmPassword" type="password" placeholder="confirm new password" autocomplete="new-password">
                 </td>
                 <td>&nbsp;&nbsp;&nbsp;
                   <input type="button" value="Save User/Password" onclick="changePassword()">
@@ -841,11 +841,11 @@
         <table style="width: 100%;">
           <tr>
             <td style="text-align: right; font-size: 0.8em;"><label for="authUsername">Username:</label></td>
-            <td style="text-align: left; font-size: 0.8em;"><input id="authUsername" type="text" required></td>
+            <td style="text-align: left; font-size: 0.8em;"><input id="authUsername" type="text" autocomplete="username" required></td>
           </tr>
           <tr>
             <td style="text-align: right; font-size: 0.8em;"><label for="authPassword">Password:</label></td>
-            <td style="text-align: left; font-size: 0.8em;"><input id="authPassword" type="password" required></td>
+            <td style="text-align: left; font-size: 0.8em;"><input id="authPassword" type="password" autocomplete="current-password" required></td>
           </tr>
         </table>
         <br>
