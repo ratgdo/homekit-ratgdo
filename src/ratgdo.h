@@ -251,6 +251,6 @@ extern GarageDoor last_reported_garage_door;
 #ifdef ESP8266
 #define STATUS_JSON_BUFFER_SIZE (256 * 8)
 #else
-#define STATUS_JSON_BUFFER_SIZE (256 * 10)
+#define STATUS_JSON_BUFFER_SIZE (256 * 12)
 #endif
 extern char *status_json;
