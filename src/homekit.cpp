@@ -1465,6 +1465,12 @@ void notify_homekit_obstruction(bool state)
     e.c = door->obstruction;
     e.value.b = garage_door.obstructed;
     queueSendHelper(door->event_q, e, "obstruction");
+
+#ifdef RATGDO32_DISCO
+    // Notify the vehicle presence code that state is changing
+    if (garage_door.obstructed)
+        doorObstructed();
+#endif
 #else
     if (!arduino_homekit_get_running_server())
         return;

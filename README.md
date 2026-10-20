@@ -235,7 +235,7 @@ for this when setting the value.
 For ratgdo32-disco boards, if you have the parking assist [laser accessory](https://ratcloud.llc/products/parking-assistance-laser) installed, select this option to enable support and optionally add HomeKit light switch accessory to allow for manual or HomeKit automation control.
 
 When enabled, you can configure how long the laser remains on during parking assist by selecting a value from zero to 300 seconds (5 minutes). Selecting
-zero disables parking assist laser. Parking assist is triggered if an arriving vehicle is detected with 5 minutes of the door opening or closing.
+zero disables parking assist laser. Parking assist is triggered if an arriving vehicle is detected with 5 minutes of the door opening or closing, or obstruction sensor beam is broken.
 
 Check **Trigger on Door Open** to also fire the laser immediately when the door starts opening, instead of waiting for vehicle-arrival detection. This is useful if vehicle presence sensing is slow or unreliable on your install. It's off by default and independent of the vehicle-arrival trigger above - either or both can be enabled at the same time.
 
