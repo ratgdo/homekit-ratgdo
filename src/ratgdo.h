@@ -56,6 +56,8 @@
 #define DRY_CONTACT_OPEN_PIN D5  // dry contact for open door limit switch
 #define DRY_CONTACT_CLOSE_PIN D6 // dry contact for close door limit switch
 #define DRY_CONTACT_LIGHT_PIN D3 // dry contact for light toggle switch
+#define DISCRETE_OPEN_PIN D0     // alternative (or in addition) to toggle, can use discrete open control
+#define DISCRETE_CLOSE_PIN D8    // alternative (or in addition) to toggle, can use discrete close control
 
 #ifndef LED_BUILTIN_ON_STATE
 #define LED_BUILTIN_ON_STATE LOW
@@ -133,11 +135,15 @@ const gpio_num_t STATUS_DOOR_PIN = (gpio_num_t)STATUS_DOOR_GPIO;
 #endif
 const gpio_num_t STATUS_OBST_PIN = (gpio_num_t)STATUS_OBST_GPIO;
 
-// !!! this is conflicting with above status pins
-#ifdef USE_GDOLIB
-const gpio_num_t DISCRETE_OPEN_PIN = GPIO_NUM_26;  // alternative (or in addition) to toggle, can use discrete open control
-const gpio_num_t DISCRETE_CLOSE_PIN = GPIO_NUM_25; // alternative (or in addition) to toggle, can use discrete close control
+// Shares GPIO with STATUS_DOOR_PIN / STATUS_OBST_PIN when in dry contact mode
+#ifndef DISCRETE_OPEN_GPIO
+#define DISCRETE_OPEN_GPIO STATUS_DOOR_GPIO
 #endif
+const gpio_num_t DISCRETE_OPEN_PIN = (gpio_num_t)DISCRETE_OPEN_GPIO; // alternative (or in addition) to toggle, can use discrete open control
+#ifndef DISCRETE_CLOSE_GPIO
+#define DISCRETE_CLOSE_GPIO STATUS_OBST_GPIO
+#endif
+const gpio_num_t DISCRETE_CLOSE_PIN = (gpio_num_t)DISCRETE_CLOSE_GPIO; // alternative (or in addition) to toggle, can use discrete close control
 
 #ifdef RATGDO32_DISCO
 const gpio_num_t BEEPER_PIN = GPIO_NUM_33;
