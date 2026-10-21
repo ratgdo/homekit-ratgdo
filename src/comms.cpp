@@ -181,13 +181,18 @@ void cancel_builtin_TTC_countdown()
     garage_door.builtInTTChold = false;
 }
 
-struct DoorHistory openHistory = {0};
-struct DoorHistory closeHistory = {0};
+struct DoorHistory openHistory = {GDO_MAX_HISTORY, 0, {0}};
+struct DoorHistory closeHistory = {GDO_MAX_HISTORY, 0, {0}};
 
-uint32_t doorMedian(const uint32_t *arr, uint32_t n)
+// Calculate median value in an array of uint32_t values.
+// Parameters:
+//   arr - pointer to an array of uint32_t values
+//   n   - number of elements in the array, must be greater than 0 and less than or equal to GDO_MAX_HISTORY
+// Returns:
+//   Median value of the array elements
+uint32_t median(const uint32_t *arr, uint32_t n)
 {
-    static uint32_t cpy[DOOR_MAX_HISTORY];
-    if (n == 0 || n > DOOR_MAX_HISTORY)
+    if (n == 0 || n > GDO_MAX_HISTORY)
     {
         return 0;
     }
@@ -201,7 +206,8 @@ uint32_t doorMedian(const uint32_t *arr, uint32_t n)
     }
     else
     {
-        // Insertion sort
+        // Insertion sort input array into temporary copy
+        uint32_t cpy[GDO_MAX_HISTORY] = {0};
         for (uint32_t i = 0; i < n; i++)
         {
             int32_t j = i - 1;
@@ -598,13 +604,12 @@ void setup_comms()
     // need to make more space available for initialization.
     txQueueCreate();
 
-    pinMode(STATUS_DOOR_PIN, OUTPUT);
-    digitalWrite(STATUS_DOOR_PIN, LOW); // initial state, LOW == door closed or wall panel connected
-
     if (doorControlType == DOOR_CONTROL_SEC_PLUS_V1)
     {
         ESP_LOGI(TAG, "=== Setting up comms for SECURITY+1.0 protocol");
-
+        gpio_set_level(STATUS_DOOR_PIN, 0);
+        pinMode(STATUS_DOOR_PIN, OUTPUT);
+        digitalWrite(STATUS_DOOR_PIN, LOW); // initial state, LOW == door closed or wall panel connected
         wpDisconnectOnTx = userConfig->getWpDisconnectOnTx();
         ESP_LOGD(TAG, "Sec+ 1.0 digital wall panel disconnect on tx %s", wpDisconnectOnTx ? "enabled through DOOR_STATUS gpio pin" : "disabled");
         // ESP32:GPIO_NUM_26 - ESP8266:GPIO_NUM16(D0)
@@ -634,7 +639,9 @@ void setup_comms()
     else if (doorControlType == DOOR_CONTROL_SEC_PLUS_V2)
     {
         ESP_LOGI(TAG, "=== Setting up comms for SECURITY+2.0 protocol");
-
+        gpio_set_level(STATUS_DOOR_PIN, 0);
+        pinMode(STATUS_DOOR_PIN, OUTPUT);
+        digitalWrite(STATUS_DOOR_PIN, LOW); // initial state, LOW == door closed or wall panel connected
         sw_serial.begin(9600, SWSERIAL_8N1, UART_RX_PIN, UART_TX_PIN, true, 32);
         sw_serial.enableIntTx(false);
         sw_serial.enableAutoBaud(true); // found in ratgdo/espsoftwareserial branch autobaud
@@ -645,12 +652,24 @@ void setup_comms()
     else
     {
         ESP_LOGI(TAG, "=== Setting up comms for dry contact protocol");
+        // Using low-level GPIO configuration to ensure that the pins are correctly initialized with pull-downs and output levels
+        gpio_config_t io_conf = {
+            .pin_bit_mask = (1ULL << UART_TX_PIN),
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_ENABLE, // Enables weak internal pull-down during transition
+            .intr_type = GPIO_INTR_DISABLE};
+        gpio_config(&io_conf);
+        gpio_set_level(UART_TX_PIN, 0);
         pinMode(UART_TX_PIN, OUTPUT);
-        digitalWrite(UART_TX_PIN, LOW);
+        io_conf.pin_bit_mask = (1ULL << DISCRETE_OPEN_PIN);
+        gpio_config(&io_conf);
+        gpio_set_level(DISCRETE_OPEN_PIN, 0);
         pinMode(DISCRETE_OPEN_PIN, OUTPUT);
-        digitalWrite(DISCRETE_OPEN_PIN, LOW);
+        io_conf.pin_bit_mask = (1ULL << DISCRETE_CLOSE_PIN);
+        gpio_config(&io_conf);
+        gpio_set_level(DISCRETE_CLOSE_PIN, 0);
         pinMode(DISCRETE_CLOSE_PIN, OUTPUT);
-        digitalWrite(DISCRETE_CLOSE_PIN, LOW);
     }
     force_recover.push_count = 0;
     force_recover.enable = true;
@@ -791,10 +810,10 @@ void setup_comms()
     // Restore previously saved door open/close duration history
     read_door_data(nvram_open_history, &openHistory, sizeof(openHistory));
     read_door_data(nvram_close_history, &closeHistory, sizeof(closeHistory));
-    if (openHistory.max != DOOR_MAX_HISTORY || closeHistory.max != DOOR_MAX_HISTORY)
+    if (openHistory.max != GDO_MAX_HISTORY || closeHistory.max != GDO_MAX_HISTORY)
     {
-        // Someone changed the DOOR_MAX_HISTORY const. Reset everything
-        ESP_LOGI(TAG, "New DOOR_MAX_HISTORY (new %d was %d) for door open/close durations, reset door history to zero", DOOR_MAX_HISTORY, openHistory.max);
+        // Someone changed the GDO_MAX_HISTORY const. Reset everything
+        ESP_LOGI(TAG, "New GDO_MAX_HISTORY (new %d was %d) for door open/close durations, reset door history to zero", GDO_MAX_HISTORY, openHistory.max);
         openHistory = {}; // reset to defaults
         closeHistory = {};
         write_door_data(nvram_open_history, &openHistory, sizeof(openHistory));
@@ -802,13 +821,13 @@ void setup_comms()
     }
     else
     {
-        garage_door.openDuration = (doorMedian(openHistory.duration, std::min(openHistory.count, DOOR_MAX_HISTORY)) + 500) / 1000;    // round up/down to closest second
-        garage_door.closeDuration = (doorMedian(closeHistory.duration, std::min(closeHistory.count, DOOR_MAX_HISTORY)) + 500) / 1000; // round up/down to closest second
+        garage_door.openDuration = (median(openHistory.duration, std::min(openHistory.count, GDO_MAX_HISTORY)) + 500) / 1000;    // round up/down to closest second
+        garage_door.closeDuration = (median(closeHistory.duration, std::min(closeHistory.count, GDO_MAX_HISTORY)) + 500) / 1000; // round up/down to closest second
     }
     ESP_LOGI(TAG, "Door open history (%d):  %lums, %lums, %lums, %lums, %lums, %lums; Median: %dsecs", openHistory.count,
-             openHistory(1), openHistory(2), openHistory(3), openHistory(4), openHistory(5), openHistory(6), garage_door.openDuration);
+             OPEN_HISTORY(1), OPEN_HISTORY(2), OPEN_HISTORY(3), OPEN_HISTORY(4), OPEN_HISTORY(5), OPEN_HISTORY(6), garage_door.openDuration);
     ESP_LOGI(TAG, "Door close history (%d): %lums, %lums, %lums, %lums, %lums, %lums; Median: %dsecs", closeHistory.count,
-             closeHistory(1), closeHistory(2), closeHistory(3), closeHistory(4), closeHistory(5), closeHistory(6), garage_door.closeDuration);
+             CLOSE_HISTORY(1), CLOSE_HISTORY(2), CLOSE_HISTORY(3), CLOSE_HISTORY(4), CLOSE_HISTORY(5), CLOSE_HISTORY(6), garage_door.closeDuration);
 
     comms_setup_done = true;
 }
@@ -829,15 +848,29 @@ void shutdown_comms()
     if (doorControlType == DOOR_CONTROL_SEC_PLUS_V1)
     {
         Sec1Serial.end();
+#ifdef ESP32
+        gpio_reset_pin(UART_TX_PIN);
+        gpio_pullup_dis(UART_TX_PIN);
+        gpio_pulldown_en(UART_TX_PIN);
+        gpio_reset_pin(UART_RX_PIN);
+#endif
+    }
+    else if (doorControlType == DOOR_CONTROL_SEC_PLUS_V2)
+    {
+        sw_serial.end();
+#ifdef ESP32
+        gpio_reset_pin(UART_TX_PIN);
+        gpio_pullup_dis(UART_TX_PIN);
+        gpio_pulldown_en(UART_TX_PIN);
+        gpio_reset_pin(UART_RX_PIN);
+#endif
     }
     else
     {
-        sw_serial.end();
+        digitalWrite(UART_TX_PIN, LOW);
+        digitalWrite(DISCRETE_OPEN_PIN, LOW);
+        digitalWrite(DISCRETE_CLOSE_PIN, LOW);
     }
-#ifdef ESP32
-    gpio_reset_pin(UART_TX_PIN);
-    gpio_reset_pin(UART_RX_PIN);
-#endif
 #endif
 }
 
@@ -1102,14 +1135,14 @@ void update_door_state(GarageDoorCurrentState current_state)
     else if (current_state == CURR_OPEN && garage_door.current_state == CURR_OPENING && start_opening > 0)
     {
         uint32_t duration = (uint32_t)(now - start_opening);
-        if (DOOR_MIN_DURATION <= duration && duration <= DOOR_MAX_DURATION)
+        if (GDO_MIN_DURATION_MS <= duration && duration <= GDO_MAX_DURATION_MS)
         {
-            openHistory.duration[openHistory.count++ % DOOR_MAX_HISTORY] = duration;
-            uint32_t median = doorMedian(openHistory.duration, std::min(openHistory.count, DOOR_MAX_HISTORY));
-            garage_door.openDuration = (median + 500) / 1000; // round up/down to closest second
+            openHistory.duration[openHistory.count++ % GDO_MAX_HISTORY] = duration;
+            uint32_t median_ms = median(openHistory.duration, std::min(openHistory.count, GDO_MAX_HISTORY));
+            garage_door.openDuration = (median_ms + 500) / 1000; // round up/down to closest second
             ESP_LOGI(TAG, "Door open duration: %lums, History: %lums, %lums, %lums, %lums, %lums; Median: %lums (%s)",
-                     duration, openHistory(2), openHistory(3), openHistory(4), openHistory(5), openHistory(6),
-                     median, timeString());
+                     duration, OPEN_HISTORY(2), OPEN_HISTORY(3), OPEN_HISTORY(4), OPEN_HISTORY(5), OPEN_HISTORY(6),
+                     median_ms, timeString());
             write_door_data(nvram_open_history, &openHistory, sizeof(openHistory));
         }
         else
@@ -1126,14 +1159,14 @@ void update_door_state(GarageDoorCurrentState current_state)
     else if (current_state == CURR_CLOSED && garage_door.current_state == CURR_CLOSING && start_closing > 0)
     {
         uint32_t duration = (uint32_t)(now - start_closing);
-        if (DOOR_MIN_DURATION <= duration && duration <= DOOR_MAX_DURATION)
+        if (GDO_MIN_DURATION_MS <= duration && duration <= GDO_MAX_DURATION_MS)
         {
-            closeHistory.duration[closeHistory.count++ % DOOR_MAX_HISTORY] = duration;
-            uint32_t median = doorMedian(closeHistory.duration, std::min(closeHistory.count, DOOR_MAX_HISTORY));
-            garage_door.closeDuration = (median + 500) / 1000; // round up/down to closest second
+            closeHistory.duration[closeHistory.count++ % GDO_MAX_HISTORY] = duration;
+            uint32_t median_ms = median(closeHistory.duration, std::min(closeHistory.count, GDO_MAX_HISTORY));
+            garage_door.closeDuration = (median_ms + 500) / 1000; // round up/down to closest second
             ESP_LOGI(TAG, "Door close duration: %lums, History: %lums, %lums, %lums, %lums, %lums; Median: %lums (%s)",
-                     duration, closeHistory(2), closeHistory(3), closeHistory(4), closeHistory(5), closeHistory(6),
-                     median, timeString());
+                     duration, CLOSE_HISTORY(2), CLOSE_HISTORY(3), CLOSE_HISTORY(4), CLOSE_HISTORY(5), CLOSE_HISTORY(6),
+                     median_ms, timeString());
             write_door_data(nvram_close_history, &closeHistory, sizeof(closeHistory));
         }
         else
@@ -2624,6 +2657,7 @@ void door_command(DoorAction action)
         if (action == DoorAction::Open)
         {
             // Discrete open control
+            ESP_LOGD(TAG, "Send dry-contact discrete open command");
             digitalWrite(DISCRETE_OPEN_PIN, HIGH);
             discreteOpenTimer.once_ms(500, []()
                                       { digitalWrite(DISCRETE_OPEN_PIN, LOW); });
@@ -2631,11 +2665,13 @@ void door_command(DoorAction action)
         else if (action == DoorAction::Close)
         {
             // Discrete close control
+            ESP_LOGD(TAG, "Send dry-contact discrete close command");
             digitalWrite(DISCRETE_CLOSE_PIN, HIGH);
             discreteCloseTimer.once_ms(500, []()
                                        { digitalWrite(DISCRETE_CLOSE_PIN, LOW); });
         }
 
+        ESP_LOGD(TAG, "Send dry-contact toggle command");
         // Single button control (toggle)
         digitalWrite(UART_TX_PIN, HIGH);
         toggleTimer.once_ms(500, []()
@@ -2857,7 +2893,7 @@ GarageDoorCurrentState open_door_partial(int timePercentage)
     {
         ESP_LOGI(TAG, "Partial opening door from open not supported as we do not know if it is 100%% open or partially open");
         /*
-        _millis_t doorCloseTimeMs = doorMedian(closeHistory.duration, std::min(closeHistory.count, DOOR_MAX_HISTORY));
+        _millis_t doorCloseTimeMs = median(closeHistory.duration, std::min(closeHistory.count, GDO_MAX_HISTORY));
         // get delay in ms, with minimum of 1000ms
         dtime = std::max(1000, (int)(doorOpenTimeMs * timePercentage / 100.00));
         ESP_LOGI(TAG, "Opening door to %d%%, calculated time delay: %dms", timePercentage, dtime);
@@ -2876,7 +2912,7 @@ GarageDoorCurrentState open_door_partial(int timePercentage)
     // if door closed
     else if (garage_door.current_state == GarageDoorCurrentState::CURR_CLOSED)
     {
-        _millis_t doorOpenTimeMs = doorMedian(openHistory.duration, std::min(openHistory.count, DOOR_MAX_HISTORY));
+        _millis_t doorOpenTimeMs = median(openHistory.duration, std::min(openHistory.count, GDO_MAX_HISTORY));
         // get delay in ms, with minimum of 1000ms
         dtime = std::max(1000, (int)(doorOpenTimeMs * timePercentage / 100.00));
         ESP_LOGI(TAG, "Opening door to %d%%, calculated time delay: %dms", timePercentage, dtime);

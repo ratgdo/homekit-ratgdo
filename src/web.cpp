@@ -932,7 +932,7 @@ void build_status_json(char *json)
         JSON_ADD_INT("openDuration", garage_door.openDuration);
         snprintf_P(writeBuffer, sizeof(writeBuffer), PSTR("{ \"max\": %d, \"count\": %d, \"duration\": [ %d, %d, %d, %d, %d, %d ] }"),
                    openHistory.max, openHistory.count,
-                   openHistory(1), openHistory(2), openHistory(3), openHistory(4), openHistory(5), openHistory(6));
+                   OPEN_HISTORY(1), OPEN_HISTORY(2), OPEN_HISTORY(3), OPEN_HISTORY(4), OPEN_HISTORY(5), OPEN_HISTORY(6));
         JSON_ADD_RAW("openHistory", writeBuffer);
     }
     if (garage_door.closeDuration)
@@ -940,7 +940,7 @@ void build_status_json(char *json)
         JSON_ADD_INT("closeDuration", garage_door.closeDuration);
         snprintf_P(writeBuffer, sizeof(writeBuffer), PSTR("{ \"max\": %d, \"count\": %d, \"duration\": [ %d, %d, %d, %d, %d, %d ] }"),
                    closeHistory.max, closeHistory.count,
-                   closeHistory(1), closeHistory(2), closeHistory(3), closeHistory(4), closeHistory(5), closeHistory(6));
+                   CLOSE_HISTORY(1), CLOSE_HISTORY(2), CLOSE_HISTORY(3), CLOSE_HISTORY(4), CLOSE_HISTORY(5), CLOSE_HISTORY(6));
         JSON_ADD_RAW("closeHistory", writeBuffer);
     }
 #ifdef ESP8266
