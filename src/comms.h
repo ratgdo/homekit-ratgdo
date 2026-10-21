@@ -75,19 +75,19 @@ struct __attribute__((aligned(4))) ForceRecover
 extern ForceRecover force_recover;
 
 // For door open/close duration
-constexpr uint32_t DOOR_MAX_HISTORY = 6;            // Number of door operations to average across
-constexpr uint32_t DOOR_MAX_DURATION = (45 * 1000); // Maximum time it should take to open/close a door
-constexpr uint32_t DOOR_MIN_DURATION = (3 * 1000);  // Minimum time it should take to open/close a door
+constexpr uint32_t GDO_MAX_HISTORY = 6;            // Number of door operations to average across
+constexpr uint32_t GDO_MAX_DURATION_MS = (65 * 1000); // Maximum time it should take to open/close a door
+constexpr uint32_t GDO_MIN_DURATION_MS = (3 * 1000);  // Minimum time it should take to open/close a door
 
 struct DoorHistory
 {
-    uint32_t max = DOOR_MAX_HISTORY;
+    uint32_t max = GDO_MAX_HISTORY;
     uint32_t count = 0;
-    uint32_t duration[DOOR_MAX_HISTORY] = {0};
+    uint32_t duration[GDO_MAX_HISTORY] = {0};
 };
 
 extern struct DoorHistory openHistory;
 extern struct DoorHistory closeHistory;
 
-#define openHistory(n) (openHistory.duration[(openHistory.count + DOOR_MAX_HISTORY - (n)) % DOOR_MAX_HISTORY])
-#define closeHistory(n) (closeHistory.duration[(closeHistory.count + DOOR_MAX_HISTORY - (n)) % DOOR_MAX_HISTORY])
+#define OPEN_HISTORY(n) (openHistory.duration[(openHistory.count + GDO_MAX_HISTORY - (n)) % GDO_MAX_HISTORY])
+#define CLOSE_HISTORY(n) (closeHistory.duration[(closeHistory.count + GDO_MAX_HISTORY - (n)) % GDO_MAX_HISTORY])
