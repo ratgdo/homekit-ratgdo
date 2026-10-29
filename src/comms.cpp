@@ -607,7 +607,9 @@ void setup_comms()
     if (doorControlType == DOOR_CONTROL_SEC_PLUS_V1)
     {
         ESP_LOGI(TAG, "=== Setting up comms for SECURITY+1.0 protocol");
+#ifdef ESP32
         gpio_set_level(STATUS_DOOR_PIN, 0);
+#endif
         pinMode(STATUS_DOOR_PIN, OUTPUT);
         digitalWrite(STATUS_DOOR_PIN, LOW); // initial state, LOW == door closed or wall panel connected
         wpDisconnectOnTx = userConfig->getWpDisconnectOnTx();
@@ -639,7 +641,9 @@ void setup_comms()
     else if (doorControlType == DOOR_CONTROL_SEC_PLUS_V2)
     {
         ESP_LOGI(TAG, "=== Setting up comms for SECURITY+2.0 protocol");
+#ifdef ESP32
         gpio_set_level(STATUS_DOOR_PIN, 0);
+#endif
         pinMode(STATUS_DOOR_PIN, OUTPUT);
         digitalWrite(STATUS_DOOR_PIN, LOW); // initial state, LOW == door closed or wall panel connected
         sw_serial.begin(9600, SWSERIAL_8N1, UART_RX_PIN, UART_TX_PIN, true, 32);
@@ -652,6 +656,7 @@ void setup_comms()
     else
     {
         ESP_LOGI(TAG, "=== Setting up comms for dry contact protocol");
+#ifdef ESP32
         // Using low-level GPIO configuration to ensure that the pins are correctly initialized with pull-downs and output levels
         gpio_config_t io_conf = {
             .pin_bit_mask = (1ULL << UART_TX_PIN),
@@ -661,15 +666,19 @@ void setup_comms()
             .intr_type = GPIO_INTR_DISABLE};
         gpio_config(&io_conf);
         gpio_set_level(UART_TX_PIN, 0);
-        pinMode(UART_TX_PIN, OUTPUT);
         io_conf.pin_bit_mask = (1ULL << DISCRETE_OPEN_PIN);
         gpio_config(&io_conf);
         gpio_set_level(DISCRETE_OPEN_PIN, 0);
-        pinMode(DISCRETE_OPEN_PIN, OUTPUT);
         io_conf.pin_bit_mask = (1ULL << DISCRETE_CLOSE_PIN);
         gpio_config(&io_conf);
         gpio_set_level(DISCRETE_CLOSE_PIN, 0);
+#endif
+        pinMode(UART_TX_PIN, OUTPUT);
+        digitalWrite(UART_TX_PIN, LOW);
+        pinMode(DISCRETE_OPEN_PIN, OUTPUT);
+        digitalWrite(DISCRETE_OPEN_PIN, LOW);
         pinMode(DISCRETE_CLOSE_PIN, OUTPUT);
+        digitalWrite(DISCRETE_CLOSE_PIN, LOW);
     }
     force_recover.push_count = 0;
     force_recover.enable = true;
