@@ -420,7 +420,6 @@ void handle_wifinets()
     snprintf(txtBuffer, TXT_BUFFER_SIZE, softAPtableLastRow, i, i, escapedSSID);
     server.sendContent(txtBuffer, strlen(txtBuffer));
     server.sendContent("\n", 1);
-    server.client().stop();
     free(escapedSSID);
     free(txtBuffer);
     return;
