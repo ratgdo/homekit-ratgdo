@@ -75,6 +75,7 @@ void handle_showlog();
 void handle_showrebootlog();
 void handle_crashlog();
 void handle_clearcrashlog();
+void handle_healthcheck();
 #ifdef CRASH_DEBUG
 void handle_forcecrash();
 void handle_crash_oom();
@@ -104,6 +105,7 @@ const std::unordered_map<std::string, std::pair<const HTTPMethod, void (*)()>> b
     {"/rescan", {HTTP_POST, handle_rescan}},
     {"/crashlog", {HTTP_GET, handle_crashlog}},
     {"/clearcrashlog", {HTTP_GET, handle_clearcrashlog}},
+    {"/healthcheck", {HTTP_GET, handle_healthcheck}},
 #ifdef CRASH_DEBUG
     {"/forcecrash", {HTTP_POST, handle_forcecrash}},
     {"/crashoom", {HTTP_POST, handle_crash_oom}},
@@ -1699,6 +1701,11 @@ void handle_clearcrashlog()
     ESP_LOGI(TAG, "Clear saved crash log");
     ratgdoLogger->clearCrashLog();
     server.send_P(200, type_txt, PSTR("Crash log cleared\n"));
+}
+
+void handle_healthcheck()
+{
+    server.send(200, type_txt, "OK");
 }
 
 #ifdef CRASH_DEBUG
