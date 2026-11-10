@@ -29,6 +29,13 @@
 #include "utilities.h"
 #include "web.h"
 #include "comms.h"
+#include <cstring>
+
+#ifndef ESP8266
+// Protected by logMutex. Absolute byte positions let a reader detect when
+// newer messages have overwritten bytes it has not copied yet.
+static uint64_t logAppendBytes = 0;
+#endif
 
 // Logger tag
 static const char *TAG = "ratgdo-logger";
@@ -252,6 +259,9 @@ void LOG::logToBuffer(const char *fmt, va_list args)
         msgBuffer->head += len;
     }
     msgBuffer->buffer[msgBuffer->head] = 0; // null terminate
+#ifndef ESP8266
+    logAppendBytes += len;
+#endif
 
     static bool inFn = false;
     if (!inFn)
@@ -274,10 +284,13 @@ void LOG::clearCrashLog()
 {
 #ifdef ESP8266
     saveCrash.clear();
+    crashCount = 0;
 #else
     esp_core_dump_image_erase();
-#endif
+    TAKE_MUTEX();
     crashCount = 0;
+    GIVE_MUTEX();
+#endif
 }
 
 #ifdef ESP8266
@@ -309,15 +322,22 @@ void LOG::printCrashLog(Print &outputDev)
 #else
 void LOG::printCrashLog(Print &outputDev)
 {
+    // The RTC crash log is written only by the panic handler, which resets the
+    // device. Snapshot ordinary mutable metadata without holding the logger
+    // lock across flash access or potentially blocking output.
     TAKE_MUTEX();
-    if (crashCount > 0)
+    const int32_t savedCrashCount = crashCount;
+    const time_t savedCrashTime = crashTime;
+    const _millis_t savedCrashUpTime = crashUpTime;
+    GIVE_MUTEX();
+    if (savedCrashCount > 0)
     {
-        if (crashTime)
+        if (savedCrashTime)
         {
-            outputDev.printf("Server boot time: %llu (%s)\n", crashTime - (crashUpTime / 1000), timeString(crashTime - (crashUpTime / 1000)));
-            outputDev.printf("Server crash time: %llu (%s)\n", crashTime, timeString(crashTime));
+            outputDev.printf("Server boot time: %llu (%s)\n", savedCrashTime - (savedCrashUpTime / 1000), timeString(savedCrashTime - (savedCrashUpTime / 1000)));
+            outputDev.printf("Server crash time: %llu (%s)\n", savedCrashTime, timeString(savedCrashTime));
         }
-        outputDev.printf("Server uptime: %llu ms (%s)\n", crashUpTime, toHHMMSSmmm((_millis_t)crashUpTime));
+        outputDev.printf("Server uptime: %llu ms (%s)\n", savedCrashUpTime, toHHMMSSmmm((_millis_t)savedCrashUpTime));
         outputDev.printf("Crash reason: %s\n", reasonString);
         outputDev.printf("Firmware version: %s\n\n", crashVersion);
         outputDev.flush();
@@ -337,13 +357,13 @@ void LOG::printCrashLog(Print &outputDev)
         {
             if (esp_core_dump_get_summary(summary) == ESP_OK)
             {
-                if (crashCount <= 0)
+                if (savedCrashCount <= 0)
                     outputDev.print("No saved message log available.\n");
 
                 outputDev.print("\n\n");
                 outputDev.printf("Crash in task: %s, at address: 0x%08lX\n", summary->exc_task, summary->exc_pc);
                 outputDev.print("Decode backtrace with this Linux command:\n\n");
-                if (crashCount > 0)
+                if (savedCrashCount > 0)
                     outputDev.printf("addr2line -p -f -C -e homekit-ratgdo32-v%s.elf \\\n", crashVersion);
                 else
                     outputDev.print("addr2line -p -f -C -e firmware.elf \\\n");
@@ -364,7 +384,6 @@ void LOG::printCrashLog(Print &outputDev)
     {
         outputDev.print("\n\nNo core dump image available.\n");
     }
-    GIVE_MUTEX();
 }
 
 void LOG::saveMessageLog()
@@ -449,7 +468,38 @@ void LOG::printSavedLog(Print &outputDev)
 
 void LOG::printMessageLog(Print &outputDev, bool slow)
 {
+#ifndef ESP8266
+    uint64_t end = 0;
+    uint64_t next = 0;
+    size_t index = 0;
+    char chunk[256];
+    size_t length = 0;
+    // Called only with logMutex held; the stack chunk remains stable during I/O.
+    auto copyChunk = [&]()
+    {
+        const size_t capacity = sizeof(msgBuffer->buffer);
+        length = static_cast<size_t>(std::min<uint64_t>(sizeof(chunk), end - next));
+        const size_t first = std::min(length, capacity - index);
+        memcpy(chunk, msgBuffer->buffer + index, first);
+        if (first < length)
+            memcpy(chunk + first, msgBuffer->buffer, length - first);
+        index = (index + length) % capacity;
+        next += length;
+    };
     TAKE_MUTEX();
+    if (msgBuffer)
+    {
+        end = logAppendBytes;
+        const size_t capacity = sizeof(msgBuffer->buffer);
+        const size_t saved = msgBuffer->wrapped ? capacity - 1 : msgBuffer->head;
+        next = end - saved;
+        index = msgBuffer->wrapped ? (msgBuffer->head + 1) % capacity : 0;
+        if (next < end)
+            copyChunk();
+    }
+    GIVE_MUTEX();
+#endif
+
     if (clockSet)
     {
         time_t now = time(NULL);
@@ -468,6 +518,8 @@ void LOG::printMessageLog(Print &outputDev, bool slow)
     outputDev.printf_P(PSTR("\n"));
     outputDev.flush();
 
+#ifdef ESP8266
+    // Single threaded; preserve the existing IRAM output path.
     if (msgBuffer)
     {
         // +1 head points to a zero (null terminator of previous log line) which we need to skip.
@@ -477,14 +529,11 @@ void LOG::printMessageLog(Print &outputDev, bool slow)
         // On slow output devices (e.g. network), chunk up to protect against buffer overflow
         size_t CHUNK = (slow) ? TCP_SND_BUF / 2 : sizeof(msgBuffer->buffer);
         size_t chunk;
-        SERIAL_PRINT("Send message log.");
         if (msgBuffer->wrapped != 0)
         {
             while (len)
             {
                 chunk = std::min(len, CHUNK);
-                // Progress dot dot dot
-                SERIAL_PRINT(".");
                 YIELD();
                 outputDev.write(&msgBuffer->buffer[start], chunk);
                 if (slow)
@@ -498,17 +547,41 @@ void LOG::printMessageLog(Print &outputDev, bool slow)
         while (len)
         {
             chunk = std::min(len, CHUNK);
-            // Progress dot dot dot
-            SERIAL_PRINT(".");
             YIELD();
             outputDev.write(&msgBuffer->buffer[start], chunk);
             outputDev.flush();
             len -= chunk;
             start += chunk;
         }
-        SERIAL_PRINT("\n");
     }
-    GIVE_MUTEX();
+#else
+    while (length)
+    {
+        YIELD();
+        if (outputDev.write(reinterpret_cast<const uint8_t *>(chunk), length) != length)
+            return;
+        if (slow)
+            outputDev.flush();
+
+        bool overwritten = false;
+        TAKE_MUTEX();
+        length = 0;
+        if (next < end)
+        {
+            if (logAppendBytes - next > sizeof(msgBuffer->buffer) - 1)
+                overwritten = true;
+            else
+                copyChunk();
+        }
+        GIVE_MUTEX();
+        if (overwritten)
+        {
+            outputDev.print("\nLog truncated: newer messages overwrote unread log data.\n");
+            return;
+        }
+    }
+    outputDev.flush();
+#endif
 }
 
 /****************************************************************************
