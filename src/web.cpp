@@ -19,6 +19,10 @@
 #include <tuple>
 #include <unordered_map>
 #include <time.h>
+#if defined(ESP32) && defined(RATGDO_HTTP_LIFECYCLE_EXPERIMENT)
+#include <atomic>
+#include <cstdint>
+#endif
 
 // ESP system includes
 #include <Ticker.h>
@@ -31,6 +35,17 @@
 #else
 #include "esp_core_dump.h"
 #include <ESPmDNS.h>
+#include <lwip/sockets.h>
+#if defined(RATGDO_HTTP_LIFECYCLE_EXPERIMENT)
+extern "C" {
+#include <lwip/api.h>
+#include <lwip/tcpip.h>
+#include <lwip/priv/tcp_priv.h>
+#include <lwip/priv/sockets_priv.h>
+}
+#endif
+// Preserve Arduino's IPAddress constant rather than lwIP's integer macro.
+#undef INADDR_NONE
 #endif
 
 // RATGDO project includes
@@ -88,10 +103,17 @@ void SSEHandler(uint32_t channel);
 void add_static_mdns();
 void add_dynamic_mdns();
 
+#if defined(ESP32) && defined(RATGDO_HTTP_LIFECYCLE_EXPERIMENT)
+void handle_http_lifecycle();
+#endif
+
 // Built in URI handlers
 const char restEvents[] = "/rest/events/";
 const std::unordered_map<std::string, std::pair<const HTTPMethod, void (*)()>> builtInUri = {
     {"/status.json", {HTTP_GET, handle_status}},
+#if defined(ESP32) && defined(RATGDO_HTTP_LIFECYCLE_EXPERIMENT)
+    {"/diag/http.json", {HTTP_GET, handle_http_lifecycle}},
+#endif
     {"/reset", {HTTP_POST, handle_reset}},
     {"/reboot", {HTTP_POST, handle_reboot}},
     {"/setgdo", {HTTP_POST, handle_setgdo}},
@@ -117,6 +139,303 @@ const std::unordered_map<std::string, std::pair<const HTTPMethod, void (*)()>> b
 ESP8266WebServer server(80);
 #else
 WebServer server(80);
+#endif
+
+#if defined(ESP32) && defined(RATGDO_HTTP_LIFECYCLE_EXPERIMENT)
+// Experimental pinned-SDK lifecycle: retain only ordinary HTTP response owners
+// until ACK completion, or abort their verified attached PCB after no progress.
+// This does not interrupt a NetworkClient::write blocked inside a handler.
+namespace {
+constexpr unsigned HTTP_OWNED_SLOTS = 2;
+constexpr uint32_t HTTP_OWNED_POLL_MS = HTTP_MAX_SEND_WAIT / 20;
+enum class HttpOwnedState { Empty, Active, Release, Aborted, Quarantined };
+struct HttpOwnedResponse {
+    NetworkClient owner;
+    HttpOwnedState state = HttpOwnedState::Empty;
+    int fd = -1;
+    uint32_t generation = 0, lastAck = 0, retained = 0;
+    struct netconn *connection = nullptr;
+    struct tcp_pcb *pcb = nullptr;
+    ip_addr_t localIP{}, remoteIP{};
+    uint16_t localPort = 0, remotePort = 0;
+    bool initialized = false, reported = false;
+    _millis_t lastProgress = 0;
+};
+struct HttpOwnedCounters {
+    uint32_t tracked = 0, released = 0, aborted = 0, quarantined = 0;
+    uint32_t postFailures = 0, maximumRetainedPayload = 0;
+};
+HttpOwnedResponse httpOwned[HTTP_OWNED_SLOTS];
+HttpOwnedCounters httpOwnedCounters;
+struct tcpip_callback_msg *httpOwnedMessage = nullptr;
+std::atomic<bool> httpOwnedDone{false};
+bool httpOwnedPending = false;
+_millis_t httpOwnedNow = 0, httpOwnedPolledAt = 0;
+uint32_t httpOwnedPayload = 0;
+// Main-only evidence: never read callback-owned entries/payload from a handler.
+uint32_t httpOwnedCurrentPayload = 0, httpOwnedLastPayload = 0;
+constexpr size_t HTTP_OWNED_JSON_SIZE = 384;
+
+int httpOwnedEvidence(char *json, size_t capacity)
+{
+    return snprintf(json, capacity,
+                    "{\"tracked\":%lu,\"released\":%lu,\"aborted\":%lu,\"quarantined\":%lu,"
+                    "\"callbackPostFailures\":%lu,\"maximumRetainedPayload\":%lu,"
+                    "\"currentRetainedPayload\":%lu,\"lastRetainedPayload\":%lu}",
+                    static_cast<unsigned long>(httpOwnedCounters.tracked),
+                    static_cast<unsigned long>(httpOwnedCounters.released),
+                    static_cast<unsigned long>(httpOwnedCounters.aborted),
+                    static_cast<unsigned long>(httpOwnedCounters.quarantined),
+                    static_cast<unsigned long>(httpOwnedCounters.postFailures),
+                    static_cast<unsigned long>(httpOwnedCounters.maximumRetainedPayload),
+                    static_cast<unsigned long>(httpOwnedCurrentPayload),
+                    static_cast<unsigned long>(httpOwnedLastPayload));
+}
+
+// Core callback: no application logging, sockets, owner methods or pointer
+// retention beyond the retained owner. Main cannot touch owners while pending.
+void httpOwnedInspect(void *)
+{
+    uint32_t total = 0;
+    for (auto &entry : httpOwned)
+    {
+        if (entry.state != HttpOwnedState::Active)
+            continue;
+        struct lwip_sock *socket = lwip_socket_dbg_get_socket(entry.fd);
+        if (!socket || !socket->conn ||
+            NETCONNTYPE_GROUP(socket->conn->type) != NETCONN_TCP ||
+            (entry.initialized && socket->conn != entry.connection))
+        {
+            entry.state = HttpOwnedState::Quarantined;
+            continue;
+        }
+        struct netconn *connection = socket->conn;
+        struct tcp_pcb *pcb = connection->pcb.tcp;
+        if (!pcb)
+        {
+            // A peer reset has already run netconn's error callback. The owned
+            // descriptor still needs normal socket/netconn cleanup by main.
+            entry.state = HttpOwnedState::Release;
+            continue;
+        }
+        // A retained descriptor does not pin a PCB in TIME_WAIT. Compare
+        // pointer values before dereferencing: SDK GC may already have freed it.
+        bool activePCB = false;
+        unsigned visited = 0;
+        for (const struct tcp_pcb *candidate = tcp_active_pcbs;
+             candidate && visited < 64; candidate = candidate->next, ++visited)
+            if (candidate == pcb) { activePCB = true; break; }
+        if (!activePCB)
+        {
+            entry.state = HttpOwnedState::Quarantined;
+            continue;
+        }
+        if (pcb->local_port != 80 ||
+            (pcb->state != ESTABLISHED && pcb->state != CLOSE_WAIT) ||
+            pcb->callback_arg != connection || !pcb->errf ||
+            (entry.initialized &&
+             (pcb != entry.pcb || pcb->local_port != entry.localPort || pcb->remote_port != entry.remotePort ||
+              !ip_addr_cmp(&pcb->local_ip, &entry.localIP) || !ip_addr_cmp(&pcb->remote_ip, &entry.remoteIP))))
+        {
+            entry.state = HttpOwnedState::Quarantined;
+            continue;
+        }
+        if (!entry.initialized)
+        {
+            entry.connection = connection;
+            entry.pcb = pcb;
+            entry.localIP = pcb->local_ip;
+            entry.remoteIP = pcb->remote_ip;
+            entry.localPort = pcb->local_port;
+            entry.remotePort = pcb->remote_port;
+            entry.lastAck = pcb->lastack;
+            entry.lastProgress = httpOwnedNow;
+            entry.initialized = true;
+        }
+        uint32_t retained = 0;
+        unsigned segments = 0;
+        const struct tcp_seg *segment = pcb->unsent;
+        for (; segment && segments < 64; segment = segment->next, ++segments)
+            retained += segment->len;
+        bool truncated = segment != nullptr;
+        segments = 0;
+        for (segment = pcb->unacked; segment && segments < 64; segment = segment->next, ++segments)
+            retained += segment->len;
+        truncated = truncated || segment != nullptr;
+        entry.retained = retained;
+        total += retained;
+        if (!truncated && retained == 0)
+        {
+            // Payload is acknowledged. Full socket close detaches netconn
+            // normally; any FIN-only metadata remains under SDK management.
+            entry.state = HttpOwnedState::Release;
+            continue;
+        }
+        if (pcb->lastack != entry.lastAck)
+        {
+            entry.lastAck = pcb->lastack;
+            entry.lastProgress = httpOwnedNow;
+        }
+        if (!truncated && httpOwnedNow - entry.lastProgress >= HTTP_MAX_SEND_WAIT)
+        {
+            // tcp_abort frees queues/PCB and invokes the original netconn
+            // err_tcp callback. Never dereference pcb after this call.
+            tcp_abort(pcb);
+            entry.state = HttpOwnedState::Aborted;
+        }
+    }
+    httpOwnedPayload = total;
+    httpOwnedDone.store(true, std::memory_order_release);
+}
+
+bool httpOwnedRoom()
+{
+    for (const auto &entry : httpOwned)
+        if (entry.state == HttpOwnedState::Quarantined)
+            return false; // Ownership violation: never close a possibly reused FD.
+    for (const auto &entry : httpOwned)
+        if (entry.state == HttpOwnedState::Empty)
+            return true;
+    return false;
+}
+
+// Return false before any WebServer/owned-client operation while a callback is
+// queued. The caller still returns to the normal comms and service timer loops.
+bool httpOwnedPoll()
+{
+    if (!httpOwnedMessage)
+        return false; // Initialization failure pauses HTTP admission safely.
+    if (httpOwnedPending)
+    {
+        if (!httpOwnedDone.load(std::memory_order_acquire))
+            return false;
+        httpOwnedPending = false;
+        httpOwnedLastPayload = httpOwnedPayload;
+        httpOwnedCounters.maximumRetainedPayload = std::max(httpOwnedCounters.maximumRetainedPayload, httpOwnedPayload);
+        for (auto &entry : httpOwned)
+        {
+            if (entry.state == HttpOwnedState::Release || entry.state == HttpOwnedState::Aborted)
+            {
+                const int currentFD = entry.owner.fd();
+                if (currentFD == -1)
+                {
+                    entry.owner.stop();
+                    entry = HttpOwnedResponse{};
+                    continue;
+                }
+                if (currentFD != entry.fd)
+                    entry.state = HttpOwnedState::Quarantined;
+            }
+            if (entry.state == HttpOwnedState::Quarantined)
+            {
+                if (!entry.reported)
+                {
+                    entry.reported = true;
+                    ++httpOwnedCounters.quarantined;
+                    ESP_LOGE(TAG, "HTTP owner identity changed, quarantining fd %d; HTTP admission paused", entry.fd);
+                }
+            }
+            else if (entry.state == HttpOwnedState::Release || entry.state == HttpOwnedState::Aborted)
+            {
+                if (entry.state == HttpOwnedState::Aborted)
+                {
+                    ++httpOwnedCounters.aborted;
+                    ESP_LOGW(TAG, "HTTP owned response stalled: fd %d, generation %lu, queued payload %lu, peak retained payload %lu, aborted %lu",
+                             entry.fd, entry.generation, entry.retained, httpOwnedCounters.maximumRetainedPayload, httpOwnedCounters.aborted);
+                }
+                else
+                    ++httpOwnedCounters.released;
+                entry.owner.stop();
+                entry = HttpOwnedResponse{};
+            }
+        }
+    }
+    const _millis_t now = _millis();
+    bool active = false;
+    for (auto &entry : httpOwned)
+    {
+        if (entry.state != HttpOwnedState::Active)
+            continue;
+        const int currentFD = entry.owner.fd();
+        if (currentFD == -1)
+        {
+            // An alias already stopped this shared handle. Never use cached fd.
+            entry.owner.stop();
+            entry = HttpOwnedResponse{};
+            continue;
+        }
+        if (currentFD != entry.fd)
+        {
+            entry.state = HttpOwnedState::Quarantined;
+            entry.reported = true;
+            ++httpOwnedCounters.quarantined;
+            ESP_LOGE(TAG, "HTTP owner descriptor changed; HTTP admission paused");
+            continue;
+        }
+        active = true;
+    }
+    httpOwnedCurrentPayload = 0;
+    for (const auto &entry : httpOwned)
+        if (entry.state == HttpOwnedState::Active)
+            httpOwnedCurrentPayload += entry.retained;
+    if (active && now - httpOwnedPolledAt >= HTTP_OWNED_POLL_MS)
+    {
+        httpOwnedPolledAt = now;
+        httpOwnedNow = now;
+        httpOwnedDone.store(false, std::memory_order_relaxed);
+        httpOwnedPending = true;
+        if (tcpip_callbackmsg_trycallback(httpOwnedMessage) != ERR_OK)
+        {
+            httpOwnedPending = false;
+            ++httpOwnedCounters.postFailures;
+        }
+        return false;
+    }
+    return httpOwnedRoom();
+}
+
+void setupHttpOwnedExperiment()
+{
+    httpOwnedMessage = tcpip_callbackmsg_new(httpOwnedInspect, nullptr);
+    if (!httpOwnedMessage)
+    {
+        ESP_LOGE(TAG, "HTTP lifecycle experiment unavailable: callback allocation failed; HTTP admission paused");
+        return;
+    }
+    server.addMiddleware([](WebServer &web, Middleware::Callback next)
+    {
+        const String uri = web.uri();
+        // String copies can fail under memory pressure. Do not dispatch a URI
+        // that could have lost its SSE exclusion during that allocation.
+        if (!uri || uri.length() == 0)
+            return false;
+        // Only GET event-channel handlers retain a long-lived client. The
+        // subscribe endpoint returns a normal short response. Other suffixes
+        // stay excluded too: existing dispatch converts them with atoi().
+        const bool eventStream = web.method() == HTTP_GET &&
+                                 uri.startsWith("/rest/events/") && uri != "/rest/events/subscribe";
+        if (eventStream || uri == "/update" || uri == "/reboot" || uri == "/reset")
+            return next();
+        HttpOwnedResponse *slot = nullptr;
+        for (auto &entry : httpOwned)
+            if (entry.state == HttpOwnedState::Empty) { slot = &entry; break; }
+        if (!slot || httpOwnedPending)
+            return false; // Admission gate should prevent reaching this branch.
+        NetworkClient retained = web.client(); // Strong reference before handler.
+        const bool handled = next();
+        const int fd = retained.fd(); // A failed write may already have stopped it.
+        if (fd >= 0)
+        {
+            slot->owner = retained;
+            slot->fd = fd;
+            slot->generation = ++httpOwnedCounters.tracked;
+            slot->lastProgress = _millis();
+            slot->state = HttpOwnedState::Active;
+        }
+        return handled;
+    });
+}
+} // namespace
 #endif
 
 // Local copy of door status
@@ -335,6 +654,9 @@ void web_loop()
 {
     if (!web_setup_done)
         return;
+#if defined(ESP32) && defined(RATGDO_HTTP_LIFECYCLE_EXPERIMENT)
+    const bool mayHandleClient = httpOwnedPoll();
+#endif
 
     static char *json = status_json;
     _millis_t upTime = _millis();
@@ -491,7 +813,10 @@ void web_loop()
         return; // Skip this cycle to enforce rate limit
     }
 
-    server.handleClient();
+#if defined(ESP32) && defined(RATGDO_HTTP_LIFECYCLE_EXPERIMENT)
+    if (mayHandleClient)
+#endif
+        server.handleClient();
     // Update last request time after handling client
     last_request_time = current_time;
 }
@@ -551,6 +876,9 @@ void setup_web()
     size_t headerkeyssize = sizeof(headerkeys) / sizeof(char *);
     // ask server to track these headers
     server.collectHeaders(headerkeys, headerkeyssize);
+#if defined(ESP32) && defined(RATGDO_HTTP_LIFECYCLE_EXPERIMENT)
+    setupHttpOwnedExperiment();
+#endif
     server.begin();
     // initialize all the Server-Sent Events (SSE) slots.
     for (uint32_t i = 0; i < SSE_MAX_CHANNELS; i++)
@@ -640,6 +968,25 @@ static bool requestAuthenticated()
     }
     return true;
 }
+
+#if defined(ESP32) && defined(RATGDO_HTTP_LIFECYCLE_EXPERIMENT)
+void handle_http_lifecycle()
+{
+    if (!requestAuthenticated())
+        return;
+    // Separate bounded output: status.json already approaches its capacity.
+    // This runs on the web loop; all values below are published by main only.
+    char json[HTTP_OWNED_JSON_SIZE];
+    const int length = httpOwnedEvidence(json, sizeof(json));
+    if (length < 0 || static_cast<size_t>(length) >= sizeof(json))
+    {
+        server.send(500, "text/plain", "HTTP diagnostic overflow");
+        return;
+    }
+    server.sendHeader(F("Cache-Control"), F("no-cache, no-store"));
+    server.send(200, type_json, json);
+}
+#endif
 
 void handle_auth()
 {
