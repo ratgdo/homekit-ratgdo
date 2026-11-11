@@ -628,7 +628,10 @@ void setup_comms()
         gpio_pulldown_dis(UART_RX_PIN);
         gpio_pullup_en(UART_RX_PIN);
         Sec1Serial.onReceiveError(receiveErrorHandler);
-        Sec1Serial.setTimeout(10); // 10 ms used for Sec1Serial.readBytes() in transmitSec1()
+        // Hand each received byte over at once, and allow time for the echo in transmitSec1():
+        // one 8E1 byte at 1200 baud takes 9.17 ms to send before its echo can arrive.
+        Sec1Serial.setRxFIFOFull(1);
+        Sec1Serial.setTimeout(20); // 20 ms used for Sec1Serial.readBytes() in transmitSec1()
 #else
         Sec1Serial.begin(1200, SWSERIAL_8E1, UART_RX_PIN, UART_TX_PIN, true, 32);
         Sec1Serial.onReceive(receiveHandler);
