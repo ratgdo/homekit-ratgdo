@@ -5,9 +5,27 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 > [!IMPORTANT]
 > HomeKit firmware for ESP8266-based RATGDO v2.5-series devices has been in maintenance mode since version 2.2.0: updates continue on a best-effort basis, but feature parity with ESP32 is no longer guaranteed. See [README.md](https://github.com/ratgdo/homekit-ratgdo/blob/main/README.md)
 
+## v2.2.7 (2026-11-??)
+
+**NOTE** If updating from version 2.2.5 you must disable password required setting (if set).  You can re-enable it after update completes.
+
+### What's Changed
+
+**NOTE** Source code changes impact ESP32 (ratgdo32) builds only.  Merged into ESP8266 (ratgdo) source tree to maintain source code consistency across versions.
+
+* Feature: ratgdo32 only: Report byte-addressable internal heap in status.json. https://github.com/ratgdo/homekit-ratgdo32/pull/235
+* Other: ratgdo32 only: Bound stalled ordinary HTTP response connections on ESP32. https://github.com/ratgdo/homekit-ratgdo32/pull/216
+
+### Known Issues
+
+* Sec+ 1.0 doors with digital wall panel (e.g. 889LM) sometimes do not close after a time-to-close delay. Please watch your door to make sure it closes after TTC delay.
+* Sec+ 1.0 doors with "0x37" digital wall panel (e.g. 398LM) not working. We now detect but will not support them.  Recommend replacing with 889LM panel.
+* When creating automations in Apple Home, the garage door may show only lock/unlock and not open/close as triggers. This is a bug in Apple Home. Workaround is to use the Eve App to create the automation, it will show both options.
+* ESP8266 (original ratgdo) only... possible crash when a storm of HomeKit messages arrives... which may be triggered on a upgrade of Apple iOS/tvOS/etc. versions. System recovers.
+
 ## v2.2.6 (2026-11-07)
 
-**NOTE** If updating from version 2.3.5 you must disable password required setting (if set).  You can re-enable it after update completes.
+**NOTE** If updating from version 2.2.5 you must disable password required setting (if set).  You can re-enable it after update completes.
 
 ### What's Changed
 
@@ -18,13 +36,6 @@ All notable changes to `homekit-ratgdo` will be documented in this file. This pr
 * Bugfix: Automatic reversal on stop not working as intended. https://github.com/ratgdo/homekit-ratgdo32/pull/213
 * Feature:  Added a /healthcheck URL so that monitoring tools can easily check if device is alive. https://github.com/ratgdo/homekit-ratgdo32/pull/233
 * Other: Pull in Arduino-HomeKit-ESP8266 v1.5.3 that includes some CVE fixes
-
-### Known Issues
-
-* Sec+ 1.0 doors with digital wall panel (e.g. 889LM) sometimes do not close after a time-to-close delay. Please watch your door to make sure it closes after TTC delay.
-* Sec+ 1.0 doors with "0x37" digital wall panel (e.g. 398LM) not working. We now detect but will not support them.  Recommend replacing with 889LM panel.
-* When creating automations in Apple Home, the garage door may show only lock/unlock and not open/close as triggers. This is a bug in Apple Home. Workaround is to use the Eve App to create the automation, it will show both options.
-* ESP8266 (original ratgdo) only... possible crash when a storm of HomeKit messages arrives... which may be triggered on a upgrade of Apple iOS/tvOS/etc. versions. System recovers.
 
 ## v2.2.5 (2026-09-21)
 
