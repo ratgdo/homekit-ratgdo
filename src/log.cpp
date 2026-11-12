@@ -21,6 +21,9 @@
 #ifndef ESP8266
 #include <esp32-hal.h>
 #include <esp_core_dump.h>
+#include <lwip/opt.h>
+#include <arch/sys_arch.h>
+#include <esp_rom_sys.h>
 #endif
 
 // RATGDO project includes
@@ -63,6 +66,19 @@ esp_log_level_t logLevel = ESP_LOG_VERBOSE;
 // Allows us to intercept all ESP_LOGx() even outside our code.
 void esp_log_hook(const char *fmt, va_list args)
 {
+#ifndef ESP8266
+    // Serial.begin() and Serial.print() can block on UART driver locks while
+    // lwIP holds its core lock. ROM printf writes the UART directly, so core-held
+    // logs still reach the serial port even before ratgdoLogger exists.
+    if (sys_thread_tcpip(LWIP_CORE_LOCK_QUERY_HOLDER))
+    {
+        if (ratgdoLogger)
+            ratgdoLogger->logToBuffer(fmt, args);
+        else if (!suppressSerialLog)
+            esp_rom_vprintf(fmt, args);
+        return;
+    }
+#endif
     if (!Serial)
     {
         // Before we can log anything, we need to initialize the serial port.
@@ -218,7 +234,14 @@ LOG::LOG()
 
 void LOG::logToBuffer(const char *fmt, va_list args)
 {
-    TAKE_MUTEX();
+#ifndef ESP8266
+    // lwIP logs while holding its non-recursive TCPIP core lock. Socket
+    // delivery would take that lock again; waiting for another logger can
+    // also deadlock if that logger is waiting for the core, so only try.
+    const bool coreLocked = sys_thread_tcpip(LWIP_CORE_LOCK_QUERY_HOLDER);
+    if (xSemaphoreTakeRecursive(logMutex, coreLocked ? 0 : portMAX_DELAY) != pdTRUE)
+        return;
+#endif
     // parse the format string into lineBuffer
     vsnprintf(lineBuffer, LINE_BUFFER_SIZE, fmt, args);
     // If timestamp is wrapped in () and not [] then message is from one of the ESP_LOGx() functions.
@@ -240,7 +263,16 @@ void LOG::logToBuffer(const char *fmt, va_list args)
     }
 
     //  print line to the serial port
-    SERIAL_PRINT(lineBuffer);
+#ifndef ESP8266
+    if (coreLocked)
+    {
+        // Serial.print() can wait for a driver mutex or TX space; ROM printf cannot.
+        if (!suppressSerialLog)
+            esp_rom_printf("%s", lineBuffer);
+    }
+    else
+#endif
+        SERIAL_PRINT(lineBuffer);
 
     // copy the line into the message save buffer
     size_t len = strlen(lineBuffer);
@@ -264,7 +296,11 @@ void LOG::logToBuffer(const char *fmt, va_list args)
 #endif
 
     static bool inFn = false;
-    if (!inFn)
+    if (!inFn
+#ifndef ESP8266
+        && !coreLocked
+#endif
+    )
     {
         // Control recursion... make sure we don't get into a loop if any
         // of the functions we use here log a message.  This is known to happen
