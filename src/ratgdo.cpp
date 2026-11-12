@@ -26,6 +26,7 @@
 #include <LittleFS.h>
 #else
 #include <esp_core_dump.h>
+#include <esp_heap_caps.h>
 #include <esp_log.h>
 #include <ping/ping_sock.h>
 #endif
@@ -119,6 +120,9 @@ void stackCheckFn()
 uint32_t free_heap_at_boot = 0;
 uint32_t free_heap = (1024 * 1024);
 uint32_t min_heap = (1024 * 1024);
+#ifndef ESP8266
+uint32_t max_alloc_heap = 0;
+#endif
 #ifdef MMU_IRAM_HEAP
 uint32_t free_iram_at_boot = 0;
 uint32_t free_iram = (1024 * 1024);
@@ -446,16 +450,26 @@ void service_timer_loop()
     if (current_millis - last_heap_check >= FREE_HEAP_CHECK_MS)
     {
         last_heap_check = current_millis;
+#ifdef ESP8266
         free_heap = ESP.getFreeHeap();
-        if (free_heap < min_heap)
+        const uint32_t lowest_heap = free_heap;
+#else
+        // Byte-addressable internal heap, which mDNS and lwIP allocate from. The SDK
+        // records the exact minimum, including dips between these checks.
+        constexpr uint32_t heapCaps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+        free_heap = heap_caps_get_free_size(heapCaps);
+        max_alloc_heap = heap_caps_get_largest_free_block(heapCaps);
+        const uint32_t lowest_heap = heap_caps_get_minimum_free_size(heapCaps);
+#endif
+        if (lowest_heap < min_heap)
         {
-            min_heap = free_heap;
+            min_heap = lowest_heap;
             ESP_LOGD(TAG, "Free heap dropped to %d", min_heap);
-            if (free_heap < MIN_FREE_HEAP)
-            {
-                ESP_LOGW(TAG, "Free heap dropped below %d, rebooting to maintain stability", MIN_FREE_HEAP);
-                sync_and_restart();
-            }
+        }
+        if (free_heap < MIN_FREE_HEAP)
+        {
+            ESP_LOGW(TAG, "Free heap dropped below %d, rebooting to maintain stability", MIN_FREE_HEAP);
+            sync_and_restart();
         }
 
 #ifdef MMU_IRAM_HEAP

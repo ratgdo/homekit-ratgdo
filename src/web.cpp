@@ -38,7 +38,6 @@
 #include <ESP8266mDNS.h>
 #else
 #include "esp_core_dump.h"
-#include <esp_heap_caps.h>
 #include <ESPmDNS.h>
 #include <lwip/sockets.h>
 #if defined(RATGDO_HTTP_LIFECYCLE_EXPERIMENT)
@@ -1263,11 +1262,7 @@ void build_status_json(char *json)
     JSON_ADD_INT("freeHeap", free_heap);
     JSON_ADD_INT("minHeap", min_heap);
 #ifndef ESP8266
-    // Byte-addressable internal heap used by mDNS and other SDK allocations.
-    constexpr uint32_t byteHeapCaps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
-    JSON_ADD_INT("freeInternal8Bit", static_cast<uint32_t>(heap_caps_get_free_size(byteHeapCaps)));
-    JSON_ADD_INT("minInternal8Bit", static_cast<uint32_t>(heap_caps_get_minimum_free_size(byteHeapCaps)));
-    JSON_ADD_INT("largestInternal8Bit", static_cast<uint32_t>(heap_caps_get_largest_free_block(byteHeapCaps)));
+    JSON_ADD_INT("maxAllocHeap", max_alloc_heap);
 #endif
     JSON_ADD_INT("crashCount", abs(crashCount));
     JSON_ADD_BOOL(cfg_staticIP, userConfig->getStaticIP());
@@ -1835,6 +1830,9 @@ void SSEheartbeat(SSESubscription *s)
         JSON_ADD_INT("upTime", _millis());
         JSON_ADD_INT("freeHeap", free_heap);
         JSON_ADD_INT("minHeap", min_heap);
+#ifndef ESP8266
+        JSON_ADD_INT("maxAllocHeap", max_alloc_heap);
+#endif
         // TODO monitor stack... JSON_ADD_INT("minStack", ESP.getFreeContStack());
 #ifdef RATGDO32_DISCO
         static int32_t lastVehicleDistance = 0;

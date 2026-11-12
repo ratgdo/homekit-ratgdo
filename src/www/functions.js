@@ -757,6 +757,10 @@ function setElementsFromStatus(status) {
                 document.getElementById("tdStack").style.display = "table-cell";
                 document.getElementById(key).innerHTML = value;
                 break;
+            case "maxAllocHeap":
+                document.getElementById("tdMaxAlloc").style.display = "table-cell";
+                document.getElementById(key).innerHTML = value;
+                break;
             case "qrPayload":
                 showQrCode(value);
                 break;

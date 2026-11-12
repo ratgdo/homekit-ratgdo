@@ -201,6 +201,9 @@ extern bool suspend_service_loop;
 extern bool wifi_got_ip;
 extern "C" uint32_t free_heap;
 extern "C" uint32_t min_heap;
+#ifndef ESP8266
+extern "C" uint32_t max_alloc_heap;
+#endif
 extern "C" uint32_t free_heap_at_boot;
 extern "C" uint32_t free_iram_at_boot;
 
