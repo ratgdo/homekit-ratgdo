@@ -156,6 +156,8 @@ struct SSELock { explicit operator bool() const { return true; } };
 char statusStorage[256]{}, *status_json=statusStorage, writeBuffer[512]{};
 void clientWrite(Client,const char *) {}
 bool sendSSEEvent(Client,const char *,const char *) { return sendOk; }
+unsigned heartbeatSends=0;
+void sendSSEHeartbeats() { ++heartbeatSends; }
 void removeSSEsubscription(SSESubscription *s) {
     s->active=false;
     ++retiredStreams;
@@ -191,7 +193,8 @@ int main() {
     // A pause survives returns from the real callback between upload chunks.
     assert(pollCanRun()); start(); assert(!pollCanRun());
     assert(Update.checksum=="0123456789abcdef0123456789abcdef");
-    event(UPLOAD_FILE_WRITE); assert(!pollCanRun());
+    // web_loop() can't run during the upload, so each chunk sends due heartbeats.
+    event(UPLOAD_FILE_WRITE); assert(!pollCanRun() && heartbeatSends==1);
     event(UPLOAD_FILE_END); assert(pollCanRun());
     event(UPLOAD_FILE_END); assert(pollCanRun());
     assert(suspend_service_loop && !vehicle_setup_done && !commsRunning);
@@ -226,6 +229,8 @@ int main() {
     Update.beginOk=false; start(); assert(!pollCanRun());
     event(UPLOAD_FILE_END); assert(pollCanRun()); Update.beginOk=true;
     Update.writeOk=false; start(); event(UPLOAD_FILE_WRITE);
+    // Chunks drained after a flash error still keep the browser's stream alive.
+    { const unsigned sent=heartbeatSends; event(UPLOAD_FILE_WRITE); assert(heartbeatSends==sent+1); }
     event(UPLOAD_FILE_END); assert(pollCanRun()); Update.writeOk=true;
     Update.endOk=false; start(); event(UPLOAD_FILE_END);
     assert(pollCanRun()); Update.endOk=true;
