@@ -145,12 +145,8 @@ static _millis_t wifiConnectTimeout = 0;
 
 #ifndef ESP8266
 // on ESP8266 ping is implemented in wifi.cpp
-static bool ping_failure = false;
-static bool ping_timed_out = false;
-static esp_ping_handle_t ping;
-static void ping_start();
-static void ping_stop();
 static void link_watchdog_loop(_millis_t current_millis);
+static void link_watch_verify_static_ip();
 #endif
 
 /****************************************************************************
@@ -522,29 +518,11 @@ void service_timer_loop()
             if (userConfig->getStaticIP())
             {
                 ESP_LOGI(TAG, "Connected with static IP, test gateway IP reachable");
-                ping_start();
+                link_watch_verify_static_ip();
             }
             wifiConnectTimeout = 0;
         }
         userConfig->set(cfg_wifiChanged, false);
-    }
-
-    if (ping_failure)
-    {
-        ping_failure = false; // reset, so we only come in here once
-        if (userConfig->getStaticIP())
-        {
-            // We timed out trying to ping gateway set by static IP, revert to DHCP
-            ping_stop();
-            ESP_LOGI(TAG, "Unable to ping Gateway, reset to DHCP to acquire IP address and reconnect");
-            userConfig->set(cfg_staticIP, false);
-            IPAddress ip;
-            ip.fromString("0.0.0.0");
-            WiFi.config(ip, ip, ip, ip);
-            // Now try and reconnect...
-            wifiConnectTimeout = _millis() + WIFI_CONNECT_TIMEOUT;
-            WiFi.reconnect();
-        }
     }
 
     link_watchdog_loop(current_millis);
@@ -552,70 +530,6 @@ void service_timer_loop()
 }
 
 #ifndef ESP8266
-/****************************************************************************
- * Functions to ping gateway to test network okay
- */
-static void ping_success(esp_ping_handle_t hdl, void *args)
-{
-    uint8_t ttl;
-    uint32_t seqno;
-    uint32_t elapsed_time, recv_len;
-    ip_addr_t target_addr;
-    esp_ping_get_profile(hdl, ESP_PING_PROF_SEQNO, &seqno, sizeof(seqno));
-    esp_ping_get_profile(hdl, ESP_PING_PROF_TTL, &ttl, sizeof(ttl));
-    esp_ping_get_profile(hdl, ESP_PING_PROF_IPADDR, &target_addr, sizeof(target_addr));
-    esp_ping_get_profile(hdl, ESP_PING_PROF_SIZE, &recv_len, sizeof(recv_len));
-    esp_ping_get_profile(hdl, ESP_PING_PROF_TIMEGAP, &elapsed_time, sizeof(elapsed_time));
-    IPAddress ip_addr((uint32_t)target_addr.u_addr.ip4.addr);
-    ESP_LOGI(TAG, "Ping: %d bytes from %s icmp_seq=%d ttl=%d time=%dms",
-             recv_len, ip_addr.toString().c_str(), seqno, ttl, elapsed_time);
-    ping_timed_out = false;
-}
-
-static void ping_timeout(esp_ping_handle_t hdl, void *args)
-{
-    uint32_t seqno;
-    ip_addr_t target_addr;
-    esp_ping_get_profile(hdl, ESP_PING_PROF_SEQNO, &seqno, sizeof(seqno));
-    esp_ping_get_profile(hdl, ESP_PING_PROF_IPADDR, &target_addr, sizeof(target_addr));
-    IPAddress ip_addr((uint32_t)target_addr.u_addr.ip4.addr);
-    ESP_LOGI(TAG, "Ping from %s icmp_seq=%d timeout", ip_addr.toString().c_str(), seqno);
-    ping_timed_out = true;
-}
-
-static void ping_end(esp_ping_handle_t hdl, void *args)
-{
-    ping_failure = ping_timed_out;
-    ESP_LOGI(TAG, "Ping end: %s", (ping_failure) ? "failed" : "success");
-}
-
-static void ping_start()
-{
-    ip_addr_t addr;
-    esp_ping_config_t ping_config = ESP_PING_DEFAULT_CONFIG();
-    WiFi.gatewayIP().to_ip_addr_t(&addr);
-    ESP_LOGI(TAG, "Ping to: %s", WiFi.gatewayIP().toString().c_str());
-    ping_config.target_addr = addr;
-    ping_config.count = 2;
-
-    esp_ping_callbacks_t cbs;
-    cbs.on_ping_success = ping_success;
-    cbs.on_ping_timeout = ping_timeout;
-    cbs.on_ping_end = ping_end;
-    cbs.cb_args = NULL;
-    esp_ping_new_session(&ping_config, &cbs, &ping);
-
-    ping_failure = false;
-    ping_timed_out = false;
-    esp_ping_start(ping);
-}
-
-static void ping_stop()
-{
-    esp_ping_stop(ping);
-    esp_ping_delete_session(ping);
-}
-
 /****************************************************************************
  * Link watchdog: recover when associated but not passing traffic.
  *
@@ -645,6 +559,7 @@ enum LinkAction : uint8_t
     LINK_NONE,
     LINK_RECONNECT,
     LINK_RECOVERED,
+    LINK_STATIC_IP_FAILED, // the static IP's gateway never answered a full window
 };
 
 struct LinkWatch
@@ -656,6 +571,7 @@ struct LinkWatch
     uint8_t healthyWindows = 0;
     uint8_t holdWindows = 0;                           // windows left before another reconnect
     uint8_t backoffWindows = LINK_BACKOFF_FIRST_WINDOWS; // hold applied after the next reconnect
+    uint8_t staticIPChecks = 0;                        // sessions left for a new static IP's gateway to answer
     uint16_t sent = 0;
     uint16_t lost = 0;
 };
@@ -675,6 +591,13 @@ static LinkResult link_watch_step(LinkWatch &w, uint32_t sent, uint32_t received
         received = sent;
     if (received > 0)
         w.armed = true;
+    if (w.staticIPChecks > 0 && sent > 0)
+    {
+        if (w.armed)
+            w.staticIPChecks = 0;
+        else if (--w.staticIPChecks == 0)
+            r.action = LINK_STATIC_IP_FAILED;
+    }
     // Never act against a gateway that has never answered ping.
     if (!w.armed || sent == 0)
         return r;
@@ -728,6 +651,13 @@ static esp_ping_handle_t link_ping = NULL;
 static std::atomic<bool> link_ping_done{false};
 static LinkWatch link_watch;
 
+// After a WiFi settings change with a static IP: fall back to DHCP if the
+// gateway answers none of the pings in the next window.
+static void link_watch_verify_static_ip()
+{
+    link_watch.staticIPChecks = LINK_WINDOW_CHECKS;
+}
+
 static void link_ping_noop(esp_ping_handle_t hdl, void *args) {}
 static void link_ping_end(esp_ping_handle_t hdl, void *args)
 {
@@ -763,6 +693,19 @@ static void link_watchdog_loop(_millis_t current_millis)
             // HomeSpan sees the disconnect and reconnects through wifiBegin().
             WiFi.disconnect();
             break;
+        case LINK_STATIC_IP_FAILED:
+        {
+            ESP_LOGI(TAG, "Gateway %s did not answer ping for %lus, reset to DHCP to acquire IP address and reconnect",
+                     WiFi.gatewayIP().toString().c_str(), windowSecs);
+            userConfig->set(cfg_staticIP, false);
+            IPAddress ip;
+            ip.fromString("0.0.0.0");
+            WiFi.config(ip, ip, ip, ip);
+            // Now try and reconnect...
+            wifiConnectTimeout = _millis() + WIFI_CONNECT_TIMEOUT;
+            WiFi.reconnect();
+            break;
+        }
         case LINK_RECOVERED:
             ESP_LOGW(TAG, "Link recovered by WiFi reconnect (healthy %lus), RSSI %d dBm",
                      LINK_RECOVERED_WINDOWS * windowSecs, WiFi.RSSI());

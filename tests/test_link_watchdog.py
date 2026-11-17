@@ -96,6 +96,18 @@ int main() {
         for (int i = 0; i < LINK_WINDOW_CHECKS; ++i) r = link_watch_step(w, all, all + 3);
         assert(r.evaluated && r.lossPct == 0);
     }
+    { // New static IP: one reply in the first window keeps it; a silent window falls back to DHCP, once.
+        LinkWatch w;
+        w.staticIPChecks = LINK_WINDOW_CHECKS;
+        for (int i = 0; i < LINK_WINDOW_CHECKS - 1; ++i) assert(link_watch_step(w, all, 0).action == LINK_NONE);
+        assert(link_watch_step(w, all, 1).action == LINK_NONE && w.staticIPChecks == 0 && w.armed);
+        LinkWatch v;
+        v.staticIPChecks = LINK_WINDOW_CHECKS;
+        assert(link_watch_step(v, 0, 0).action == LINK_NONE); // a session that never ran doesn't count
+        for (int i = 0; i < LINK_WINDOW_CHECKS - 1; ++i) assert(link_watch_step(v, all, 0).action == LINK_NONE);
+        assert(link_watch_step(v, all, 0).action == LINK_STATIC_IP_FAILED);
+        for (int i = 0; i < 3 * LINK_WINDOW_CHECKS; ++i) assert(link_watch_step(v, all, 0).action == LINK_NONE);
+    }
     std::puts("ok");
 }
 '''
