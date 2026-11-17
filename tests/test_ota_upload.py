@@ -83,7 +83,6 @@ int main() {
 #include <shared_mutex>
 #include <string>
 #define ESP32 1
-#define RATGDO_HTTP_LIFECYCLE_EXPERIMENT 1
 #define RATGDO32_DISCO 1
 #define PSTR(x) x
 #define ESP_LOGI(...) ((void)0)
@@ -100,7 +99,6 @@ using String=std::string;
 using _millis_t=uint64_t;
 _millis_t now=0;
 _millis_t _millis() { return now; }
-bool httpOwnedPending=false;
 constexpr int U_FLASH=0;
 enum UploadStatus { UPLOAD_FILE_START, UPLOAD_FILE_WRITE, UPLOAD_FILE_END, UPLOAD_FILE_ABORTED };
 struct HTTPUpload {
@@ -182,7 +180,6 @@ struct FlashUpdate {
 void _setUpdaterError() { _updaterError="mock flash error"; }
 ''' + recovery + r'''
 bool web_setup_done=true;
-bool httpOwnedPoll() { return !httpOwnedPending; }
 bool drainRetiredSSE() { return true; }
 ''' + loop_prefix + callback + r'''
 void event(UploadStatus status) { server.data.status=status; handle_firmware_upload(); }
@@ -212,13 +209,11 @@ int main() {
     event(UPLOAD_FILE_END); assert(otaRecoveryPending);
     assert(otaRecoveryStart==now && otaRecoveryDelay==OTA_STAGED_RESTART_MS);
 
-    // A disconnected/aborted transfer recovers quickly, only after the core
-    // callback is quiescent and HomeSpan's pause has been released.
+    // A disconnected/aborted transfer recovers quickly, after HomeSpan's
+    // pause has been released.
     start(); event(UPLOAD_FILE_ABORTED);
     assert(otaRecoveryStart==now && otaRecoveryDelay==OTA_FAILURE_RESTART_MS && pollCanRun());
-    now+=OTA_FAILURE_RESTART_MS; httpOwnedPending=true;
-    assert(!recoverStoppedOTAServices() && restarts==1);
-    httpOwnedPending=false; assert(recoverStoppedOTAServices());
+    now+=OTA_FAILURE_RESTART_MS; assert(recoverStoppedOTAServices());
     assert(restarts==2);
 
     // Re-entering START is idempotent; aborted and repeated uploads can recover.
