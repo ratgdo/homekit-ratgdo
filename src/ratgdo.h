@@ -3,7 +3,7 @@
  * https://ratcloud.llc
  * https://github.com/PaulWieland/ratgdo
  *
- * Copyright (c) 2023-25 David A Kerr... https://github.com/dkerr64/
+ * Copyright (c) 2023-26 David A Kerr... https://github.com/dkerr64/
  * All Rights Reserved.
  * Licensed under terms of the GPL-3.0 License.
  *
@@ -35,34 +35,135 @@
 #include "utilities.h"
 #include "../lib/ratgdo/log.h"
 
+// Default device information for ESP8266 and ESP32 boards.
+#ifdef ESP8266
 #define DEVICE_NAME "homekit-ratgdo"
 #define MANUF_NAME "ratCloud llc"
 #define SERIAL_NUMBER "0P3ND00R"
-#ifdef ESP8266
 #define MODEL_NAME "ratgdo_v2.5"
 #define CHIP_FAMILY "ESP8266"
-#else
+#else // not ESP8266
+#ifndef DEVICE_NAME
+#define DEVICE_NAME "homekit-ratgdo"
+#endif
+#ifndef MANUF_NAME
+#define MANUF_NAME "ratCloud llc"
+#endif
+#ifndef SERIAL_NUMBER
+#define SERIAL_NUMBER "0P3ND00R"
+#endif
+#ifndef MODEL_NAME
 #define MODEL_NAME "ratgdo_32"
+#endif
+#ifndef CHIP_FAMILY
 #define CHIP_FAMILY "ESP32"
 #endif
+#endif // ESP8266
 
+// GPIO definitions for ESP8266 and ESP32 boards.
+// For ESP8266 these are hardcoded
+// For ESP32 they can be configured with defaults below
 #ifdef ESP8266
-#define UART_TX_PIN D1 // red control terminal / GarageDoorOpener (UART1 TX)
-#define UART_RX_PIN D2 // red control terminal / GarageDoorOpener (UART1 RX)
+typedef int8_t gpio_num_t;
 
-#define INPUT_OBST_PIN D7        // black obstruction sensor terminal
-#define STATUS_OBST_PIN D8       // output for obstruction status, HIGH for obstructed, LOW for clear
-#define STATUS_DOOR_PIN D0       // output door status, HIGH for open, LOW for closed
-#define DRY_CONTACT_OPEN_PIN D5  // dry contact for open door limit switch
-#define DRY_CONTACT_CLOSE_PIN D6 // dry contact for close door limit switch
-#define DRY_CONTACT_LIGHT_PIN D3 // dry contact for light toggle switch
-#define DISCRETE_OPEN_PIN D0     // alternative (or in addition) to toggle, can use discrete open control
-#define DISCRETE_CLOSE_PIN D8    // alternative (or in addition) to toggle, can use discrete close control
+#define UART_TX_GPIO D1 // red control terminal / GarageDoorOpener (UART1 TX)
+#define UART_RX_GPIO D2 // red control terminal / GarageDoorOpener (UART1 RX)
 
-#ifndef LED_BUILTIN_ON_STATE
-#define LED_BUILTIN_ON_STATE LOW
+#define INPUT_OBST_GPIO D7        // black obstruction sensor terminal
+#define STATUS_OBST_GPIO D8       // output for obstruction status, HIGH for obstructed, LOW for clear
+#define STATUS_DOOR_GPIO D0       // output door status, HIGH for open, LOW for closed
+#define DRY_CONTACT_OPEN_GPIO D5  // dry contact for open door limit switch
+#define DRY_CONTACT_CLOSE_GPIO D6 // dry contact for close door limit switch
+#define DRY_CONTACT_LIGHT_GPIO D3 // dry contact for light toggle switch
+#define DISCRETE_OPEN_GPIO D0     // alternative (or in addition) to toggle, can use discrete open control
+#define DISCRETE_CLOSE_GPIO D8    // alternative (or in addition) to toggle, can use discrete close control
+#define LED_GPIO LED_BUILTIN      // built-in LED for ESP8266 boards
+#ifndef LED_ON_STATE
+#define LED_ON_STATE LOW
 #endif
 
+#else // not ESP8266, i.e., ESP32
+
+#ifndef UART_TX_GPIO
+#define UART_TX_GPIO GPIO_NUM_17
+#endif
+#ifndef UART_RX_GPIO
+#define UART_RX_GPIO GPIO_NUM_21
+#endif
+
+#ifndef INPUT_OBST_GPIO
+#define INPUT_OBST_GPIO GPIO_NUM_4
+#endif
+#ifndef LED_GPIO
+#define LED_GPIO GPIO_NUM_2
+#endif
+#ifndef LED_ON_STATE
+#define LED_ON_STATE HIGH
+#endif
+#ifndef DRY_CONTACT_OPEN_GPIO
+#define DRY_CONTACT_OPEN_GPIO GPIO_NUM_13
+#endif
+#ifndef DRY_CONTACT_CLOSE_GPIO
+#define DRY_CONTACT_CLOSE_GPIO GPIO_NUM_14
+#endif
+#ifndef DRY_CONTACT_LIGHT_GPIO
+#define DRY_CONTACT_LIGHT_GPIO GPIO_NUM_27
+#endif
+#ifndef STATUS_DOOR_GPIO
+#define STATUS_DOOR_GPIO GPIO_NUM_26
+#endif
+#ifndef STATUS_OBST_GPIO
+#define STATUS_OBST_GPIO GPIO_NUM_25
+#endif
+#ifndef DISCRETE_OPEN_GPIO
+#define DISCRETE_OPEN_GPIO STATUS_DOOR_GPIO
+#endif
+#ifndef DISCRETE_CLOSE_GPIO
+#define DISCRETE_CLOSE_GPIO STATUS_OBST_GPIO
+#endif
+
+#ifdef RATGDO32_DISCO
+// RATGDO32 Disco board specific GPIO definitions
+#ifndef BEEPER_GPIO
+#define BEEPER_GPIO GPIO_NUM_33
+#endif
+#ifndef LASER_GPIO
+#define LASER_GPIO GPIO_NUM_23
+#endif
+#ifndef SENSOR_SDA_GPIO
+#define SENSOR_SDA_GPIO GPIO_NUM_19
+#endif
+#ifndef SENSOR_SCL_GPIO
+#define SENSOR_SCL_GPIO GPIO_NUM_18
+#endif
+#ifndef SENSOR_SHUTDOWN_GPIO
+#define SENSOR_SHUTDOWN_GPIO GPIO_NUM_32
+#endif
+#endif // RATGDO32_DISCO
+
+#endif // ESP8266
+
+const gpio_num_t UART_TX_PIN = (gpio_num_t)UART_TX_GPIO;
+const gpio_num_t UART_RX_PIN = (gpio_num_t)UART_RX_GPIO;
+const gpio_num_t INPUT_OBST_PIN = (gpio_num_t)INPUT_OBST_GPIO;
+const gpio_num_t LED_PIN = (gpio_num_t)LED_GPIO;
+const gpio_num_t DRY_CONTACT_OPEN_PIN = (gpio_num_t)DRY_CONTACT_OPEN_GPIO;   // open door
+const gpio_num_t DRY_CONTACT_CLOSE_PIN = (gpio_num_t)DRY_CONTACT_CLOSE_GPIO; // close door
+const gpio_num_t DRY_CONTACT_LIGHT_PIN = (gpio_num_t)DRY_CONTACT_LIGHT_GPIO; // toggle light
+const gpio_num_t STATUS_DOOR_PIN = (gpio_num_t)STATUS_DOOR_GPIO;
+const gpio_num_t STATUS_OBST_PIN = (gpio_num_t)STATUS_OBST_GPIO;
+const gpio_num_t DISCRETE_OPEN_PIN = (gpio_num_t)DISCRETE_OPEN_GPIO;   // alternative (or in addition) to toggle, can use discrete open control
+const gpio_num_t DISCRETE_CLOSE_PIN = (gpio_num_t)DISCRETE_CLOSE_GPIO; // alternative (or in addition) to toggle, can use discrete close control
+#ifdef RATGDO32_DISCO
+const gpio_num_t BEEPER_PIN = (gpio_num_t)BEEPER_GPIO;
+const gpio_num_t LASER_PIN = (gpio_num_t)LASER_GPIO;
+const gpio_num_t SENSOR_SDA_PIN = (gpio_num_t)SENSOR_SDA_GPIO;
+const gpio_num_t SENSOR_SCL_PIN = (gpio_num_t)SENSOR_SCL_GPIO;
+const gpio_num_t SENSOR_SHUTDOWN_PIN = (gpio_num_t)SENSOR_SHUTDOWN_GPIO;
+#endif // RATGDO32_DISCO
+
+#ifdef ESP8266
+// ESP8266 specific door status definitions
 enum GarageDoorCurrentState : uint8_t
 {
     CURR_OPEN = 0,
@@ -93,66 +194,7 @@ enum LockTargetState : uint8_t
     TGT_LOCKED = 1,
 };
 #else
-
-// RATGDO32 GPIO
-#ifndef UART_TX_GPIO
-#define UART_TX_GPIO GPIO_NUM_17
-#endif
-const gpio_num_t UART_TX_PIN = (gpio_num_t)UART_TX_GPIO;
-#ifndef UART_RX_GPIO
-#define UART_RX_GPIO GPIO_NUM_21
-#endif
-const gpio_num_t UART_RX_PIN = (gpio_num_t)UART_RX_GPIO;
-#ifndef INPUT_OBST_GPIO
-#define INPUT_OBST_GPIO GPIO_NUM_4
-#endif
-const gpio_num_t INPUT_OBST_PIN = (gpio_num_t)INPUT_OBST_GPIO;
-#ifndef LED_BUILTIN_GPIO
-#define LED_BUILTIN_GPIO GPIO_NUM_2
-#endif
-#ifndef LED_BUILTIN_ON_STATE
-#define LED_BUILTIN_ON_STATE HIGH
-#endif
-const gpio_num_t LED_BUILTIN = (gpio_num_t)LED_BUILTIN_GPIO;
-#ifndef DRY_CONTACT_OPEN_GPIO
-#define DRY_CONTACT_OPEN_GPIO GPIO_NUM_13
-#endif
-const gpio_num_t DRY_CONTACT_OPEN_PIN = (gpio_num_t)DRY_CONTACT_OPEN_GPIO; // open door
-#ifndef DRY_CONTACT_CLOSE_GPIO
-#define DRY_CONTACT_CLOSE_GPIO GPIO_NUM_14
-#endif
-const gpio_num_t DRY_CONTACT_CLOSE_PIN = (gpio_num_t)DRY_CONTACT_CLOSE_GPIO; // close door
-#ifndef DRY_CONTACT_LIGHT_GPIO
-#define DRY_CONTACT_LIGHT_GPIO GPIO_NUM_27
-#endif
-const gpio_num_t DRY_CONTACT_LIGHT_PIN = (gpio_num_t)DRY_CONTACT_LIGHT_GPIO; // toggle light
-#ifndef STATUS_DOOR_GPIO
-#define STATUS_DOOR_GPIO GPIO_NUM_26
-#endif
-const gpio_num_t STATUS_DOOR_PIN = (gpio_num_t)STATUS_DOOR_GPIO;
-#ifndef STATUS_OBST_GPIO
-#define STATUS_OBST_GPIO GPIO_NUM_25
-#endif
-const gpio_num_t STATUS_OBST_PIN = (gpio_num_t)STATUS_OBST_GPIO;
-
-// Shares GPIO with STATUS_DOOR_PIN / STATUS_OBST_PIN when in dry contact mode
-#ifndef DISCRETE_OPEN_GPIO
-#define DISCRETE_OPEN_GPIO STATUS_DOOR_GPIO
-#endif
-const gpio_num_t DISCRETE_OPEN_PIN = (gpio_num_t)DISCRETE_OPEN_GPIO; // alternative (or in addition) to toggle, can use discrete open control
-#ifndef DISCRETE_CLOSE_GPIO
-#define DISCRETE_CLOSE_GPIO STATUS_OBST_GPIO
-#endif
-const gpio_num_t DISCRETE_CLOSE_PIN = (gpio_num_t)DISCRETE_CLOSE_GPIO; // alternative (or in addition) to toggle, can use discrete close control
-
-#ifdef RATGDO32_DISCO
-const gpio_num_t BEEPER_PIN = GPIO_NUM_33;
-const gpio_num_t LASER_PIN = GPIO_NUM_23;
-const gpio_num_t SENSOR_SDA_PIN = GPIO_NUM_19;
-const gpio_num_t SENSOR_SCL_PIN = GPIO_NUM_18;
-const gpio_num_t SENSOR_SHUTDOWN_PIN = GPIO_NUM_32;
-#endif
-
+// ESP32 specific door status definitions
 enum GarageDoorCurrentState : uint8_t
 {
     CURR_OPEN = Characteristic::CurrentDoorState::OPEN,
@@ -182,8 +224,9 @@ enum LockTargetState : uint8_t
     TGT_UNLOCKED = Characteristic::LockTargetState::UNLOCK,
     TGT_LOCKED = Characteristic::LockTargetState::LOCK,
 };
-#endif
+#endif // ESP8266
 
+// Helper macros to convert state enums to human-readable strings
 #define DOOR_STATE(s) (s == 0) ? "Open" : (s == 1) ? "Closed"  \
                                       : (s == 2)   ? "Opening" \
                                       : (s == 3)   ? "Closing" \
@@ -197,6 +240,7 @@ enum LockTargetState : uint8_t
                                             : (s == 2)   ? "Jammed"   \
                                                          : "Unknown"
 
+// Global variables related to system state
 extern bool suspend_service_loop;
 extern bool wifi_got_ip;
 extern "C" uint32_t free_heap;
@@ -210,6 +254,7 @@ extern "C" uint32_t free_iram_at_boot;
 #define MOTION_TIMER_DURATION 5000  // how long to keep HomeKit motion sensor active for
 #define LED_BLINK_INTERVAL 5 * 1000 // time between each "alive and working" LED blink
 
+// Garage door stautus struct
 struct __attribute__((aligned(4))) GarageDoor
 {
     bool pinModeObstructionSensor;

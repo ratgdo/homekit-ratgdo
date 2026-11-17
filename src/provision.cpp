@@ -42,9 +42,9 @@ void blink_led(int d, int times)
 {
     for (int j = 0; j < times; j++)
     {
-        digitalWrite(LED_BUILTIN, HIGH);
+        digitalWrite(LED_PIN, HIGH);
         delay(d);
-        digitalWrite(LED_BUILTIN, LOW);
+        digitalWrite(LED_PIN, LOW);
         delay(d);
     }
 }
