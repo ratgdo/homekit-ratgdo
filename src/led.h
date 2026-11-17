@@ -3,7 +3,7 @@
  * https://ratcloud.llc
  * https://github.com/PaulWieland/ratgdo
  *
- * Copyright (c) 2023-25 David A Kerr... https://github.com/dkerr64/
+ * Copyright (c) 2023-26 David A Kerr... https://github.com/dkerr64/
  * All Rights Reserved.
  * Licensed under terms of the GPL-3.0 License.
  *
@@ -19,10 +19,14 @@
 #define FLASH_MS 500 // default flash period, 500ms
 #define FLASH_ACTIVITY_MS 250
 
+#ifdef ESP8266
+typedef int8_t gpio_num_t;
+#endif
+
 class LED
 {
 private:
-    uint8_t pin;
+    gpio_num_t pin;
     uint8_t onState = 1;  // What pin state represents "on", can be zero (0) or one (1)
     uint8_t offState = 0; // opposite of on
     uint8_t activeState = 1;
@@ -32,7 +36,7 @@ private:
     void (*stateChangeCallback)(bool) = nullptr;
 
 public:
-    explicit LED(uint8_t gpio_num, uint8_t state = 1);
+    explicit LED(gpio_num_t gpio_num, uint8_t state = 1);
     void on();
     void off();
     void idle();

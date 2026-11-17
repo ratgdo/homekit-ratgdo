@@ -3,7 +3,7 @@
  * https://ratcloud.llc
  * https://github.com/PaulWieland/ratgdo
  *
- * Copyright (c) 2023-25 David A Kerr... https://github.com/dkerr64/
+ * Copyright (c) 2023-26 David A Kerr... https://github.com/dkerr64/
  * All Rights Reserved.
  * Licensed under terms of the GPL-3.0 License.
  *
@@ -17,13 +17,13 @@
 // static const char *TAG = "ratgdo-led";
 
 // Construct the singleton object for LED access
-LED led(LED_BUILTIN, LED_BUILTIN_ON_STATE);
+LED led(LED_PIN, LED_ON_STATE);
 #ifdef RATGDO32_DISCO
 LED laser(LASER_PIN);
 #endif
 
 // Constructor for LED class
-LED::LED(uint8_t gpio_num, uint8_t state)
+LED::LED(gpio_num_t gpio_num, uint8_t state)
 {
     pin = gpio_num;
     activeState = onState = state;
@@ -31,12 +31,16 @@ LED::LED(uint8_t gpio_num, uint8_t state)
     currentState = offState = (onState == 1) ? 0 : 1;
     idleState = (activeState == 1) ? 0 : 1;
     LEDtimer = Ticker();
-    pinMode(pin, OUTPUT);
+    // Initialize the pin as output if it is valid.
+    // We allow negative pin numbers to indicate no pin is connected (GPIO_NUM_NC == -1)
+    if (pin >= 0)
+        pinMode(pin, OUTPUT);
 }
 
 void LED::on()
 {
-    digitalWrite(pin, onState);
+    if (pin >= 0)
+        digitalWrite(pin, onState);
     currentState = onState;
     if (stateChangeCallback)
         stateChangeCallback(state());
@@ -44,7 +48,8 @@ void LED::on()
 
 void LED::off()
 {
-    digitalWrite(pin, offState);
+    if (pin >= 0)
+        digitalWrite(pin, offState);
     currentState = offState;
     if (stateChangeCallback)
         stateChangeCallback(state());
@@ -52,7 +57,8 @@ void LED::off()
 
 void LED::idle()
 {
-    digitalWrite(pin, idleState);
+    if (pin >= 0)
+        digitalWrite(pin, idleState);
     currentState = idleState;
     if (stateChangeCallback)
         stateChangeCallback(state());
@@ -75,13 +81,13 @@ void LED::setIdleState(uint8_t state)
     }
 }
 
-
 void LED::flash(uint64_t ms)
 {
     // Don't flash if we are already in a flash.
     if (!LEDtimer.active())
     {
-        digitalWrite(pin, activeState);
+        if (pin >= 0)
+            digitalWrite(pin, activeState);
         currentState = activeState;
         if (stateChangeCallback)
             stateChangeCallback(state());
