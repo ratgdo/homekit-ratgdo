@@ -274,22 +274,40 @@ int activeRequestCount = 0;
 
 #define CLIENT_WRITE_TIMEOUT 500
 static char writeBuffer[512];
-bool clientWrite(WiFiClient client, const char *data)
+// Send one SSE event. On failure the client is stopped, and the next
+// heartbeat or broadcast removes the subscription. With dropIfFull, a full
+// send buffer only loses this event (for the log viewer, which can afford it).
+static bool sendSSEEvent(WiFiClient &client, const char *event, const char *data, bool dropIfFull = false)
 {
-    size_t len = strlen(data);
-    size_t written = 0;
-#ifdef ESP8266
+#ifdef ESP32
+    // NetworkClient::write() can retry select() for 10 seconds on a stalled
+    // browser. Send the whole event in one nonblocking call instead, straight
+    // from the caller's strings (lwIP copies them before returning).
+    struct iovec parts[] = {
+        {(char *)"event: ", 7},
+        {(char *)event, strlen(event)},
+        {(char *)"\ndata: ", 7},
+        {(char *)data, strlen(data)},
+        {(char *)"\n\n", 2}};
+    struct msghdr message = {};
+    message.msg_iov = parts;
+    message.msg_iovlen = 5;
+    const ssize_t sent = sendmsg(client.fd(), &message, MSG_DONTWAIT);
+    if (sent == (ssize_t)(16 + parts[1].iov_len + parts[3].iov_len))
+        return true;
+    if (dropIfFull && sent < 0 && errno == EWOULDBLOCK)
+        return false; // nothing was written, the stream is still intact
+#else
+    (void)dropIfFull; // ESP8266 writes wait until sent or timed out
     client.flush(); // make sure previous data all sent.
+    size_t length = snprintf_P(writeBuffer, sizeof(writeBuffer), PSTR("event: %s\ndata: %s\n\n"), event, data);
+    if (length < sizeof(writeBuffer) ? client.write(writeBuffer, length) == length
+                                     : client.printf("event: %s\ndata: %s\n\n", event, data) == length)
+        return true;
 #endif
-    written = client.write(data, len);
-    if (written == 0)
-    {
-        YIELD();
-        client.stop();
-        ESP_LOGW(TAG, "Failed writing to WiFi Client (%d of %d), connection closed.", written, len);
-        return false;
-    }
-    return true;
+    client.stop();
+    ESP_LOGW(TAG, "Failed writing SSE %s event, connection closed.", event);
+    return false;
 }
 
 // Helper functions for connection throttling
@@ -1511,9 +1529,7 @@ void SSEheartbeat(SSESubscription *s)
 #endif
         JSON_END();
         JSON_REMOVE_NL(json);
-        // retry needed to before event:
-        snprintf_P(writeBuffer, sizeof(writeBuffer), PSTR("event: message\ndata: %s\n\n"), json);
-        clientWrite(s->client, writeBuffer);
+        sendSSEEvent(s->client, "message", json);
         GIVE_MUTEX();
         YIELD();
     }
@@ -1794,38 +1810,14 @@ void SSEBroadcastState(const char *data, BroadcastType type)
                 if (type == LOG_MESSAGE)
                 {
                     if (subscription[i].logViewer)
-                    {
-                        if (snprintf_P(writeBuffer, sizeof(writeBuffer), PSTR("event: logger\ndata: %s\n\n"), data) >= (int)sizeof(writeBuffer))
-                        {
-                            // Will not fit in our write buffer, let system printf handle
-#ifdef ESP8266
-                            subscription[i].client.flush(); // make sure previous data all sent.
-#endif
-                            subscription[i].client.printf("event: logger\ndata: %s\n\n", data);
-                        }
-                        else
-                        {
-                            clientWrite(subscription[i].client, writeBuffer);
-                        }
-                    }
+                        sendSSEEvent(subscription[i].client, "logger", data, true);
                 }
                 else if (type == RATGDO_STATUS)
                 {
                     ESP_LOGV(TAG, "Client %s (%s) send status SSE on channel %d, data: %s",
                              IPAddress(subscription[i].clientIP).toString().c_str(),
                              subscription[i].clientUUID.c_str(), i, data);
-                    if (snprintf_P(writeBuffer, sizeof(writeBuffer), PSTR("event: message\ndata: %s\n\n"), data) >= (int)sizeof(writeBuffer))
-                    {
-                        // Will not fit in our write buffer, let system printf handle
-#ifdef ESP8266
-                        subscription[i].client.flush(); // make sure previous data all sent.
-#endif
-                        subscription[i].client.printf("event: message\ndata: %s\n\n", data);
-                    }
-                    else
-                    {
-                        clientWrite(subscription[i].client, writeBuffer);
-                    }
+                    sendSSEEvent(subscription[i].client, "message", data, subscription[i].logViewer);
                 }
             }
             else
@@ -2010,8 +2002,7 @@ void handle_firmware_upload()
                     JSON_ADD_INT("uploadPercent", uploadPercent);
                     JSON_END();
                     JSON_REMOVE_NL(json);
-                    snprintf_P(writeBuffer, sizeof(writeBuffer), PSTR("event: uploadStatus\ndata: %s\n\n"), json);
-                    clientWrite(firmwareUpdateSub->client, writeBuffer);
+                    sendSSEEvent(firmwareUpdateSub->client, "uploadStatus", json);
                     GIVE_MUTEX();
                 }
             }
