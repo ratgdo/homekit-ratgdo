@@ -712,7 +712,7 @@ static void link_watchdog_loop(_millis_t current_millis)
             break;
         default:
             if (r.evaluated && r.lossPct > 0)
-                ESP_LOGI(TAG, "Link: %u%% gateway ping loss over %lus, RSSI %d dBm", r.lossPct, windowSecs, WiFi.RSSI());
+                ESP_LOGD(TAG, "Link: %u%% gateway ping loss over %lus, RSSI %d dBm", r.lossPct, windowSecs, WiFi.RSSI());
             break;
         }
         return;
