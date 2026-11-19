@@ -996,7 +996,10 @@ void build_status_json(char *json)
     JSON_ADD_BOOL(cfg_dcBypassTTC, userConfig->getDCBypassTTC());
     JSON_ADD_BOOL(cfg_obstFromStatus, userConfig->getObstFromStatus());
     JSON_ADD_INT(cfg_dcDebounceDuration, userConfig->getDCDebounceDuration());
-    JSON_ADD_BOOL(cfg_wpDisconnectOnTx, userConfig->getWpDisconnectOnTx());
+    if (STATUS_DOOR_PIN >= 0)
+    {
+        JSON_ADD_BOOL(cfg_wpDisconnectOnTx, userConfig->getWpDisconnectOnTx());
+    }
 #ifdef RATGDO_ENCODER
     JSON_ADD_BOOL("manuallyOperated", garage_door.manuallyOperated);
     JSON_ADD_BOOL(cfg_encoderEnabled, encoder_enabled);
@@ -1064,9 +1067,12 @@ void build_status_json(char *json)
     JSON_ADD_BOOL(cfg_vehicleArrivingHomeKit, userConfig->getVehicleArrivingHomeKit());
     JSON_ADD_BOOL(cfg_vehicleDepartingHomeKit, userConfig->getVehicleDepartingHomeKit());
     JSON_ADD_INT(cfg_vehicleThreshold, userConfig->getVehicleThreshold());
-    JSON_ADD_BOOL(cfg_laserEnabled, userConfig->getLaserEnabled());
-    JSON_ADD_BOOL(cfg_laserHomeKit, userConfig->getLaserHomeKit());
-    JSON_ADD_BOOL(cfg_laserOnDoorOpen, userConfig->getLaserOnDoorOpen());
+    if (LASER_PIN >= 0)
+    {
+        JSON_ADD_BOOL(cfg_laserEnabled, userConfig->getLaserEnabled());
+        JSON_ADD_BOOL(cfg_laserHomeKit, userConfig->getLaserHomeKit());
+        JSON_ADD_BOOL(cfg_laserOnDoorOpen, userConfig->getLaserOnDoorOpen());
+    }
     JSON_ADD_INT(cfg_assistDuration, userConfig->getAssistDuration());
     JSON_ADD_BOOL(cfg_TTCsound, userConfig->getTTCsound());
 #endif

@@ -709,7 +709,7 @@ void enable_service_homekit_vehicle(bool enable)
 
 bool enable_service_homekit_laser(bool enable)
 {
-    if (enable)
+    if (enable && LASER_PIN >= 0)
     {
         if (!assistLaser && userConfig->getLaserEnabled() && userConfig->getLaserHomeKit())
         {

@@ -494,8 +494,6 @@ function setElementsFromStatus(status) {
                 document.getElementById("vehicleSetting").style.display = (value) ? "table-row" : "none";
                 document.getElementById("vehicleSettingsSpacer").style.display = (value) ? "table-row" : "none";
                 setVehicleConfigVisibility(value);
-                document.getElementById("laserSetting").style.display = (value) ? "table-row" : "none";
-                document.getElementById("laserOnDoorOpenRow").style.display = (value) ? "table-row" : "none";
                 break;
             case "vehicleThreshold":
                 document.getElementById(key).value = value;
@@ -508,6 +506,8 @@ function setElementsFromStatus(status) {
                 break;
             case "laserEnabled":
                 document.getElementById(key).checked = value;
+                document.getElementById("laserSetting").style.display = (serverStatus.distanceSensor) ? "table-row" : "none";
+                document.getElementById("laserOnDoorOpenRow").style.display = (serverStatus.distanceSensor) ? "table-row" : "none";
                 document.getElementById("laserButton").style.display = (value) ? "inline-block" : "none";
                 document.getElementById("laserHomeKit").disabled = !value;
                 document.getElementById("laserOnDoorOpen").disabled = !value;
