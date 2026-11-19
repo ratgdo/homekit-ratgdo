@@ -539,8 +539,11 @@ function setElementsFromStatus(status) {
             case "useSWserial":
             case "obstFromStatus":
             case "reverseOnStop":
+                document.getElementById(key).checked = value;
+                break;
             case "wpDisconnectOnTx":
                 document.getElementById(key).checked = value;
+                document.getElementById("wpDisconnectOnTxRow").style.display = "table-row";
                 break;
             case "dcOpenClose":
                 document.getElementById(key).checked = value;
