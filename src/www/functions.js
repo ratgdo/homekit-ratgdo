@@ -978,7 +978,7 @@ async function checkVersion(progress = "dotdot1") {
         if (asset?.name) {
             serverStatus.downloadURL = "https://ratgdo.github.io/" + gitRepo + "/firmware/" + asset.name;
             msg = "You have newest release";
-            if (serverStatus.firmwareVersion < latest.tag_name) {
+            if (serverStatus.firmwareVersion?.localeCompare(latest.tag_name, undefined, { numeric: true }) < 0) {
                 // Newest version at GitHub is greater from that installed
                 msg = "Update available  (" + latest.tag_name + ")";
             }
