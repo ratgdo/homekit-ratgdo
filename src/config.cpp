@@ -145,7 +145,7 @@ static configSetting settings_defaults[] PROGMEM = {
     {cfg_useToggle, false, false, false, NULL},
     {cfg_dcDebounceDuration, true, false, 50, NULL},
     {cfg_obstFromStatus, true, false, false, NULL},
-#ifdef WALLPANEL_DISCONNECT_ON_TX    
+#ifdef WALLPANEL_DISCONNECT_ON_TX
     {cfg_wpDisconnectOnTx, true, false, true, NULL},
 #else
     {cfg_wpDisconnectOnTx, true, false, false, NULL},
@@ -574,6 +574,29 @@ void userSettings::toStdOut()
         else
         {
             Serial.printf_P(PSTR("%s:\t%d\n"), p->key, std::get<bool>(p->value));
+        }
+    }
+}
+
+void userSettings::toLog()
+{
+    configSetting *p = settings;
+    for (size_t i = 0; i < nSettings; ++i, ++p)
+    {
+        if (std::holds_alternative<configStr>(p->value))
+        {
+            if (strcmp_P(p->key, cfg_wwwCredentials) == 0)
+                ESP_LOGI(TAG, "%23s: <redacted>", p->key); // do not log credentials
+            else
+                ESP_LOGI(TAG, "%23s: %s", p->key, std::get<configStr>(p->value).str);
+        }
+        else if (std::holds_alternative<int>(p->value))
+        {
+            ESP_LOGI(TAG, "%23s: %d", p->key, std::get<int>(p->value));
+        }
+        else
+        {
+            ESP_LOGI(TAG, "%23s: %s", p->key, std::get<bool>(p->value) ? "true" : "false");
         }
     }
 }

@@ -169,6 +169,7 @@ public:
     std::variant<bool, int, configStr> get(const std::string &key);
     configSetting *getDetail(const std::string &key);
     void toStdOut();
+    void toLog();
     void save();
     void load();
 #ifdef ESP8266

@@ -3,7 +3,7 @@
  * https://ratcloud.llc
  * https://github.com/PaulWieland/ratgdo
  *
- * Copyright (c) 2023-25 David A Kerr... https://github.com/dkerr64/
+ * Copyright (c) 2023-26 David A Kerr... https://github.com/dkerr64/
  * All Rights Reserved.
  * Licensed under terms of the GPL-3.0 License.
  *
@@ -222,53 +222,7 @@ void load_all_config_settings()
     garage_door.builtInTTC = userConfig->getBuiltInTTC();
 
     // Now log what we have loaded
-    ESP_LOGI(TAG, "   deviceName:          %s", userConfig->getDeviceName());
-    ESP_LOGI(TAG, "   wifiChanged:         %s", userConfig->getWifiChanged() ? "true" : "false");
-    ESP_LOGI(TAG, "   wifiPower:           %d", userConfig->getWifiPower());
-    ESP_LOGI(TAG, "   wifiPhyMode:         %d", userConfig->getWifiPhyMode());
-    ESP_LOGI(TAG, "   staticIP:            %s", userConfig->getStaticIP() ? "true" : "false");
-    ESP_LOGI(TAG, "   localIP:             %s", userConfig->getLocalIP());
-    ESP_LOGI(TAG, "   subnetMask:          %s", userConfig->getSubnetMask());
-    ESP_LOGI(TAG, "   gatewayIP:           %s", userConfig->getGatewayIP());
-    ESP_LOGI(TAG, "   nameserverIP:        %s", userConfig->getNameserverIP());
-    ESP_LOGI(TAG, "   wwwPWrequired:       %s", userConfig->getPasswordRequired() ? "true" : "false");
-    ESP_LOGI(TAG, "   wwwUsername:         %s", userConfig->getwwwUsername());
-    // Do not log credentials as it is a security exposure
-    // ESP_LOGI(TAG, "   wwwCredentials:      %s", userConfig->getwwwCredentials());
-    ESP_LOGI(TAG, "   GDOSecurityType:     %d", userConfig->getGDOSecurityType());
-    ESP_LOGI(TAG, "   TTCseconds:          %d", userConfig->getTTCseconds());
-    ESP_LOGI(TAG, "   rebootSeconds:       %d", userConfig->getRebootSeconds());
-    ESP_LOGI(TAG, "   LEDidle:             %d", userConfig->getLEDidle());
-    ESP_LOGI(TAG, "   motionTriggers:      %d", userConfig->getMotionTriggers());
-    ESP_LOGI(TAG, "   obstFromStatus:      %s", userConfig->getObstFromStatus() ? "true" : "false");
-    ESP_LOGI(TAG, "   wpDisconnectOnTx:    %s", userConfig->getWpDisconnectOnTx() ? "true" : "false");
-    ESP_LOGI(TAG, "   enableNTP:           %s", userConfig->getEnableNTP() ? "true" : "false");
-    ESP_LOGI(TAG, "   doorUpdateAt:        %d (%s)", userConfig->getDoorUpdateAt(), timeString(userConfig->getDoorUpdateAt()));
-    ESP_LOGI(TAG, "   doorOpenAt:          %d (%s)", userConfig->getDoorOpenAt(), timeString(userConfig->getDoorOpenAt()));
-    ESP_LOGI(TAG, "   doorCloseAt:         %d (%s)", userConfig->getDoorCloseAt(), timeString(userConfig->getDoorCloseAt()));
-    ESP_LOGI(TAG, "   timeZone:            %s", userConfig->getTimeZone());
-    ESP_LOGI(TAG, "   softAPmode:          %s", userConfig->getSoftAPmode() ? "true" : "false");
-    ESP_LOGI(TAG, "   syslogEn:            %s", userConfig->getSyslogEn() ? "true" : "false");
-    ESP_LOGI(TAG, "   syslogIP:            %s", userConfig->getSyslogIP());
-    ESP_LOGI(TAG, "   syslogPort:          %d", userConfig->getSyslogPort());
-    ESP_LOGI(TAG, "   syslogFacility:      %d", userConfig->getSyslogFacility());
-#ifdef RATGDO32_DISCO
-    // Features not available on ESP8266
-    ESP_LOGI(TAG, "   vehicleThreshold:    %d", userConfig->getVehicleThreshold());
-    ESP_LOGI(TAG, "   vehicleHomeKit:      %s", userConfig->getVehicleHomeKit() ? "true" : "false");
-    ESP_LOGI(TAG, "     vehicleOccupancy:  %s", userConfig->getVehicleOccupancyHomeKit() ? "true" : "false");
-    ESP_LOGI(TAG, "     vehicleArriving:   %s", userConfig->getVehicleArrivingHomeKit() ? "true" : "false");
-    ESP_LOGI(TAG, "     vehicleDeparting:  %s", userConfig->getVehicleDepartingHomeKit() ? "true" : "false");
-    ESP_LOGI(TAG, "   laserEnabled:        %s", userConfig->getLaserEnabled() ? "true" : "false");
-    ESP_LOGI(TAG, "   laserHomeKit:        %s", userConfig->getLaserHomeKit() ? "true" : "false");
-    ESP_LOGI(TAG, "   laserOnDoorOpen:     %s", userConfig->getLaserOnDoorOpen() ? "true" : "false");
-    ESP_LOGI(TAG, "   assistDuration:      %d", userConfig->getAssistDuration());
-#endif
-#ifndef ESP8266
-    ESP_LOGI(TAG, "   occupancyDuration:   %d", userConfig->getOccupancyDuration());
-    ESP_LOGI(TAG, "   enableIPv6:          %s", userConfig->getEnableIPv6() ? "true" : "false");
-    ESP_LOGI(TAG, "   homespanCLI:         %s", userConfig->getEnableHomeSpanCLI() ? "true" : "false");
-#endif
+    userConfig->toLog();
     ESP_LOGI(TAG, "RFC952 device hostname: %s", device_name_rfc952);
 
     // Only enable NTP client if not in soft AP mode.
