@@ -235,8 +235,6 @@ void load_all_config_settings()
         sntp_set_time_sync_notification_cb(time_is_set);
         sntp_set_sync_interval(SNTP_SYNC_INTERVAL);
 #endif
-        ESP_LOGI(TAG, "Timezone: %s", userConfig->getTimeZone());
-        ESP_LOGI(TAG, "NTP Server: %s", userConfig->getNTPServer());
         applyTimezoneWithNTP(userConfig->getNTPServer());
     }
 }

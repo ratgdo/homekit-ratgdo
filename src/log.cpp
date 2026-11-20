@@ -629,6 +629,12 @@ void logToSyslog(char *message)
     if (!syslogEn || !WiFi.isConnected())
         return;
 
+    static bool syslogStarted = false;
+    if (!syslogStarted)
+    {
+        syslogStarted = true;
+        ESP_LOGI(TAG, "Syslog starting to server %s:%u", syslogIP, syslogPort);
+    }
     uint8_t PRI = syslogFacility * 8;
     if (*message == '>')
         PRI += SYSLOG_INFO;
