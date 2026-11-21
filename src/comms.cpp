@@ -81,12 +81,7 @@ static void configure_dry_contact_output(gpio_num_t pin)
     pinMode(pin, OUTPUT);
     digitalWrite(pin, LOW);
 }
-#endif // not USE_GDOLIB
 
-bool comms_setup_done = false;
-
-/********************************** LOCAL STORAGE *****************************************/
-#ifndef USE_GDOLIB
 struct __attribute__((aligned(4))) PacketAction
 {
     Packet pkt;
@@ -159,8 +154,6 @@ inline bool txQueuePop(PacketAction *pkt)
 // used by SEC+2.0
 SoftwareSerial sw_serial;
 
-#endif // not USE_GDOLIB
-
 // times in miliseconds
 #define SECPLUS1_DIGITAL_WALLPLATE_TIMEOUT 15000
 #define SECPLUS1_RX_MESSAGE_TIMEOUT 25
@@ -176,7 +169,6 @@ SoftwareSerial sw_serial;
 bool comms_status_done = false;
 static _millis_t comms_status_start = 0;
 static _millis_t tx_minimum_delay = SECPLUS2_TX_MINIMUM_DELAY;
-door_control_type_t doorControlType = DOOR_CONTROL_UNKNOWN;
 
 // Wall panel sends GDO GetOpenings/GetBattery approx every 22hrs 55mins.
 // That seems an awful long time, how about we do it every 55 minutes?
@@ -197,6 +189,11 @@ static bool doingPartial = false;
                             : (s == 0x06) ? "stopped" \
                                           : "Unknown"
 
+#endif // not USE_GDOLIB
+
+bool comms_setup_done = false;
+door_control_type_t doorControlType = DOOR_CONTROL_UNKNOWN;
+
 // For Time-to-close control
 static const uint32_t TTCinterval = 250;
 static uint32_t TTCiterations = 0;
@@ -205,7 +202,7 @@ static Ticker TTCtimer = Ticker();
 static Ticker callbackDelay = Ticker();
 static Ticker checkDoorMoving = Ticker();
 static Ticker checkDoorCompleted = Ticker();
-bool TTCwasLightOn = false;
+static bool TTCwasLightOn = false;
 static Ticker builtInTTCcountdown = Ticker();
 static Ticker openPartialDelay = Ticker();
 
@@ -634,7 +631,7 @@ static void gdo_event_handler(const gdo_status_t *status, gdo_cb_event_t event, 
 /****************************************************************************
  * Initialize communications with garage door.
  */
-
+#ifndef USE_GDOLIB
 void initialize_gdo_codes(uint32_t id)
 {
     if (doorControlType != DOOR_CONTROL_SEC_PLUS_V2)
@@ -665,6 +662,7 @@ void initialize_gdo_codes(uint32_t id)
     send_get_status();
     send_get_version();
 }
+#endif // USE_GDOLIB
 
 void setup_comms()
 {
@@ -748,11 +746,11 @@ void setup_comms()
             .uart_tx_pin = UART_TX_PIN,
             .uart_rx_pin = UART_RX_PIN,
             .obst_in_pin = INPUT_OBST_PIN,
-            .obst_tp_pin = GPIO_NUM_0,  // only used for testing obstruction sensor
-            .dc_open_pin = GPIO_NUM_0,  // disable dry-contact
-            .dc_close_pin = GPIO_NUM_0, // disable dry-contact
-            .dc_discrete_open_pin = GPIO_NUM_0,
-            .dc_discrete_close_pin = GPIO_NUM_0,
+            .obst_tp_pin = GPIO_NUM_NC,  // only used for testing obstruction sensor
+            .dc_open_pin = GPIO_NUM_NC,  // disable dry-contact
+            .dc_close_pin = GPIO_NUM_NC, // disable dry-contact
+            .dc_discrete_open_pin = GPIO_NUM_NC,
+            .dc_discrete_close_pin = GPIO_NUM_NC,
             .use_sw_serial = userConfig->getUseSWserial(),
         };
         if (userConfig->getDCOpenClose())
@@ -817,7 +815,7 @@ void setup_comms()
             .uart_tx_pin = UART_TX_PIN,
             .uart_rx_pin = UART_RX_PIN, // not used for dry contact
             .obst_in_pin = INPUT_OBST_PIN,
-            .obst_tp_pin = GPIO_NUM_0, // only used for testing obstruction sensor
+            .obst_tp_pin = GPIO_NUM_NC, // only used for testing obstruction sensor
             .dc_open_pin = DRY_CONTACT_OPEN_PIN,
             .dc_close_pin = DRY_CONTACT_CLOSE_PIN,
             .dc_discrete_open_pin = DISCRETE_OPEN_PIN,
@@ -2393,7 +2391,8 @@ void comms_loop_drycontact()
         handle_protocol_door_state(doorState);
     }
 }
-#endif
+#endif // USE_GDOLIB
+
 void comms_loop()
 {
     if (!comms_setup_done)
@@ -2932,6 +2931,10 @@ GarageDoorCurrentState stop_door()
 
 GarageDoorCurrentState open_door_partial(int timePercentage)
 {
+#ifdef USE_GDOLIB
+    // TODO: Implement partial opening with GDOLIB.
+    return garage_door.current_state;
+#else
     _millis_t dtime = 0;
 
     if (timePercentage < 10)
@@ -3004,8 +3007,8 @@ GarageDoorCurrentState open_door_partial(int timePercentage)
                                         doingPartial = false;
                                         door_command(DoorAction::Stop); });
     }
-
     return garage_door.current_state;
+#endif // USE_GDOLIB
 }
 
 void TTCtimerFn(void (*callback)(), bool light, bool sound)

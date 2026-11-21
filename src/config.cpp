@@ -86,6 +86,9 @@ bool helperLightHomeKit(const std::string &key, const char *value, configSetting
 bool helperMotionHomeKit(const std::string &key, const char *value, configSetting *action);
 bool helperStopDoorHomeKit(const std::string &key, const char *value, configSetting *action);
 #endif
+#ifdef USE_GDOLIB
+bool helperUseSWserial(const std::string &key, const char *value, configSetting *action);
+#endif // USE_GDOLIB
 
 #ifdef ESP8266
 static inline bool isPROGMEM(const void *ptr)
@@ -163,7 +166,7 @@ static configSetting settings_defaults[] PROGMEM = {
     {cfg_TTCsound, false, false, true, NULL},
 #endif
 #ifdef USE_GDOLIB
-    {cfg_useSWserial, true, false, true, helperUseSWserial}, // call fn to shut down GDO before switch
+    {cfg_useSWserial, true, false, false, helperUseSWserial}, // call fn to shut down GDO before switch
 #endif
     {cfg_builtInTTC, false, false, 0, helperBuiltInTTC},
     {cfg_reverseOnStop, false, false, true, NULL},

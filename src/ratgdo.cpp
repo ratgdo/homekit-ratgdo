@@ -344,11 +344,13 @@ void loop()
         ESP_LOGI(TAG, "Free sys stack at boot:     %d", free_sys_stack_at_boot);
         ESP_LOGI(TAG, "Current minimum sys stack:  %d", free_sys_stack);
 #endif
+#ifndef USE_GDOLIB
         if (doorControlType == DOOR_CONTROL_SEC_PLUS_V2)
         {
             ESP_LOGI(TAG, "Our ID code %lu (0x%02lX)", id_code, id_code);
             ESP_LOGI(TAG, "Our rolling code %lu (0x%02X)", rolling_code, rolling_code);
         }
+#endif
         ESP_LOGI(TAG, "=== Initialization complete");
 #ifdef RATGDO32_DISCO
         // beep on completing startup.

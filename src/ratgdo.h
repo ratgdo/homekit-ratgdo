@@ -14,6 +14,10 @@
  */
 #pragma once
 
+#if defined(RATGDO_ENCODER) && defined(USE_GDOLIB) && (defined(RATGDO_ENCODER) == defined(USE_GDOLIB))
+#error "Only one of RATGDO_ENCODER or USE_GDOLIB may be defined."
+#endif
+
 #ifdef ESP32
 #define USE_HOMESPAN
 #endif
