@@ -743,6 +743,7 @@ void setup_comms()
             .uart_num = UART_NUM_1,
             .obst_from_status = userConfig->getObstFromStatus(),
             .invert_uart = true,
+            .obst_invert = true,
             .uart_tx_pin = UART_TX_PIN,
             .uart_rx_pin = UART_RX_PIN,
             .obst_in_pin = INPUT_OBST_PIN,
