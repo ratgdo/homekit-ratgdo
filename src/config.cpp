@@ -86,9 +86,6 @@ bool helperLightHomeKit(const std::string &key, const char *value, configSetting
 bool helperMotionHomeKit(const std::string &key, const char *value, configSetting *action);
 bool helperStopDoorHomeKit(const std::string &key, const char *value, configSetting *action);
 #endif
-#ifdef USE_GDOLIB
-bool helperUseSWserial(const std::string &key, const char *value, configSetting *action);
-#endif // USE_GDOLIB
 
 #ifdef ESP8266
 static inline bool isPROGMEM(const void *ptr)
@@ -164,9 +161,6 @@ static configSetting settings_defaults[] PROGMEM = {
     {cfg_laserOnDoorOpen, false, false, false, NULL},
     {cfg_assistDuration, false, false, 60, NULL},
     {cfg_TTCsound, false, false, true, NULL},
-#endif
-#ifdef USE_GDOLIB
-    {cfg_useSWserial, true, false, false, helperUseSWserial}, // call fn to shut down GDO before switch
 #endif
     {cfg_builtInTTC, false, false, 0, helperBuiltInTTC},
     {cfg_reverseOnStop, false, false, true, NULL},
@@ -459,16 +453,6 @@ bool helperLaser(const std::string &key, const char *value, configSetting *actio
 {
     userConfig->set(key, value);
     enable_service_homekit_laser(userConfig->getLaserEnabled() && userConfig->getLaserHomeKit());
-    return true;
-}
-#endif
-
-#ifdef USE_GDOLIB
-bool helperUseSWserial(const std::string &key, const char *value, configSetting *action)
-{
-    // We must shutdown the GDOLIB tasks before changing the useSWserial setting.
-    gdo_deinit();
-    userConfig->set(key, value);
     return true;
 }
 #endif

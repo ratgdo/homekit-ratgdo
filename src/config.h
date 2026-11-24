@@ -86,7 +86,6 @@ constexpr char cfg_dcOpenClose[] PROGMEM = "dcOpenClose";
 constexpr char cfg_dcBypassTTC[] PROGMEM = "dcBypassTTC";
 constexpr char cfg_useToggle[] PROGMEM = "useToggle";
 constexpr char cfg_dcDebounceDuration[] PROGMEM = "dcDebounceDuration";
-constexpr char cfg_useSWserial[] PROGMEM = "useSWserial";
 constexpr char cfg_obstFromStatus[] PROGMEM = "obstFromStatus";
 constexpr char cfg_builtInTTC[] PROGMEM = "builtInTTC";
 constexpr char cfg_reverseOnStop[] PROGMEM = "reverseOnStop";
@@ -238,7 +237,6 @@ public:
 #endif
 #ifndef ESP8266
     bool getStopDoorHomeKit() { return std::get<bool>(get(cfg_stopDoorHomeKit)); };
-    bool getUseSWserial() { return std::get<bool>(get(cfg_useSWserial)); };
     uint32_t getOccupancyDuration() { return std::get<int>(get(cfg_occupancyDuration)); };
     bool getEnableIPv6() { return std::get<bool>(get(cfg_enableIPv6)); };
     bool getEnableHomeSpanCLI() { return std::get<bool>(get(cfg_homespanCLI)); };

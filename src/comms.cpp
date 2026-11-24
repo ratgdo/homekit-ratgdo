@@ -752,7 +752,6 @@ void setup_comms()
             .dc_close_pin = GPIO_NUM_NC, // disable dry-contact
             .dc_discrete_open_pin = GPIO_NUM_NC,
             .dc_discrete_close_pin = GPIO_NUM_NC,
-            .use_sw_serial = userConfig->getUseSWserial(),
         };
         if (userConfig->getDCOpenClose())
         {

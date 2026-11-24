@@ -1052,9 +1052,6 @@ void build_status_json(char *json)
     JSON_ADD_BOOL(cfg_enableIPv6, userConfig->getEnableIPv6());
     JSON_ADD_STR("ipv6Addresses", ipv6_addresses);
     new_ipv6_address = false;
-#ifdef USE_GDOLIB
-    JSON_ADD_BOOL(cfg_useSWserial, userConfig->getUseSWserial());
-#endif
 #ifdef RATGDO32_DISCO
     JSON_ADD_BOOL("distanceSensor", garage_door.has_distance_sensor);
     if (garage_door.has_distance_sensor)

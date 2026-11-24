@@ -1,7 +1,7 @@
 /***********************************************************************
  * homekit-ratgdo web page javascript functions
  *
- * Copyright (c) 2023-25 David Kerr, https://github.com/dkerr64
+ * Copyright (c) 2023-26 David Kerr, https://github.com/dkerr64
  *
  */
 
@@ -144,10 +144,6 @@ function toggleSyslog() {
 
 function toggleDCOpenClose(radio) {
     let value = radio.value;
-    if (serverStatus["useSWserial"] != undefined) {
-        document.getElementById("useSWserialRow").style.display = "table-row";
-        document.getElementById("useSWserial").disabled = (value == 3);
-    }
     document.getElementById("dcOpenClose").disabled = (value == 3);
     document.getElementById("obstFromStatus").disabled = (value == 3);
     document.getElementById("useToggle").disabled = (value != 2);
@@ -409,10 +405,6 @@ function setElementsFromStatus(status) {
                 document.getElementById("doorButton").style.margin = (value != 3) ? "" : "auto"; // auto will center the button
                 document.getElementById("lightButton").style.display = (value != 3) ? "inline-block" : "none";
                 document.getElementById("lockLightRow").style.display = (value != 3) ? "table-row" : "none";
-                if (serverStatus["useSWserial"] != undefined) {
-                    document.getElementById("useSWserialRow").style.display = "table-row";
-                    document.getElementById("useSWserial").disabled = (value == 3);
-                }
                 document.getElementById("dcOpenClose").disabled = (value == 3);
                 document.getElementById("obstFromStatus").disabled = (value == 3);
                 document.getElementById("useToggle").disabled = (value != 2);
@@ -536,7 +528,6 @@ function setElementsFromStatus(status) {
             case "laserHomeKit":
             case "laserOnDoorOpen":
             case "useToggle":
-            case "useSWserial":
             case "obstFromStatus":
             case "reverseOnStop":
                 document.getElementById(key).checked = value;
@@ -1489,7 +1480,6 @@ async function saveSettings() {
     const dcOpenClose = (document.getElementById("dcOpenClose").checked) ? '1' : '0';
     const dcBypassTTC = (document.getElementById("dcBypassTTC").checked) ? '1' : '0';
     const useToggle = (document.getElementById("useToggle").checked) ? '1' : '0';
-    const useSWserial = (document.getElementById("useSWserial").checked) ? '1' : '0';
     const obstFromStatus = (document.getElementById("obstFromStatus").checked) ? '1' : '0';
     const reverseOnStop = (document.getElementById("reverseOnStop").checked) ? '1' : '0';
     // Encoder settings — only present in dry contact mode on ESP32 firmware
@@ -1584,7 +1574,6 @@ async function saveSettings() {
         "syslogPort", syslogPort,
         "syslogFacility", syslogFacility,
         "logLevel", logLevel,
-        "useSWserial", useSWserial,
         "obstFromStatus", obstFromStatus,
         "reverseOnStop", reverseOnStop,
         "dcDebounceDuration", dcDebounceDuration,
