@@ -315,9 +315,8 @@ static bool get_obstruction_from_status = false;
 
 struct obstruction_sensor_t
 {
-    uint32_t low_count = 0;        // count obstruction low pulses
-    _millis_t last_asleep = 0;     // count time between high pulses from the obst ISR
-    bool pin_ever_changed = false; // track if pin has ever changed from initial stat
+    uint32_t low_count = 0;    // count obstruction low pulses
+    _millis_t last_asleep = 0; // count time between high pulses from the obst ISR
 } obstruction_sensor;
 
 void IRAM_ATTR isr_obstruction()
@@ -3620,12 +3619,11 @@ void obstruction_timer()
         // check to see if we got more then PULSES_LOWER_LIMIT pulses
         if (pulse_count > PULSES_LOWER_LIMIT)
         {
-            // We're getting pulses, so pin detection is working
-            obstruction_sensor.pin_ever_changed = true;
             if (!garage_door.pinModeObstructionSensor)
             {
+                // Switch to pin-based obstruction detection on multiple pulses.
                 garage_door.pinModeObstructionSensor = true;
-                ESP_LOGI(TAG, "Pin-based obstruction detection active");
+                ESP_LOGI(TAG, "Pin-based obstruction detection active (%u pulses)", pulse_count);
             }
 
             // Only update if we are changing state
@@ -3647,9 +3645,13 @@ void obstruction_timer()
             if (digitalRead(INPUT_OBST_PIN))
 #endif
             {
-                // likely asleep
+                if (!garage_door.pinModeObstructionSensor)
+                {
+                    // Switch to pin-based obstruction detection on a change in the pin level.
+                    garage_door.pinModeObstructionSensor = true;
+                    ESP_LOGI(TAG, "Pin-based obstruction detection active (%u pulses)", pulse_count);
+                }
                 obstruction_sensor.last_asleep = current_millis;
-                obstruction_sensor.pin_ever_changed = true;
             }
             else
             {
@@ -3657,11 +3659,8 @@ void obstruction_timer()
                 if ((uint32_t)(current_millis - obstruction_sensor.last_asleep) > 700)
                 {
                     // Don't trust a HIGH pin that has never changed - likely floating/stuck
-                    if (!obstruction_sensor.pin_ever_changed)
-                    {
-                        // Pin has been HIGH since boot, probably no sensor connected
+                    if (!garage_door.pinModeObstructionSensor)
                         return;
-                    }
 
                     // Only update if we are changing state
                     if (!garage_door.obstructed)
